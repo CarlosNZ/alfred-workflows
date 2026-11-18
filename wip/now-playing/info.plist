@@ -8,6 +8,19 @@
 	<string>My Workflows</string>
 	<key>connections</key>
 	<dict>
+		<key>55D50058-6A5F-470C-B1C2-3C2240C70C07</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>8598BC07-07DE-4871-9FF4-ABAC76B6AA28</key>
 		<array>
 			<dict>
@@ -48,23 +61,51 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
 				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>escaping</key>
 				<integer>0</integer>
 				<key>keyword</key>
 				<string>nowplaying</string>
-				<key>subtext</key>
-				<string></string>
-				<key>text</key>
-				<string>Now Playing</string>
-				<key>withspace</key>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
+				<key>queuedelayimmediatelyinitially</key>
 				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string></string>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>nowplaying.alfredui/scripts/results.sh</string>
+				<key>subtext</key>
+				<string>Show the current track</string>
+				<key>title</key>
+				<string>Now Playing</string>
+				<key>type</key>
+				<integer>8</integer>
+				<key>withspace</key>
+				<false/>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
+			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
 			<string>A56A3D5E-6F44-4256-AAA7-624A41B436AD</string>
 			<key>version</key>
-			<integer>1</integer>
+			<integer>3</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -82,6 +123,55 @@
 			<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
 			<key>version</key>
 			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>np</string>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string></string>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>nowplaying.alfredui/scripts/results.sh</string>
+				<key>subtext</key>
+				<string>Show the current track</string>
+				<key>title</key>
+				<string>Now Playing</string>
+				<key>type</key>
+				<integer>8</integer>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>55D50058-6A5F-470C-B1C2-3C2240C70C07</string>
+			<key>version</key>
+			<integer>3</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -119,12 +209,19 @@
 	<string></string>
 	<key>uidata</key>
 	<dict>
+		<key>55D50058-6A5F-470C-B1C2-3C2240C70C07</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>230</real>
+		</dict>
 		<key>8598BC07-07DE-4871-9FF4-ABAC76B6AA28</key>
 		<dict>
 			<key>xpos</key>
-			<real>85</real>
+			<real>40</real>
 			<key>ypos</key>
-			<real>260</real>
+			<real>355</real>
 		</dict>
 		<key>A56A3D5E-6F44-4256-AAA7-624A41B436AD</key>
 		<dict>
