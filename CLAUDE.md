@@ -4,7 +4,7 @@ Alfred 6 workflows. See README.md for the layout, the `bin/wf` commands and the 
 
 ## Edits are live
 
-Linked workflows are symlinked into Alfred's workflows directory (which syncs via Dropbox), so any change to a file under `published/` or `wip/` takes effect in Alfred immediately. Don't leave a workflow half-edited or broken, and don't create scratch files inside workflow folders.
+Linked workflows are symlinked into Alfred's workflows directory (which syncs via Dropbox), so any change to a file under `wip/`, `release/` or `gallery/` takes effect in Alfred immediately. Don't leave a workflow half-edited or broken, and don't create scratch files inside workflow folders.
 
 Never touch Alfred's workflows directory directly; go through `bin/wf`. To test `wf` itself, point it at a scratch copy: `ALFRED_WORKFLOWS_DIR=<scratch dir> bin/wf …`, running against a copy of the repo too.
 
@@ -26,7 +26,7 @@ Alfred's workflow editor also writes `info.plist`, so keep edits to it minimal a
 
 ## Versioning
 
-Don't edit `version` in `info.plist` by hand; `bin/wf release <slug> <version>` sets it, commits and tags `<slug>/v<version>`, so only run it when asked. Never change the `bundleid` of anything in `published/`.
+Don't edit `version` in `info.plist` by hand; `bin/wf release <slug> <version>` sets it, commits and tags `<slug>/v<version>`, so only run it when asked. Never change the `bundleid` of anything in `release/` or `gallery/`. Only run `wf promote` when asked; moving tiers reflects what has happened publicly.
 
 ## Git
 

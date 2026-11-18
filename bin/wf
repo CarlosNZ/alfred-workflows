@@ -6,7 +6,8 @@ emulate -L zsh
 setopt err_return pipe_fail no_unset
 
 REPO=${0:A:h:h}
-AREAS=(published wip)
+# Tiers, highest first. A workflow moves up one tier at a time with `wf promote`.
+AREAS=(gallery release wip)
 PLIST_TOOL=(python3 -I "$REPO/bin/lib/plisttool.py")
 
 die()  { print -u2 -r -- "wf: $*"; exit 1 }
@@ -127,21 +128,35 @@ cmd_adopt() {
   info "Adopted '$(plist_get $dest/info.plist name)' into wip/$slug (Alfred folder ${src:t} is now a link)"
 }
 
+# Move a workflow up one tier (wip -> release -> gallery) and repoint its links.
+# Leaving wip requires a tagged release of the current version.
 cmd_promote() {
   (( $# == 1 )) || die "usage: wf promote <slug>"
-  local slug=$1 src=$REPO/wip/$1 dest=$REPO/published/$1 l
+  local slug=$1 src from to dest ver l
   local -a links
-  [[ -d $src ]] || die "no workflow '$slug' in wip/"
-  [[ -e $dest ]] && die "published/$slug already exists"
+  src=$(wf_path $slug)
+  from=${src:h:t}
+  case $from in
+    wip)     to=release ;;
+    release) to=gallery ;;
+    *)       die "$slug is already in gallery/" ;;
+  esac
+  if [[ $from == wip ]]; then
+    ver=$(plist_get $src/info.plist version)
+    [[ -n $ver ]] && git -C $REPO rev-parse -q --verify refs/tags/$slug/v$ver >/dev/null ||
+      die "$slug has no tagged release yet; run 'wf release $slug <version>' first"
+  fi
+  dest=$REPO/$to/$slug
+  [[ -e $dest ]] && die "$to/$slug already exists"
   links_to $src; links=($reply)
-  mkdir -p $REPO/published
-  if [[ -n $(git -C $REPO ls-files -- wip/$slug) ]]; then
-    git -C $REPO mv wip/$slug published/$slug
+  mkdir -p $REPO/$to
+  if [[ -n $(git -C $REPO ls-files -- $from/$slug) ]]; then
+    git -C $REPO mv $from/$slug $to/$slug
   else
     mv $src $dest
   fi
   for l in $links; do rm $l; ln -s $dest $l; done
-  info "Promoted $slug to published/ (${#links} link(s) updated)"
+  info "Promoted $slug from $from/ to $to/ (${#links} link(s) updated)"
 }
 
 # Files that ship: everything git tracks or would track in the workflow folder
@@ -218,8 +233,8 @@ cmd_release() {
   fi
   git -C $REPO tag -a $tag -m "$slug v$ver"
   cmd_build $slug
-  info "Tagged $tag. Upload dist/$slug-$ver.alfredworkflow to the Gallery."
-  [[ $rel == wip/* ]] && info "Once it is live, run: wf promote $slug"
+  info "Tagged $tag; dist/$slug-$ver.alfredworkflow is ready to post."
+  [[ $rel == wip/* ]] && info "Once it is posted on the forum, run: wf promote $slug"
   return 0
 }
 
@@ -236,7 +251,7 @@ Usage: wf <command> [args]
   adopt <name|folder> <slug>  Move a workflow made in Alfred into wip/<slug> and link it back
   link <slug>                 Symlink a repo workflow into Alfred
   unlink <slug>               Remove a workflow's symlink from Alfred (repo copy is untouched)
-  promote <slug>              Move wip/<slug> to published/<slug> and repoint its link
+  promote <slug>              Move a workflow up a tier (wip -> release -> gallery) and repoint its link
   build <slug>                Build dist/<slug>-<version>.alfredworkflow at the current version
   release <slug> <version>    Set the version, commit, tag <slug>/v<version>, and build
   setup                       Enable the repo's git hooks (run once per clone)

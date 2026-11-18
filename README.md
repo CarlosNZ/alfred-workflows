@@ -5,13 +5,16 @@ Carl's workflows for [Alfred](https://www.alfredapp.com).
 ## Layout
 
 ```
-published/<slug>/   workflows released on the Alfred Gallery
 wip/<slug>/         in progress, experiments, may never ship
+release/<slug>/     released with a version and posted on the Alfred forum
+gallery/<slug>/     accepted into the Alfred Gallery
 bin/wf              helper for linking, releasing and building
 dist/               built .alfredworkflow files (not committed)
 ```
 
 Each `<slug>/` folder is the workflow itself, exactly as Alfred sees it (`info.plist` at the root). Workflows are self-contained and don't share code with each other.
+
+The three tiers are structured and linked identically; the tier records where a workflow is in its public life. A workflow moves up one tier at a time with `wf promote`, and only workflows with a tagged release can leave `wip/`. Workflows in `release/` and `gallery/` have users, so their bundle IDs must never change.
 
 ## Development
 
@@ -26,7 +29,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
 | `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` and build it |
 | `wf build <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version |
-| `wf promote <slug>` | Move a workflow from `wip/` to `published/` once it's live on the Gallery |
+| `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
 
 To start a new workflow, create it in Alfred, then `wf adopt` it.
 
@@ -40,9 +43,11 @@ A build contains the files git tracks or would track in the workflow folder, min
 - **Environment variables**: values are stored in `info.plist` itself, even when "Don't Export" is ticked, so they would be committed. The pre-commit hook blocks any commit where a "Don't Export" variable has a value, and also blocks any `prefs.plist`.
 - **Runtime data**: scripts should write caches and data to `$alfred_workflow_data` / `$alfred_workflow_cache`, which are outside the workflow folder, never into the workflow folder itself.
 
-## Releasing to the Gallery
+## Releasing
 
 1. Commit all changes to the workflow.
 2. `bin/wf release <slug> <version>`. This locks the version with a git tag and writes the `.alfredworkflow` to `dist/`.
-3. Submit it to the Gallery.
-4. Once it's live, `bin/wf promote <slug>` if it was in `wip/`.
+3. Post it on the Alfred forum. For a first release, then run `bin/wf promote <slug>` to move it from `wip/` to `release/`.
+4. Submit it to the Gallery. Once it's accepted, run `bin/wf promote <slug>` to move it to `gallery/`.
+
+New versions of a workflow already in `release/` or `gallery/` follow steps 1–2 and are posted or submitted as updates; the workflow stays in its tier.
