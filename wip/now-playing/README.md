@@ -37,6 +37,8 @@ Recent macOS versions only let entitled processes use the private MediaRemote fr
 
 `vendor.sh` rebuilds it: it clones the adapter (default `master`, or pass a tag/branch, e.g. `./vendor.sh v0.5.0`), builds it with cmake, replaces `vendor/`, and runs the adapter's `test` command. It needs Xcode command line tools, cmake and git, at build time only. Prefer passing a tag so rebuilds are reproducible; `vendor/VERSION` records what was built.
 
+The build targets macOS 12.0, Alfred 6's minimum (override with `MIN_MACOS=…`). Without an explicit target cmake uses the build machine's macOS version, and the framework then refuses to load on any older macOS. `vendor.sh` checks the built framework's minimum version (`otool -l`, the `minos` field) and stops before replacing `vendor/` if it doesn't match. Compiler availability warnings in the build output point at APIs newer than the target. The `test` command only proves the adapter works on the Mac that built it; test on an older macOS (e.g. in a VM) before relying on the target.
+
 Other runtime requirements ship with macOS: `/usr/bin/perl`, `/usr/bin/jq`, `osascript`. `lib.sh` sets `PATH` to the system directories only.
 
 Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adapter's full usage. Besides `get` and `send` it has `stream`, which emits changes as they happen and could replace the one-second polling.
