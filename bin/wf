@@ -217,6 +217,22 @@ cmd_build() {
   info "Built dist/${out:t}"
 }
 
+# Push a release tag to origin. A failed push leaves the local release intact,
+# so it only warns.
+push_tag() {
+  local tag=$1
+  if ! git -C $REPO remote get-url origin >/dev/null 2>&1; then
+    info "No 'origin' remote; tag $tag not pushed"
+    return 0
+  fi
+  if git -C $REPO push -q origin refs/tags/$tag; then
+    info "Pushed tag $tag to origin"
+  else
+    info "Warning: could not push tag $tag; retry with: git push origin $tag"
+  fi
+  return 0
+}
+
 cmd_release() {
   (( $# == 2 )) || die "usage: wf release <slug> <version>"
   local slug=$1 ver=$2 d rel tag
@@ -236,6 +252,7 @@ cmd_release() {
   git -C $REPO tag -a $tag -m "$slug v$ver"
   cmd_build $slug
   info "Tagged $tag; dist/$slug-$ver.alfredworkflow is ready to post."
+  push_tag $tag
   [[ $rel == wip/* ]] && info "Once it is posted on the forum, run: wf promote $slug"
   return 0
 }

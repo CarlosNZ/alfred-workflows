@@ -29,7 +29,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf status` | List workflows, their versions and whether Alfred has them linked |
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
-| `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` and build it |
+| `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), and build it |
 | `wf build <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
 
@@ -50,7 +50,7 @@ A build contains the files git tracks or would track in the workflow folder, min
 ## Releasing
 
 1. Commit all changes to the workflow.
-2. `bin/wf release <slug> <version>`. This locks the version with a git tag and writes the `.alfredworkflow` to `dist/`.
+2. `bin/wf release <slug> <version>`. This locks the version with a git tag, pushes the tag to `origin`, and writes the `.alfredworkflow` to `dist/`. The branch itself isn't pushed.
 3. Post it on the Alfred forum. For a first release, then run `bin/wf promote <slug>` to move it from `wip/` to `release/`.
 4. Submit it to the Gallery. Once it's accepted, run `bin/wf promote <slug>` to move it to `gallery/`.
 
