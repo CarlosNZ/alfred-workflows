@@ -320,6 +320,8 @@ echo "$linecount lines | $charcount characters"</string>
 			<real>440</real>
 		</dict>
 	</dict>
+	<key>version</key>
+	<string>0.9.0</string>
 	<key>webaddress</key>
 	<string>http://geekzone.philosophicalzombie.net</string>
 </dict>
