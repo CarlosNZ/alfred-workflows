@@ -1,0 +1,27 @@
+#!/bin/zsh
+# Blocks commits that would publish personal workflow settings:
+#  - any prefs.plist (Alfred's saved User Configuration values)
+#  - info.plist files where a "Don't Export" variable has a value
+
+emulate -L zsh
+setopt pipe_fail
+
+repo=$(git rev-parse --show-toplevel)
+failed=0
+
+git diff --cached --name-only --diff-filter=ACMR -z | while IFS= read -r -d '' f; do
+  case ${f:t} in
+    prefs.plist)
+      print -u2 -r -- "$f: prefs.plist holds personal settings and must not be committed"
+      failed=1
+      ;;
+    info.plist)
+      git show ":$f" | python3 -I "$repo/bin/lib/plisttool.py" check "$f" >&2 || failed=1
+      ;;
+  esac
+done
+
+if (( failed )); then
+  print -u2 -- "\nCommit blocked. Move secrets into the workflow's User Configuration, or clear the values."
+  exit 1
+fi

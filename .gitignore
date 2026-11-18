@@ -1,0 +1,7 @@
+.DS_Store
+
+# Alfred's saved User Configuration values (API keys, personal settings)
+prefs.plist
+
+# Build output from `bin/wf build`
+/dist/

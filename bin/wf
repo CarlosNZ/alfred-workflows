@@ -1,0 +1,251 @@
+#!/bin/zsh
+# wf: manage the Alfred workflows in this repo and their links into Alfred.
+# Run `wf help` for usage.
+
+emulate -L zsh
+setopt err_return pipe_fail no_unset
+
+REPO=${0:A:h:h}
+AREAS=(published wip)
+PLIST_TOOL=(python3 -I "$REPO/bin/lib/plisttool.py")
+
+die()  { print -u2 -r -- "wf: $*"; exit 1 }
+info() { print -r -- "$*" }
+
+# Alfred's workflows directory: $ALFRED_WORKFLOWS_DIR if set, else the synced
+# preferences folder if one is configured, else the default location.
+alfred_dir() {
+  if [[ -n ${ALFRED_WORKFLOWS_DIR:-} ]]; then
+    print -r -- $ALFRED_WORKFLOWS_DIR
+    return
+  fi
+  local sync
+  sync=$(defaults read com.runningwithcrayons.Alfred-Preferences syncfolder 2>/dev/null) || sync=
+  if [[ -n $sync ]]; then
+    print -r -- "${sync/#\~/$HOME}/Alfred.alfredpreferences/workflows"
+  else
+    print -r -- "$HOME/Library/Application Support/Alfred/Alfred.alfredpreferences/workflows"
+  fi
+}
+
+plist_get() { plutil -extract $2 raw -o - $1 2>/dev/null || true }
+
+# Path of a workflow in the repo, by slug.
+wf_path() {
+  local slug=$1 area
+  for area in $AREAS; do
+    [[ -f $REPO/$area/$slug/info.plist ]] && { print -r -- $REPO/$area/$slug; return }
+  done
+  die "no workflow '$slug' in ${(j:/ or :)AREAS}/"
+}
+
+# Sets $reply to the symlinks in Alfred's directory that resolve to $1.
+links_to() {
+  local target=${1:A} l
+  reply=()
+  for l in $(alfred_dir)/*(N@); do
+    [[ ${l:A} == $target ]] && reply+=($l)
+  done
+  return 0
+}
+
+cmd_status() {
+  local ad=$(alfred_dir) area d l linked
+  local fmt='%-10s %-20s %-26s %-9s %s\n'
+  info "Alfred workflows dir: $ad"
+  info
+  printf $fmt AREA SLUG NAME VERSION LINKED
+  for area in $AREAS; do
+    for d in $REPO/$area/*(N/); do
+      [[ -f $d/info.plist ]] || continue
+      links_to $d
+      if (( $#reply )); then linked=yes; else linked=no; fi
+      printf $fmt $area ${d:t} "$(plist_get $d/info.plist name)" \
+        "${$(plist_get $d/info.plist version):--}" $linked
+    done
+  done
+  for l in $ad/*(N@); do
+    if [[ $(readlink $l) == $REPO/* && ! -e $l ]]; then
+      info
+      info "Broken link: ${l:t} -> $(readlink $l)"
+    fi
+  done
+}
+
+cmd_link() {
+  (( $# == 1 )) || die "usage: wf link <slug>"
+  local slug=$1 d ad bid other dest
+  d=$(wf_path $slug)
+  ad=$(alfred_dir)
+  links_to $d
+  (( $#reply )) && { info "$slug is already linked: ${reply[1]:t}"; return }
+  bid=$(plist_get $d/info.plist bundleid)
+  if [[ -n $bid ]]; then
+    for other in $ad/*(N/); do
+      [[ $(plist_get $other/info.plist bundleid) == $bid ]] &&
+        die "Alfred already has a workflow with bundle ID $bid (${other:t}). Remove it first, or use 'wf adopt'."
+    done
+  fi
+  dest=$ad/user.workflow.$slug
+  [[ -e $dest || -L $dest ]] && die "$dest already exists"
+  ln -s $d $dest
+  info "Linked $slug -> ${dest:t}"
+}
+
+cmd_unlink() {
+  (( $# == 1 )) || die "usage: wf unlink <slug>"
+  local d l
+  d=$(wf_path $1)
+  links_to $d
+  (( $#reply )) || { info "$1 is not linked"; return }
+  for l in $reply; do rm $l; info "Removed link ${l:t}"; done
+}
+
+# Move a workflow out of Alfred's directory into wip/<slug>, leaving a symlink
+# in its place so Alfred keeps loading it.
+cmd_adopt() {
+  (( $# == 2 )) || die "usage: wf adopt <workflow name or Alfred folder> <slug>"
+  local query=$1 slug=$2 ad src dest d
+  local -a matches
+  ad=$(alfred_dir)
+  [[ $slug =~ '^[a-z0-9][a-z0-9-]*$' ]] || die "slug must be lowercase letters, digits and hyphens"
+  if [[ -d $ad/$query ]]; then
+    matches=($ad/$query)
+  else
+    for d in $ad/*(N/); do
+      [[ ${(L)$(plist_get $d/info.plist name)} == ${(L)query} ]] && matches+=($d)
+    done
+  fi
+  (( $#matches == 1 )) || die "expected one workflow matching '$query', found $#matches"
+  src=$matches[1]
+  [[ -L $src ]] && die "${src:t} is already a symlink (to $(readlink $src))"
+  for d in $AREAS; do [[ -e $REPO/$d/$slug ]] && die "$d/$slug already exists"; done
+  dest=$REPO/wip/$slug
+  mkdir -p $REPO/wip
+  mv $src $dest
+  ln -s $dest $src
+  info "Adopted '$(plist_get $dest/info.plist name)' into wip/$slug (Alfred folder ${src:t} is now a link)"
+}
+
+cmd_promote() {
+  (( $# == 1 )) || die "usage: wf promote <slug>"
+  local slug=$1 src=$REPO/wip/$1 dest=$REPO/published/$1 l
+  local -a links
+  [[ -d $src ]] || die "no workflow '$slug' in wip/"
+  [[ -e $dest ]] && die "published/$slug already exists"
+  links_to $src; links=($reply)
+  mkdir -p $REPO/published
+  if [[ -n $(git -C $REPO ls-files -- wip/$slug) ]]; then
+    git -C $REPO mv wip/$slug published/$slug
+  else
+    mv $src $dest
+  fi
+  for l in $links; do rm $l; ln -s $dest $l; done
+  info "Promoted $slug to published/ (${#links} link(s) updated)"
+}
+
+# Files that ship: everything git tracks or would track in the workflow folder
+# (so .gitignore rules apply), minus patterns listed in the workflow's .wfignore.
+ship_files() {
+  local d=$1 f pat
+  local -a ignore
+  [[ -f $d/.wfignore ]] && ignore=(${(f)"$(grep -v -E '^\s*(#|$)' $d/.wfignore)"})
+  ignore+=(.wfignore)
+  git -C $d ls-files -z --cached --others --exclude-standard -- . | while IFS= read -r -d '' f; do
+    [[ -e $d/$f ]] || continue
+    for pat in $ignore; do
+      [[ $f == ${~pat} || $f == ${~pat}/* ]] && continue 2
+    done
+    print -r -- $f
+  done
+}
+
+# Warn when the workflow differs from what was tagged as <slug>/v<version>, so a
+# build is never mistaken for the released version. The tagged copy may be in
+# either area, since promote moves workflows after release.
+warn_if_not_release() {
+  local slug=$1 d=$2 ver=$3 tag=$1/v$3 rel=${2#$REPO/} area tagged=
+  if ! git -C $REPO rev-parse -q --verify refs/tags/$tag >/dev/null; then
+    info "Warning: there is no $tag tag, so this build is not a tagged release"
+    return 0
+  fi
+  for area in $AREAS; do
+    git -C $REPO rev-parse -q --verify "$tag:$area/$slug" >/dev/null && tagged=$area/$slug
+  done
+  if [[ -n $(git -C $REPO status --porcelain -- $rel) ]] ||
+     ! git -C $REPO diff --quiet "$tag:$tagged" "HEAD:$rel" 2>/dev/null; then
+    info "Warning: $slug has changed since $tag, so this build is not the released v$ver"
+  fi
+  return 0
+}
+
+cmd_build() {
+  (( $# == 1 )) || die "usage: wf build <slug>"
+  local slug=$1 d ver stage out f
+  d=$(wf_path $slug)
+  ver=$(plist_get $d/info.plist version)
+  [[ -n $ver ]] || die "$slug has no version set (use 'wf release $slug <version>')"
+  warn_if_not_release $slug $d $ver
+  stage=$(mktemp -d)
+  trap "rm -rf ${(q)stage}" EXIT
+  ship_files $d | while IFS= read -r f; do
+    mkdir -p $stage/${f:h}
+    cp -pP $d/$f $stage/$f
+  done
+  [[ -f $stage/info.plist ]] || die "info.plist is not part of the build (is it gitignored?)"
+  $PLIST_TOOL strip $stage/info.plist
+  mkdir -p $REPO/dist
+  out=$REPO/dist/$slug-$ver.alfredworkflow
+  rm -f $out
+  (cd $stage && zip -q -r -X -y $out .)
+  info "Built dist/${out:t}"
+}
+
+cmd_release() {
+  (( $# == 2 )) || die "usage: wf release <slug> <version>"
+  local slug=$1 ver=$2 d rel tag
+  d=$(wf_path $slug)
+  rel=${d#$REPO/}
+  [[ $ver =~ '^[0-9]+(\.[0-9]+){1,2}$' ]] || die "version must look like 1.2 or 1.2.3"
+  tag=$slug/v$ver
+  git -C $REPO rev-parse -q --verify refs/tags/$tag >/dev/null && die "tag $tag already exists"
+  [[ -z $(git -C $REPO status --porcelain -- $rel) ]] ||
+    die "$rel has uncommitted changes; commit them first so the release matches the repo"
+  plutil -replace version -string $ver $d/info.plist
+  if [[ -n $(git -C $REPO status --porcelain -- $rel/info.plist) ]]; then
+    git -C $REPO add -- $rel/info.plist
+    git -C $REPO commit -q -m "$slug: release v$ver" -- $rel/info.plist
+  fi
+  git -C $REPO tag -a $tag -m "$slug v$ver"
+  cmd_build $slug
+  info "Tagged $tag. Upload dist/$slug-$ver.alfredworkflow to the Gallery."
+  [[ $rel == wip/* ]] && info "Once it is live, run: wf promote $slug"
+  return 0
+}
+
+cmd_setup() {
+  git -C $REPO config core.hooksPath .githooks
+  info "Git hooks enabled (core.hooksPath = .githooks)"
+}
+
+cmd_help() {
+  cat <<'EOF'
+Usage: wf <command> [args]
+
+  status                      List workflows, versions and whether Alfred has them linked
+  adopt <name|folder> <slug>  Move a workflow made in Alfred into wip/<slug> and link it back
+  link <slug>                 Symlink a repo workflow into Alfred
+  unlink <slug>               Remove a workflow's symlink from Alfred (repo copy is untouched)
+  promote <slug>              Move wip/<slug> to published/<slug> and repoint its link
+  build <slug>                Build dist/<slug>-<version>.alfredworkflow at the current version
+  release <slug> <version>    Set the version, commit, tag <slug>/v<version>, and build
+  setup                       Enable the repo's git hooks (run once per clone)
+
+Set ALFRED_WORKFLOWS_DIR to point at a different Alfred workflows directory.
+EOF
+}
+
+(( $# )) || { cmd_help; exit 0 }
+cmd=$1; shift
+(( $+functions[cmd_$cmd] )) || die "unknown command '$cmd' (see 'wf help')"
+cmd_$cmd "$@"
