@@ -1,16 +1,17 @@
 # Now Playing
 
-Developer notes. A small Alfred 6 panel showing the current track (artwork, title, artist, album) with playback and volume controls.
+Developer notes. A small Alfred 6 panel showing the current track (artwork, title, artist, album, playing app, elapsed time) with playback and volume controls.
 
 ## How it works
 
 The `nowplaying` keyword and the ⌃N hotkey both open an Alfred UI object, which loads the `nowplaying.alfredui` bundle:
 
-- `ui.json` defines the window (340×480, not resizeable): an artwork image view in the centre, then title/artist/album labels and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `art`, `title`, `artist`, `album`, `playpause`.
-- The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`).
-- `scripts/poll.sh` reads the player state through the vendored adapter and prints a JSON `{update: {ids: {…}}}` object that sets each component's text or image.
+- `ui.json` defines the window (340×540, not resizeable): the playing app's icon and name across the top, an artwork image view in the centre, then title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
+- The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
+- `scripts/poll.sh` reads the player state through the vendored adapter and prints a JSON `{update: {ids: {…}}}` object that sets each component's text, image, progress or visibility.
 - Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `volup`, `voldown`). Playback actions send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). Volume changes the system output volume via `osascript`, 6 steps on the 0–100 scale. It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse.
-- `scripts/lib.sh` is sourced by both scripts: it locates the bundle, defines `adapter` (runs the vendored adapter), `adapter_installed`, and `show_message` (puts a status message and SF Symbol in the panel instead of a track).
+- `scripts/lib.sh` is sourced by both scripts: it locates the bundle, defines `adapter` (runs the vendored adapter), `adapter_installed`, `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
+- `scripts/apppath.js` (JXA) turns a bundle ID into an app path with `NSWorkspace`.
 
 ### Status messages
 
@@ -25,6 +26,18 @@ The `nowplaying` keyword and the ⌃N hotkey both open an Alfred UI object, whic
 ### Artwork
 
 Fetching artwork is expensive (`get` returns it base64-encoded), so each pulse calls `get --no-artwork` and only does the full call when there is no cached artwork for the current track. Artwork is cached as `art-<hash>.<ext>` in `$alfred_workflow_cache`, keyed on a hash of player bundle ID, title, artist and album, so the image view never shows a stale image. The previous track's file is deleted when a new one is written. Artwork often arrives a moment after the track metadata, so a missing image is retried on every pulse until it appears.
+
+### Playing app
+
+`get` returns the player's `bundleIdentifier`. `poll.sh` resolves it to an app path with `apppath.js` and caches the result per bundle ID as `app-<bundle id>` in the cache folder (an empty file means no app was found), so the lookup only runs for a new player. The cache is never refreshed, so clear it if an app is installed or moved while the cache exists. The icon is an image view with `type: "fileicon"` and the app path as `src`; the name is the app bundle's file name without `.app`. Both are hidden when there's no bundle ID or app. Media playing in a browser shows the browser, not the site.
+
+### Time and progress
+
+`poll.sh` calls `get --no-artwork --now`, which adds `elapsedTimeNow`, the adapter's estimate of the current position (up to a second off). The position is clamped to 0…`duration`, the bar is position ÷ duration, and times are formatted `m:ss`, or `h:mm:ss` from an hour. The time labels use monospaced digits so they don't jitter as they change. With no `duration` (e.g. live streams) the bar and times are hidden; `hidden` keeps their space, so the layout doesn't jump.
+
+### Pulse interval
+
+The pulse runs every `PULSE_PLAYING` seconds (1, matching `interval` in `ui.json`) while playing, so the elapsed time ticks, and every `PULSE_IDLE` seconds (3) when paused, when nothing is playing, or when showing an error. `with_pulse` adds a `pulse` JSON Action to the output only when the interval needs to change, because Alfred's docs don't say whether re-sending the pulse configuration restarts the timer. It records the current interval in `$CACHE/pulse`. A file more than 10 seconds old means the window was closed and reopened since, which resets the pulse to the `ui.json` default. Control buttons call `poll.sh` too, so pressing play speeds the pulse up straight away.
 
 ## The vendored adapter
 
@@ -42,6 +55,13 @@ The build targets macOS 12.0, Alfred 6's minimum (override with `MIN_MACOS=…`)
 Other runtime requirements ship with macOS: `/usr/bin/perl`, `/usr/bin/jq`, `osascript`. `lib.sh` sets `PATH` to the system directories only.
 
 Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adapter's full usage. Besides `get` and `send` it has `stream`, which emits changes as they happen and could replace the one-second polling.
+
+## To-do
+
+- [ ] Read and show the current volume level (`output volume of (get volume settings)` via `osascript`).
+- [ ] UI improvements.
+- [ ] Multiple layouts (compact, full, etc.).
+- [ ] Click the app icon to bring that app to the front (`open -b <bundle id>`). Alfred's docs list no click event for image views, but buttons have `actioned` and accept an image, so the icon could be a borderless button with a `fileicon` image.
 
 ## Before a release
 

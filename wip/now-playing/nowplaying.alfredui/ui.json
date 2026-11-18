@@ -9,7 +9,7 @@
   "window": {
     "title": "Now Playing",
     "padding": 16,
-    "size": { "width": 340, "height": 480 },
+    "size": { "width": 340, "height": 540 },
     "resizeable": false,
     "frameautosave": true,
     "root": {
@@ -17,6 +17,23 @@
       "layout": "border",
       "spacing": 14,
       "components": [
+        {
+          "type": "view",
+          "layout": "inline",
+          "direction": "horizontal",
+          "spacing": 6,
+          "constraints": { "region": "top" },
+          "components": [
+            {
+              "id": "appicon",
+              "type": "imageview",
+              "hidden": true,
+              "constraints": { "size": 16 },
+              "image": { "type": "symbol", "src": "app" }
+            },
+            { "id": "appname", "type": "label", "text": "", "font": { "size": "small" }, "colour": "secondaryLabelColor" }
+          ]
+        },
         {
           "id": "art",
           "type": "imageview",
@@ -47,6 +64,25 @@
                 },
                 { "id": "artist", "type": "label", "text": "", "textalign": "centre" },
                 { "id": "album", "type": "label", "text": "", "textalign": "centre", "colour": "secondaryLabelColor" }
+              ]
+            },
+            {
+              "type": "view",
+              "layout": "inline",
+              "direction": "vertical",
+              "spacing": 4,
+              "components": [
+                { "id": "progress", "type": "progress", "style": "linear", "hidden": true },
+                {
+                  "type": "view",
+                  "layout": "grid",
+                  "rows": 1,
+                  "cols": 2,
+                  "components": [
+                    { "id": "elapsed", "type": "label", "text": "", "hidden": true, "textalign": "left", "font": { "size": "small", "monospaced": "digits" }, "colour": "secondaryLabelColor" },
+                    { "id": "duration", "type": "label", "text": "", "hidden": true, "textalign": "right", "font": { "size": "small", "monospaced": "digits" }, "colour": "secondaryLabelColor" }
+                  ]
+                }
               ]
             },
             {
