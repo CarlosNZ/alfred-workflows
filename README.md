@@ -14,6 +14,8 @@ dist/               built .alfredworkflow files (not committed)
 
 Each `<slug>/` folder is the workflow itself, exactly as Alfred sees it (`info.plist` at the root). Workflows are self-contained and don't share code with each other.
 
+Each workflow has a `README.md` of developer notes: how it works, how to test it, to-dos. It isn't included in builds. User-facing documentation goes in the workflow's own readme ("About this Workflow" in Alfred, stored in `info.plist`), which is what Alfred and the Gallery display.
+
 The three tiers are structured and linked identically; the tier records where a workflow is in its public life. A workflow moves up one tier at a time with `wf promote`, and only workflows with a tagged release can leave `wip/`. Workflows in `release/` and `gallery/` have users, so their bundle IDs must never change.
 
 ## Development
@@ -37,7 +39,7 @@ If a link is ever broken, even briefly (for example while moving or renaming the
 
 ### What goes into a build
 
-A build contains the files git tracks or would track in the workflow folder, minus anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
+A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
 
 ## Personal settings and secrets
 

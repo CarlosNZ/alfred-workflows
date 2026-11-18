@@ -2,6 +2,10 @@
 
 Alfred 6 workflows. See README.md for the layout, the `bin/wf` commands and the release process.
 
+## Working on a workflow
+
+Each workflow folder has a `README.md` of developer notes: what the workflow does, how it's built, and anything non-obvious. When asked to work on a workflow (by name, e.g. "Now Playing"; `bin/wf status` maps names to folders), read its README first. When a change makes the README inaccurate or adds something worth knowing, update it in the same change.
+
 ## Edits are live
 
 Linked workflows are symlinked into Alfred's workflows directory (which syncs via Dropbox), so any change to a file under `wip/`, `release/` or `gallery/` takes effect in Alfred immediately. Don't leave a workflow half-edited or broken, and don't create scratch files inside workflow folders.

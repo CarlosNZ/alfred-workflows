@@ -160,12 +160,13 @@ cmd_promote() {
 }
 
 # Files that ship: everything git tracks or would track in the workflow folder
-# (so .gitignore rules apply), minus patterns listed in the workflow's .wfignore.
+# (so .gitignore rules apply), minus the developer-notes README.md and patterns
+# listed in the workflow's .wfignore.
 ship_files() {
   local d=$1 f pat
   local -a ignore
   [[ -f $d/.wfignore ]] && ignore=(${(f)"$(grep -v -E '^\s*(#|$)' $d/.wfignore)"})
-  ignore+=(.wfignore)
+  ignore+=(.wfignore README.md)
   git -C $d ls-files -z --cached --others --exclude-standard -- . | while IFS= read -r -d '' f; do
     [[ -e $d/$f ]] || continue
     for pat in $ignore; do
