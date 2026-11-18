@@ -17,11 +17,11 @@ The `nowplaying` keyword and the ⌃N hotkey both open an Alfred UI object, whic
 
 `poll.sh` shows these in place of a track:
 
-| Message | When |
-|---|---|
-| Adapter not installed | `vendor/` is missing the adapter script or framework |
+| Message                | When                                                                                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Adapter not installed  | `vendor/` is missing the adapter script or framework                                                                                                           |
 | Adapter error (*code*) | the adapter exits non-zero; the subtitle is the first line of its stderr, also saved to `$CACHE/last-error`. Stderr output with exit 0 is treated as harmless. |
-| Nothing playing | the adapter returns nothing or `null` |
+| Nothing playing        | the adapter returns nothing or `null`                                                                                                                          |
 
 ### Artwork
 
@@ -62,6 +62,9 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] UI improvements.
 - [ ] Multiple layouts (compact, full, etc.).
 - [ ] Click the app icon to bring that app to the front (`open -b <bundle id>`). Alfred's docs list no click event for image views, but buttons have `actioned` and accept an image, so the icon could be a borderless button with a `fileicon` image.
+- [ ] Jump back/forward buttons
+- [ ] Preferences
+- [ ] Show track details in Alfred results (including thumbnail?)
 
 ## Before a release
 
