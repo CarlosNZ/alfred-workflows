@@ -33,6 +33,8 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 
 To start a new workflow, create it in Alfred, then `wf adopt` it.
 
+If a link is ever broken, even briefly (for example while moving or renaming the repo), Alfred Preferences drops the workflow and doesn't notice when the link works again. Quit and reopen Alfred Preferences, and Alfred itself if the workflow's keywords are missing.
+
 ### What goes into a build
 
 A build contains the files git tracks or would track in the workflow folder, minus anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
