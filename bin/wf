@@ -9,7 +9,6 @@ REPO=${0:A:h:h}
 # Tiers, highest first. A workflow moves up one tier at a time with `wf promote`.
 AREAS=(gallery release wip)
 PLIST_TOOL=(python3 -I "$REPO/bin/lib/plisttool.py")
-DOCS_TOOL=(python3 -I "$REPO/bin/lib/docstool.py")
 
 die()  { print -u2 -r -- "wf: $*"; exit 1 }
 info() { print -r -- "$*" }
@@ -162,68 +161,19 @@ cmd_promote() {
 
 # Files that ship: everything git tracks or would track in the workflow folder
 # (so .gitignore rules apply), minus the developer-notes README.md and patterns
-# listed in the workflow's .wfignore. When there's a docs/README.md, only the
-# images it shows ship from docs/: the README itself is already in info.plist,
-# and other files there are noted on stderr and left out.
+# listed in the workflow's .wfignore.
 ship_files() {
   local d=$1 f pat
-  local docs=0
-  local -a ignore images
+  local -a ignore
   [[ -f $d/.wfignore ]] && ignore=(${(f)"$(grep -v -E '^\s*(#|$)' $d/.wfignore)"})
   ignore+=(.wfignore README.md)
-  if [[ -f $d/docs/README.md ]]; then
-    docs=1
-    images=(${(f)"$($DOCS_TOOL images $d)"})
-  fi
   git -C $d ls-files -z --cached --others --exclude-standard -- . | while IFS= read -r -d '' f; do
     [[ -e $d/$f ]] || continue
     for pat in $ignore; do
       [[ $f == ${~pat} || $f == ${~pat}/* ]] && continue 2
     done
-    if (( docs )) && [[ $f == docs/* ]] && (( ! ${images[(Ie)$f]} )); then
-      [[ $f == docs/README.md ]] || print -u2 -r -- "Not in the build (not shown in the readme): $f"
-      continue
-    fi
     print -r -- $f
   done
-}
-
-# Reload a workflow in Alfred if it's linked and Alfred is running, so Alfred
-# sees an info.plist changed through the link (it doesn't notice by itself).
-reload_in_alfred() {
-  local d=$1 bid
-  links_to $d
-  (( $#reply )) && pgrep -qx Alfred || return 0
-  bid=$(plist_get $d/info.plist bundleid)
-  [[ -n $bid ]] || return 0
-  osascript -e 'on run argv' \
-    -e 'tell application id "com.runningwithcrayons.Alfred" to reload workflow (item 1 of argv)' \
-    -e 'end run' $bid >/dev/null 2>&1 || info "Warning: could not reload $bid in Alfred"
-  return 0
-}
-
-# Write docs/README.md into info.plist as the workflow's readme ("About this
-# Workflow"), with image paths made relative to the workflow folder. The
-# readme is replaced only when it differs. A workflow without
-# docs/README.md keeps whatever readme info.plist has.
-cmd_docs() {
-  (( $# == 1 )) || die "usage: wf docs <slug>"
-  local slug=$1 d rel readme
-  d=$(wf_path $slug)
-  rel=${d#$REPO/}
-  if [[ ! -f $d/docs/README.md ]]; then
-    info "$slug has no docs/README.md; readme left as it is"
-    return 0
-  fi
-  readme=$($DOCS_TOOL render $d) || die "readme not updated"
-  if [[ $readme == "$(plist_get $d/info.plist readme)" ]]; then
-    info "Readme is up to date with $rel/docs/README.md"
-    return 0
-  fi
-  plutil -replace readme -string $readme $d/info.plist
-  plutil -lint -s $d/info.plist || die "$rel/info.plist failed plutil -lint after updating the readme"
-  info "Updated the readme in $rel/info.plist from docs/README.md"
-  reload_in_alfred $d
 }
 
 # Warn when the workflow differs from what was tagged as <slug>/v<version>, so a
@@ -249,7 +199,6 @@ cmd_build() {
   (( $# == 1 )) || die "usage: wf build <slug>"
   local slug=$1 d ver stage out f
   d=$(wf_path $slug)
-  cmd_docs $slug
   ver=$(plist_get $d/info.plist version)
   [[ -n $ver ]] || die "$slug has no version set (use 'wf release $slug <version>')"
   warn_if_not_release $slug $d $ver
@@ -295,7 +244,6 @@ cmd_release() {
   git -C $REPO rev-parse -q --verify refs/tags/$tag >/dev/null && die "tag $tag already exists"
   [[ -z $(git -C $REPO status --porcelain -- $rel) ]] ||
     die "$rel has uncommitted changes; commit them first so the release matches the repo"
-  cmd_docs $slug
   plutil -replace version -string $ver $d/info.plist
   if [[ -n $(git -C $REPO status --porcelain -- $rel/info.plist) ]]; then
     git -C $REPO add -- $rel/info.plist
@@ -323,9 +271,8 @@ Usage: wf <command> [args]
   link <slug>                 Symlink a repo workflow into Alfred
   unlink <slug>               Remove a workflow's symlink from Alfred (repo copy is untouched)
   promote <slug>              Move a workflow up a tier (wip -> release -> gallery) and repoint its link
-  docs <slug>                 Write docs/README.md into info.plist as the workflow's readme
-  build <slug>                Update the readme, then build dist/<slug>-<version>.alfredworkflow
-  release <slug> <version>    Update the readme, set the version, commit, tag <slug>/v<version>, and build
+  build <slug>                Build dist/<slug>-<version>.alfredworkflow at the current version
+  release <slug> <version>    Set the version, commit, tag <slug>/v<version>, and build
   setup                       Enable the repo's git hooks (run once per clone)
 
 Set ALFRED_WORKFLOWS_DIR to point at a different Alfred workflows directory.
