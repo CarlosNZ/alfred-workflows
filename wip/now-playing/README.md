@@ -4,7 +4,7 @@ Developer notes. A small Alfred 6 panel showing the current track (artwork, titl
 
 ## How it works
 
-The ⌃N hotkey opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The `nowplaying` and `np` keywords show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel.
+The ⌃N hotkey opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The keywords (`nowplaying` and `np` by default) show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel. The keywords are set in the workflow's configuration; see [Preferences](#preferences).
 
 - `ui.json` defines the window (340×540, not resizeable): the playing app's icon and name across the top, an artwork image view in the centre, then title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
 - The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
@@ -41,9 +41,20 @@ The pulse runs every `PULSE_PLAYING` seconds (1, matching `interval` in `ui.json
 
 ### Alfred result
 
-The `nowplaying` and `np` keywords are two Script Filters (no argument) with the same settings, both running `scripts/results.sh`, which prints one result: the track title, with a subtitle of `Paused` (when paused), artist, album, elapsed / duration and the app name, skipping whatever is missing. The icon is the cached artwork, falling back to the app's icon, then the workflow icon. When there is artwork, ⇧ or ⌘Y Quick Looks it. `rerun` refreshes the result every second while playing (so the time ticks) and every 3 seconds otherwise. Actioning the result (or a status message result) opens the panel. Alfred only runs a Script Filter once its whole keyword is typed (a partial match shows the fixed title and subtext), which is why there's the short `np` as well. Keep the two objects' settings in step.
+The two keywords are two Script Filters (no argument) with the same settings, both running `scripts/results.sh`, which prints one result: the track title, with a subtitle of `Paused` (when paused), artist, album, elapsed / duration and the app name, skipping whatever is missing. The icon is the cached artwork, falling back to the app's icon, then the workflow icon. When there is artwork, ⇧ or ⌘Y Quick Looks it. `rerun` refreshes the result every second while playing (so the time ticks) and every 3 seconds otherwise. Actioning the result (or a status message result) opens the panel. Alfred only runs a Script Filter once its whole keyword is typed (a partial match shows the fixed title and subtext), which is why there's a short keyword as well. Keep the two objects' settings in step.
 
 Fetching artwork for a new track makes the first result slower to appear, as it does for the panel's first pulse.
+
+### Preferences
+
+The workflow's User Configuration (defined in `info.plist`; values the user saves go to the gitignored `prefs.plist`) has:
+
+| Variable        | Type | Default      | Used by                                                      |
+| --------------- | ---- | ------------ | ------------------------------------------------------------ |
+| `keyword`       | text | `nowplaying` | the first Script Filter's keyword, as `{var:keyword}`        |
+| `keyword_short` | text | `np`         | the second Script Filter's keyword, as `{var:keyword_short}` |
+
+Alfred also passes them to scripts as environment variables.
 
 ## The vendored adapter
 
@@ -69,7 +80,7 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] Multiple layouts (compact, full, etc.).
 - [ ] Click the app icon to bring that app to the front (`open -b <bundle id>`). Alfred's docs list no click event for image views, but buttons have `actioned` and accept an image, so the icon could be a borderless button with a `fileicon` image.
 - [ ] Jump back/forward buttons
-- [ ] Preferences
+- [ ] Notifications on track change, with a preference to turn them on.
 
 ## Before a release
 

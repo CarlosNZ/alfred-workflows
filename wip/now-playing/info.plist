@@ -61,6 +61,23 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>launchmode</key>
+				<integer>1</integer>
+				<key>path</key>
+				<string>nowplaying.alfredui</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>alfredfiltersresults</key>
 				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
@@ -74,7 +91,7 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>keyword</key>
-				<string>nowplaying</string>
+				<string>{var:keyword}</string>
 				<key>queuedelaycustom</key>
 				<integer>1</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -110,23 +127,6 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>launchmode</key>
-				<integer>1</integer>
-				<key>path</key>
-				<string>nowplaying.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>alfredfiltersresults</key>
 				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
@@ -140,7 +140,7 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>keyword</key>
-				<string>np</string>
+				<string>{var:keyword_short}</string>
 				<key>queuedelaycustom</key>
 				<integer>1</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -233,13 +233,56 @@
 		<key>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</key>
 		<dict>
 			<key>xpos</key>
-			<real>320</real>
+			<real>345</real>
 			<key>ypos</key>
-			<real>110</real>
+			<real>100</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
-	<array/>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>nowplaying</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Shows the current track in Alfred; actioning it opens the Now Playing panel.</string>
+			<key>label</key>
+			<string>Keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>keyword</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>np</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>A second, quicker keyword for the same result.</string>
+			<key>label</key>
+			<string>Short keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>keyword_short</string>
+		</dict>
+	</array>
 	<key>webaddress</key>
 	<string>http://geekzone.philosophicalzombie.net</string>
 </dict>

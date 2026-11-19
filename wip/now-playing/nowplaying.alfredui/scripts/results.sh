@@ -1,6 +1,7 @@
 #!/bin/bash
-# Script Filter for the `nowplaying` keyword: shows the current track as an
-# Alfred result, with its artwork as the icon. Actioning it opens the panel.
+# Script Filter for the keywords (`nowplaying` and `np` by default): shows
+# the current track as an Alfred result, with its artwork as the icon.
+# Actioning it opens the panel.
 # Test it on its own:  ./scripts/results.sh | jq
 
 . "$(dirname "$0")/lib.sh"
