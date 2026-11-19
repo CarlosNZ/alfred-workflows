@@ -19,6 +19,8 @@ Alfred's workflow editor also writes `info.plist`, so keep edits to it minimal a
 - Script `type`: 0 bash, 5 zsh, 7 JavaScript (JXA), 8 external script (`scriptfile`, relative to the workflow folder, must be executable)
 - `scriptargtype`: 1 passes input as argv (`$1`, `argv[0]`)
 
+The user-facing readme ("About this Workflow", the `readme` key in `info.plist`) is written in the workflow's `docs/README.md`, with its images in `docs/`; `bin/wf docs <slug>` copies it into `info.plist`. Edit `docs/README.md`, never the `readme` key itself. See "User-facing docs" in README.md.
+
 ## Script conventions
 
 - Keep non-trivial logic in external script files, not inline scripts in `info.plist`, so it can be edited and diffed as normal code.

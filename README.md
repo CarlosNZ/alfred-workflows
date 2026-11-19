@@ -14,7 +14,7 @@ dist/               built .alfredworkflow files (not committed)
 
 Each `<slug>/` folder is the workflow itself, exactly as Alfred sees it (`info.plist` at the root). Workflows are self-contained and don't share code with each other.
 
-Each workflow has a `README.md` of developer notes: how it works, how to test it, to-dos. It isn't included in builds. User-facing documentation goes in the workflow's own readme ("About this Workflow" in Alfred, stored in `info.plist`), which is what Alfred and the Gallery display.
+Each workflow has a `README.md` of developer notes: how it works, how to test it, to-dos. It isn't included in builds. User-facing documentation goes in the workflow's own readme ("About this Workflow" in Alfred, stored in `info.plist`), which is what Alfred and the Gallery display. It's written in `docs/README.md`; see [User-facing docs](#user-facing-docs).
 
 The three tiers are structured and linked identically; the tier records where a workflow is in its public life. A workflow moves up one tier at a time with `wf promote`, and only workflows with a tagged release can leave `wip/`. Workflows in `release/` and `gallery/` have users, so their bundle IDs must never change.
 
@@ -30,7 +30,8 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
 | `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), and build it |
-| `wf build <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version |
+| `wf docs <slug>` | Write `docs/README.md` into `info.plist` as the workflow's readme; see [User-facing docs](#user-facing-docs) |
+| `wf build <slug>` | Update the readme (`wf docs`), then rebuild `dist/<slug>-<version>.alfredworkflow` at the current version |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
 
 To start a new workflow, create it in Alfred, then `wf adopt` it.
@@ -39,7 +40,26 @@ If a link is ever broken, even briefly (for example while moving or renaming the
 
 ### What goes into a build
 
-A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
+A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes). When there's a `docs/README.md`, only the images it shows ship from `docs/`: the README itself is already in `info.plist`, and the build lists any other files there that it leaves out. Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
+
+### User-facing docs
+
+A workflow's readme ("About this Workflow" in Alfred, and its page in the Gallery) is the `readme` string in `info.plist`. Rather than editing that string, write it as Markdown in the workflow's `docs/README.md`, with the images it shows (screenshots and so on) next to it in `docs/`:
+
+```
+wip/<slug>/docs/README.md      the readme, in Markdown
+wip/<slug>/docs/*.png          images it shows, as ![Alt text](shot.png)
+```
+
+`wf docs <slug>` writes `docs/README.md` into `info.plist` and reloads the workflow in Alfred if it's linked. `wf build` and `wf release` run it first, so builds and releases always carry the current readme, and `wf release` commits it with the version. A workflow without `docs/README.md` keeps whatever readme `info.plist` has.
+
+Alfred shows only local images, at paths relative to the workflow folder, so `wf docs` rewrites each image path written relative to `docs/` (`shot.png` becomes `docs/shot.png`). It stops with an error if an image is missing or outside the workflow folder. It rewrites only inline images (`![alt](path)`, `![alt](<path with spaces>)`, `![alt](path "title")`), not reference-style ones (`![alt][ref]`) or anything in fenced code blocks; URLs and absolute paths are left as they are, though Alfred won't show them. See [Alfred's Markdown syntax](https://www.alfredapp.com/help/kb/markdown-syntax/) for what the readme can use (no raw HTML apart from `<kbd>`).
+
+Things to know:
+
+- `docs/README.md` is the source. In Alfred 6 the readme can also be edited in the workflow editor's [𝒙] sheet ("About this Workflow" tab); edits made there are overwritten by the next `wf docs`, so copy any you want to keep into `docs/README.md`. The workflow's configuration sheet shows the rendered readme beside the settings, which is a quick way to check it after `wf docs`.
+- Alfred's workflow editor keeps its own copy of `info.plist` while the workflow is open in it, and saving there writes that copy back. After `wf docs`, check that the readme is current in Alfred Preferences before editing the workflow there, or reopen Alfred Preferences.
+- Every image in a build adds to its download, so keep screenshots small (crop them, and compress PNGs with a tool such as ImageOptim or TinyPNG).
 
 ## Personal settings and secrets
 
@@ -50,7 +70,7 @@ A build contains the files git tracks or would track in the workflow folder, min
 ## Releasing
 
 1. Commit all changes to the workflow.
-2. `bin/wf release <slug> <version>`. This locks the version with a git tag, pushes the tag to `origin`, and writes the `.alfredworkflow` to `dist/`. The branch itself isn't pushed.
+2. `bin/wf release <slug> <version>`. This updates the readme from `docs/README.md`, locks the version with a git tag, pushes the tag to `origin`, and writes the `.alfredworkflow` to `dist/`. The branch itself isn't pushed.
 3. Post it on the Alfred forum. For a first release, then run `bin/wf promote <slug>` to move it from `wip/` to `release/`.
 4. Submit it to the Gallery. Once it's accepted, run `bin/wf promote <slug>` to move it to `gallery/`.
 
