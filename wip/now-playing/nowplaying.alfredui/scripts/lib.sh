@@ -186,11 +186,47 @@ with_toprow() {
   fi
 }
 
-# Print an update that shows a status message instead of a track. Pass it
-# through with_toprow "" to hide the app.
+# Print the artwork view's image for SF Symbol $1, as JSON.
+symbol_image() {
+  jq -nc --arg sym "$1" '{type: "symbol", src: $sym, size: {width: 96}}'
+}
+
+# Print the default app's path (the `default_app` preference), or nothing
+# when it isn't set or doesn't exist. The panel's scripts don't see the
+# workflow's preferences, so window.sh saves it to $CACHE/default-app.
+default_app() {
+  local app
+  app="$(cat "$CACHE/default-app" 2>/dev/null)"
+  [ -n "$app" ] && [ -e "$app" ] && printf '%s' "$app"
+}
+
+# Print the artwork view's image for when nothing is playing, as JSON: the
+# default app's icon, or the music.note symbol when there's no default app.
+# The artwork view scales the icon to fit, like album art, so
+# DEFAULT_APP_SIZE only sets the resolution it's drawn at: large enough to
+# stay sharp in a big window on a Retina display.
+DEFAULT_APP_SIZE=512
+idle_image() {
+  local app
+  app="$(default_app)"
+  if [ -n "$app" ]; then
+    jq -nc --arg app "$app" --argjson n "$DEFAULT_APP_SIZE" \
+      '{type: "fileicon", src: $app, size: {width: $n, height: $n}}'
+  else
+    symbol_image music.note
+  fi
+}
+
+# Print an update that shows a status message instead of a track, with image
+# $3 (JSON, default the music.note symbol) as the artwork. With $4 (an app
+# path), a click on the artwork opens that app; see `opendefault` in
+# parts/art.json. Pass it through with_toprow "" to hide the app.
 show_message() {
-  jq -nc --arg t "$1" --arg s "${2:-}" --arg sym "${3:-music.note}" '{update: {ids: {
-    art:       {image: {type: "symbol", src: $sym, size: {width: 96}}},
+  jq -nc --arg t "$1" --arg s "${2:-}" --argjson img "${3:-$(symbol_image music.note)}" --arg open "${4:-}" '{update: {ids: {
+    art:       {image: $img},
+    opendefault: ({hidden: ($open == "")} + if $open == "" then {} else
+                  ($open | split("/") | last | rtrimstr(".app") | "Open \(.)") as $tip
+                  | {tooltip: $tip, accessibility: {label: $tip}} end),
     title:     {text: $t},
     artist:    {text: $s},
     album:     {text: ""},

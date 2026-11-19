@@ -10,13 +10,13 @@ load_track
 
 case "$state" in
   missing)
-    show_message "Adapter not installed" "Run vendor.sh in the .alfredui folder" "wrench.and.screwdriver" | with_toprow "" | with_pulse "$PULSE_IDLE"
+    show_message "Adapter not installed" "Run vendor.sh in the .alfredui folder" "$(symbol_image wrench.and.screwdriver)" | with_toprow "" | with_pulse "$PULSE_IDLE"
     exit 0 ;;
   error)
-    show_message "Adapter error ($rc)" "$(head -n1 "$CACHE/last-error")" "exclamationmark.triangle" | with_toprow "" | with_pulse "$PULSE_IDLE"
+    show_message "Adapter error ($rc)" "$(head -n1 "$CACHE/last-error")" "$(symbol_image exclamationmark.triangle)" | with_toprow "" | with_pulse "$PULSE_IDLE"
     exit 0 ;;
   idle)
-    show_message "Nothing playing" | with_toprow "" | with_pulse "$PULSE_IDLE"
+    show_message "Nothing playing" "" "$(idle_image)" "$(default_app)" | with_toprow "" | with_pulse "$PULSE_IDLE"
     exit 0 ;;
 esac
 
@@ -29,6 +29,7 @@ jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" "$JQ_TIME"'
   | {update: {ids: {
       art: {image: (if $art == "" then {type: "symbol", src: "music.note", size: {width: 96}}
                     else {type: "file", src: $art} end)},
+      opendefault: {hidden: true},
       title:     {text: $i.title},
       artist:    {text: ($i.artist // "")},
       album:     {text: ($i.album // "")},

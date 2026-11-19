@@ -1,7 +1,22 @@
 {
-  "id": "art",
-  "type": "imageview",
-  "resize": "fit",
-  "cornerradius": 10,
-  "image": { "type": "symbol", "src": "music.note", "size": { "width": 96 } }
+  "type": "view",
+  "layout": "stack",
+  "components": [
+    {
+      "id": "art",
+      "type": "imageview",
+      "resize": "fit",
+      "cornerradius": 10,
+      "image": { "type": "symbol", "src": "music.note", "size": { "width": 96 } },
+      "constraints": { "stretch": "both" }
+    },
+    {
+      "id": "opendefault",
+      "type": "button", "text": "",
+      "bordered": false,
+      "hidden": true,
+      "constraints": { "stretch": "both" },
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/opendefault.sh", "async": true } }]
+    }
+  ]
 }

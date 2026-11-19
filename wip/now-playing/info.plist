@@ -123,6 +123,23 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>launchmode</key>
+				<integer>1</integer>
+				<key>path</key>
+				<string>nowplaying.alfredui</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>concurrently</key>
 				<false/>
 				<key>escaping</key>
@@ -142,23 +159,6 @@
 			<string>E7A86BD5-86F3-4042-91AA-755634CE7E50</string>
 			<key>version</key>
 			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>1</integer>
-				<key>path</key>
-				<string>nowplaying.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
-			<key>version</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -393,6 +393,27 @@
 			<string>slider</string>
 			<key>variable</key>
 			<string>transparency</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>/System/Applications/Music.app</string>
+				<key>filtermode</key>
+				<integer>0</integer>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+			</dict>
+			<key>description</key>
+			<string>Shown in the panel when nothing is playing; click its icon to open it.</string>
+			<key>label</key>
+			<string>Default app</string>
+			<key>type</key>
+			<string>filepicker</string>
+			<key>variable</key>
+			<string>default_app</string>
 		</dict>
 	</array>
 	<key>webaddress</key>

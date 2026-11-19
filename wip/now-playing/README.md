@@ -8,13 +8,14 @@ The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the
 
 - `ui.json` holds the pulse and the app icon (`iconpath`), and loads the window from the file `window.sh` writes; see [Window](#window) and [App icon and name](#app-icon-and-name).
 - `window.json` is the template for the window (a resizeable dark panel, at least 280×240): a `{ "id": "toprow" }` placeholder that `window.sh` fills with `parts/toprow.json`, then a `{ "id": "content" }` placeholder that it fills with the artwork and track details for the current layout; see [Layouts](#layouts).
-- `parts/toprow.json` is the top row: the playing app's icon (26pt) and name (14pt) in an `app` view, right-aligned, then the rotate button (14pt); see [Playing app](#playing-app) and [Layouts](#layouts). `parts/art.json` is the artwork image view, `parts/text.json` the title (21pt bold), artist (19pt) and album (17pt) labels, 6pt apart, and `parts/controls.json` a progress bar with elapsed time and duration above a row of five buttons (back 15 seconds, previous, play/pause, next, forward 15 seconds). The buttons' symbols are enlarged with `font` (size 19; a button's symbol size follows its font size), and the buttons made taller to fit with a `size` constraint (`{ "height": 31 }`), which Alfred applies to the button's frame, stretching the bezel to fill it. They measure 30pt tall in a screenshot, leaving at least 4.5pt above and below the tallest symbols (the 15-second arrows, which sit slightly low); without the constraint a bordered button is 19pt tall at the default font, and a larger font alone grows it only a little. Alfred UI has no control size setting. Change the font and height together, and check the padding in a screenshot. Components that get updated have `id`s: `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
+- `parts/toprow.json` is the top row: the playing app's icon (26pt) and name (14pt) in an `app` view, right-aligned, then the rotate button (14pt); see [Playing app](#playing-app) and [Layouts](#layouts). `parts/art.json` is the artwork image view, with the transparent `opendefault` button laid over it (see [Default app](#default-app)), `parts/text.json` the title (21pt bold), artist (19pt) and album (17pt) labels, 6pt apart, and `parts/controls.json` a progress bar with elapsed time and duration above a row of five buttons (back 15 seconds, previous, play/pause, next, forward 15 seconds). The buttons' symbols are enlarged with `font` (size 19; a button's symbol size follows its font size), and the buttons made taller to fit with a `size` constraint (`{ "height": 31 }`), which Alfred applies to the button's frame, stretching the bezel to fill it. They measure 30pt tall in a screenshot, leaving at least 4.5pt above and below the tallest symbols (the 15-second arrows, which sit slightly low); without the constraint a bordered button is 19pt tall at the default font, and a larger font alone grows it only a little. Alfred UI has no control size setting. Change the font and height together, and check the padding in a screenshot. Components that get updated have `id`s: `art`, `opendefault`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
 - The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
 - `scripts/poll.sh` reads the player state (`load_track`) and prints a JSON `{update: {ids: {…}}}` object that sets each component's text, image, progress or visibility, plus a `replace` of the app view when the playing app changes (`with_toprow`).
 - Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `back`, `forward`). Play/pause, next and previous send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse. Back and forward jump 15 seconds (`JUMP`); see [Jumping back and forward](#jumping-back-and-forward).
 - `scripts/lib.sh` is sourced by all the scripts: it locates the bundle and sets `CACHE` and `DATA`, and defines the layout helpers `current_layout`, `layout_size` and `content_view` (see [Layouts](#layouts)), the top row helpers `app_view`, `toprow_view` and `with_toprow` (see [Playing app](#playing-app)), `adapter` (runs the vendored adapter), `adapter_installed`, `load_track` (reads the player state, artwork and app into variables; see [Status messages](#status-messages), [Artwork](#artwork) and [Playing app](#playing-app)), `JQ_TIME` (jq `clock` and `position` definitions), `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
 - `scripts/apppath.js` (JXA) turns a bundle ID into an app path with `NSWorkspace`.
 - `scripts/openapp.sh` opens the playing app, or brings it to the front, when its icon or name is clicked; see [Playing app](#playing-app).
+- `scripts/opendefault.sh` opens the default app when its icon is clicked while nothing is playing; see [Default app](#default-app).
 - `scripts/window.sh` builds the window from `window.json`, the parts, the preferences and the saved layout; see [Window](#window).
 - `scripts/layout.sh` switches the open panel's layout; see [Layouts](#layouts).
 
@@ -87,6 +88,16 @@ The rotate button only responds to a real click: an accessibility `click` (AXPre
 | Adapter error (*code*) | the adapter exits non-zero; the subtitle is the first line of its stderr, also saved to `$CACHE/last-error`. Stderr output with exit 0 is treated as harmless. |
 | Nothing playing        | the adapter returns nothing or `null`                                                                                                                          |
 
+The panel shows each message with an SF Symbol in place of the artwork, except "Nothing playing", which shows the default app's icon; see [Default app](#default-app).
+
+### Default app
+
+When nothing is playing, the panel's artwork is the icon of the default app (the `default_app` preference, Music unless changed), and clicking it opens the app. `idle_image` in `lib.sh` gives the image: a `fileicon` of the app, which the artwork view scales to fit like album art, or the `music.note` symbol when the preference is empty or the app doesn't exist.
+
+The click goes to `opendefault`, a borderless button with no text or image, stacked over the artwork image view in `parts/art.json` and stretched to cover it. `show_message` shows it, with an "Open <app>" tooltip, only for "Nothing playing"; it's hidden otherwise, so clicking a track's artwork does nothing (and drags the window, as the background does). Its `actioned` event runs `scripts/opendefault.sh`. A `clicked` event on the artwork never fires, whether it's on the image view itself or on a view wrapped around it (tested with real clicks, which the control buttons received), unlike the top row's `app` view; the image view presumably takes the mouse-down to drag the window (`movablebybackground`).
+
+The panel's scripts don't see the workflow's preferences, so `window.sh` saves the app's path to `$CACHE/default-app` when it builds the window, and `default_app` in `lib.sh` reads it back. Passing the preference to the UI through `ui.json`'s `variablesconfig` (`src: "variable"`, `scriptenv: true`) was tried first, but the pulse script didn't get it in its environment. A changed preference takes effect when the panel is next opened.
+
 ### Artwork
 
 Fetching artwork is expensive (`get` returns it base64-encoded), so each pulse calls `get --no-artwork` and only does the full call when there is no cached artwork for the current track. Artwork is cached as `art-<hash>.<ext>` in `$alfred_workflow_cache` (shared by the panel and the Alfred result), keyed on a hash of player bundle ID, title, artist and album, so the image view never shows a stale image. The previous track's file is deleted when a new one is written. Artwork often arrives a moment after the track metadata, so a missing image is retried on every pulse until it appears.
@@ -134,8 +145,11 @@ The workflow's User Configuration (defined in `info.plist`; values the user save
 | `window_buttons` | checkbox      | on           | `window.sh`: title bar with window buttons, or borderless    |
 | `corner_radius`  | slider, 0–32  | `16`         | `window.sh`: the borderless window's `cornerradius`          |
 | `transparency`   | slider, 0–100 | `45`         | `window.sh`: the panel's tint                                |
+| `default_app`    | file picker   | `/System/Applications/Music.app` | the app shown and opened when nothing is playing; see [Default app](#default-app) |
 
-Alfred passes them to the workflow's scripts as environment variables. The Alfred UI itself sees none of them (it would need each listed in `ui.json`'s `variablesconfig`), and doesn't need to: `window.sh` builds them into the window before the UI opens; see [Window](#window).
+Alfred passes them to the workflow's scripts as environment variables. The Alfred UI itself sees none of them (it would need each listed in `ui.json`'s `variablesconfig`), and doesn't need to: `window.sh` builds them into the window before the UI opens (see [Window](#window)), and saves `default_app` to the cache for the panel's scripts.
+
+The file picker's `filtermode` is 0. Other workflows use 1 for folders only; 0 is presumably files only, which still allows apps, since an app bundle counts as a file in an open panel. The value is the app's full path.
 
 ## The vendored adapter
 
@@ -162,7 +176,7 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] Notifications on track change, with a preference to turn them on.
 - [ ] Always-on-top option, with a toggle button. Blocked: Alfred UI has no window level setting; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-always-on-top-windows).
 - [ ] Show "Now Playing" rather than "Alfred UI" as the app name in ⌘-Tab and the Dock. Blocked: only Alfred's helper can rename itself; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-an-app-name-for-the-uis-process).
-- [ ] WHen "Nothing playing", there should be a default app to open
+- [x] When "Nothing playing", there should be a default app to open
 - [ ] Scrolling for long titles?
 
 ## Before a release
@@ -182,7 +196,7 @@ cd nowplaying.alfredui
 ./scripts/poll.sh | jq
 ./scripts/results.sh | jq
 ./scripts/control.sh playpause | jq
-window_buttons=0 corner_radius=24 transparency=30 ./scripts/window.sh
+window_buttons=0 corner_radius=24 transparency=30 default_app=/System/Applications/Music.app ./scripts/window.sh
 ./scripts/layout.sh landscape | jq 'del(.replace)'   # also saves the layout
 ```
 

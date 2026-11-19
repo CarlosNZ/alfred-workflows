@@ -31,6 +31,10 @@
 #                   with buttons has the system's standard rounding)
 #   transparency    0-100, how much the dark tint over the window's blur lets
 #                   through; its alpha is (100 - transparency) / 100
+#   default_app     the app shown when nothing is playing. It isn't part of
+#                   the window: it's saved to $CACHE/default-app for the
+#                   panel's scripts (default_app in lib.sh), which don't get
+#                   the workflow's preferences.
 #
 # It also fills in the layout chosen with the panel's rotate button (saved by
 # layout.sh): the template's { "id": "content" } placeholder becomes the
@@ -64,6 +68,7 @@ radius=$(number "${corner_radius:-}" 16 32)
 transparency=$(number "${transparency:-}" 45 100)
 layout=$(current_layout)
 rm -f "$CACHE/toprow-app"
+printf '%s' "${default_app:-}" > "$CACHE/default-app"
 
 # Write to a temporary file and move it into place, so Alfred never reads a
 # half-written window definition.
