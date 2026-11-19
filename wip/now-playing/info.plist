@@ -5,7 +5,7 @@
 	<key>bundleid</key>
 	<string>net.smithnz.carl.nowplaying</string>
 	<key>category</key>
-	<string>My Workflows</string>
+	<string>Tools/Apps</string>
 	<key>connections</key>
 	<dict>
 		<key>55D50058-6A5F-470C-B1C2-3C2240C70C07</key>
@@ -64,7 +64,7 @@
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
 	<key>description</key>
-	<string>See the status of currently playing media, and launch a mini player panel</string>
+	<string>See currently playing media info, and launch a mini player panel</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
@@ -281,9 +281,11 @@ Set the workflow's keyword triggers, and adjust various parameters of the mini p
 - **Default app**: when nothing is playing the mini player window presents a large link to open this app
 
 
-## Credits
+## Acknowledgements
 
-Includes [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) by Jonas van den Berg (BSD 3-Clause licence), which provides the now-playing information.</string>
+Includes [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) by Jonas van den Berg (BSD 3-Clause licence), which provides the now-playing information.
+
+Workflow created with the assistance of [Claude Code](https://claude.com/product/claude-code).</string>
 	<key>uidata</key>
 	<dict>
 		<key>55D50058-6A5F-470C-B1C2-3C2240C70C07</key>
@@ -460,6 +462,6 @@ Includes [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) by
 	<key>version</key>
 	<string>0.9.0</string>
 	<key>webaddress</key>
-	<string>http://geekzone.philosophicalzombie.net</string>
+	<string>https://bit.ly/carlosnz-now-playing</string>
 </dict>
 </plist>
