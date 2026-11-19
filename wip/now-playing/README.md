@@ -204,10 +204,6 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] Actions from the Result -- back/forward/play/pause, etc
 - [ ] Keyboard for back/forward (arrows?)
 
-## Before a release
-
-- `description` and the user-facing readme in `info.plist` are empty, and there is no `version` yet.
-
 ## Testing
 
 Run the scripts directly with something playing (`control.sh` really controls playback):
