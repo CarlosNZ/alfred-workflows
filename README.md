@@ -36,7 +36,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
 | `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), and build it |
-| `wf build <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version |
+| `wf build [--allow-unsigned] <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version; see [Compiled binaries](#compiled-binaries) |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
 
 To start a new workflow, create it in Alfred, then `wf adopt` it.
@@ -46,6 +46,10 @@ If a link is ever broken, even briefly (for example while moving or renaming the
 ### What goes into a build
 
 A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
+
+### Compiled binaries
+
+Any compiled (Mach-O) binary in a build must be signed with a Developer ID certificate and notarised. A browser quarantines a downloaded `.alfredworkflow`, Alfred can carry the quarantine onto the imported files, and Gatekeeper then refuses to load a binary that isn't notarised; the Alfred Gallery requires it too. `wf build` and `wf release` check every shipped binary with `spctl` and fail if it isn't accepted as `Notarized Developer ID`; `wf release` checks before committing or tagging anything. Frameworks and bare binaries can't have their notarisation ticket stapled, so the check looks it up online and needs a network connection. For a local test build, `wf build --allow-unsigned <slug>` warns instead of failing; never release such a build.
 
 ### User-facing docs
 

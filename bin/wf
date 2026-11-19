@@ -195,12 +195,53 @@ warn_if_not_release() {
   return 0
 }
 
+# Sets $reply to the shipped compiled (Mach-O) binaries that aren't signed with
+# a Developer ID and notarised. Gatekeeper refuses to load those from a
+# downloaded, quarantined copy, and the Alfred Gallery requires notarisation.
+# A framework or bare binary can't have its ticket stapled, so spctl looks it
+# up online and the check needs a network connection.
+unnotarised_binaries() {
+  local d=$1 f out
+  reply=()
+  ship_files $d | while IFS= read -r f; do
+    [[ -f $d/$f && ! -L $d/$f ]] || continue
+    [[ $(file -b $d/$f) == Mach-O* ]] || continue
+    out=$(spctl --assess -vv --type open --context context:primary-signature $d/$f 2>&1) || true
+    [[ $out == *'source=Notarized Developer ID'* ]] || reply+=($f)
+  done
+  return 0
+}
+
+# Fails, or with $2 = warn only warns, when a shipped binary isn't notarised.
+check_notarised() {
+  local d=$1 mode=${2:-fail} f
+  unnotarised_binaries $d
+  (( $#reply )) || return 0
+  if [[ $mode == warn ]]; then
+    info "Warning: unsigned build, don't release it. These binaries aren't Developer ID signed and notarised:"
+  else
+    print -u2 -r -- "wf: these binaries aren't Developer ID signed and notarised, so Gatekeeper blocks them on other Macs:"
+  fi
+  for f in $reply; do print -u2 -r -- "  ${d#$REPO/}/$f"; done
+  [[ $mode == warn ]] && return 0
+  print -u2 -r -- "wf: sign and notarise them (check with: spctl -a -vv -t open --context context:primary-signature <binary>)."
+  print -u2 -r -- "wf: For a local test build only: wf build --allow-unsigned ${d:t}"
+  exit 1
+}
+
 cmd_build() {
-  (( $# == 1 )) || die "usage: wf build <slug>"
+  local allow_unsigned=0
+  [[ ${1:-} == --allow-unsigned ]] && { allow_unsigned=1; shift }
+  (( $# == 1 )) || die "usage: wf build [--allow-unsigned] <slug>"
   local slug=$1 d ver stage out f
   d=$(wf_path $slug)
   ver=$(plist_get $d/info.plist version)
   [[ -n $ver ]] || die "$slug has no version set (use 'wf release $slug <version>')"
+  if (( allow_unsigned )); then
+    check_notarised $d warn
+  else
+    check_notarised $d
+  fi
   warn_if_not_release $slug $d $ver
   stage=$(mktemp -d)
   trap "rm -rf ${(q)stage}" EXIT
@@ -244,6 +285,8 @@ cmd_release() {
   git -C $REPO rev-parse -q --verify refs/tags/$tag >/dev/null && die "tag $tag already exists"
   [[ -z $(git -C $REPO status --porcelain -- $rel) ]] ||
     die "$rel has uncommitted changes; commit them first so the release matches the repo"
+  # Before anything is committed or tagged, so a failure leaves no half-release.
+  check_notarised $d
   plutil -replace version -string $ver $d/info.plist
   if [[ -n $(git -C $REPO status --porcelain -- $rel/info.plist) ]]; then
     git -C $REPO add -- $rel/info.plist
@@ -271,7 +314,9 @@ Usage: wf <command> [args]
   link <slug>                 Symlink a repo workflow into Alfred
   unlink <slug>               Remove a workflow's symlink from Alfred (repo copy is untouched)
   promote <slug>              Move a workflow up a tier (wip -> release -> gallery) and repoint its link
-  build <slug>                Build dist/<slug>-<version>.alfredworkflow at the current version
+  build [--allow-unsigned] <slug>
+                              Build dist/<slug>-<version>.alfredworkflow at the current version;
+                              fails if a compiled binary isn't notarised, unless --allow-unsigned
   release <slug> <version>    Set the version, commit, tag <slug>/v<version>, and build
   setup                       Enable the repo's git hooks (run once per clone)
 

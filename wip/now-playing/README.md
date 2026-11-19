@@ -166,11 +166,26 @@ Recent macOS versions only let entitled processes use the private MediaRemote fr
 - `mediaremote-adapter.pl`: the entry point, run as `/usr/bin/perl mediaremote-adapter.pl <absolute path to framework> <command>`. The framework path must be absolute, which is why `lib.sh` resolves the bundle root.
 - `MediaRemoteAdapter.framework`: the compiled framework (keep its internal symlinks intact; `wf build` does).
 - `MediaRemoteAdapterTestClient`: used only by `vendor.sh`'s post-build test. It and `vendor.sh` are listed in `.wfignore`, so they aren't in builds.
-- `LICENSE` and `VERSION` (the upstream commit that was built).
+- `LICENSE` and `VERSION` (the upstream commit that was built). The vendored build is release `v0.7.7` (commit `e3ff502`).
 
 `vendor.sh` rebuilds it: it clones the adapter (default `master`, or pass a tag/branch, e.g. `./vendor.sh v0.5.0`), builds it with cmake, replaces `vendor/`, and runs the adapter's `test` command. It needs Xcode command line tools, cmake and git, at build time only. Prefer passing a tag so rebuilds are reproducible; `vendor/VERSION` records what was built.
 
 The build targets macOS 12.0, Alfred 6's minimum (override with `MIN_MACOS=…`). Without an explicit target cmake uses the build machine's macOS version, and the framework then refuses to load on any older macOS. `vendor.sh` checks the built framework's minimum version (`otool -l`, the `minos` field) and stops before replacing `vendor/` if it doesn't match. Compiler availability warnings in the build output point at APIs newer than the target. The `test` command only proves the adapter works on the Mac that built it; test on an older macOS (e.g. in a VM) before relying on the target.
+
+### Signing and notarising
+
+The framework is a compiled binary, so it must be signed with a Developer ID certificate and notarised. A browser marks a downloaded `.alfredworkflow` as quarantined, Alfred can carry that flag onto the imported files, and Gatekeeper then refuses to load a framework that isn't notarised: `dl_load_file` fails ("Failed to load framework"), after a security dialog that blocks the adapter until it's dismissed. The Gallery also requires it. A local build only gets an ad-hoc signature, which works on the Mac that built it because nothing there is quarantined.
+
+`vendor.sh` signs the framework (`codesign` with the hardened runtime and a secure timestamp), notarises it with `notarytool`, and checks that `spctl` reports `source=Notarized Developer ID`, all before replacing `vendor/`, so a failure leaves the existing adapter in place. A framework can't have its notarisation ticket stapled, so Gatekeeper looks it up online. The test client isn't shipped and keeps its ad-hoc signature.
+
+One-time setup, with a paid Apple Developer Program membership:
+
+1. Create a Developer ID Application certificate: Xcode → Settings → Accounts → (team) → Manage Certificates → + → Developer ID Application. `security find-identity -v -p codesigning` should then list it.
+2. Store notarisation credentials in the keychain as the profile `vendor.sh` uses: `xcrun notarytool store-credentials alfred-workflows --apple-id <Apple ID> --team-id <team ID>`, entering an app-specific password from account.apple.com when asked.
+
+`vendor.sh` finds the certificate itself when the keychain has exactly one Developer ID Application identity; otherwise set `SIGN_IDENTITY` to its full name. `NOTARY_PROFILE` overrides the profile name. It checks both before building. `SIGN=0 ./vendor.sh …` skips signing for a local test build, and warns that the result mustn't be released.
+
+To check a signed framework by hand: `codesign -dv --verbose=4 vendor/MediaRemoteAdapter.framework` shows `Authority=Developer ID Application: …` and a `TeamIdentifier`, and `spctl -a -vv -t open --context context:primary-signature vendor/MediaRemoteAdapter.framework/Versions/A/MediaRemoteAdapter` shows `accepted` and `source=Notarized Developer ID`. For an end-to-end check, download a release with a browser and import it on another Mac (or another user account). `wf build` and `wf release` run the same `spctl` check and refuse to build an unnotarised framework; `wf build --allow-unsigned now-playing` makes a local test build.
 
 Other runtime requirements ship with macOS: `/usr/bin/perl`, `/usr/bin/jq`, `osascript`. `lib.sh` sets `PATH` to the system directories only.
 
@@ -179,7 +194,6 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 ## To-do
 
 - [x] Overall icon
-- [ ] "About" panel
 - [ ] Volume controls: perhaps a slider showing the current level (`output volume of (get volume settings)` via `osascript`).
 - [ ] Notifications on track change, with a preference to turn them on.
 - [ ] Always-on-top option, with a toggle button. Blocked: Alfred UI has no window level setting; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-always-on-top-windows).
@@ -192,7 +206,7 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 
 ## Before a release
 
-- **Signing.** The framework (and test client) are ad-hoc signed, which is all a local build gets. The Gallery requires compiled binaries to be signed and notarised, so a Gallery release needs a Developer ID signature and notarisation for the framework. A forum release should be tested on another Mac first, in case Gatekeeper or quarantine blocks the ad-hoc-signed framework there.
+- **Signing.** The vendored framework is ad-hoc signed, and Gatekeeper blocks it when quarantined. Once the Developer ID certificate and notarisation profile are set up, re-vendor with `./vendor.sh v0.7.7` to sign and notarise it; see [Signing and notarising](#signing-and-notarising).
 - `description` and the user-facing readme in `info.plist` are empty, and there is no `version` yet.
 
 ## Testing
