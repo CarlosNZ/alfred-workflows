@@ -206,7 +206,6 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 
 ## Before a release
 
-- **Signing.** The vendored framework is ad-hoc signed, and Gatekeeper blocks it when quarantined. Once the Developer ID certificate and notarisation profile are set up, re-vendor with `./vendor.sh v0.7.7` to sign and notarise it; see [Signing and notarising](#signing-and-notarising).
 - `description` and the user-facing readme in `info.plist` are empty, and there is no `version` yet.
 
 ## Testing

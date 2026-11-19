@@ -105,9 +105,13 @@ if [ "$sign" = 1 ]; then
     exit 1
   fi
 
+  # spctl's output is captured whole rather than piped into grep -q: with
+  # pipefail, grep exiting at the first match can kill the writer with SIGPIPE
+  # and fail the pipeline even though Gatekeeper accepted the framework.
   echo "==> Checking Gatekeeper accepts it"
-  if ! spctl --assess -vv --type open --context context:primary-signature "$binary" 2>&1 |
-       tee /dev/stderr | grep -q 'source=Notarized Developer ID'; then
+  assessment="$(spctl --assess -vv --type open --context context:primary-signature "$binary" 2>&1 || true)"
+  echo "$assessment"
+  if [[ "$assessment" != *'source=Notarized Developer ID'* ]]; then
     echo "FAILED: Gatekeeper doesn't see the framework as notarised" >&2
     exit 1
   fi
