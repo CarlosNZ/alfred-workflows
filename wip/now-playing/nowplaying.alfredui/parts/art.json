@@ -11,12 +11,27 @@
       "constraints": { "stretch": "both" }
     },
     {
-      "id": "opendefault",
-      "type": "button", "text": "",
-      "bordered": false,
+      "id": "defaultapp",
+      "type": "view",
+      "layout": "stack",
       "hidden": true,
-      "constraints": { "stretch": "both" },
-      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/opendefault.sh", "async": true } }]
+      "constraints": { "position": "centre" },
+      "components": [
+        {
+          "id": "defaulticon",
+          "type": "imageview",
+          "resize": "fit",
+          "image": { "type": "symbol", "src": "app" },
+          "constraints": { "stretch": "both" }
+        },
+        {
+          "id": "opendefault",
+          "type": "button", "text": "",
+          "bordered": false,
+          "constraints": { "stretch": "both" },
+          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/opendefault.sh", "async": true } }]
+        }
+      ]
     }
   ]
 }

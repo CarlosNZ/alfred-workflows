@@ -33,3 +33,11 @@ Features we'd like added to Alfred, each with the use case in our workflows that
 **Use case:** Now Playing ([`wip/now-playing`](wip/now-playing/README.md)) is a panel people switch to and from with ⌘-Tab. `iconpath` gives it its own icon there, but it's still labelled "Alfred UI", and every open Alfred UI from any workflow shares that name, so they can't be told apart by name.
 
 **Why it can't be worked around:** each Alfred UI runs as a process of `Alfred UI.app`, and ⌘-Tab and the Dock show that bundle's name. The window's `title` names the window (window switchers such as AltTab can show it) and the app menu, but not the app. Only a process can change its own display name: setting it from another process with `_LSSetApplicationInformationItem` reports success but leaves the name unchanged, and editing the helper's `Info.plist` would break Alfred's code signature.
+
+## Alfred UI: a pointer cursor for clickable components
+
+**Request:** a component property that sets the mouse cursor shown over it (for example `"cursor": "pointinghand"`, matching `NSCursor.pointingHandCursor`), so clickable components can show the pointing hand, as links do in a browser.
+
+**Use case:** Now Playing ([`wip/now-playing`](wip/now-playing/README.md)) shows the default media app's icon when nothing is playing, and clicking the icon opens the app. The playing app's icon and name in the panel's top row open it too. Nothing tells the user these are clickable: they look like plain images and text, and the cursor stays an arrow. A tooltip appears only after a pause.
+
+**Why it can't be worked around:** Alfred UI has no cursor property and no hover event that could change the cursor or the component's look. In Alfred 6's framework the pointing-hand cursor is set only in Alfred's own windows (the workflow editor, the configuration sheet, the import window's website link); the only Alfred UI component that tracks the mouse is the data view, for its rows. A `webkitview` could set `cursor: pointer` in CSS, but replacing an image view with a web page just for the cursor is heavy and loses the native image view.

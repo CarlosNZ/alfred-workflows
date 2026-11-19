@@ -48,10 +48,14 @@ layout_maxsize() {
   esac
 }
 
-# Print the `content` view for layout $1, as JSON: the artwork, the track
-# text (title, artist, album) and the controls (progress and buttons), from
-# parts/art.json, parts/text.json and parts/controls.json, arranged for that
-# layout.
+# Print the `content` view for layout $1, as JSON: the artwork, the text
+# (text_view, for kind $2: "track", the default, or "idle") and the controls
+# (progress and buttons), from parts/art.json and parts/controls.json,
+# arranged for that layout. The idle kind has no controls, as there's
+# nothing to control; the text takes their space, raised IDLE_LIFT_PORTRAIT
+# or IDLE_LIFT_LANDSCAPE points from where it would otherwise sit (the
+# bottom of the panel in portrait, the middle of the details column in
+# landscape). Both are set by eye.
 #
 # The root view is a stack: the content fills it, and the top row (app and
 # settings) is laid over it, pinned to the top. Whatever must stay clear of
@@ -78,11 +82,15 @@ TOPROW_HEIGHT=28
 PORTRAIT_GAP=6
 LANDSCAPE_GAP=14
 LANDSCAPE_INSET=16
+IDLE_LIFT_PORTRAIT=40
+IDLE_LIFT_LANDSCAPE=18
 content_view() {
   jq -n --arg layout "$1" --argjson row "$TOPROW_HEIGHT" --argjson pgap "$PORTRAIT_GAP" \
      --argjson lgap "$LANDSCAPE_GAP" --argjson inset "$LANDSCAPE_INSET" --slurpfile art "$ROOT/parts/art.json" \
-     --slurpfile text "$ROOT/parts/text.json" --slurpfile controls "$ROOT/parts/controls.json" '
-    $art[0] as $art | $text[0] as $text | $controls[0] as $controls
+     --argjson text "$(text_view "${2:-track}")" --slurpfile controls "$ROOT/parts/controls.json" \
+     --arg kind "${2:-track}" --argjson plift "$IDLE_LIFT_PORTRAIT" --argjson llift "$IDLE_LIFT_LANDSCAPE" '
+    $art[0] as $art | ($kind == "idle") as $idle
+    | (if $idle then [] else $controls end) as $controls
     | {id: "content", type: "view"}
     + if $layout == "landscape" then {
         layout: "grid", rows: 1, cols: 2, spacing: 20,
@@ -90,20 +98,64 @@ content_view() {
         components: [$art, {
           type: "view", layout: "border", spacing: 14,
           constraints: {insets: {top: ($row + $lgap - $inset)}},
-          components: [
-            $text + {constraints: {region: "centre", position: "centre", stretch: "horizontal"}},
-            $controls + {constraints: {region: "bottom"}}
-          ]
+          components: ([
+            $text + {constraints: ({region: "centre", position: "centre", stretch: "horizontal"}
+              + if $idle then {insets: {bottom: (2 * $llift)}} else {} end)}
+          ] + [$controls[] + {constraints: {region: "bottom"}}])
         }]
       } else {
         layout: "border", spacing: 14,
         constraints: {insets: {top: ($row + $pgap)}},
         components: [$art + {constraints: {region: "centre"}}, {
           type: "view", layout: "inline", direction: "vertical", spacing: 24,
-          constraints: {region: "bottom"},
-          components: [$text, $controls]
+          constraints: ({region: "bottom"} + if $idle then {insets: {bottom: $plift}} else {} end),
+          components: ([$text] + $controls)
         }]
       } end'
+}
+
+# Print the text view for kind $1, as JSON: "track" is the title, artist
+# and album labels (parts/text.json), which status messages use too; "idle"
+# is for when nothing is playing (parts/idle.json): Alfred's icon, faded,
+# with "No media playing" over it, and below that a hint to click the
+# default app's icon, or nothing when there's no default app.
+text_view() {
+  if [ "$1" = idle ]; then
+    jq -c --arg alfred "$(app_path com.runningwithcrayons.Alfred)" --arg app "$(default_app)" '
+      .components |= map(
+        if .id == "hint" then
+          .text = (if $app == "" then "" else
+                   "Click \($app | split("/") | last | rtrimstr(".app")) icon to launch" end)
+        else .components |= map(
+          if .id == "alfredicon" and $alfred != "" then
+            .image = {type: "fileicon", src: $alfred, size: {width: 88, height: 88}}
+          else . end)
+        end)' "$ROOT/parts/idle.json"
+  else
+    jq -c . "$ROOT/parts/text.json"
+  fi
+}
+
+# Read JSON Actions on stdin and add a `replace` of the `content` view when
+# the kind of text it shows should change to $1 ("track" or "idle"; see
+# text_view). A hidden component still takes up space, so the two kinds
+# can't both be in the panel with one hidden. The kind last drawn is in
+# $CACHE/content-kind; window.sh and layout.sh build the content with the
+# kind recorded there.
+with_content() {
+  local state="$CACHE/content-kind"
+  if [ "$(cat "$state" 2>/dev/null || echo track)" = "$1" ]; then
+    cat
+  else
+    printf '%s' "$1" > "$state"
+    jq -c --argjson view "$(content_view "$(current_layout)" "$1")" '.replace.ids.content = $view'
+  fi
+}
+
+# Print the kind of text the `content` view last drawn shows (see
+# with_content).
+content_kind() {
+  [ "$(cat "$CACHE/content-kind" 2>/dev/null)" = idle ] && echo idle || echo track
 }
 
 # Run the vendored adapter. The adapter requires absolute paths, hence $ROOT.
@@ -182,7 +234,7 @@ with_toprow() {
     cat
   else
     printf '%s' "$1" > "$state"
-    jq -c --argjson view "$(app_view "$1")" '. + {replace: {ids: {app: $view}}}'
+    jq -c --argjson view "$(app_view "$1")" '.replace.ids.app = $view'
   fi
 }
 
@@ -200,33 +252,13 @@ default_app() {
   [ -n "$app" ] && [ -e "$app" ] && printf '%s' "$app"
 }
 
-# Print the artwork view's image for when nothing is playing, as JSON: the
-# default app's icon, or the music.note symbol when there's no default app.
-# The artwork view scales the icon to fit, like album art, so
-# DEFAULT_APP_SIZE only sets the resolution it's drawn at: large enough to
-# stay sharp in a big window on a Retina display.
-DEFAULT_APP_SIZE=512
-idle_image() {
-  local app
-  app="$(default_app)"
-  if [ -n "$app" ]; then
-    jq -nc --arg app "$app" --argjson n "$DEFAULT_APP_SIZE" \
-      '{type: "fileicon", src: $app, size: {width: $n, height: $n}}'
-  else
-    symbol_image music.note
-  fi
-}
-
 # Print an update that shows a status message instead of a track, with image
-# $3 (JSON, default the music.note symbol) as the artwork. With $4 (an app
-# path), a click on the artwork opens that app; see `opendefault` in
-# parts/art.json. Pass it through with_toprow "" to hide the app.
+# $3 (JSON, default the music.note symbol) as the artwork. Pass it through
+# with_content track and with_toprow "".
 show_message() {
-  jq -nc --arg t "$1" --arg s "${2:-}" --argjson img "${3:-$(symbol_image music.note)}" --arg open "${4:-}" '{update: {ids: {
-    art:       {image: $img},
-    opendefault: ({hidden: ($open == "")} + if $open == "" then {} else
-                  ($open | split("/") | last | rtrimstr(".app") | "Open \(.)") as $tip
-                  | {tooltip: $tip, accessibility: {label: $tip}} end),
+  jq -nc --arg t "$1" --arg s "${2:-}" --argjson img "${3:-$(symbol_image music.note)}" '{update: {ids: {
+    art:       {image: $img, hidden: false},
+    defaultapp: {hidden: true},
     title:     {text: $t},
     artist:    {text: $s},
     album:     {text: ""},
@@ -235,6 +267,32 @@ show_message() {
     duration:  {text: "", hidden: true},
     playpause: {image: {type: "symbol", src: "play.fill"}}
   }}}'
+}
+
+# Print the update for when nothing is playing: the default app's icon in
+# place of the artwork, with the `opendefault` button over it, so a click
+# opens the app; or the music.note symbol when there's no default app. The
+# text is the idle kind, which needs no update, and has no controls. Pass it through with_content
+# idle and with_toprow "".
+#
+# The icon is in its own image view, `defaultapp` in parts/art.json, rather
+# than the artwork view, which stretches to fill its space and scales its
+# image to fit, up as well as down. `defaultapp` is centred in that space
+# without stretching, so it takes the icon's own size, DEFAULT_APP_SIZE
+# points, and shrinks only when the space is smaller.
+DEFAULT_APP_SIZE=256
+idle_update() {
+  jq -nc --arg app "$(default_app)" --argjson n "$DEFAULT_APP_SIZE" --argjson note "$(symbol_image music.note)" '
+    ($app | split("/") | last // "" | rtrimstr(".app") | "Open \(.)") as $tip
+    | {update: {ids: (if $app == "" then {
+        art:         {image: $note, hidden: false},
+        defaultapp:  {hidden: true}
+      } else {
+        art:         {hidden: true},
+        defaultapp:  {hidden: false},
+        defaulticon: {image: {type: "fileicon", src: $app, size: {width: $n, height: $n}}},
+        opendefault: {tooltip: $tip, accessibility: {label: $tip}}
+      } end)}}'
 }
 
 # Pulse intervals in seconds: fast while playing (the elapsed time ticks),
@@ -327,15 +385,17 @@ load_track() {
     fi
   fi
 
-  # The player's app path, cached per bundle ID (an empty file means no app was
-  # found), so the lookup only runs when the player changes.
-  local bundle appfile
-  bundle="$(jq -r '.bundleIdentifier // empty' <<<"$info")"
-  if [ -n "$bundle" ]; then
-    appfile="$CACHE/app-$(printf '%s' "$bundle" | tr -c 'A-Za-z0-9.-' '_')"
-    if [ ! -f "$appfile" ]; then
-      osascript -l JavaScript "$ROOT/scripts/apppath.js" "$bundle" > "$appfile" 2>/dev/null || : > "$appfile"
-    fi
-    app="$(cat "$appfile")"
+  app="$(app_path "$(jq -r '.bundleIdentifier // empty' <<<"$info")")"
+}
+
+# Print the path of the app with bundle ID $1, or nothing. Lookups are cached
+# per bundle ID (an empty file means no app was found), so apppath.js only
+# runs for a new one.
+app_path() {
+  [ -n "$1" ] || return 0
+  local appfile="$CACHE/app-$(printf '%s' "$1" | tr -c 'A-Za-z0-9.-' '_')"
+  if [ ! -f "$appfile" ]; then
+    osascript -l JavaScript "$ROOT/scripts/apppath.js" "$1" > "$appfile" 2>/dev/null || : > "$appfile"
   fi
+  cat "$appfile"
 }

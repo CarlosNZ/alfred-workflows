@@ -10,13 +10,13 @@ load_track
 
 case "$state" in
   missing)
-    show_message "Adapter not installed" "Run vendor.sh in the .alfredui folder" "$(symbol_image wrench.and.screwdriver)" | with_toprow "" | with_pulse "$PULSE_IDLE"
+    show_message "Adapter not installed" "Run vendor.sh in the .alfredui folder" "$(symbol_image wrench.and.screwdriver)" | with_content track | with_toprow "" | with_pulse "$PULSE_IDLE"
     exit 0 ;;
   error)
-    show_message "Adapter error ($rc)" "$(head -n1 "$CACHE/last-error")" "$(symbol_image exclamationmark.triangle)" | with_toprow "" | with_pulse "$PULSE_IDLE"
+    show_message "Adapter error ($rc)" "$(head -n1 "$CACHE/last-error")" "$(symbol_image exclamationmark.triangle)" | with_content track | with_toprow "" | with_pulse "$PULSE_IDLE"
     exit 0 ;;
   idle)
-    show_message "Nothing playing" "" "$(idle_image)" "$(default_app)" | with_toprow "" | with_pulse "$PULSE_IDLE"
+    idle_update | with_content idle | with_toprow "" | with_pulse "$PULSE_IDLE"
     exit 0 ;;
 esac
 
@@ -28,8 +28,8 @@ jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" "$JQ_TIME"'
   | ($dur <= 0) as $notime
   | {update: {ids: {
       art: {image: (if $art == "" then {type: "symbol", src: "music.note", size: {width: 96}}
-                    else {type: "file", src: $art} end)},
-      opendefault: {hidden: true},
+                    else {type: "file", src: $art} end), hidden: false},
+      defaultapp: {hidden: true},
       title:     {text: $i.title},
       artist:    {text: ($i.artist // "")},
       album:     {text: ($i.album // "")},
@@ -37,4 +37,4 @@ jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" "$JQ_TIME"'
       elapsed:   {text: (if $notime then "" else $pos | clock end), hidden: $notime},
       duration:  {text: (if $notime then "" else $dur | clock end), hidden: $notime},
       playpause: {image: {type: "symbol", src: (if $i.playing then "pause.fill" else "play.fill" end)}}
-    }}}' | with_toprow "$app" | with_pulse "$interval"
+    }}}' | with_content track | with_toprow "$app" | with_pulse "$interval"

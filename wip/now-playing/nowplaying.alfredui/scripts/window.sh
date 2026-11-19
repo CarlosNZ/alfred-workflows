@@ -43,6 +43,11 @@
 # frameautosave restores the last saved frame over that size, but the last
 # frame belongs to the last layout used, which is the one being built.
 #
+# The content's text is the kind the last pulse drew (content_kind in
+# lib.sh): the track details, or the "No media playing" view when nothing was
+# playing, so a panel reopened while idle doesn't start with the wrong one;
+# the pulse swaps it if the state has changed since (with_content in lib.sh).
+#
 # The { "id": "toprow" } placeholder becomes the top row (app icon and name,
 # and the rotate button for the layout) with no app showing; poll.sh's first
 # pulse replaces the app part with the playing app's (see with_toprow in
@@ -69,13 +74,14 @@ transparency=$(number "${transparency:-}" 45 100)
 layout=$(current_layout)
 rm -f "$CACHE/toprow-app"
 printf '%s' "${default_app:-}" > "$CACHE/default-app"
+kind=$(content_kind)
 
 # Write to a temporary file and move it into place, so Alfred never reads a
 # half-written window definition.
 out="$CACHE/window.json"
 jq --argjson buttons "$buttons" --argjson radius "$radius" --argjson t "$transparency" \
    --argjson toprow "$(toprow_view "" "$layout")" \
-   --argjson content "$(content_view "$layout")" --argjson size "$(layout_size "$layout")" \
+   --argjson content "$(content_view "$layout" "$kind")" --argjson size "$(layout_size "$layout")" \
    --argjson maxsize "$(layout_maxsize "$layout")" '
   (if $buttons then . else . + {borderless: true, cornerradius: $radius} end)
   | .size = $size

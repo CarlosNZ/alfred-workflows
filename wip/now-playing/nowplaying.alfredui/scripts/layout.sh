@@ -30,7 +30,7 @@ echo "$layout" > "$DATA/layout"
 
 # Deep merge (*): poll.sh can also `replace` (the top row's app view), and
 # the rotate button is added to its `update` ids rather than replacing them.
-jq -nc --argjson content "$(content_view "$layout")" --argjson size "$(layout_size "$layout")" \
+jq -nc --argjson content "$(content_view "$layout" "$(content_kind)")" --argjson size "$(layout_size "$layout")" \
    --argjson rotate "$(rotate_button "$layout")" --argjson poll "$("$(dirname "$0")/poll.sh")" '
   {replace: {ids: {content: $content}}, window: {resize: $size}}
   * $poll * {update: {ids: {rotate: $rotate}}}'

@@ -1,0 +1,40 @@
+{
+  "type": "view",
+  "layout": "border",
+  "spacing": 6,
+  "components": [
+    {
+      "type": "view",
+      "layout": "stack",
+      "constraints": { "region": "centre" },
+      "components": [
+        {
+          "id": "alfredicon",
+          "type": "imageview",
+          "opacity": 0.75,
+          "constraints": { "size": 88, "position": "centre" },
+          "image": { "type": "symbol", "src": "app" }
+        },
+        {
+          "type": "label",
+          "text": "𝙉𝙤 𝙢𝙚𝙙𝙞𝙖 𝙥𝙡𝙖𝙮𝙞𝙣𝙜",
+          "textalign": "centre",
+          "font": { "size": 21, "weight": "bold" },
+          "opacity": 0.8,
+          "accessibility": { "label": "No media playing" },
+          "constraints": { "position": "bottom", "insets": { "bottom": 15 } }
+        }
+      ]
+    },
+    {
+      "id": "hint",
+      "type": "label",
+      "text": "",
+      "textalign": "centre",
+      "font": { "size": 15 },
+      "linebreak": "truncatetail",
+      "colour": "secondaryLabelColor",
+      "constraints": { "region": "bottom" }
+    }
+  ]
+}
