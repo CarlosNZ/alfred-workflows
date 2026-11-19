@@ -64,7 +64,7 @@
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
 	<key>description</key>
-	<string></string>
+	<string>See the status of currently playing media, and launch a mini player panel</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
@@ -242,7 +242,43 @@
 		</dict>
 	</array>
 	<key>readme</key>
-	<string></string>
+	<string>## Usage
+
+See the status of currently playing media via the `nowplaying` (or `np`) keyword, and launch a mini player panel.
+
+Works with *any* music or video playing on your Mac — not limited to a particular music player.
+
+![Now Playing Alfred Results (full)](docs/now-playing-result-full.png)
+![Now Playing Alfred Results (short)](docs/now-playing-result-short.png)
+
+- &lt;kbd&gt;↩&lt;/kbd&gt; Open the mini player panel
+
+
+## The Mini Player
+
+The mini player is an interactive, resizeable window showing the currently playing item, with simple playback controls. Can also be launched directly via Hotkey.
+
+![Mini Player landscape](docs/now-playing-landscape.png)
+
+- Click the App icon/title to bring the currently playing app to the foreground
+- Use the "Rotate" button in the top-right corner to toggle between **Landscape** and **Portrait** mode, and drag the corners to re-size the window
+
+![Mini Player portrait](docs/now-playing-portrait.png)
+
+- &lt;kbd&gt;Esc&lt;/kbd&gt; Close the panel
+- &lt;kbd&gt;Space&lt;/kbd&gt; Start/stop playback
+
+
+## Configuration
+
+![Now Playing config](docs/now-playing-config.png)
+
+Set the workflow's keyword triggers, and adjust various parameters of the mini player:
+
+- **Window buttons**: turn off the player window's close/maximise buttons for a simpler, sleek look
+- **Corner radius**: adjust the player's rounded corners — default matches the Mac OS default
+- **Transparency**: solid or see-through — you decide
+- **Default app**: when nothing is playing the mini player window presents a large link to open this app</string>
 	<key>uidata</key>
 	<dict>
 		<key>55D50058-6A5F-470C-B1C2-3C2240C70C07</key>
@@ -416,6 +452,8 @@
 			<string>default_app</string>
 		</dict>
 	</array>
+	<key>version</key>
+	<string>0.9.0</string>
 	<key>webaddress</key>
 	<string>http://geekzone.philosophicalzombie.net</string>
 </dict>

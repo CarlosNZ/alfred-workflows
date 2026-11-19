@@ -144,13 +144,13 @@ Fetching artwork for a new track makes the first result slower to appear, as it 
 
 The workflow's User Configuration (defined in `info.plist`; values the user saves go to the gitignored `prefs.plist`) has:
 
-| Variable         | Type          | Default      | Used by                                                      |
-| ---------------- | ------------- | ------------ | ------------------------------------------------------------ |
-| `keyword`        | text          | `nowplaying` | the first Script Filter's keyword, as `{var:keyword}`        |
-| `keyword_short`  | text          | `np`         | the second Script Filter's keyword, as `{var:keyword_short}` |
-| `window_buttons` | checkbox      | on           | `window.sh`: title bar with window buttons, or borderless    |
-| `corner_radius`  | slider, 0–32  | `16`         | `window.sh`: the borderless window's `cornerradius`          |
-| `transparency`   | slider, 0–100 | `45`         | `window.sh`: the panel's tint                                |
+| Variable         | Type          | Default                          | Used by                                                                           |
+| ---------------- | ------------- | -------------------------------- | --------------------------------------------------------------------------------- |
+| `keyword`        | text          | `nowplaying`                     | the first Script Filter's keyword, as `{var:keyword}`                             |
+| `keyword_short`  | text          | `np`                             | the second Script Filter's keyword, as `{var:keyword_short}`                      |
+| `window_buttons` | checkbox      | on                               | `window.sh`: title bar with window buttons, or borderless                         |
+| `corner_radius`  | slider, 0–32  | `16`                             | `window.sh`: the borderless window's `cornerradius`                               |
+| `transparency`   | slider, 0–100 | `45`                             | `window.sh`: the panel's tint                                                     |
 | `default_app`    | file picker   | `/System/Applications/Music.app` | the app shown and opened when nothing is playing; see [Default app](#default-app) |
 
 Alfred passes them to the workflow's scripts as environment variables. The Alfred UI itself sees none of them (it would need each listed in `ui.json`'s `variablesconfig`), and doesn't need to: `window.sh` builds them into the window before the UI opens (see [Window](#window)), and saves `default_app` to the cache for the panel's scripts.
@@ -185,6 +185,7 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [x] When "Nothing playing", there should be a default app to open
 - [ ] A pointing-hand cursor over the default app's icon and the top row's app. Blocked: Alfred UI has no cursor setting, and no hover event to change one; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-a-pointer-cursor-for-clickable-components).
 - [ ] Scrolling for long titles?
+- [ ] Actions from the Result -- back/forward/play/pause, etc
 
 ## Before a release
 
