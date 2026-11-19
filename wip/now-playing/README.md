@@ -52,7 +52,7 @@ At 100 transparency the tint is gone but the panel is still dark grey: that is t
 
 The thin black outline around the panel is the outline macOS draws around dark-appearance windows, and Alfred UI has no option to remove it. Turning `blur` off doesn't help: the window then gets an opaque black background, so the tint can't show anything through.
 
-The panel closes with the window's close button, or with Esc (a `⎋` entry in the root view's `shortcuts`, running a `finish` action).
+The panel closes with the window's close button, or with Esc (a `⎋` entry in the root view's `shortcuts`, running a `finish` action). The space bar toggles play/pause while the panel is in front: a `␣` entry (U+2423, open box) runs `control.sh playpause`, like the button. Alfred UI's docs don't name the space key; `␣` is the spelling it matches, tested against `space`, `Space`, a literal space, `⎵` and `spacebar`, none of which fire.
 
 After a layout's starting size is set (on first open, or by a layout switch), the window reopens 32pt shorter (540 becomes 508, 300 becomes 268), then stays at that size: restoring the saved frame (`frameautosave`) seems to lose the title bar's height. Not yet investigated.
 

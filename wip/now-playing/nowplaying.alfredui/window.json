@@ -19,7 +19,8 @@
     "padding": 16,
     "background": "rgb(18, 18, 20, 0.55)",
     "shortcuts": [
-      { "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } }
+      { "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } },
+      { "shortcut": "␣", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["playpause"], "async": true } }
     ],
     "components": [
       { "id": "content" },
