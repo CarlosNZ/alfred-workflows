@@ -35,7 +35,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf status` | List workflows, their versions and whether Alfred has them linked |
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
-| `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), and build it |
+| `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
 | `wf build [--allow-unsigned] <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version; see [Compiled binaries](#compiled-binaries) |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
 
@@ -66,8 +66,9 @@ The readme can use [Alfred's Markdown](https://www.alfredapp.com/help/kb/markdow
 ## Releasing
 
 1. Commit all changes to the workflow.
-2. `bin/wf release <slug> <version>`. This locks the version with a git tag, pushes the tag to `origin`, and writes the `.alfredworkflow` to `dist/`. The branch itself isn't pushed.
-3. Post it on the Alfred forum. For a first release, then run `bin/wf promote <slug>` to move it from `wip/` to `release/`, and add it to [Published workflows](#published-workflows), after any Gallery workflows.
-4. Submit it to the Gallery. Once it's accepted, run `bin/wf promote <slug>` to move it to `gallery/`, and move it up in [Published workflows](#published-workflows), linking to its new folder.
+2. `bin/wf release <slug> <version>`. This locks the version with a git tag, pushes the tag to `origin`, and writes the `.alfredworkflow` to `dist/`. The branch itself isn't pushed. It then creates a draft GitHub release for the tag, with the build attached and notes listing the workflow's commits since its previous release, and opens the draft's edit page in the browser. A draft isn't public. Versions with a suffix (`1.2.3-beta.1`) are marked as pre-releases, and no release is marked "Latest", since that label is repo-wide. Without `gh`, or if creating it fails, `wf` says so and prints the command to retry.
+3. Edit the notes and publish the draft on GitHub. Its download link, `https://github.com/CarlosNZ/alfred-workflows/releases/download/<slug>/v<version>/<slug>-<version>.alfredworkflow`, stays the same for that version.
+4. Post it on the Alfred forum. For a first release, then run `bin/wf promote <slug>` to move it from `wip/` to `release/`, and add it to [Published workflows](#published-workflows), after any Gallery workflows.
+5. Submit it to the Gallery. Once it's accepted, run `bin/wf promote <slug>` to move it to `gallery/`, and move it up in [Published workflows](#published-workflows), linking to its new folder.
 
-New versions of a workflow already in `release/` or `gallery/` follow steps 1–2 and are posted or submitted as updates; the workflow stays in its tier.
+New versions of a workflow already in `release/` or `gallery/` follow steps 1–3 and are posted or submitted as updates; the workflow stays in its tier.
