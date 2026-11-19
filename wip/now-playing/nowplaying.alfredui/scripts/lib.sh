@@ -35,6 +35,19 @@ layout_size() {
   esac
 }
 
+# Print the window's maximum size for layout $1, as JSON, which also limits
+# how far the zoom button grows it (Alfred UI can't disable zoom on a
+# resizeable window). Alfred sets the maximum only when the window opens, so
+# after a layout switch the previous layout's maximum stays in force until
+# the panel is reopened. Each layout's maximum is therefore at least the
+# other's starting size, so a switch never resizes the window past it.
+layout_maxsize() {
+  case "$1" in
+    landscape) echo '{"width": 1000, "height": 560}' ;;
+    *) echo '{"width": 640, "height": 960}' ;;
+  esac
+}
+
 # Print the `content` view for layout $1, as JSON: the artwork, the track
 # text (title, artist, album) and the controls (progress and buttons), from
 # parts/art.json, parts/text.json and parts/controls.json, arranged for that

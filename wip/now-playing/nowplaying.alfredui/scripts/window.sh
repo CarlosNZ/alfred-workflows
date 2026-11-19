@@ -35,9 +35,9 @@
 # It also fills in the layout chosen with the panel's rotate button (saved by
 # layout.sh): the template's { "id": "content" } placeholder becomes the
 # content view for that layout (content_view in lib.sh), and the window takes
-# that layout's size. frameautosave restores the last saved frame over that
-# size, but the last frame belongs to the last layout used, which is the one
-# being built.
+# that layout's size and maximum size (layout_size and layout_maxsize).
+# frameautosave restores the last saved frame over that size, but the last
+# frame belongs to the last layout used, which is the one being built.
 #
 # The { "id": "toprow" } placeholder becomes the top row (app icon and name,
 # and the rotate button for the layout) with no app showing; poll.sh's first
@@ -70,9 +70,11 @@ rm -f "$CACHE/toprow-app"
 out="$CACHE/window.json"
 jq --argjson buttons "$buttons" --argjson radius "$radius" --argjson t "$transparency" \
    --argjson toprow "$(toprow_view "" "$layout")" \
-   --argjson content "$(content_view "$layout")" --argjson size "$(layout_size "$layout")" '
+   --argjson content "$(content_view "$layout")" --argjson size "$(layout_size "$layout")" \
+   --argjson maxsize "$(layout_maxsize "$layout")" '
   (if $buttons then . else . + {borderless: true, cornerradius: $radius} end)
   | .size = $size
+  | .maxsize = $maxsize
   | .root.background = "rgb(18, 18, 20, \((100 - $t) / 100))"
   | .root.components |= map(
       if .id == "toprow" then $toprow
