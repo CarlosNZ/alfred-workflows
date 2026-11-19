@@ -1,5 +1,5 @@
 {
-  "bundleid": "nz.carl.nowplaying",
+  "bundleid": "net.smithnz.carl.nowplaying",
   "iconpath": "appicon.png",
   "pulse": {
     "src": "./scripts/poll.sh",
@@ -7,5 +7,5 @@
     "intervalmode": "delay",
     "now": true
   },
-  "window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/carlosnz.nowplaying/window.json}"
+  "window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/net.smithnz.carl.nowplaying/window.json}"
 }

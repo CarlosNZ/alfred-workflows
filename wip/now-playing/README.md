@@ -31,7 +31,7 @@ With the window buttons preference on (the default), the window has a title bar 
 
 Alfred runs each open Alfred UI as its own process of a helper app, `Alfred UI.app` (inside `Alfred 6.app/Contents/Alfred UI/`), launched with the path of the `.alfredui` package. The helper has no icon of its own, so without one from the UI, ⌘-Tab, the Dock and window switchers such as AltTab show a blank placeholder. `ui.json`'s top-level `iconpath` sets the helper's application icon when the UI launches. A path starting with `/` or `~` is used as given, and any other path is relative to the `.alfredui` package. It's set to `appicon.png`, described below. The key isn't in Alfred's docs; it's read by `-[AlfredUI loadJSONAndConfigureUI:]` in Alfred's framework and applied by the helper's `setupIcon`, so check it after Alfred updates. A missing or unreadable file leaves the placeholder.
 
-`icon.png` is `audio-waveform` from the [with icons](https://github.com/withevergrow/withicons) Soft 3D set (MIT, © with icons contributors), rendered from its SVG at 512×512 with `rsvg-convert -a -w 512 -h 512`. The SVG is available from Iconify as `withicons-soft3d:audio-waveform` (`https://api.iconify.design/withicons-soft3d/audio-waveform.svg`), and is kept as `icon-src/waveform.svg`.
+`icon.png` is `audio-waveform` from the [with icons](https://github.com/withevergrow/withicons) Soft 3D set (MIT, © with icons contributors; the licence ships in the workflow as `icon-LICENSE`, which covers `appicon.png` too), rendered from its SVG at 512×512 with `rsvg-convert -a -w 512 -h 512`. The SVG is available from Iconify as `withicons-soft3d:audio-waveform` (`https://api.iconify.design/withicons-soft3d/audio-waveform.svg`), and is kept as `icon-src/waveform.svg`.
 
 The app icon is the same waveform on a squircle tile, so it sits with other apps' icons in switchers and the Dock; Alfred shows the bare `icon.png` for the workflow itself. `icon-src/make-appicon.py` builds `nowplaying.alfredui/appicon.png` from `waveform.svg` (run it after changing either; it needs `rsvg-convert` from Homebrew's librsvg). It follows the macOS icon grid: a 1024px canvas with an 824px superellipse tile (exponent 5, close to Apple's continuous-corner shape), a dark vertical gradient matching the panel, a faint top sheen and edge highlight, and a drop shadow, with the waveform 68% of the tile's width and its ground-shadow ellipses removed. `icon-src/` is development-only and listed in `.wfignore`, so it isn't in builds.
 
@@ -44,7 +44,7 @@ Preferences reach an Alfred UI only as strings (through `variablesconfig`, `src:
 A `{file:…}` placeholder, though, inserts a file's contents as JSON with their real types (for an object; a file holding a bare `true` arrives as the string `"true"`). So `ui.json`'s whole `window` is one placeholder:
 
 ```json
-"window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/carlosnz.nowplaying/window.json}"
+"window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/net.smithnz.carl.nowplaying/window.json}"
 ```
 
 `scripts/window.sh` writes that file: it takes `window.json` (the template, with the title bar settings), adds `borderless` and `cornerradius` when the window buttons are off, fills in the content view and window size for the saved layout, sets the tint to `rgb(18, 18, 20, (100 − transparency) ÷ 100)`, and moves the result into place atomically. A Run Script object runs it on every route into the Alfred UI object (the hotkey and both keyword results), so the panel opens with the current preferences and the file always exists when Alfred loads `ui.json`; if it doesn't, Alfred falls back to a default 800×600 window titled "Alfred UI".
@@ -165,7 +165,7 @@ Recent macOS versions only let entitled processes use the private MediaRemote fr
 
 - `mediaremote-adapter.pl`: the entry point, run as `/usr/bin/perl mediaremote-adapter.pl <absolute path to framework> <command>`. The framework path must be absolute, which is why `lib.sh` resolves the bundle root.
 - `MediaRemoteAdapter.framework`: the compiled framework (keep its internal symlinks intact; `wf build` does).
-- `MediaRemoteAdapterTestClient`: used only by `vendor.sh`'s post-build test.
+- `MediaRemoteAdapterTestClient`: used only by `vendor.sh`'s post-build test. It and `vendor.sh` are listed in `.wfignore`, so they aren't in builds.
 - `LICENSE` and `VERSION` (the upstream commit that was built).
 
 `vendor.sh` rebuilds it: it clones the adapter (default `master`, or pass a tag/branch, e.g. `./vendor.sh v0.5.0`), builds it with cmake, replaces `vendor/`, and runs the adapter's `test` command. It needs Xcode command line tools, cmake and git, at build time only. Prefer passing a tag so rebuilds are reproducible; `vendor/VERSION` records what was built.
@@ -188,13 +188,11 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] A pointing-hand cursor over the default app's icon and the top row's app. Blocked: Alfred UI has no cursor setting, and no hover event to change one; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-a-pointer-cursor-for-clickable-components).
 - [ ] Scrolling for long titles?
 - [ ] Actions from the Result -- back/forward/play/pause, etc
+- [ ] Keyboard for back/forward (arrows?)
 
 ## Before a release
 
 - **Signing.** The framework (and test client) are ad-hoc signed, which is all a local build gets. The Gallery requires compiled binaries to be signed and notarised, so a Gallery release needs a Developer ID signature and notarisation for the framework. A forum release should be tested on another Mac first, in case Gatekeeper or quarantine blocks the ad-hoc-signed framework there.
-- **Build contents.** Builds currently include `vendor.sh` and `vendor/MediaRemoteAdapterTestClient`, which are only needed when vendoring. Adding them to `.wfignore` keeps them out of the `.alfredworkflow` while keeping them in the repo.
-- **Bundle IDs.** `ui.json` has its own `bundleid` (`nz.carl.nowplaying`), different from `info.plist` (`carlosnz.nowplaying`); `lib.sh` also uses `~/Library/Caches/nz.carl.nowplaying` as the cache when run outside Alfred, and `ui.json`'s `window` path contains the `info.plist` bundle ID. Make these consistent before release.
-- **Icon licence.** The icon is MIT-licensed (see [App icon and name](#app-icon-and-name)), which requires its copyright and permission notice to go with copies: ship the set's [`LICENSE`](https://github.com/withevergrow/withicons/blob/main/LICENSE) in the workflow, or include the notice in the user-facing readme in `info.plist`.
 - `description` and the user-facing readme in `info.plist` are empty, and there is no `version` yet.
 
 ## Testing
@@ -210,8 +208,8 @@ window_buttons=0 corner_radius=24 transparency=30 default_app=/System/Applicatio
 ./scripts/layout.sh landscape | jq 'del(.replace)'   # also saves the layout
 ```
 
-Alfred doesn't notice `info.plist` edits made through the symlinked folder; reload the workflow with `osascript -e 'tell application id "com.runningwithcrayons.Alfred" to reload workflow "carlosnz.nowplaying"'`.
+Alfred doesn't notice `info.plist` edits made through the symlinked folder; reload the workflow with `osascript -e 'tell application id "com.runningwithcrayons.Alfred" to reload workflow "net.smithnz.carl.nowplaying"'`.
 
-Set `ADAPTER=/path/to/mock` to replace the adapter with a script of your own, e.g. to test the error and "Nothing playing" states. Outside Alfred, artwork, `last-error` and `window.json` go to `~/Library/Caches/nz.carl.nowplaying`, and the saved layout to `~/Library/Application Support/nz.carl.nowplaying`.
+Set `ADAPTER=/path/to/mock` to replace the adapter with a script of your own, e.g. to test the error and "Nothing playing" states. Outside Alfred, artwork, `last-error` and `window.json` go to `~/Library/Caches/net.smithnz.carl.nowplaying`, and the saved layout to `~/Library/Application Support/net.smithnz.carl.nowplaying`.
 
 The `.alfredui` bundle lives inside the workflow folder; Alfred doesn't need a copy at the top level of its workflows directory.

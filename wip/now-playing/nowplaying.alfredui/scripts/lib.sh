@@ -6,12 +6,12 @@ export PATH="/usr/bin:/bin:$PATH"
 
 # The panel and the Script Filter both run with the workflow's cache folder,
 # so they share artwork and app lookups.
-CACHE="${alfred_workflow_cache:-$HOME/Library/Caches/nz.carl.nowplaying}"
+CACHE="${alfred_workflow_cache:-$HOME/Library/Caches/net.smithnz.carl.nowplaying}"
 mkdir -p "$CACHE"
 
 # Settings chosen in the panel itself (the layout) persist in the workflow's
 # data folder.
-DATA="${alfred_workflow_data:-$HOME/Library/Application Support/nz.carl.nowplaying}"
+DATA="${alfred_workflow_data:-$HOME/Library/Application Support/net.smithnz.carl.nowplaying}"
 
 # Print the saved layout: "portrait" (the default) or "landscape".
 current_layout() {

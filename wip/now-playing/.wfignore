@@ -1,2 +1,4 @@
 # Development-only files, kept out of builds.
 icon-src
+nowplaying.alfredui/vendor.sh
+nowplaying.alfredui/vendor/MediaRemoteAdapterTestClient

@@ -11,7 +11,7 @@
 # their real types. So ui.json's whole `window` is a {file:...} placeholder
 # pointing at the file this script writes:
 #
-#   "window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/carlosnz.nowplaying/window.json}"
+#   "window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/net.smithnz.carl.nowplaying/window.json}"
 #
 # This script merges the preferences into the window template (window.json in
 # the bundle) and writes the result there. A Run Script object runs it just
@@ -56,7 +56,7 @@
 #
 # Test it on its own:
 #   window_buttons=0 corner_radius=24 transparency=30 ./scripts/window.sh
-#   jq '. | del(.root)' ~/Library/Caches/nz.carl.nowplaying/window.json
+#   jq '. | del(.root)' ~/Library/Caches/net.smithnz.carl.nowplaying/window.json
 
 . "$(dirname "$0")/lib.sh"
 
