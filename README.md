@@ -35,7 +35,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf status` | List workflows, their versions and whether Alfred has them linked |
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
-| `wf release <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
+| `wf release [--allow-unsigned] <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
 | `wf build [--allow-unsigned] <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version; see [Compiled binaries](#compiled-binaries) |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
 
@@ -49,7 +49,7 @@ A build contains the files git tracks or would track in the workflow folder, min
 
 ### Compiled binaries
 
-Any compiled (Mach-O) binary in a build must be signed with a Developer ID certificate and notarised. A browser quarantines a downloaded `.alfredworkflow`, Alfred can carry the quarantine onto the imported files, and Gatekeeper then refuses to load a binary that isn't notarised; the Alfred Gallery requires it too. `wf build` and `wf release` check every shipped binary with `spctl` and fail if it isn't accepted as `Notarized Developer ID`; `wf release` checks before committing or tagging anything. Frameworks and bare binaries can't have their notarisation ticket stapled, so the check looks it up online and needs a network connection. For a local test build, `wf build --allow-unsigned <slug>` warns instead of failing; never release such a build.
+Any compiled (Mach-O) binary in a build must be signed with a Developer ID certificate and notarised. A browser quarantines a downloaded `.alfredworkflow`, Alfred can carry the quarantine onto the imported files, and Gatekeeper then refuses to load a binary that isn't notarised; the Alfred Gallery requires it too. `wf build` and `wf release` check every shipped binary with `spctl` and fail if it isn't accepted as `Notarized Developer ID`; `wf release` checks before committing or tagging anything. Frameworks and bare binaries can't have their notarisation ticket stapled, so the check looks it up online and needs a network connection. For a local test build, `wf build --allow-unsigned <slug>` warns instead of failing. `wf release --allow-unsigned <slug> <version>` does the same for a test release, but only for a pre-release version (`1.2.3-preview.1`); its draft GitHub release is marked as a pre-release and its notes start with a warning that it's unsigned. Don't promote a workflow on an unsigned preview.
 
 ### User-facing docs
 

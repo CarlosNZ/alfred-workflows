@@ -281,7 +281,7 @@ push_tag() {
 # tag itself when the push failed. --latest=false because "Latest" is repo-wide,
 # which means little with several workflows in one repo.
 draft_github_release() {
-  local slug=$1 d=$2 ver=$3 tag=$1/v$3 out=$REPO/dist/$1-$3.alfredworkflow
+  local slug=$1 d=$2 ver=$3 unsigned=${4:-0} tag=$1/v$3 out=$REPO/dist/$1-$3.alfredworkflow
   local name prev notes url changes
   local -a flags
   if ! command -v gh >/dev/null; then
@@ -298,6 +298,10 @@ draft_github_release() {
   else
     print -r -- "First release." > $notes
   fi
+  if (( unsigned )); then
+    print -r -- $'**Unsigned preview.** Its compiled binaries aren\'t notarised, so macOS may block them on a Mac that downloaded it.\n' |
+      cat - $notes > $notes.new && mv $notes.new $notes
+  fi
   flags=(--draft --verify-tag --latest=false --title "$name $ver" --notes-file $notes)
   [[ $ver == *-* ]] && flags+=(--prerelease)
   if ! url=$(cd $REPO && gh release create $tag $out $flags); then
@@ -312,30 +316,41 @@ draft_github_release() {
   return 0
 }
 
+# --allow-unsigned is only accepted for pre-release versions (1.2.3-preview.1),
+# so an unnotarised build can't become a normal release by mistake.
 cmd_release() {
-  (( $# == 2 )) || die "usage: wf release <slug> <version>"
+  local allow_unsigned=0
+  [[ ${1:-} == --allow-unsigned ]] && { allow_unsigned=1; shift }
+  (( $# == 2 )) || die "usage: wf release [--allow-unsigned] <slug> <version>"
   local slug=$1 ver=$2 d rel tag
   d=$(wf_path $slug)
   rel=${d#$REPO/}
   [[ $ver =~ '^[0-9]+(\.[0-9]+){1,2}(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$' ]] ||
     die "version must look like 1.2, 1.2.3 or 1.2.3-beta.1"
+  (( allow_unsigned )) && [[ $ver != *-* ]] &&
+    die "--allow-unsigned is only for pre-release versions, such as $ver-preview.1"
   tag=$slug/v$ver
   git -C $REPO rev-parse -q --verify refs/tags/$tag >/dev/null && die "tag $tag already exists"
   [[ -z $(git -C $REPO status --porcelain -- $rel) ]] ||
     die "$rel has uncommitted changes; commit them first so the release matches the repo"
   # Before anything is committed or tagged, so a failure leaves no half-release.
-  check_notarised $d
+  # With --allow-unsigned the build step gives the warning.
+  (( allow_unsigned )) || check_notarised $d
   plutil -replace version -string $ver $d/info.plist
   if [[ -n $(git -C $REPO status --porcelain -- $rel/info.plist) ]]; then
     git -C $REPO add -- $rel/info.plist
     git -C $REPO commit -q -m "$slug: release v$ver" -- $rel/info.plist
   fi
   git -C $REPO tag -a $tag -m "$slug v$ver"
-  cmd_build $slug
+  if (( allow_unsigned )); then
+    cmd_build --allow-unsigned $slug
+  else
+    cmd_build $slug
+  fi
   info "Tagged $tag; built dist/$slug-$ver.alfredworkflow"
   push_tag $tag
-  draft_github_release $slug $d $ver
-  [[ $rel == wip/* ]] && info "Once it is posted on the forum, run: wf promote $slug"
+  draft_github_release $slug $d $ver $allow_unsigned
+  [[ $rel == wip/* && $ver != *-* ]] && info "Once it is posted on the forum, run: wf promote $slug"
   return 0
 }
 
@@ -356,8 +371,10 @@ Usage: wf <command> [args]
   build [--allow-unsigned] <slug>
                               Build dist/<slug>-<version>.alfredworkflow at the current version;
                               fails if a compiled binary isn't notarised, unless --allow-unsigned
-  release <slug> <version>    Set the version, commit, tag <slug>/v<version>, build, and open a
-                              draft GitHub release with the build attached
+  release [--allow-unsigned] <slug> <version>
+                              Set the version, commit, tag <slug>/v<version>, build, and open a
+                              draft GitHub release with the build attached; --allow-unsigned
+                              only for pre-release versions (1.2.3-preview.1)
   setup                       Enable the repo's git hooks (run once per clone)
 
 Set ALFRED_WORKFLOWS_DIR to point at a different Alfred workflows directory.
