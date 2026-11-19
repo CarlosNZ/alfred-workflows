@@ -1,5 +1,6 @@
 {
   "bundleid": "nz.carl.nowplaying",
+  "iconpath": "appicon.png",
   "pulse": {
     "src": "./scripts/poll.sh",
     "interval": 1,

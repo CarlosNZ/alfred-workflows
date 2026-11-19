@@ -25,3 +25,11 @@ Features we'd like added to Alfred, each with the use case in our workflows that
 **Use case:** Now Playing is a small panel with a transparent title bar, so only the window buttons show, at its top left. It's resizeable, but zooming it to fill the screen isn't useful, and `minimisable: false` leaves a grey dot.
 
 **Why it can't be worked around:** AppKit enables the zoom button on any resizeable window, and Alfred UI has no setting for it or for hiding the buttons. A per-layout `maxsize` limits how far zoom grows the window, but that also limits resizing by hand. A borderless window has no buttons, but then no close button either.
+
+## Alfred UI: an app name for the UI's process
+
+**Request:** a top-level `ui.json` setting for the name the UI's process shows in ⌘-Tab and the Dock (for example `"name": "Now Playing"`), alongside the existing `iconpath`. The helper could apply it to itself at launch, for example with LaunchServices' display name (as Chromium does for its helper processes).
+
+**Use case:** Now Playing ([`wip/now-playing`](wip/now-playing/README.md)) is a panel people switch to and from with ⌘-Tab. `iconpath` gives it its own icon there, but it's still labelled "Alfred UI", and every open Alfred UI from any workflow shares that name, so they can't be told apart by name.
+
+**Why it can't be worked around:** each Alfred UI runs as a process of `Alfred UI.app`, and ⌘-Tab and the Dock show that bundle's name. The window's `title` names the window (window switchers such as AltTab can show it) and the app menu, but not the app. Only a process can change its own display name: setting it from another process with `_LSSetApplicationInformationItem` reports success but leaves the name unchanged, and editing the helper's `Info.plist` would break Alfred's code signature.

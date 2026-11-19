@@ -6,7 +6,7 @@ Developer notes. A small Alfred 6 panel showing the current track (artwork, titl
 
 The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the window definition from the preferences, then opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The keywords (`nowplaying` and `np` by default) show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel, through the same Run Script. The keywords are set in the workflow's configuration; see [Preferences](#preferences).
 
-- `ui.json` holds the pulse, and loads the window from the file `window.sh` writes; see [Window](#window).
+- `ui.json` holds the pulse and the app icon (`iconpath`), and loads the window from the file `window.sh` writes; see [Window](#window) and [App icon and name](#app-icon-and-name).
 - `window.json` is the template for the window (a resizeable dark panel, at least 280×240): a `{ "id": "toprow" }` placeholder that `window.sh` fills with `parts/toprow.json`, then a `{ "id": "content" }` placeholder that it fills with the artwork and track details for the current layout; see [Layouts](#layouts).
 - `parts/toprow.json` is the top row: the playing app's icon (26pt) and name (14pt) in an `app` view, right-aligned, then the rotate button (14pt); see [Playing app](#playing-app) and [Layouts](#layouts). `parts/art.json` is the artwork image view, `parts/text.json` the title (21pt bold), artist (19pt) and album (17pt) labels, 6pt apart, and `parts/controls.json` a progress bar with elapsed time and duration above a row of five buttons (back 15 seconds, previous, play/pause, next, forward 15 seconds). The buttons' symbols are enlarged with `font` (size 19; a button's symbol size follows its font size), and the buttons made taller to fit with a `size` constraint (`{ "height": 31 }`), which Alfred applies to the button's frame, stretching the bezel to fill it. They measure 30pt tall in a screenshot, leaving at least 4.5pt above and below the tallest symbols (the 15-second arrows, which sit slightly low); without the constraint a bordered button is 19pt tall at the default font, and a larger font alone grows it only a little. Alfred UI has no control size setting. Change the font and height together, and check the padding in a screenshot. Components that get updated have `id`s: `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
 - The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
@@ -23,6 +23,16 @@ The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the
 The window is forced to the `dark` appearance and dragged from anywhere on its background (`movablebybackground`). Its translucency comes from two layers: the window's `blur`, and a dark tint, the root view's (`panel`) `background`. The padding sits on the root view rather than the window so the tint reaches the edges.
 
 With the window buttons preference on (the default), the window has a title bar with no title (`titlevisibility: false`), made transparent (`titlebarappearstransparent`) with the content extending up behind it (`fullsizecontentview`), so only the window buttons show, over the panel at top left, and the corners have the system's standard window rounding. The app icon and name sit at the top right to keep clear of the buttons. Minimise is disabled (`minimisable: false`) but still drawn as a grey dot, and zoom is enabled, since the window is resizeable: it grows the window as far as the screen and the layout's maximum size allow (see [Layouts](#layouts); `fullscreenable: false` stops it going full screen). Alfred UI has no option to hide either button or disable zoom, and no hover event that could show the buttons only while the pointer is over the window. With the preference off, the window is `borderless` (the title bar options are then ignored) and its `cornerradius` comes from the corner radius preference.
+
+#### App icon and name
+
+Alfred runs each open Alfred UI as its own process of a helper app, `Alfred UI.app` (inside `Alfred 6.app/Contents/Alfred UI/`), launched with the path of the `.alfredui` package. The helper has no icon of its own, so without one from the UI, ⌘-Tab, the Dock and window switchers such as AltTab show a blank placeholder. `ui.json`'s top-level `iconpath` sets the helper's application icon when the UI launches. A path starting with `/` or `~` is used as given, and any other path is relative to the `.alfredui` package. It's set to `appicon.png`, described below. The key isn't in Alfred's docs; it's read by `-[AlfredUI loadJSONAndConfigureUI:]` in Alfred's framework and applied by the helper's `setupIcon`, so check it after Alfred updates. A missing or unreadable file leaves the placeholder.
+
+`icon.png` is `audio-waveform` from the [with icons](https://github.com/withevergrow/withicons) Soft 3D set (MIT, © with icons contributors), rendered from its SVG at 512×512 with `rsvg-convert -a -w 512 -h 512`. The SVG is available from Iconify as `withicons-soft3d:audio-waveform` (`https://api.iconify.design/withicons-soft3d/audio-waveform.svg`), and is kept as `icon-src/waveform.svg`.
+
+The app icon is the same waveform on a squircle tile, so it sits with other apps' icons in switchers and the Dock; Alfred shows the bare `icon.png` for the workflow itself. `icon-src/make-appicon.py` builds `nowplaying.alfredui/appicon.png` from `waveform.svg` (run it after changing either; it needs `rsvg-convert` from Homebrew's librsvg). It follows the macOS icon grid: a 1024px canvas with an 824px superellipse tile (exponent 5, close to Apple's continuous-corner shape), a dark vertical gradient matching the panel, a faint top sheen and edge highlight, and a drop shadow, with the waveform 68% of the tile's width and its ground-shadow ellipses removed. `icon-src/` is development-only and listed in `.wfignore`, so it isn't in builds.
+
+The window's title is `Now Playing` (`title` in `window.json`), hidden by `titlevisibility` but still reported to the accessibility API, which is what window switchers read. The helper also names its menu-bar app menu after the window title. The app's own name, `Alfred UI`, comes from the helper's bundle, so ⌘-Tab and the Dock (and window switchers set to show app names) label the panel `Alfred UI`. A workflow can't change that: only a process can change its own display name, and setting it from outside with LaunchServices' private `_LSSetApplicationInformationItem` reports success but has no effect. See [Alfred requests](../../Alfred%20requests.md#alfred-ui-an-app-name-for-the-uis-process).
 
 #### Building the window from the preferences
 
@@ -146,19 +156,21 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 
 ## To-do
 
-- [ ] Overall icon
+- [x] Overall icon
 - [ ] "About" panel
 - [ ] Volume controls: perhaps a slider showing the current level (`output volume of (get volume settings)` via `osascript`).
 - [ ] Notifications on track change, with a preference to turn them on.
 - [ ] Always-on-top option, with a toggle button. Blocked: Alfred UI has no window level setting; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-always-on-top-windows).
+- [ ] Show "Now Playing" rather than "Alfred UI" as the app name in ⌘-Tab and the Dock. Blocked: only Alfred's helper can rename itself; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-an-app-name-for-the-uis-process).
 - [ ] WHen "Nothing playing", there should be a default app to open
 - [ ] Scrolling for long titles?
 
 ## Before a release
 
 - **Signing.** The framework (and test client) are ad-hoc signed, which is all a local build gets. The Gallery requires compiled binaries to be signed and notarised, so a Gallery release needs a Developer ID signature and notarisation for the framework. A forum release should be tested on another Mac first, in case Gatekeeper or quarantine blocks the ad-hoc-signed framework there.
-- **Build contents.** Builds currently include `vendor.sh` and `vendor/MediaRemoteAdapterTestClient`, which are only needed when vendoring. Adding them to a `.wfignore` keeps them out of the `.alfredworkflow` while keeping them in the repo.
+- **Build contents.** Builds currently include `vendor.sh` and `vendor/MediaRemoteAdapterTestClient`, which are only needed when vendoring. Adding them to `.wfignore` keeps them out of the `.alfredworkflow` while keeping them in the repo.
 - **Bundle IDs.** `ui.json` has its own `bundleid` (`nz.carl.nowplaying`), different from `info.plist` (`carlosnz.nowplaying`); `lib.sh` also uses `~/Library/Caches/nz.carl.nowplaying` as the cache when run outside Alfred, and `ui.json`'s `window` path contains the `info.plist` bundle ID. Make these consistent before release.
+- **Icon licence.** The icon is MIT-licensed (see [App icon and name](#app-icon-and-name)), which requires its copyright and permission notice to go with copies: ship the set's [`LICENSE`](https://github.com/withevergrow/withicons/blob/main/LICENSE) in the workflow, or include the notice in the user-facing readme in `info.plist`.
 - `description` and the user-facing readme in `info.plist` are empty, and there is no `version` yet.
 
 ## Testing
