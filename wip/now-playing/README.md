@@ -7,19 +7,21 @@ Developer notes. A small Alfred 6 panel showing the current track (artwork, titl
 The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the window definition from the preferences, then opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The keywords (`nowplaying` and `np` by default) show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel, through the same Run Script. The keywords are set in the workflow's configuration; see [Preferences](#preferences).
 
 - `ui.json` holds the pulse, and loads the window from the file `window.sh` writes; see [Window](#window).
-- `window.json` is the template for the window (340×540, not resizeable, a dark panel): the playing app's icon and name at the top right, an artwork image view in the centre, then title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
+- `window.json` is the template for the window (a resizeable dark panel, at least 280×240): a top row with the playing app's icon and name and a settings button at the right, then a `{ "id": "content" }` placeholder that `window.sh` fills with the artwork and track details for the current layout; see [Layouts](#layouts).
+- `parts/art.json` is the artwork image view. `parts/details.json` is the track details: title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
 - The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
 - `scripts/poll.sh` reads the player state (`load_track`) and prints a JSON `{update: {ids: {…}}}` object that sets each component's text, image, progress or visibility.
 - Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `volup`, `voldown`). Playback actions send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). Volume changes the system output volume via `osascript`, 6 steps on the 0–100 scale. It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse.
-- `scripts/lib.sh` is sourced by all the scripts: it locates the bundle and sets `CACHE`, and defines `adapter` (runs the vendored adapter), `adapter_installed`, `load_track` (reads the player state, artwork and app into variables; see [Status messages](#status-messages), [Artwork](#artwork) and [Playing app](#playing-app)), `JQ_TIME` (jq `clock` and `position` definitions), `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
+- `scripts/lib.sh` is sourced by all the scripts: it locates the bundle and sets `CACHE` and `DATA`, and defines the layout helpers `current_layout`, `layout_size` and `content_view` (see [Layouts](#layouts)), `adapter` (runs the vendored adapter), `adapter_installed`, `load_track` (reads the player state, artwork and app into variables; see [Status messages](#status-messages), [Artwork](#artwork) and [Playing app](#playing-app)), `JQ_TIME` (jq `clock` and `position` definitions), `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
 - `scripts/apppath.js` (JXA) turns a bundle ID into an app path with `NSWorkspace`.
-- `scripts/window.sh` builds the window from `window.json` and the preferences; see [Window](#window).
+- `scripts/window.sh` builds the window from `window.json`, the parts, the preferences and the saved layout; see [Window](#window).
+- `scripts/layout.sh` switches the open panel's layout; see [Layouts](#layouts).
 
 ### Window
 
 The window is forced to the `dark` appearance and dragged from anywhere on its background (`movablebybackground`). Its translucency comes from two layers: the window's `blur`, and a dark tint, the root view's (`panel`) `background`. The padding sits on the root view rather than the window so the tint reaches the edges.
 
-With the window buttons preference on (the default), the window has a title bar with no title (`titlevisibility: false`), made transparent (`titlebarappearstransparent`) with the content extending up behind it (`fullsizecontentview`), so only the window buttons show, over the panel at top left, and the corners have the system's standard window rounding. The app icon and name sit at the top right to keep clear of the buttons. Minimise and zoom are disabled (`minimisable`, `fullscreenable` and `resizeable` all false) but still drawn as grey dots: Alfred UI has no option to hide them, and no hover event that could show the buttons only while the pointer is over the window. With the preference off, the window is `borderless` (the title bar options are then ignored) and its `cornerradius` comes from the corner radius preference.
+With the window buttons preference on (the default), the window has a title bar with no title (`titlevisibility: false`), made transparent (`titlebarappearstransparent`) with the content extending up behind it (`fullsizecontentview`), so only the window buttons show, over the panel at top left, and the corners have the system's standard window rounding. The app icon and name sit at the top right to keep clear of the buttons. Minimise is disabled (`minimisable: false`) but still drawn as a grey dot, and zoom maximises the window, since it's resizeable (`fullscreenable: false` stops it going full screen): Alfred UI has no option to hide either, and no hover event that could show the buttons only while the pointer is over the window. With the preference off, the window is `borderless` (the title bar options are then ignored) and its `cornerradius` comes from the corner radius preference.
 
 #### Building the window from the preferences
 
@@ -31,7 +33,7 @@ A `{file:…}` placeholder, though, inserts a file's contents as JSON with their
 "window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/carlosnz.nowplaying/window.json}"
 ```
 
-`scripts/window.sh` writes that file: it takes `window.json` (the template, with the title bar settings), adds `borderless` and `cornerradius` when the window buttons are off, sets the tint to `rgb(18, 18, 20, (100 − transparency) ÷ 100)`, and moves the result into place atomically. A Run Script object runs it on every route into the Alfred UI object (the hotkey and both keyword results), so the panel opens with the current preferences and the file always exists when Alfred loads `ui.json`; if it doesn't, Alfred falls back to a default 800×600 window titled "Alfred UI".
+`scripts/window.sh` writes that file: it takes `window.json` (the template, with the title bar settings), adds `borderless` and `cornerradius` when the window buttons are off, fills in the content view and window size for the saved layout, sets the tint to `rgb(18, 18, 20, (100 − transparency) ÷ 100)`, and moves the result into place atomically. A Run Script object runs it on every route into the Alfred UI object (the hotkey and both keyword results), so the panel opens with the current preferences and the file always exists when Alfred loads `ui.json`; if it doesn't, Alfred falls back to a default 800×600 window titled "Alfred UI".
 
 The path is spelled out because `{file:…}` doesn't resolve a placeholder in its path (`{file:{const:alfred_workflow_cache}/window.json}` fails), though it does expand `~`. It must match `$alfred_workflow_cache`, so it changes with the workflow's bundle ID. Absolute and `~` paths in `{file:…}` aren't in Alfred's docs, so check this after Alfred updates.
 
@@ -40,6 +42,25 @@ At 100 transparency the tint is gone but the panel is still dark grey: that is t
 The thin black outline around the panel is the outline macOS draws around dark-appearance windows, and Alfred UI has no option to remove it. Turning `blur` off doesn't help: the window then gets an opaque black background, so the tint can't show anything through.
 
 The panel closes with the window's close button, or with Esc (a `⎋` entry in the root view's `shortcuts`, running a `finish` action).
+
+After a layout's starting size is set (on first open, or by a layout switch), the window reopens 32pt shorter (540 becomes 508, 300 becomes 268), then stays at that size: restoring the saved frame (`frameautosave`) seems to lose the title bar's height. Not yet investigated.
+
+### Layouts
+
+The settings button (`slider.horizontal.3`, top right) opens a menu (a `popupmenu` JSON Action on itself) with Portrait and Landscape, which run `scripts/layout.sh portrait|landscape`. The two layouts arrange the same components, so poll.sh and control.sh work with either:
+
+- **Portrait** (starts at 340×540): the artwork fills the space between the top row and the track details below it.
+- **Landscape** (starts at 620×300): two equal columns, the artwork on the left and the track details on the right, vertically centred (`position: centre`, `stretch: horizontal`).
+
+The artwork view fills its space either way, and `resize: fit` scales the image to fit it, keeping its aspect ratio and centring it, so it grows and shrinks with the window. Text and controls keep the same styles in both.
+
+The window is resizeable. A layout switch sets the new layout's starting size; within a layout, `frameautosave` keeps the size the user chooses across reopens. The minimum, 280×240 (`minsize` in `window.json`), is shared by both layouts: a `window` JSON Action resizes the open window but ignores `minsize`, so the minimum set when the window opens stays in force after a switch, and separate minimums (portrait taller, landscape wider) would block one layout's shape. At the minimum, portrait shrinks the artwork to a thumbnail with all the details still showing, and landscape is cramped (two 116pt columns, the title truncated, 20pt buttons).
+
+`content_view` in `lib.sh` builds the `content` view for a layout from `parts/art.json` and `parts/details.json`, adding the layout's container and constraints, and `layout_size` gives its starting size. `layout.sh` saves the choice to `$alfred_workflow_data/layout` (read back by `current_layout`, default portrait) and prints JSON Actions for the open panel: `replace` swaps the `content` view for the new layout's (Alfred then re-lays out the whole UI), `window` → `resize` sets the layout's starting size, and poll.sh's `update` is merged in so the new components show the track straight away. `window.sh` builds the panel in the saved layout when it next opens.
+
+Both layouts can't live in the window with one hidden: Alfred's docs say a hidden component "will still take up space". Nothing documents changing a view's `layout` or a component's constraints with `update`, so `replace` is the way to rearrange.
+
+The menu only responds to a real click: an accessibility `click` (AXPress) on the button doesn't trigger its `actioned` event, which matters when scripting tests.
 
 ### Status messages
 
@@ -133,10 +154,11 @@ cd nowplaying.alfredui
 ./scripts/results.sh | jq
 ./scripts/control.sh playpause | jq
 window_buttons=0 corner_radius=24 transparency=30 ./scripts/window.sh
+./scripts/layout.sh landscape | jq 'del(.replace)'   # also saves the layout
 ```
 
 Alfred doesn't notice `info.plist` edits made through the symlinked folder; reload the workflow with `osascript -e 'tell application id "com.runningwithcrayons.Alfred" to reload workflow "carlosnz.nowplaying"'`.
 
-Set `ADAPTER=/path/to/mock` to replace the adapter with a script of your own, e.g. to test the error and "Nothing playing" states. Outside Alfred, artwork, `last-error` and `window.json` go to `~/Library/Caches/nz.carl.nowplaying`.
+Set `ADAPTER=/path/to/mock` to replace the adapter with a script of your own, e.g. to test the error and "Nothing playing" states. Outside Alfred, artwork, `last-error` and `window.json` go to `~/Library/Caches/nz.carl.nowplaying`, and the saved layout to `~/Library/Application Support/nz.carl.nowplaying`.
 
 The `.alfredui` bundle lives inside the workflow folder; Alfred doesn't need a copy at the top level of its workflows directory.

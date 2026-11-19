@@ -1,4 +1,4 @@
-# Shared helpers, sourced by poll.sh, control.sh and results.sh.
+# Shared helpers, sourced by all the scripts.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR="$ROOT/vendor"
@@ -8,6 +8,52 @@ export PATH="/usr/bin:/bin:$PATH"
 # so they share artwork and app lookups.
 CACHE="${alfred_workflow_cache:-$HOME/Library/Caches/nz.carl.nowplaying}"
 mkdir -p "$CACHE"
+
+# Settings chosen in the panel itself (the layout) persist in the workflow's
+# data folder.
+DATA="${alfred_workflow_data:-$HOME/Library/Application Support/nz.carl.nowplaying}"
+
+# Print the saved layout: "portrait" (the default) or "landscape".
+current_layout() {
+  local layout
+  layout=$(cat "$DATA/layout" 2>/dev/null)
+  case "$layout" in
+    landscape) echo landscape ;;
+    *) echo portrait ;;
+  esac
+}
+
+# Print the window's starting size for layout $1, as JSON. The window is
+# resizeable from there. Its minimum size (`minsize` in window.json) is shared
+# by both layouts, because a `window` JSON Action can resize the open window
+# but ignores `minsize`, so the minimum set when the window opens stays in
+# force after a layout switch.
+layout_size() {
+  case "$1" in
+    landscape) echo '{"width": 620, "height": 300}' ;;
+    *) echo '{"width": 340, "height": 540}' ;;
+  esac
+}
+
+# Print the `content` view for layout $1, as JSON: the artwork and the track
+# details (parts/art.json and parts/details.json) arranged for that layout.
+# Portrait stacks them, artwork above. Landscape puts them side by side in
+# two equal columns, the details vertically centred in theirs. Either way the
+# artwork view fills its space and `resize: fit` scales the image to fit it,
+# keeping its aspect ratio and centring it. The view sits in the root view's
+# centre region, below the top row (app and settings).
+content_view() {
+  jq -n --arg layout "$1" --slurpfile art "$ROOT/parts/art.json" --slurpfile details "$ROOT/parts/details.json" '
+    $art[0] as $art | $details[0] as $details
+    | {id: "content", type: "view", constraints: {region: "centre"}}
+    + if $layout == "landscape" then {
+        layout: "grid", rows: 1, cols: 2, spacing: 20,
+        components: [$art, $details + {constraints: {position: "centre", stretch: "horizontal"}}]
+      } else {
+        layout: "border", spacing: 14,
+        components: [$art + {constraints: {region: "centre"}}, $details + {constraints: {region: "bottom"}}]
+      } end'
+}
 
 # Run the vendored adapter. The adapter requires absolute paths, hence $ROOT.
 # Set ADAPTER=/path/to/mock to test without the real thing.

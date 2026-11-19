@@ -1,0 +1,7 @@
+{
+  "id": "art",
+  "type": "imageview",
+  "resize": "fit",
+  "cornerradius": 10,
+  "image": { "type": "symbol", "src": "music.note", "size": { "width": 96 } }
+}
