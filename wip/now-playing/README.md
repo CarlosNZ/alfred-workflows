@@ -6,12 +6,24 @@ Developer notes. A small Alfred 6 panel showing the current track (artwork, titl
 
 The ⌃N hotkey opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The keywords (`nowplaying` and `np` by default) show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel. The keywords are set in the workflow's configuration; see [Preferences](#preferences).
 
-- `ui.json` defines the window (340×540, not resizeable): the playing app's icon and name across the top, an artwork image view in the centre, then title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
+- `ui.json` defines the window (340×540, not resizeable, a borderless dark panel; see [Window](#window)): the playing app's icon and name across the top with a close button on the right, an artwork image view in the centre, then title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
 - The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
 - `scripts/poll.sh` reads the player state (`load_track`) and prints a JSON `{update: {ids: {…}}}` object that sets each component's text, image, progress or visibility.
 - Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `volup`, `voldown`). Playback actions send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). Volume changes the system output volume via `osascript`, 6 steps on the 0–100 scale. It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse.
 - `scripts/lib.sh` is sourced by all the scripts: it locates the bundle and sets `CACHE`, and defines `adapter` (runs the vendored adapter), `adapter_installed`, `load_track` (reads the player state, artwork and app into variables; see [Status messages](#status-messages), [Artwork](#artwork) and [Playing app](#playing-app)), `JQ_TIME` (jq `clock` and `position` definitions), `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
 - `scripts/apppath.js` (JXA) turns a bundle ID into an app path with `NSWorkspace`.
+
+### Window
+
+The window is `borderless` (no title bar or traffic lights) with rounded corners, forced to the `dark` appearance, and dragged from anywhere on its background (`movablebybackground`). Its translucency comes from two layers: the window's `blur`, and a dark tint, the root view's (`panel`) `background`. The padding sits on the root view rather than the window so the tint reaches the edges.
+
+The corner radius is a fixed 16, the radius of a standard titled window on macOS 27 (`_cornerRadius` of an `NSWindow`). It can't be a preference: preferences reach the UI as strings (through `variablesconfig`, `src: "variable"`), and the window's `cornerradius` ignores a string, so a placeholder `"{var:…}"` leaves the corners square. An unquoted placeholder is invalid JSON, so Alfred can't load the UI at all, and the update action can't change window properties, so a script can't set it either.
+
+The tint follows the `transparency` preference. Its alpha is a fraction, which a placeholder can't compute from the slider's 0–100 value. Instead `transparency` is passed to scripts (`scriptenv`), and `scripts/style.sh`, run on the root view's `preload` event, prints an update setting the tint to `rgb(18, 18, 20, (100 − transparency) ÷ 100)`. `ui.json` holds the same colour for the default, 45. At 100 the tint is gone but the panel is still dark grey: that is the blur's own material, which the dark appearance darkens and the UI JSON can't adjust.
+
+The thin black outline around the panel is the outline macOS draws around dark-appearance windows, and Alfred UI has no option to remove it. Turning `blur` off doesn't help: the window then gets an opaque black background, so the tint can't show anything through.
+
+There is no title bar close button, so the panel closes with Esc (a `⎋` entry in the root view's `shortcuts`) or the ⓧ button at the right of the top row. Both run a `finish` action.
 
 ### Status messages
 
@@ -49,12 +61,13 @@ Fetching artwork for a new track makes the first result slower to appear, as it 
 
 The workflow's User Configuration (defined in `info.plist`; values the user saves go to the gitignored `prefs.plist`) has:
 
-| Variable        | Type | Default      | Used by                                                      |
-| --------------- | ---- | ------------ | ------------------------------------------------------------ |
-| `keyword`       | text | `nowplaying` | the first Script Filter's keyword, as `{var:keyword}`        |
-| `keyword_short` | text | `np`         | the second Script Filter's keyword, as `{var:keyword_short}` |
+| Variable        | Type          | Default      | Used by                                                      |
+| --------------- | ------------- | ------------ | ------------------------------------------------------------ |
+| `keyword`       | text          | `nowplaying` | the first Script Filter's keyword, as `{var:keyword}`        |
+| `keyword_short` | text          | `np`         | the second Script Filter's keyword, as `{var:keyword_short}` |
+| `transparency`  | slider, 0–100 | `45`         | the panel's tint, via `style.sh`; see [Window](#window)      |
 
-Alfred also passes them to scripts as environment variables.
+Alfred also passes them to the Script Filters' scripts as environment variables. The panel only sees the ones listed in `ui.json`'s `variablesconfig`, and only passes those marked `scriptenv` to its scripts.
 
 ## The vendored adapter
 
@@ -81,6 +94,7 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] Click the app icon to bring that app to the front (`open -b <bundle id>`). Alfred's docs list no click event for image views, but buttons have `actioned` and accept an image, so the icon could be a borderless button with a `fileicon` image.
 - [ ] Jump back/forward buttons
 - [ ] Notifications on track change, with a preference to turn them on.
+- [ ] Always-on-top option
 
 ## Before a release
 

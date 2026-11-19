@@ -1,5 +1,8 @@
 {
   "bundleid": "nz.carl.nowplaying",
+  "variablesconfig": {
+    "transparency": { "src": "variable", "default": "45", "scriptenv": true }
+  },
   "pulse": {
     "src": "./scripts/poll.sh",
     "interval": 1,
@@ -8,30 +11,57 @@
   },
   "window": {
     "title": "Now Playing",
-    "padding": 16,
+    "borderless": true,
+    "cornerradius": 16,
+    "movablebybackground": true,
+    "blur": true,
+    "appearance": "dark",
     "size": { "width": 340, "height": 540 },
     "resizeable": false,
     "frameautosave": true,
     "root": {
+      "id": "panel",
       "type": "view",
       "layout": "border",
+      "padding": 16,
       "spacing": 14,
+      "background": "rgb(18, 18, 20, 0.55)",
+      "events": [{ "triggers": "preload", "action": { "type": "script", "src": "./scripts/style.sh" } }],
+      "shortcuts": [
+        { "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } }
+      ],
       "components": [
         {
           "type": "view",
-          "layout": "inline",
-          "direction": "horizontal",
-          "spacing": 6,
+          "layout": "border",
           "constraints": { "region": "top" },
           "components": [
             {
-              "id": "appicon",
-              "type": "imageview",
-              "hidden": true,
-              "constraints": { "size": 16 },
-              "image": { "type": "symbol", "src": "app" }
+              "type": "view",
+              "layout": "inline",
+              "direction": "horizontal",
+              "spacing": 6,
+              "constraints": { "region": "left" },
+              "components": [
+                {
+                  "id": "appicon",
+                  "type": "imageview",
+                  "hidden": true,
+                  "constraints": { "size": 16 },
+                  "image": { "type": "symbol", "src": "app" }
+                },
+                { "id": "appname", "type": "label", "text": "", "font": { "size": "small" }, "colour": "secondaryLabelColor" }
+              ]
             },
-            { "id": "appname", "type": "label", "text": "", "font": { "size": "small" }, "colour": "secondaryLabelColor" }
+            {
+              "type": "button", "text": "", "tooltip": "Close",
+              "bordered": false,
+              "contenttintcolour": "tertiaryLabelColor",
+              "constraints": { "region": "right" },
+              "accessibility": { "label": "Close" },
+              "image": { "type": "symbol", "src": "xmark.circle.fill", "size": { "width": 14 } },
+              "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "finish": {} } } }]
+            }
           ]
         },
         {

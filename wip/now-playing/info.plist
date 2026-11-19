@@ -282,6 +282,31 @@
 			<key>variable</key>
 			<string>keyword_short</string>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>defaultvalue</key>
+				<integer>45</integer>
+				<key>markercount</key>
+				<integer>11</integer>
+				<key>maxvalue</key>
+				<integer>100</integer>
+				<key>minvalue</key>
+				<integer>0</integer>
+				<key>onlystoponmarkers</key>
+				<false/>
+				<key>showmarkers</key>
+				<false/>
+			</dict>
+			<key>description</key>
+			<string>How much of what is behind the panel shows through, from 0 (solid) to 100 (blur only).</string>
+			<key>label</key>
+			<string>Transparency</string>
+			<key>type</key>
+			<string>slider</string>
+			<key>variable</key>
+			<string>transparency</string>
+		</dict>
 	</array>
 	<key>webaddress</key>
 	<string>http://geekzone.philosophicalzombie.net</string>
