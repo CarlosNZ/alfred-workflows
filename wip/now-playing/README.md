@@ -4,26 +4,42 @@ Developer notes. A small Alfred 6 panel showing the current track (artwork, titl
 
 ## How it works
 
-The ⌃N hotkey opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The keywords (`nowplaying` and `np` by default) show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel. The keywords are set in the workflow's configuration; see [Preferences](#preferences).
+The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the window definition from the preferences, then opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The keywords (`nowplaying` and `np` by default) show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel, through the same Run Script. The keywords are set in the workflow's configuration; see [Preferences](#preferences).
 
-- `ui.json` defines the window (340×540, not resizeable, a borderless dark panel; see [Window](#window)): the playing app's icon and name across the top with a close button on the right, an artwork image view in the centre, then title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
+- `ui.json` holds the pulse, and loads the window from the file `window.sh` writes; see [Window](#window).
+- `window.json` is the template for the window (340×540, not resizeable, a dark panel): the playing app's icon and name at the top right, an artwork image view in the centre, then title/artist/album labels, a progress bar with elapsed time and duration, and a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `appicon`, `appname`, `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
 - The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
 - `scripts/poll.sh` reads the player state (`load_track`) and prints a JSON `{update: {ids: {…}}}` object that sets each component's text, image, progress or visibility.
 - Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `volup`, `voldown`). Playback actions send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). Volume changes the system output volume via `osascript`, 6 steps on the 0–100 scale. It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse.
 - `scripts/lib.sh` is sourced by all the scripts: it locates the bundle and sets `CACHE`, and defines `adapter` (runs the vendored adapter), `adapter_installed`, `load_track` (reads the player state, artwork and app into variables; see [Status messages](#status-messages), [Artwork](#artwork) and [Playing app](#playing-app)), `JQ_TIME` (jq `clock` and `position` definitions), `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
 - `scripts/apppath.js` (JXA) turns a bundle ID into an app path with `NSWorkspace`.
+- `scripts/window.sh` builds the window from `window.json` and the preferences; see [Window](#window).
 
 ### Window
 
-The window is `borderless` (no title bar or traffic lights) with rounded corners, forced to the `dark` appearance, and dragged from anywhere on its background (`movablebybackground`). Its translucency comes from two layers: the window's `blur`, and a dark tint, the root view's (`panel`) `background`. The padding sits on the root view rather than the window so the tint reaches the edges.
+The window is forced to the `dark` appearance and dragged from anywhere on its background (`movablebybackground`). Its translucency comes from two layers: the window's `blur`, and a dark tint, the root view's (`panel`) `background`. The padding sits on the root view rather than the window so the tint reaches the edges.
 
-The corner radius is a fixed 16, the radius of a standard titled window on macOS 27 (`_cornerRadius` of an `NSWindow`). It can't be a preference: preferences reach the UI as strings (through `variablesconfig`, `src: "variable"`), and the window's `cornerradius` ignores a string, so a placeholder `"{var:…}"` leaves the corners square. An unquoted placeholder is invalid JSON, so Alfred can't load the UI at all, and the update action can't change window properties, so a script can't set it either.
+With the window buttons preference on (the default), the window has a title bar with no title (`titlevisibility: false`), made transparent (`titlebarappearstransparent`) with the content extending up behind it (`fullsizecontentview`), so only the window buttons show, over the panel at top left, and the corners have the system's standard window rounding. The app icon and name sit at the top right to keep clear of the buttons. Minimise and zoom are disabled (`minimisable`, `fullscreenable` and `resizeable` all false) but still drawn as grey dots: Alfred UI has no option to hide them, and no hover event that could show the buttons only while the pointer is over the window. With the preference off, the window is `borderless` (the title bar options are then ignored) and its `cornerradius` comes from the corner radius preference.
 
-The tint follows the `transparency` preference. Its alpha is a fraction, which a placeholder can't compute from the slider's 0–100 value. Instead `transparency` is passed to scripts (`scriptenv`), and `scripts/style.sh`, run on the root view's `preload` event, prints an update setting the tint to `rgb(18, 18, 20, (100 − transparency) ÷ 100)`. `ui.json` holds the same colour for the default, 45. At 100 the tint is gone but the panel is still dark grey: that is the blur's own material, which the dark appearance darkens and the UI JSON can't adjust.
+#### Building the window from the preferences
+
+Preferences reach an Alfred UI only as strings (through `variablesconfig`, `src: "variable"`), and the window's settings ignore a string where they expect a boolean or a number: a `"{var:…}"` placeholder for `borderless` or `cornerradius` has no effect, and an unquoted placeholder is invalid JSON, so Alfred can't load the UI at all. The update action can't change window properties once the window is open, so a script in the UI can't set them either.
+
+A `{file:…}` placeholder, though, inserts a file's contents as JSON with their real types (for an object; a file holding a bare `true` arrives as the string `"true"`). So `ui.json`'s whole `window` is one placeholder:
+
+```json
+"window": "{file:~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/carlosnz.nowplaying/window.json}"
+```
+
+`scripts/window.sh` writes that file: it takes `window.json` (the template, with the title bar settings), adds `borderless` and `cornerradius` when the window buttons are off, sets the tint to `rgb(18, 18, 20, (100 − transparency) ÷ 100)`, and moves the result into place atomically. A Run Script object runs it on every route into the Alfred UI object (the hotkey and both keyword results), so the panel opens with the current preferences and the file always exists when Alfred loads `ui.json`; if it doesn't, Alfred falls back to a default 800×600 window titled "Alfred UI".
+
+The path is spelled out because `{file:…}` doesn't resolve a placeholder in its path (`{file:{const:alfred_workflow_cache}/window.json}` fails), though it does expand `~`. It must match `$alfred_workflow_cache`, so it changes with the workflow's bundle ID. Absolute and `~` paths in `{file:…}` aren't in Alfred's docs, so check this after Alfred updates.
+
+At 100 transparency the tint is gone but the panel is still dark grey: that is the blur's own material, which the dark appearance darkens and the UI JSON can't adjust.
 
 The thin black outline around the panel is the outline macOS draws around dark-appearance windows, and Alfred UI has no option to remove it. Turning `blur` off doesn't help: the window then gets an opaque black background, so the tint can't show anything through.
 
-There is no title bar close button, so the panel closes with Esc (a `⎋` entry in the root view's `shortcuts`) or the ⓧ button at the right of the top row. Both run a `finish` action.
+The panel closes with the window's close button, or with Esc (a `⎋` entry in the root view's `shortcuts`, running a `finish` action).
 
 ### Status messages
 
@@ -61,13 +77,15 @@ Fetching artwork for a new track makes the first result slower to appear, as it 
 
 The workflow's User Configuration (defined in `info.plist`; values the user saves go to the gitignored `prefs.plist`) has:
 
-| Variable        | Type          | Default      | Used by                                                      |
-| --------------- | ------------- | ------------ | ------------------------------------------------------------ |
-| `keyword`       | text          | `nowplaying` | the first Script Filter's keyword, as `{var:keyword}`        |
-| `keyword_short` | text          | `np`         | the second Script Filter's keyword, as `{var:keyword_short}` |
-| `transparency`  | slider, 0–100 | `45`         | the panel's tint, via `style.sh`; see [Window](#window)      |
+| Variable         | Type          | Default      | Used by                                                      |
+| ---------------- | ------------- | ------------ | ------------------------------------------------------------ |
+| `keyword`        | text          | `nowplaying` | the first Script Filter's keyword, as `{var:keyword}`        |
+| `keyword_short`  | text          | `np`         | the second Script Filter's keyword, as `{var:keyword_short}` |
+| `window_buttons` | checkbox      | on           | `window.sh`: title bar with window buttons, or borderless    |
+| `corner_radius`  | slider, 0–32  | `16`         | `window.sh`: the borderless window's `cornerradius`          |
+| `transparency`   | slider, 0–100 | `45`         | `window.sh`: the panel's tint                                |
 
-Alfred also passes them to the Script Filters' scripts as environment variables. The panel only sees the ones listed in `ui.json`'s `variablesconfig`, and only passes those marked `scriptenv` to its scripts.
+Alfred passes them to the workflow's scripts as environment variables. The Alfred UI itself sees none of them (it would need each listed in `ui.json`'s `variablesconfig`), and doesn't need to: `window.sh` builds them into the window before the UI opens; see [Window](#window).
 
 ## The vendored adapter
 
@@ -102,7 +120,7 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 
 - **Signing.** The framework (and test client) are ad-hoc signed, which is all a local build gets. The Gallery requires compiled binaries to be signed and notarised, so a Gallery release needs a Developer ID signature and notarisation for the framework. A forum release should be tested on another Mac first, in case Gatekeeper or quarantine blocks the ad-hoc-signed framework there.
 - **Build contents.** Builds currently include `vendor.sh` and `vendor/MediaRemoteAdapterTestClient`, which are only needed when vendoring. Adding them to a `.wfignore` keeps them out of the `.alfredworkflow` while keeping them in the repo.
-- **Bundle IDs.** `ui.json` has its own `bundleid` (`nz.carl.nowplaying`), different from `info.plist` (`carlosnz.nowplaying`); `lib.sh` also uses `~/Library/Caches/nz.carl.nowplaying` as the cache when run outside Alfred. Make these consistent before release.
+- **Bundle IDs.** `ui.json` has its own `bundleid` (`nz.carl.nowplaying`), different from `info.plist` (`carlosnz.nowplaying`); `lib.sh` also uses `~/Library/Caches/nz.carl.nowplaying` as the cache when run outside Alfred, and `ui.json`'s `window` path contains the `info.plist` bundle ID. Make these consistent before release.
 - `description` and the user-facing readme in `info.plist` are empty, and there is no `version` yet.
 
 ## Testing
@@ -114,8 +132,11 @@ cd nowplaying.alfredui
 ./scripts/poll.sh | jq
 ./scripts/results.sh | jq
 ./scripts/control.sh playpause | jq
+window_buttons=0 corner_radius=24 transparency=30 ./scripts/window.sh
 ```
 
-Set `ADAPTER=/path/to/mock` to replace the adapter with a script of your own, e.g. to test the error and "Nothing playing" states. Outside Alfred, artwork and `last-error` go to `~/Library/Caches/nz.carl.nowplaying`.
+Alfred doesn't notice `info.plist` edits made through the symlinked folder; reload the workflow with `osascript -e 'tell application id "com.runningwithcrayons.Alfred" to reload workflow "carlosnz.nowplaying"'`.
+
+Set `ADAPTER=/path/to/mock` to replace the adapter with a script of your own, e.g. to test the error and "Nothing playing" states. Outside Alfred, artwork, `last-error` and `window.json` go to `~/Library/Caches/nz.carl.nowplaying`.
 
 The `.alfredui` bundle lives inside the workflow folder; Alfred doesn't need a copy at the top level of its workflows directory.

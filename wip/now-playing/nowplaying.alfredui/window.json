@@ -1,0 +1,144 @@
+{
+  "title": "Now Playing",
+  "titlevisibility": false,
+  "titlebarappearstransparent": true,
+  "fullsizecontentview": true,
+  "minimisable": false,
+  "fullscreenable": false,
+  "movablebybackground": true,
+  "blur": true,
+  "appearance": "dark",
+  "size": { "width": 340, "height": 540 },
+  "resizeable": false,
+  "frameautosave": true,
+  "root": {
+    "id": "panel",
+    "type": "view",
+    "layout": "border",
+    "padding": 16,
+    "spacing": 14,
+    "background": "rgb(18, 18, 20, 0.55)",
+    "shortcuts": [
+      { "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } }
+    ],
+    "components": [
+      {
+        "type": "view",
+        "layout": "border",
+        "constraints": { "region": "top" },
+        "components": [
+          {
+            "type": "view",
+            "layout": "inline",
+            "direction": "horizontal",
+            "spacing": 6,
+            "constraints": { "region": "right" },
+            "components": [
+              {
+                "id": "appicon",
+                "type": "imageview",
+                "hidden": true,
+                "constraints": { "size": 16 },
+                "image": { "type": "symbol", "src": "app" }
+              },
+              { "id": "appname", "type": "label", "text": "", "font": { "size": "small" }, "colour": "secondaryLabelColor" }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "art",
+        "type": "imageview",
+        "constraints": { "region": "centre" },
+        "resize": "fit",
+        "cornerradius": 10,
+        "image": { "type": "symbol", "src": "music.note", "size": { "width": 96 } }
+      },
+      {
+        "type": "view",
+        "layout": "inline",
+        "direction": "vertical",
+        "spacing": 14,
+        "constraints": { "region": "bottom" },
+        "components": [
+          {
+            "type": "view",
+            "layout": "inline",
+            "direction": "vertical",
+            "spacing": 2,
+            "components": [
+              {
+                "id": "title",
+                "type": "label",
+                "text": "Loading…",
+                "textalign": "centre",
+                "font": { "size": "large", "weight": "bold" }
+              },
+              { "id": "artist", "type": "label", "text": "", "textalign": "centre" },
+              { "id": "album", "type": "label", "text": "", "textalign": "centre", "colour": "secondaryLabelColor" }
+            ]
+          },
+          {
+            "type": "view",
+            "layout": "inline",
+            "direction": "vertical",
+            "spacing": 4,
+            "components": [
+              { "id": "progress", "type": "progress", "style": "linear", "hidden": true },
+              {
+                "type": "view",
+                "layout": "grid",
+                "rows": 1,
+                "cols": 2,
+                "components": [
+                  { "id": "elapsed", "type": "label", "text": "", "hidden": true, "textalign": "left", "font": { "size": "small", "monospaced": "digits" }, "colour": "secondaryLabelColor" },
+                  { "id": "duration", "type": "label", "text": "", "hidden": true, "textalign": "right", "font": { "size": "small", "monospaced": "digits" }, "colour": "secondaryLabelColor" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "view",
+            "layout": "grid",
+            "rows": 1,
+            "cols": 5,
+            "spacing": 6,
+            "components": [
+              {
+                "type": "button", "text": "", "tooltip": "Volume down",
+                "accessibility": { "label": "Volume down" },
+                "image": { "type": "symbol", "src": "speaker.wave.1.fill" },
+                "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["voldown"], "async": true } }]
+              },
+              {
+                "type": "button", "text": "", "tooltip": "Previous track",
+                "accessibility": { "label": "Previous" },
+                "image": { "type": "symbol", "src": "backward.fill" },
+                "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["prev"], "async": true } }]
+              },
+              {
+                "id": "playpause",
+                "type": "button", "text": "", "tooltip": "Play / Pause",
+                "accessibility": { "label": "Play or pause" },
+                "image": { "type": "symbol", "src": "playpause.fill" },
+                "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["playpause"], "async": true } }]
+              },
+              {
+                "type": "button", "text": "", "tooltip": "Next track",
+                "accessibility": { "label": "Next" },
+                "image": { "type": "symbol", "src": "forward.fill" },
+                "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["next"], "async": true } }]
+              },
+              {
+                "type": "button", "text": "", "tooltip": "Volume up",
+                "accessibility": { "label": "Volume up" },
+                "image": { "type": "symbol", "src": "speaker.wave.3.fill" },
+                "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["volup"], "async": true } }]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -12,7 +12,7 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
+				<string>E7A86BD5-86F3-4042-91AA-755634CE7E50</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -25,7 +25,7 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
+				<string>E7A86BD5-86F3-4042-91AA-755634CE7E50</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -35,6 +35,19 @@
 			</dict>
 		</array>
 		<key>A56A3D5E-6F44-4256-AAA7-624A41B436AD</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>E7A86BD5-86F3-4042-91AA-755634CE7E50</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>E7A86BD5-86F3-4042-91AA-755634CE7E50</key>
 		<array>
 			<dict>
 				<key>destinationuid</key>
@@ -58,23 +71,6 @@
 	<string>Now Playing</string>
 	<key>objects</key>
 	<array>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>1</integer>
-				<key>path</key>
-				<string>nowplaying.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
 		<dict>
 			<key>config</key>
 			<dict>
@@ -123,6 +119,46 @@
 			<string>A56A3D5E-6F44-4256-AAA7-624A41B436AD</string>
 			<key>version</key>
 			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>nowplaying.alfredui/scripts/window.sh</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>E7A86BD5-86F3-4042-91AA-755634CE7E50</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>launchmode</key>
+				<integer>1</integer>
+				<key>path</key>
+				<string>nowplaying.alfredui</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</string>
+			<key>version</key>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -233,9 +269,16 @@
 		<key>D569C86D-BEE8-4EA0-9043-6EC81CF4912C</key>
 		<dict>
 			<key>xpos</key>
-			<real>345</real>
+			<real>420</real>
 			<key>ypos</key>
-			<real>100</real>
+			<real>230</real>
+		</dict>
+		<key>E7A86BD5-86F3-4042-91AA-755634CE7E50</key>
+		<dict>
+			<key>xpos</key>
+			<real>230</real>
+			<key>ypos</key>
+			<real>230</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
@@ -281,6 +324,50 @@
 			<string>textfield</string>
 			<key>variable</key>
 			<string>keyword_short</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Show window buttons</string>
+			</dict>
+			<key>description</key>
+			<string>Shows the close button (and disabled minimise and zoom buttons) in a transparent title bar. Without them the panel is borderless; Esc closes it either way.</string>
+			<key>label</key>
+			<string>Window buttons</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>window_buttons</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>defaultvalue</key>
+				<integer>16</integer>
+				<key>markercount</key>
+				<integer>9</integer>
+				<key>maxvalue</key>
+				<integer>32</integer>
+				<key>minvalue</key>
+				<integer>0</integer>
+				<key>onlystoponmarkers</key>
+				<false/>
+				<key>showmarkers</key>
+				<false/>
+			</dict>
+			<key>description</key>
+			<string>Rounding of the panel corners, in points, when the window buttons are hidden. With them, the panel has the standard macOS window rounding.</string>
+			<key>label</key>
+			<string>Corner radius</string>
+			<key>type</key>
+			<string>slider</string>
+			<key>variable</key>
+			<string>corner_radius</string>
 		</dict>
 		<dict>
 			<key>config</key>
