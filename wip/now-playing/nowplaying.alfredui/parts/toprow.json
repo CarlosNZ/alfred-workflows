@@ -9,7 +9,7 @@
       "type": "view",
       "layout": "inline",
       "direction": "horizontal",
-      "spacing": 8,
+      "spacing": 5,
       "constraints": { "region": "centre", "position": "right" },
       "components": [
         {
@@ -19,7 +19,7 @@
           "constraints": { "size": 26 },
           "image": { "type": "symbol", "src": "app" }
         },
-        { "id": "appname", "type": "label", "text": "", "font": { "size": 14 }, "colour": "secondaryLabelColor", "constraints": { "position": "centre" } }
+        { "id": "appname", "type": "label", "text": "", "font": { "size": 14 }, "colour": "secondaryLabelColor", "constraints": { "position": "centre", "insets": { "bottom": 3 } } }
       ]
     },
     {
@@ -27,7 +27,7 @@
       "type": "button", "text": "",
       "bordered": false,
       "font": { "size": 14 },
-      "constraints": { "region": "right", "position": "centre" },
+      "constraints": { "region": "right", "position": "centre", "insets": { "bottom": 3 } },
       "contenttintcolour": "secondaryLabelColor",
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/layout.sh", "args": ["toggle"] } }]
     }

@@ -14,6 +14,7 @@ The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the
 - Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `back`, `forward`). Play/pause, next and previous send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse. Back and forward jump 15 seconds (`JUMP`); see [Jumping back and forward](#jumping-back-and-forward).
 - `scripts/lib.sh` is sourced by all the scripts: it locates the bundle and sets `CACHE` and `DATA`, and defines the layout helpers `current_layout`, `layout_size` and `content_view` (see [Layouts](#layouts)), the top row helpers `app_view`, `toprow_view` and `with_toprow` (see [Playing app](#playing-app)), `adapter` (runs the vendored adapter), `adapter_installed`, `load_track` (reads the player state, artwork and app into variables; see [Status messages](#status-messages), [Artwork](#artwork) and [Playing app](#playing-app)), `JQ_TIME` (jq `clock` and `position` definitions), `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
 - `scripts/apppath.js` (JXA) turns a bundle ID into an app path with `NSWorkspace`.
+- `scripts/openapp.sh` opens the playing app, or brings it to the front, when its icon or name is clicked; see [Playing app](#playing-app).
 - `scripts/window.sh` builds the window from `window.json`, the parts, the preferences and the saved layout; see [Window](#window).
 - `scripts/layout.sh` switches the open panel's layout; see [Layouts](#layouts).
 
@@ -84,7 +85,11 @@ Fetching artwork is expensive (`get` returns it base64-encoded), so each pulse c
 
 `get` returns the player's `bundleIdentifier`. `load_track` resolves it to an app path with `apppath.js` and caches the result per bundle ID as `app-<bundle id>` in the cache folder (an empty file means no app was found), so the lookup only runs for a new player. The cache is never refreshed, so clear it if an app is installed or moved while the cache exists. The icon is an image view with `type: "fileicon"` and the app path as `src`; the name is the app bundle's file name without `.app`. Both are hidden when there's no bundle ID or app. Media playing in a browser shows the browser, not the site.
 
-The icon and name aren't set with `update`. Alfred sizes a component when it's laid out and doesn't re-measure it when an update changes its text, so the name (which starts empty) could keep a width of a few points and be truncated, depending on whether the first pulse beat the first layout. `relayout: true` doesn't fix it: views keep the space they were given and squeeze their contents. Instead `with_toprow` adds a `replace` of the `app` view, built by `app_view` with the icon and name in place, so it's measured with them. The `app` view sits in the top row's centre region (all the width the rotate button leaves) with `position: right`, so its new size has room. It's replaced only when the app changes: the app last drawn is in `$CACHE/toprow-app`, which `window.sh` removes, so a newly opened panel gets its app on the first pulse. The rotate button is outside the replaced view, as it doesn't change with the app. The name is vertically centred on the icon with `position: centre`, and so is the rotate button, whose symbol size follows its `font` size (an `image` `size` has no effect on a button).
+The icon and name aren't set with `update`. Alfred sizes a component when it's laid out and doesn't re-measure it when an update changes its text, so the name (which starts empty) could keep a width of a few points and be truncated, depending on whether the first pulse beat the first layout. `relayout: true` doesn't fix it: views keep the space they were given and squeeze their contents. Instead `with_toprow` adds a `replace` of the `app` view, built by `app_view` with the icon and name in place, so it's measured with them. The `app` view sits in the top row's centre region (all the width the rotate button leaves) with `position: right`, so its new size has room. It's replaced only when the app changes: the app last drawn is in `$CACHE/toprow-app`, which `window.sh` removes, so a newly opened panel gets its app on the first pulse. The rotate button is outside the replaced view, as it doesn't change with the app.
+
+Clicking the icon or name opens the app, or brings it to the front: `app_view` gives the `app` view a `clicked` event that runs `scripts/openapp.sh` with the app's path as its argument, so the path stays current as the view is replaced (there's no event when no app is showing). Alfred's docs list click events only for buttons, but a view's `clicked` trigger works.
+
+The name is vertically centred on the icon with `position: centre`, raised 1.5pt with a 3pt bottom inset, because centred on its frame the lowercase letters sit about 2pt below the icon's centre. The icon and name are 5pt apart (`spacing`), though the visible gap is larger, as the icon's image has transparent margins. The rotate button is vertically centred too, and raised the same way to line up with the name; its symbol size follows its `font` size (an `image` `size` has no effect on a button).
 
 ### Time and progress
 
@@ -139,10 +144,9 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 
 ## To-do
 
+- [ ] Overall icon
+- [ ] "About" panel
 - [ ] Volume controls: perhaps a slider showing the current level (`output volume of (get volume settings)` via `osascript`).
-- [ ] UI improvements.
-- [ ] Multiple layouts (compact, full, etc.).
-- [ ] Click the app icon to bring that app to the front (`open -b <bundle id>`). Alfred's docs list no click event for image views, but buttons have `actioned` and accept an image, so the icon could be a borderless button with a `fileicon` image.
 - [ ] Notifications on track change, with a preference to turn them on.
 - [ ] Always-on-top option, with a toggle button. Blocked: Alfred UI has no window level setting; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-always-on-top-windows).
 - [ ] WHen "Nothing playing", there should be a default app to open

@@ -121,10 +121,13 @@ adapter_installed() {
 }
 
 # Print the top row's `app` view (icon and name) as JSON, from
-# parts/toprow.json, showing app $1 (an app path; empty hides both).
+# parts/toprow.json, showing app $1 (an app path; empty hides both). A click
+# on the view opens or focuses the app (openapp.sh).
 app_view() {
   jq -c --arg app "$1" '
     .components[] | select(.id == "app")
+    | (if $app == "" then . else .events = [{triggers: "clicked",
+        action: {type: "script", src: "./scripts/openapp.sh", args: [$app], async: true}}] end)
     | .components |= map(
         if .id == "appicon" then
           . + (if $app == "" then {hidden: true}
