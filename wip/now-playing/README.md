@@ -1,6 +1,6 @@
 # Now Playing
 
-Developer notes. A small Alfred 6 panel showing the current track (artwork, title, artist, album, playing app, elapsed time) with playback and volume controls.
+Developer notes. A small Alfred 6 panel showing the current track (artwork, title, artist, album, playing app, elapsed time) with playback controls.
 
 ## How it works
 
@@ -8,10 +8,10 @@ The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the
 
 - `ui.json` holds the pulse, and loads the window from the file `window.sh` writes; see [Window](#window).
 - `window.json` is the template for the window (a resizeable dark panel, at least 280×240): a `{ "id": "toprow" }` placeholder that `window.sh` fills with `parts/toprow.json`, then a `{ "id": "content" }` placeholder that it fills with the artwork and track details for the current layout; see [Layouts](#layouts).
-- `parts/toprow.json` is the top row: the playing app's icon (32pt) and name (18pt) in an `app` view, right-aligned, then the rotate button; see [Playing app](#playing-app) and [Layouts](#layouts). `parts/art.json` is the artwork image view, `parts/text.json` the title (21pt bold), artist (19pt) and album (17pt) labels, 6pt apart, and `parts/controls.json` a progress bar with elapsed time and duration above a row of five buttons (volume down, previous, play/pause, next, volume up). Components that get updated have `id`s: `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
+- `parts/toprow.json` is the top row: the playing app's icon (32pt) and name (18pt) in an `app` view, right-aligned, then the rotate button; see [Playing app](#playing-app) and [Layouts](#layouts). `parts/art.json` is the artwork image view, `parts/text.json` the title (21pt bold), artist (19pt) and album (17pt) labels, 6pt apart, and `parts/controls.json` a progress bar with elapsed time and duration above a row of five buttons (back 15 seconds, previous, play/pause, next, forward 15 seconds). The buttons' symbols are enlarged with `font` (size 19; a button's symbol size follows its font size), and the buttons made taller to fit with a `size` constraint (`{ "height": 31 }`), which Alfred applies to the button's frame, stretching the bezel to fill it. They measure 30pt tall in a screenshot, leaving at least 3pt above and below the tallest symbols (the 15-second arrows, which sit slightly low); without the constraint a bordered button is 19pt tall at the default font, and a larger font alone grows it only a little. Alfred UI has no control size setting. Change the font and height together, and check the padding in a screenshot. Components that get updated have `id`s: `art`, `title`, `artist`, `album`, `progress`, `elapsed`, `duration`, `playpause`.
 - The `pulse` runs `scripts/poll.sh` every second (`intervalmode: delay`, so the next run waits for the previous one to finish), and immediately on open (`now: true`). `poll.sh` slows it down when nothing is playing; see [Pulse interval](#pulse-interval).
 - `scripts/poll.sh` reads the player state (`load_track`) and prints a JSON `{update: {ids: {…}}}` object that sets each component's text, image, progress or visibility, plus a `replace` of the app view when the playing app changes (`with_toprow`).
-- Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `volup`, `voldown`). Playback actions send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). Volume changes the system output volume via `osascript`, 6 steps on the 0–100 scale. It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse.
+- Each button runs `scripts/control.sh <action>` asynchronously (`playpause`, `next`, `prev`, `back`, `forward`). Play/pause, next and previous send MediaRemote command (MRCommand) IDs through the adapter: `send 2` toggle play/pause, `4` next track, `5` previous track (`0` play, `1` pause and `3` stop are also available). It then waits 0.25s for the player to publish its new state and runs `poll.sh`, so the panel updates without waiting for the next pulse. Back and forward jump 15 seconds (`JUMP`); see [Jumping back and forward](#jumping-back-and-forward).
 - `scripts/lib.sh` is sourced by all the scripts: it locates the bundle and sets `CACHE` and `DATA`, and defines the layout helpers `current_layout`, `layout_size` and `content_view` (see [Layouts](#layouts)), the top row helpers `app_view`, `toprow_view` and `with_toprow` (see [Playing app](#playing-app)), `adapter` (runs the vendored adapter), `adapter_installed`, `load_track` (reads the player state, artwork and app into variables; see [Status messages](#status-messages), [Artwork](#artwork) and [Playing app](#playing-app)), `JQ_TIME` (jq `clock` and `position` definitions), `show_message` (puts a status message and SF Symbol in the panel instead of a track, hiding the app and timeline) and `with_pulse` (see below).
 - `scripts/apppath.js` (JXA) turns a bundle ID into an app path with `NSWorkspace`.
 - `scripts/window.sh` builds the window from `window.json`, the parts, the preferences and the saved layout; see [Window](#window).
@@ -90,6 +90,12 @@ The icon and name aren't set with `update`. Alfred sizes a component when it's l
 
 `load_track` calls `get --no-artwork --now`, which adds `elapsedTimeNow`, the adapter's estimate of the current position (up to a second off). The position is clamped to 0…`duration` (`position` in `JQ_TIME`), the bar is position ÷ duration, and times are formatted `m:ss`, or `h:mm:ss` from an hour (`clock`). The time labels use monospaced digits so they don't jitter as they change. With no `duration` (e.g. live streams) the bar and times are hidden; `hidden` keeps their space, so the layout doesn't jump.
 
+### Jumping back and forward
+
+`jump` in `control.sh` seeks with the adapter's `seek`, which takes an absolute position in microseconds, worked out from `get --now --micros` and clamped to the track. With no `duration` (e.g. live streams) it does nothing. MediaRemote also has skip forward and backward commands, but `send` can't pass them an interval, so the player would choose the distance.
+
+The player takes a moment to report the new position after a seek (0.2–0.7s for Spotify, measured), and a jump that reads the position before then starts from the old one: two quick clicks would jump only once. So each jump waits, up to 1.5s, until the reported position is within a second of its target, and jumps run one at a time under a lock (`$CACHE/jump.lock`, a directory; a jump waits up to 5s for it, then goes ahead anyway). The buttons run `control.sh` asynchronously, so clicks can overlap.
+
 ### Pulse interval
 
 The pulse runs every `PULSE_PLAYING` seconds (1, matching `interval` in `ui.json`) while playing, so the elapsed time ticks, and every `PULSE_IDLE` seconds (3) when paused, when nothing is playing, or when showing an error. `with_pulse` adds a `pulse` JSON Action to the output only when the interval needs to change, because Alfred's docs don't say whether re-sending the pulse configuration restarts the timer. It records the current interval in `$CACHE/pulse`. A file more than 10 seconds old means the window was closed and reopened since, which resets the pulse to the `ui.json` default. Control buttons call `poll.sh` too, so pressing play speeds the pulse up straight away.
@@ -133,11 +139,10 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 
 ## To-do
 
-- [ ] Read and show the current volume level (`output volume of (get volume settings)` via `osascript`).
+- [ ] Volume controls: perhaps a slider showing the current level (`output volume of (get volume settings)` via `osascript`).
 - [ ] UI improvements.
 - [ ] Multiple layouts (compact, full, etc.).
 - [ ] Click the app icon to bring that app to the front (`open -b <bundle id>`). Alfred's docs list no click event for image views, but buttons have `actioned` and accept an image, so the icon could be a borderless button with a `fileicon` image.
-- [ ] Jump back/forward buttons
 - [ ] Notifications on track change, with a preference to turn them on.
 - [ ] Always-on-top option, with a toggle button. Blocked: Alfred UI has no window level setting; see [Alfred requests](../../Alfred%20requests.md#alfred-ui-always-on-top-windows).
 - [ ] WHen "Nothing playing", there should be a default app to open

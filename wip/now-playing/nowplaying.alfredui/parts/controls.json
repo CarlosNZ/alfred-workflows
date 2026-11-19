@@ -31,35 +31,35 @@
       "spacing": 6,
       "components": [
         {
-          "type": "button", "text": "", "tooltip": "Volume down",
-          "accessibility": { "label": "Volume down" },
-          "image": { "type": "symbol", "src": "speaker.wave.1.fill" },
-          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["voldown"], "async": true } }]
+          "type": "button", "text": "", "font": { "size": 19 }, "constraints": { "size": { "height": 31 } }, "tooltip": "Back 15 seconds",
+          "accessibility": { "label": "Back 15 seconds" },
+          "image": { "type": "symbol", "src": "gobackward.15" },
+          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["back"], "async": true } }]
         },
         {
-          "type": "button", "text": "", "tooltip": "Previous track",
+          "type": "button", "text": "", "font": { "size": 19 }, "constraints": { "size": { "height": 31 } }, "tooltip": "Previous track",
           "accessibility": { "label": "Previous" },
           "image": { "type": "symbol", "src": "backward.fill" },
           "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["prev"], "async": true } }]
         },
         {
           "id": "playpause",
-          "type": "button", "text": "", "tooltip": "Play / Pause",
+          "type": "button", "text": "", "font": { "size": 19 }, "constraints": { "size": { "height": 31 } }, "tooltip": "Play / Pause",
           "accessibility": { "label": "Play or pause" },
           "image": { "type": "symbol", "src": "playpause.fill" },
           "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["playpause"], "async": true } }]
         },
         {
-          "type": "button", "text": "", "tooltip": "Next track",
+          "type": "button", "text": "", "font": { "size": 19 }, "constraints": { "size": { "height": 31 } }, "tooltip": "Next track",
           "accessibility": { "label": "Next" },
           "image": { "type": "symbol", "src": "forward.fill" },
           "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["next"], "async": true } }]
         },
         {
-          "type": "button", "text": "", "tooltip": "Volume up",
-          "accessibility": { "label": "Volume up" },
-          "image": { "type": "symbol", "src": "speaker.wave.3.fill" },
-          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["volup"], "async": true } }]
+          "type": "button", "text": "", "font": { "size": 19 }, "constraints": { "size": { "height": 31 } }, "tooltip": "Forward 15 seconds",
+          "accessibility": { "label": "Forward 15 seconds" },
+          "image": { "type": "symbol", "src": "goforward.15" },
+          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/control.sh", "args": ["forward"], "async": true } }]
         }
       ]
     }
