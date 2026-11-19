@@ -8,23 +8,6 @@
       "type": "view",
       "layout": "inline",
       "direction": "vertical",
-      "spacing": 2,
-      "components": [
-        {
-          "id": "title",
-          "type": "label",
-          "text": "Loading…",
-          "textalign": "centre",
-          "font": { "size": "large", "weight": "bold" }
-        },
-        { "id": "artist", "type": "label", "text": "", "textalign": "centre" },
-        { "id": "album", "type": "label", "text": "", "textalign": "centre", "colour": "secondaryLabelColor" }
-      ]
-    },
-    {
-      "type": "view",
-      "layout": "inline",
-      "direction": "vertical",
       "spacing": 4,
       "components": [
         { "id": "progress", "type": "progress", "style": "linear", "hidden": true },

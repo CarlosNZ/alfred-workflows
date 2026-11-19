@@ -32,12 +32,18 @@
 #   transparency    0-100, how much the dark tint over the window's blur lets
 #                   through; its alpha is (100 - transparency) / 100
 #
-# It also fills in the layout chosen from the panel's settings menu (saved by
+# It also fills in the layout chosen with the panel's rotate button (saved by
 # layout.sh): the template's { "id": "content" } placeholder becomes the
 # content view for that layout (content_view in lib.sh), and the window takes
 # that layout's size. frameautosave restores the last saved frame over that
 # size, but the last frame belongs to the last layout used, which is the one
 # being built.
+#
+# The { "id": "toprow" } placeholder becomes the top row (app icon and name,
+# and the rotate button for the layout) with no app showing; poll.sh's first
+# pulse replaces the app part with the playing app's (see with_toprow in
+# lib.sh, which explains why). Removing $CACHE/toprow-app here makes sure
+# that first pulse does.
 #
 # Test it on its own:
 #   window_buttons=0 corner_radius=24 transparency=30 ./scripts/window.sh
@@ -57,14 +63,19 @@ buttons=$([ "${window_buttons:-1}" = 0 ] && echo false || echo true)
 radius=$(number "${corner_radius:-}" 16 32)
 transparency=$(number "${transparency:-}" 45 100)
 layout=$(current_layout)
+rm -f "$CACHE/toprow-app"
 
 # Write to a temporary file and move it into place, so Alfred never reads a
 # half-written window definition.
 out="$CACHE/window.json"
 jq --argjson buttons "$buttons" --argjson radius "$radius" --argjson t "$transparency" \
+   --argjson toprow "$(toprow_view "" "$layout")" \
    --argjson content "$(content_view "$layout")" --argjson size "$(layout_size "$layout")" '
   (if $buttons then . else . + {borderless: true, cornerradius: $radius} end)
   | .size = $size
   | .root.background = "rgb(18, 18, 20, \((100 - $t) / 100))"
-  | .root.components |= map(if .id == "content" then $content else . end)
+  | .root.components |= map(
+      if .id == "toprow" then $toprow
+      elif .id == "content" then $content
+      else . end)
 ' "$ROOT/window.json" > "$out.tmp" && mv "$out.tmp" "$out"

@@ -1,0 +1,17 @@
+{
+  "type": "view",
+  "layout": "inline",
+  "direction": "vertical",
+  "spacing": 6,
+  "components": [
+    {
+      "id": "title",
+      "type": "label",
+      "text": "Loading…",
+      "textalign": "centre",
+      "font": { "size": 21, "weight": "bold" }
+    },
+    { "id": "artist", "type": "label", "text": "", "textalign": "centre", "font": { "size": 19 } },
+    { "id": "album", "type": "label", "text": "", "textalign": "centre", "font": { "size": 17 }, "colour": "secondaryLabelColor" }
+  ]
+}

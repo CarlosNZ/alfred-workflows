@@ -30,28 +30,66 @@ current_layout() {
 # force after a layout switch.
 layout_size() {
   case "$1" in
-    landscape) echo '{"width": 620, "height": 300}' ;;
+    landscape) echo '{"width": 620, "height": 348}' ;;
     *) echo '{"width": 340, "height": 540}' ;;
   esac
 }
 
-# Print the `content` view for layout $1, as JSON: the artwork and the track
-# details (parts/art.json and parts/details.json) arranged for that layout.
-# Portrait stacks them, artwork above. Landscape puts them side by side in
-# two equal columns, the details vertically centred in theirs. Either way the
-# artwork view fills its space and `resize: fit` scales the image to fit it,
-# keeping its aspect ratio and centring it. The view sits in the root view's
-# centre region, below the top row (app and settings).
+# Print the `content` view for layout $1, as JSON: the artwork, the track
+# text (title, artist, album) and the controls (progress and buttons), from
+# parts/art.json, parts/text.json and parts/controls.json, arranged for that
+# layout.
+#
+# The root view is a stack: the content fills it, and the top row (app and
+# settings) is laid over it, pinned to the top. Whatever must stay clear of
+# the top row is inset from the top by its height, TOPROW_HEIGHT (the 32pt
+# app icon, as laid out), plus a gap.
+#
+# Portrait stacks them below the top row, PORTRAIT_GAP under it: artwork,
+# then the text, then the controls, with a wider gap between text and
+# controls than within either.
+#
+# Landscape puts the artwork and a details column side by side in two equal
+# grid cells, inset LANDSCAPE_INSET from the top and bottom so the artwork
+# clears the window buttons at the top left, and is still centred between
+# the window's top and bottom edges, unaffected by the top row. The details
+# column is inset the rest of the way to LANDSCAPE_GAP below the top row: a
+# border layout with the controls in its bottom region and the text
+# vertically centred in the space above. When the artwork fills its cell's height (a square image in a cell
+# at least as wide as it is tall, as at the starting size), the controls sit
+# flush with the bottom of the artwork.
+#
+# Either way the artwork view fills its space and `resize: fit` scales the
+# image to fit it, keeping its aspect ratio and centring it.
+TOPROW_HEIGHT=34
+PORTRAIT_GAP=6
+LANDSCAPE_GAP=14
+LANDSCAPE_INSET=16
 content_view() {
-  jq -n --arg layout "$1" --slurpfile art "$ROOT/parts/art.json" --slurpfile details "$ROOT/parts/details.json" '
-    $art[0] as $art | $details[0] as $details
-    | {id: "content", type: "view", constraints: {region: "centre"}}
+  jq -n --arg layout "$1" --argjson row "$TOPROW_HEIGHT" --argjson pgap "$PORTRAIT_GAP" \
+     --argjson lgap "$LANDSCAPE_GAP" --argjson inset "$LANDSCAPE_INSET" --slurpfile art "$ROOT/parts/art.json" \
+     --slurpfile text "$ROOT/parts/text.json" --slurpfile controls "$ROOT/parts/controls.json" '
+    $art[0] as $art | $text[0] as $text | $controls[0] as $controls
+    | {id: "content", type: "view"}
     + if $layout == "landscape" then {
         layout: "grid", rows: 1, cols: 2, spacing: 20,
-        components: [$art, $details + {constraints: {position: "centre", stretch: "horizontal"}}]
+        constraints: {insets: {top: $inset, bottom: $inset}},
+        components: [$art, {
+          type: "view", layout: "border", spacing: 14,
+          constraints: {insets: {top: ($row + $lgap - $inset)}},
+          components: [
+            $text + {constraints: {region: "centre", position: "centre", stretch: "horizontal"}},
+            $controls + {constraints: {region: "bottom"}}
+          ]
+        }]
       } else {
         layout: "border", spacing: 14,
-        components: [$art + {constraints: {region: "centre"}}, $details + {constraints: {region: "bottom"}}]
+        constraints: {insets: {top: ($row + $pgap)}},
+        components: [$art + {constraints: {region: "centre"}}, {
+          type: "view", layout: "inline", direction: "vertical", spacing: 24,
+          constraints: {region: "bottom"},
+          components: [$text, $controls]
+        }]
       } end'
 }
 
@@ -69,12 +107,74 @@ adapter_installed() {
   [ -n "${ADAPTER:-}" ] || [ -f "$VENDOR/mediaremote-adapter.pl" -a -d "$VENDOR/MediaRemoteAdapter.framework" ]
 }
 
-# Print an update that shows a status message instead of a track.
+# Print the top row's `app` view (icon and name) as JSON, from
+# parts/toprow.json, showing app $1 (an app path; empty hides both).
+app_view() {
+  jq -c --arg app "$1" '
+    .components[] | select(.id == "app")
+    | .components |= map(
+        if .id == "appicon" then
+          . + (if $app == "" then {hidden: true}
+               else {hidden: false, image: {type: "fileicon", src: $app, size: {width: 32, height: 32}}} end)
+        elif .id == "appname" then
+          .text = ($app | split("/") | last // "" | rtrimstr(".app"))
+        else . end)' "$ROOT/parts/toprow.json"
+}
+
+# Print the properties of the top row's `rotate` button for layout $1, as
+# JSON: it shows the current layout's shape with a rotate arrow, and switches
+# to the other layout when clicked (layout.sh toggle).
+rotate_button() {
+  case "$1" in
+    landscape) jq -nc '{image: {type: "symbol", src: "rectangle.landscape.rotate"},
+                        tooltip: "Switch to portrait", accessibility: {label: "Switch to portrait"}}' ;;
+    *) jq -nc '{image: {type: "symbol", src: "rectangle.portrait.rotate"},
+                tooltip: "Switch to landscape", accessibility: {label: "Switch to landscape"}}' ;;
+  esac
+}
+
+# Print the top row (parts/toprow.json) as JSON, with the `app` view showing
+# app $1 and the `rotate` button set for layout $2.
+toprow_view() {
+  jq -c --argjson app "$(app_view "$1")" --argjson rotate "$(rotate_button "$2")" '
+    .components |= map(
+      if .id == "app" then $app
+      elif .id == "rotate" then . + $rotate
+      else . end)' "$ROOT/parts/toprow.json"
+}
+
+# Read JSON Actions on stdin and add a `replace` of the top row's `app` view
+# when the app it shows should change to $1 (an app path, or empty for none).
+#
+# The app's icon and name aren't changed with `update`: Alfred sizes a
+# component when it's laid out and doesn't re-measure it when an update
+# changes its text, so the name would keep the width it had before (a few
+# points, as it starts empty, which truncates it). `relayout: true` doesn't
+# help either: views keep the space they were given and squeeze their
+# contents into it. A replaced view is measured afresh, with the name in
+# place, and the `app` view sits in the top row's centre region (all the
+# width the rotate button leaves), aligned right (`position: right`), so its
+# new size has room. The rotate button is outside it: it doesn't change with
+# the app, so there's nothing to gain from rebuilding it.
+#
+# The app last drawn is recorded in $CACHE/toprow-app, and the view is only
+# replaced when that changes. window.sh removes the file when building the
+# window, so a newly opened panel gets its app on the first pulse.
+with_toprow() {
+  local state="$CACHE/toprow-app"
+  if [ -f "$state" ] && [ "$(cat "$state")" = "$1" ]; then
+    cat
+  else
+    printf '%s' "$1" > "$state"
+    jq -c --argjson view "$(app_view "$1")" '. + {replace: {ids: {app: $view}}}'
+  fi
+}
+
+# Print an update that shows a status message instead of a track. Pass it
+# through with_toprow "" to hide the app.
 show_message() {
   jq -nc --arg t "$1" --arg s "${2:-}" --arg sym "${3:-music.note}" '{update: {ids: {
     art:       {image: {type: "symbol", src: $sym, size: {width: 96}}},
-    appicon:   {hidden: true},
-    appname:   {text: ""},
     title:     {text: $t},
     artist:    {text: $s},
     album:     {text: ""},

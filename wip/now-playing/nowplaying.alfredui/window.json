@@ -15,51 +15,15 @@
   "root": {
     "id": "panel",
     "type": "view",
-    "layout": "border",
+    "layout": "stack",
     "padding": 16,
-    "spacing": 14,
     "background": "rgb(18, 18, 20, 0.55)",
     "shortcuts": [
       { "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } }
     ],
     "components": [
-      {
-        "type": "view",
-        "layout": "border",
-        "constraints": { "region": "top" },
-        "components": [
-          {
-            "type": "view",
-            "layout": "inline",
-            "direction": "horizontal",
-            "spacing": 6,
-            "constraints": { "region": "right" },
-            "components": [
-              {
-                "id": "appicon",
-                "type": "imageview",
-                "hidden": true,
-                "constraints": { "size": 16 },
-                "image": { "type": "symbol", "src": "app" }
-              },
-              { "id": "appname", "type": "label", "text": "", "font": { "size": "small" }, "colour": "secondaryLabelColor" },
-              {
-                "id": "settings",
-                "type": "button", "text": "", "tooltip": "Layout",
-                "bordered": false,
-                "contenttintcolour": "secondaryLabelColor",
-                "accessibility": { "label": "Layout" },
-                "image": { "type": "symbol", "src": "slider.horizontal.3", "size": { "width": 14 } },
-                "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "popupmenu": { "src": "settings", "menu": [
-                  { "type": "text", "text": "Portrait", "action": { "type": "script", "src": "./scripts/layout.sh", "args": ["portrait"] } },
-                  { "type": "text", "text": "Landscape", "action": { "type": "script", "src": "./scripts/layout.sh", "args": ["landscape"] } }
-                ] } } } }]
-              }
-            ]
-          }
-        ]
-      },
-      { "id": "content" }
+      { "id": "content" },
+      { "id": "toprow" }
     ]
   }
 }
