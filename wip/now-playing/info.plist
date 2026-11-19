@@ -244,7 +244,7 @@
 	<key>readme</key>
 	<string>## Usage
 
-See the status of currently playing media via the `nowplaying` (or `np`) keyword, and launch a mini player panel.
+See the status of currently playing **music** or **video** via the `nowplaying` (or `np`) keyword, and launch a mini player panel.
 
 Works with *any* music or video playing on your Mac — not limited to a particular music player.
 

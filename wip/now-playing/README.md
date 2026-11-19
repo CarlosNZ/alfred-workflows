@@ -2,6 +2,8 @@
 
 Developer notes. A small Alfred 6 panel showing the current track (artwork, title, artist, album, playing app, elapsed time) with playback controls.
 
+For user docs, see the [Now Playing page on the Alfred forum](https://www.alfredforum.com/) (TO-DO: link the workflow's own page once it's posted).
+
 ## How it works
 
 The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the window definition from the preferences, then opens an Alfred UI object, which loads the `nowplaying.alfredui` bundle. The keywords (`nowplaying` and `np` by default) show the current track as an Alfred result first (see [Alfred result](#alfred-result)); actioning it opens the same panel, through the same Run Script. The keywords are set in the workflow's configuration; see [Preferences](#preferences).
