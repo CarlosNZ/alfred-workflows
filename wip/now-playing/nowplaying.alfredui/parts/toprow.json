@@ -16,17 +16,17 @@
           "id": "appicon",
           "type": "imageview",
           "hidden": true,
-          "constraints": { "size": 32 },
+          "constraints": { "size": 26 },
           "image": { "type": "symbol", "src": "app" }
         },
-        { "id": "appname", "type": "label", "text": "", "font": { "size": 18 }, "colour": "secondaryLabelColor", "constraints": { "position": "centre" } }
+        { "id": "appname", "type": "label", "text": "", "font": { "size": 14 }, "colour": "secondaryLabelColor", "constraints": { "position": "centre" } }
       ]
     },
     {
       "id": "rotate",
       "type": "button", "text": "",
       "bordered": false,
-      "font": { "size": 18 },
+      "font": { "size": 14 },
       "constraints": { "region": "right", "position": "centre" },
       "contenttintcolour": "secondaryLabelColor",
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "./scripts/layout.sh", "args": ["toggle"] } }]

@@ -55,7 +55,7 @@ layout_maxsize() {
 #
 # The root view is a stack: the content fills it, and the top row (app and
 # settings) is laid over it, pinned to the top. Whatever must stay clear of
-# the top row is inset from the top by its height, TOPROW_HEIGHT (the 32pt
+# the top row is inset from the top by its height, TOPROW_HEIGHT (the 26pt
 # app icon, as laid out), plus a gap.
 #
 # Portrait stacks them below the top row, PORTRAIT_GAP under it: artwork,
@@ -74,7 +74,7 @@ layout_maxsize() {
 #
 # Either way the artwork view fills its space and `resize: fit` scales the
 # image to fit it, keeping its aspect ratio and centring it.
-TOPROW_HEIGHT=34
+TOPROW_HEIGHT=28
 PORTRAIT_GAP=6
 LANDSCAPE_GAP=14
 LANDSCAPE_INSET=16
@@ -128,7 +128,7 @@ app_view() {
     | .components |= map(
         if .id == "appicon" then
           . + (if $app == "" then {hidden: true}
-               else {hidden: false, image: {type: "fileicon", src: $app, size: {width: 32, height: 32}}} end)
+               else {hidden: false, image: {type: "fileicon", src: $app, size: {width: 26, height: 26}}} end)
         elif .id == "appname" then
           .text = ($app | split("/") | last // "" | rtrimstr(".app"))
         else . end)' "$ROOT/parts/toprow.json"
