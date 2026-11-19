@@ -53,7 +53,7 @@ The pulse runs every `PULSE_PLAYING` seconds (1, matching `interval` in `ui.json
 
 ### Alfred result
 
-The two keywords are two Script Filters (no argument) with the same settings, both running `scripts/results.sh`, which prints one result: the track title, with a subtitle of `Paused` (when paused), artist, album, elapsed / duration and the app name, skipping whatever is missing. The icon is the cached artwork, falling back to the app's icon, then the workflow icon. When there is artwork, ⇧ or ⌘Y Quick Looks it. `rerun` refreshes the result every second while playing (so the time ticks) and every 3 seconds otherwise. Actioning the result (or a status message result) opens the panel. Alfred only runs a Script Filter once its whole keyword is typed (a partial match shows the fixed title and subtext), which is why there's a short keyword as well. Keep the two objects' settings in step.
+The two keywords are two Script Filters (no argument) with the same settings, both running `scripts/results.sh`, which prints one result: the title and artist (`Title — Artist`), with a subtitle of `Paused` (when paused), album, elapsed / duration and the app name, skipping whatever is missing, then a `(↩ to open mini player)` hint. The hint is last so that Alfred truncates it, not the track details, when the line is too long. The icon is the cached artwork, falling back to the app's icon, then the workflow icon. When there is artwork, ⇧ or ⌘Y Quick Looks it. `rerun` refreshes the result every second while playing (so the time ticks) and every 3 seconds otherwise. Every result, track or status message, has the same `uid` (`nowplaying`): on a rerun Alfred keeps the selection on the item with the selected item's `uid`, so with other results matching the keyword, the selection stays on this one instead of jumping back to the top. Without a `uid` it does jump back. The `uid` also lets Alfred learn from the result being chosen, which may rank it higher among other matches over time. Actioning the result (or a status message result) opens the panel. Alfred only runs a Script Filter once its whole keyword is typed (a partial match shows the fixed title and subtext), which is why there's a short keyword as well. Keep the two objects' settings in step.
 
 Fetching artwork for a new track makes the first result slower to appear, as it does for the panel's first pulse.
 
@@ -95,6 +95,8 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] Jump back/forward buttons
 - [ ] Notifications on track change, with a preference to turn them on.
 - [ ] Always-on-top option
+- [ ] WHen "Nothing playing", there should be a default app to open
+- [ ] Scrolling for long titles?
 
 ## Before a release
 

@@ -7,9 +7,16 @@
 . "$(dirname "$0")/lib.sh"
 load_track
 
+# Every result has the same uid, whatever it shows. On a rerun Alfred keeps
+# the selection on the item with the selected item's uid, so selecting this
+# result among other matches for the keyword survives the refresh, a track
+# change, and a switch between a track and a status message.
+UID_RESULT="nowplaying"
+
 # Show a single non-track result: title, subtitle.
 message() {
-  jq -nc --arg t "$1" --arg s "${2:-}" '{rerun: 3, items: [{title: $t, subtitle: $s, arg: ""}]}'
+  jq -nc --arg t "$1" --arg s "${2:-}" --arg uid "$UID_RESULT" \
+    '{rerun: 3, items: [{uid: $uid, title: $t, subtitle: $s, arg: ""}]}'
 }
 
 case "$state" in
@@ -20,19 +27,21 @@ esac
 
 # The icon is the artwork, else the player's app icon, else the workflow icon.
 # rerun refreshes the result while it's showing: every second while playing,
-# so the elapsed time ticks.
-jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" "$JQ_TIME"'
+# so the elapsed time ticks. The ↩ hint goes last, so it's what Alfred
+# truncates when long track details fill the line.
+jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" --arg uid "$UID_RESULT" "$JQ_TIME"'
   ($i.duration // 0) as $dur
   | {
       rerun: (if $i.playing then 1 else 3 end),
       items: [{
-        title: $i.title,
-        subtitle: ([
+        uid: $uid,
+        title: ([$i.title, $i.artist] | map(select(. != null and . != "")) | join(" — ")),
+        subtitle: (([
           (if $i.playing then empty else "Paused" end),
-          $i.artist, $i.album,
+          $i.album,
           (if $dur > 0 then "\($i | position | clock) / \($dur | clock)" else empty end),
           ($app | split("/") | last // "" | rtrimstr(".app"))
-        ] | map(select(. != null and . != "")) | join("  ·  ")),
+        ] | map(select(. != null and . != "")) | join("  ·  ")) + "  (↩ to open mini player)"),
         arg: "",
         icon: (if $art != "" then {path: $art}
                elif $app != "" then {type: "fileicon", path: $app}
