@@ -376,7 +376,7 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 				<string>Show window buttons</string>
 			</dict>
 			<key>description</key>
-			<string>Shows the close button (and disabled minimise and zoom buttons) in a transparent title bar. Without them the panel is borderless; Esc closes it either way.</string>
+			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc to close the panel.</string>
 			<key>label</key>
 			<string>Window buttons</string>
 			<key>type</key>
@@ -401,7 +401,7 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>Rounding of the panel corners, in points, when the window buttons are hidden. With them, the panel has the standard macOS window rounding.</string>
+			<string>Rounding of the panel corners, in points. Only applies when the window buttons are hidden — otherwise it uses standard macOS window rounding.</string>
 			<key>label</key>
 			<string>Corner radius</string>
 			<key>type</key>
@@ -426,7 +426,7 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>How much of what is behind the panel shows through, from 0 (solid) to 100 (blur only).</string>
+			<string>0: solid, 100: blur only</string>
 			<key>label</key>
 			<string>Transparency</string>
 			<key>type</key>
@@ -447,7 +447,7 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>Shown in the panel when nothing is playing; click its icon to open it.</string>
+			<string>Shown in the panel when nothing is playing. Click its icon to open it.</string>
 			<key>label</key>
 			<string>Default app</string>
 			<key>type</key>
