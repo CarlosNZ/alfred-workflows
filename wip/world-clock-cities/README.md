@@ -24,7 +24,7 @@ A typed time always means its next occurrence (now or later), since the time mod
 | Flag | `localeCode` | Kept as the country code; shown by mapping each letter to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters. |
 | Local city | `timeZone` | See [Design](#design). |
 | ⏱ Local time | `timeZone` | The moment, shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
-| ⏱ Day label | `timeZone` | The city's full weekday after the time ("1:33 AM Thursday"): in the list only when the city's calendar date differs from the Mac's, in the time mode always. |
+| ⏱ Day label | `timeZone` | After the time. In the list, "Yesterday" or "Tomorrow" when the city's calendar date differs from the Mac's ("11:33 PM Yesterday"): the list is about now, relative to you. In the time mode, the full weekday, always ("1:33 AM Thursday"), since "Tomorrow" would be ambiguous when the reference is a typed day, and weekends matter for meetings. |
 | ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45". |
 | ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11h", "−2h", "−7h 15m", "±0h". |
 | ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close: within 7 days in the list, and between now and the typed time in the time mode. |
@@ -50,21 +50,21 @@ Each mode answers one question, and a result's icon and title answer it. The lis
 At 10:33 PM on a Thursday in Auckland (sun times approximate):
 
 ```
-[night]      10:33 PM • Auckland 🏠 • 🇳🇿
-             New Zealand | Sunset 2h ago
+[night]      10:33 PM • Auckland • 🇳🇿
+             🏠 | New Zealand | Sunset 2h ago
 [night]      8:33 PM • Canberra • 🇦🇺
-             Australia | −2h | Sunset 41m ago
+             −2h | Australia | Sunset 41m ago
 [night]      1:33 AM • Los Angeles • 🇺🇸
-             USA | −21h | Sunrise in 5h
+             −21h | USA | Sunrise in 5h
 [night]      4:33 AM • New York • 🇺🇸
-             USA | −18h | Sunrise in 2h
+             −18h | USA | Sunrise in 2h
 [morning]    9:33 AM • London • 🇬🇧
-             UK | −13h | Sunset in 7h
+             −13h | UK | Sunset in 7h
 ```
 
-- **Title:** the time, the full weekday when the city's date differs from the Mac's ("1:33 AM Wednesday"), " • ", then the city. The time comes first because it's the answer, and that way the times start in a column, which city names of different lengths would break. One-digit hours aren't padded: padding them to line up with two-digit hours looked wonky in Alfred's proportional font. Times have an ordinary space before AM/PM; the system formatter's narrow no-break space (U+202F) is too narrow to see in Alfred's font. The local city's name is followed by 🏠. The country's flag comes last, after another " • ": in the subtitle it was too small to read. A city without a country code (Vatican City) has no flag.
-- **Subtitle:** country | offset from local | the nearer of the previous and next sunrise or sunset. Parts are divided by " | " rather than a dot, which looked poor before a minus sign. The local city has no offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
-- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "UK | −13h | Clocks go back Sun (−1h)".
+- **Title:** the time, "Yesterday" or "Tomorrow" when the city's date differs from the Mac's ("11:33 PM Yesterday"), " • ", then the city. The time comes first because it's the answer, and that way the times start in a column, which city names of different lengths would break. One-digit hours aren't padded: padding them to line up with two-digit hours looked wonky in Alfred's proportional font. Times have an ordinary space before AM/PM; the system formatter's narrow no-break space (U+202F) is too narrow to see in Alfred's font. The country's flag comes last, after another " • ": in the subtitle it was too small to read. A city without a country code (Vatican City) has no flag.
+- **Subtitle:** offset from local | country | the nearer of the previous and next sunrise or sunset. The offset comes first so that it starts in a column, like the times. Parts are divided by " | " rather than a dot, which looked poor before a minus sign. The local city shows 🏠 in place of the offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
+- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "−13h | UK | Clocks go back Sun (−1h)".
 - **Icon:** the [phase of the day](#phases-of-the-day).
 
 #### The time mode
@@ -72,8 +72,8 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
 `wcc 8am` at the same moment, which is 8am on Friday in Auckland:
 
 ```
-[morning]    8:00 AM Friday • Auckland 🏠 • 🇳🇿
-             New Zealand | Early morning | work in 1h
+[morning]    8:00 AM Friday • Auckland • 🇳🇿
+             🏠 | New Zealand | Early morning | work in 1h
 [asleep]     6:00 AM Friday • Canberra • 🇦🇺
              Australia | Asleep | work in 3h
 [working]    11:00 AM Thursday • Los Angeles • 🇺🇸
@@ -84,8 +84,8 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
              UK | Evening | 2h after work
 ```
 
-- **Title:** as in the list, but always with the weekday, since crossing into another day is the main risk when planning a meeting.
-- **Subtitle:** country | working status | how far into or out of the working day, for sliding a meeting by an hour or two. There's no offset, since the converted times already show it.
+- **Title:** as in the list, but always with the full weekday instead of "Yesterday" or "Tomorrow", since crossing into another day is the main risk when planning a meeting.
+- **Subtitle:** country | working status | how far into or out of the working day, for sliding a meeting by an hour or two. There's no offset, since the converted times already show it. The local city's subtitle starts with 🏠, as in the list.
 - **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "UK | Evening | Clocks go back Sun (−1h)".
 - **Icon:** the [working status](#working-statuses).
 
@@ -194,6 +194,15 @@ Open questions:
 - Input that can't become valid by typing more (`25:00`, `13pm`, `3:75`): a single "can't read that time" result.
 - Where a city goes alongside a day (`wcc 12:00 mon London`).
 
+### Configuration
+
+Options for the workflow's User Configuration (saved to the gitignored `prefs.plist`). So far there's only the keyword (`keyword`, default `wcc`). TO-DO, probably:
+
+- **12- or 24-hour time:** times follow the Mac's setting (System Settings › General › Date & Time); an option would override it for this workflow.
+- **Show the home city:** whether the local city is in the list. It's a reference for the others, but its time is already in the menu bar.
+- **Sort by time zone:** list the cities by UTC offset instead of in Clock's order (direction to decide).
+- **Working day:** the hours behind the working status, a constant in `lib/time.js` until then (see [City properties](#city-properties)).
+
 ## How it works
 
 ### Code layout
@@ -233,6 +242,14 @@ Run `results.js` from the workflow folder, with the query as its argument. In Al
 WCC_CITIES_PLIST=test/cities.plist ./results.js "new"
 WCC_CITIES_PLIST=/nonexistent ./results.js          # the "can't find" result
 ```
+
+To try another home city, set `TZ` to an IANA zone name: macOS takes the local time zone from it, so the city in that zone becomes the local one. In a terminal:
+
+```zsh
+TZ=America/New_York WCC_CITIES_PLIST=test/cities.plist ./results.js
+```
+
+In Alfred, add `TZ` as a workflow environment variable (the [𝒙] sheet) and tick Don't Export. It's saved in `info.plist`, but the pre-commit hook blocks a commit while a Don't Export variable has a value, so it can't be committed by mistake. Delete it when done.
 
 The computed values go to stderr and the Alfred JSON to stdout, so `2>/dev/null` shows just the JSON. (osascript also echoes the returned JSON to stderr, after the computed values.)
 

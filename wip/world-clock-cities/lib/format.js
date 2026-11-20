@@ -143,25 +143,26 @@ const HOME = "\u{1F3E0}\uFE0F";
 const TITLE_DIVIDER = " • ";
 const SUBTITLE_DIVIDER = " | ";
 
-// The list's title: the time, the weekday when the city's date differs from
-// the Mac's, the city, 🏠 for the local city, and the country's flag. E.g.
-// "1:33 AM Wednesday • Los Angeles • 🇺🇸". The flag is in the title rather
-// than the subtitle so that it's shown at a readable size.
+const DAY_OFFSET_WORDS = { "-1": "Yesterday", 1: "Tomorrow" };
+
+// The list's title: the time, "Yesterday" or "Tomorrow" when the city's date
+// differs from the Mac's, the city, and the country's flag. E.g. "11:33 PM
+// Yesterday • Los Angeles • 🇺🇸". The flag is in the title rather than the
+// subtitle so that it's shown at a readable size.
 function listTitle(info) {
-  const weekday = info.dayOffset ? ` ${formatWithTemplate(info.moment, info.timeZone, "EEEE")}` : "";
-  const home = info.isLocal ? ` ${HOME}` : "";
-  return [`${formatTime(info.moment, info.timeZone)}${weekday}`, `${info.name}${home}`, flagEmoji(info.countryCode)]
+  const day = DAY_OFFSET_WORDS[info.dayOffset] ? ` ${DAY_OFFSET_WORDS[info.dayOffset]}` : "";
+  return [`${formatTime(info.moment, info.timeZone)}${day}`, info.name, flagEmoji(info.countryCode)]
     .filter(Boolean)
     .join(TITLE_DIVIDER);
 }
 
-// The list's subtitle: country, offset from the local city, and the clock
-// change when one is within a week, otherwise the nearest sunrise or sunset.
-// E.g. "Australia | −2h | Sunset 41m ago".
+// The list's subtitle: offset from the local city (🏠 for the local city
+// itself), country, and the clock change when one is within a week, otherwise
+// the nearest sunrise or sunset. E.g. "−2h | Australia | Sunset 41m ago".
 function listSubtitle(info) {
   return [
+    info.isLocal ? HOME : formatSignedDuration(info.offsetFromLocalMinutes),
     formatCountry(info),
-    info.isLocal ? "" : formatSignedDuration(info.offsetFromLocalMinutes),
     formatSoonClockChange(info) || formatNearestSunEvent(info),
   ]
     .filter(Boolean)
