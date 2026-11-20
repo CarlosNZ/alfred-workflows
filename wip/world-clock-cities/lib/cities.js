@@ -45,9 +45,9 @@ function foldText(text) {
 }
 
 // Everything the workflow knows about a city at a moment, as one object of raw
-// values; lib/format.js turns them into text. Times are Dates; offsets,
-// durations and day lengths are in minutes; states are codes such as
-// "goldenHour".
+// values; lib/format.js turns them into text. Times are Dates (instants, shown
+// in the city's timeZone); offsets, durations and day lengths are in minutes;
+// states are codes such as "goldenHour".
 function describeCity(city, moment, { isLocal = false, macZone = macTimeZone() } = {}) {
   const local = zonedParts(city.timeZone, moment);
   const latitude = Number(city.latitude);
@@ -63,8 +63,6 @@ function describeCity(city, moment, { isLocal = false, macZone = macTimeZone() }
     timeZone: city.timeZone,
     isLocal,
     moment,
-    // The calendar date and time of day in the city at the moment.
-    local,
     dayOffset: dayOffset(city.timeZone, macZone, moment),
     utcOffsetMinutes: offset,
     offsetFromLocalMinutes: offset - utcOffsetMinutes(macZone, moment),
