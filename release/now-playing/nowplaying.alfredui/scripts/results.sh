@@ -13,10 +13,16 @@ load_track
 # change, and a switch between a track and a status message.
 UID_RESULT="nowplaying"
 
+# jq: give an item inert ⌘, ⌥ and ⌃ modifiers (valid: false, same subtitle).
+# Otherwise Alfred applies its own, e.g. ⌥ "Search in Finder" and ⌃ "Search
+# with default fallback", which the strictmods flag doesn't stop. ⇧ is left
+# alone for Quick Look.
+JQ_INERT_MODS='def inert_mods: .subtitle as $s | .mods = (["cmd", "alt", "ctrl"] | map({(.): {subtitle: $s, valid: false}}) | add);'
+
 # Show a single non-track result: title, subtitle.
 message() {
-  jq -nc --arg t "$1" --arg s "${2:-}" --arg uid "$UID_RESULT" \
-    '{rerun: 3, items: [{uid: $uid, title: $t, subtitle: $s, arg: ""}]}'
+  jq -nc --arg t "$1" --arg s "${2:-}" --arg uid "$UID_RESULT" "$JQ_INERT_MODS"'
+    {rerun: 3, items: [{uid: $uid, title: $t, subtitle: $s, arg: ""} | inert_mods]}'
 }
 
 case "$state" in
@@ -29,7 +35,7 @@ esac
 # rerun refreshes the result while it's showing: every second while playing,
 # so the elapsed time ticks. The ↩ hint goes last, so it's what Alfred
 # truncates when long track details fill the line.
-jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" --arg uid "$UID_RESULT" "$JQ_TIME"'
+jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" --arg uid "$UID_RESULT" "$JQ_TIME$JQ_INERT_MODS"'
   ($i.duration // 0) as $dur
   | {
       rerun: (if $i.playing then 1 else 3 end),
@@ -47,5 +53,5 @@ jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" --arg uid "$UID_RES
                elif $app != "" then {type: "fileicon", path: $app}
                else null end),
         quicklookurl: (if $art != "" then $art else null end)
-      } | with_entries(select(.value != null))]
+      } | with_entries(select(.value != null)) | inert_mods]
     }'
