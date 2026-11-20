@@ -2,7 +2,7 @@
 
 Developer notes. A small Alfred 6 panel showing the current track (artwork, title, artist, album, playing app, elapsed time) with playback controls.
 
-For user docs, see the [Now Playing page on the Alfred forum](https://www.alfredforum.com/) (TO-DO: link the workflow's own page once it's posted).
+For user docs, see the [Now Playing page on the Alfred forum](https://www.alfredforum.com/topic/24235-now-playing-%C2%A0see-currently-playing-track-and-launch-a-mini-player/).
 
 ## How it works
 
