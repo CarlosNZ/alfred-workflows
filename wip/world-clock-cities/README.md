@@ -4,18 +4,18 @@ Developer notes for a workflow that shows the current time in each city from the
 
 ## Design
 
-- **One keyword**, `wcc` by default (User Configuration variable `keyword`; `wc` is taken by Word Count). `wcc` alone lists every city. What's typed after it decides the mode: text starting with a digit is a time to convert (`wcc 3pm`, `wcc 9am London`; see [Time input](#time-input)); anything else narrows the list (`wcc new` matches New York and New Zealand). Meeting planning is part of the time mode rather than a separate keyword.
+- **One keyword**, `wcc` by default (User Configuration variable `keyword`; `wc` is taken by Word Count). `wcc` alone lists every city. What's typed after it decides the mode: text starting with a digit, `+` or `-` is a time to convert (`wcc 3pm`, `wcc 9am London`, `wcc +5` for five hours from now; see [Time input](#time-input)); anything else narrows the list (`wcc new` matches New York and New Zealand). Meeting planning is part of the time mode rather than a separate keyword.
 - **A hotkey for the city list** only, for glancing at the times. A hotkey for the time mode would save nothing, since a time has to be typed anyway. Ship it unassigned so each user picks their own.
 - **JXA**, in external script files run as Script Filters (type 8, input as argv). JXA reads the plist through Foundation and does time zone maths with `Intl`, so nothing needs installing. One Script Filter handles every mode, with its logic split across files in `lib/` (see [Code layout](#code-layout)).
-- **The local city** is the one in the Mac's current time zone (`NSTimeZone.localTimeZone`), detected automatically, with no setting. It's the reference for relative values ("+11h", "Tomorrow"), so it should follow the Mac when travelling, which a fixed home city setting wouldn't; the locale (e.g. `en_NZ`) doesn't change with location, so it can't be used. Cities are compared by offset (same UTC offset now and the same next clock change), not by zone name, because aliases don't resolve: `Australia/Canberra` stays `Australia/Canberra` in both `Intl` and Foundation, never `Australia/Sydney`. When several cities share the zone (Auckland and Wellington), the first in Clock's order wins. If that proves a problem, a "Set as local city" modifier could store a choice in `$alfred_workflow_data`, used only as a tiebreaker between cities in the Mac's zone.
+- **The local city** is the one in the Mac's current time zone (`NSTimeZone.localTimeZone`), detected automatically, with no setting. It's the reference for relative values ("+11h", and the weekday shown when a city's date differs), so it should follow the Mac when travelling, which a fixed home city setting wouldn't; the locale (e.g. `en_NZ`) doesn't change with location, so it can't be used. Cities are compared by offset (same UTC offset now and the same next clock change), not by zone name, because aliases don't resolve: `Australia/Canberra` stays `Australia/Canberra` in both `Intl` and Foundation, never `Australia/Sydney`. When several cities share the zone (Auckland and Wellington), the first in Clock's order wins. If that proves a problem, a "Set as local city" modifier could store a choice in `$alfred_workflow_data`, used only as a tiebreaker between cities in the Mac's zone.
 
 ### City properties
 
-What the workflow knows about each city, and where each value comes from. How they're laid out in results is still to be designed.
+What the workflow knows about each city, and where each value comes from. How they're shown is in [Results layout](#results-layout).
 
 Values marked ⏱ depend on a moment in time: the current time, or the time typed in the time mode. The functions computing them take that moment as input, so the list and the time mode share them.
 
-A typed time always means its next occurrence (now or later), since the time mode is for planning ahead: at 3:30pm, `wcc 3pm` is 3pm tomorrow in the Mac's zone, while at exactly 3:00pm it's now. `wcc 9am London` is the next 9am in London's zone. Results say which day the time fell on (e.g. "Tomorrow (Sat) 3:00 PM"), and day labels in the time mode compare each city's date with that day, not today.
+A typed time always means its next occurrence (now or later), since the time mode is for planning ahead: at 3:30pm, `wcc 3pm` is 3pm tomorrow in the Mac's zone, while at exactly 3:00pm it's now. `wcc 9am London` is the next 9am in London's zone. Every result in the time mode shows its city's weekday, so each row says which day the time falls on there.
 
 | Property | Source | Derivation |
 |---|---|---|
@@ -24,22 +24,122 @@ A typed time always means its next occurrence (now or later), since the time mod
 | Flag | `localeCode` | Kept as the country code; shown by mapping each letter to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters. |
 | Local city | `timeZone` | See [Design](#design). |
 | ⏱ Local time | `timeZone` | The moment, shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
-| ⏱ Day label | `timeZone` | "Tomorrow" or "Yesterday" when the city's calendar date differs from the Mac's. |
+| ⏱ Day label | `timeZone` | The city's short weekday after the time ("1:33 AM Thu"): in the list only when the city's calendar date differs from the Mac's, in the time mode always. |
 | ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45". |
-| ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11h", "−2h 30m". |
-| ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close, e.g. within 7 days. |
+| ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11h", "−2h", "−7h 15m", "±0h". |
+| ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close: within 7 days in the list, and between now and the typed time in the time mode. |
 | ⏱ Working status | `timeZone` | The city's local hour against a working day from User Configuration: e.g. working, evening, asleep. The main value in the time mode. |
-| ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown with the time since the previous sunrise or sunset, or until the next, e.g. "Sunset in 2h 14m" or "Sunset 1h ago". |
+| ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown in the ⌃ details. |
+| ⏱ Phase of the day | `latitude`, `longitude` | The sun's elevation and whether it's rising or setting (before or after solar noon), as one of the [phases of the day](#phases-of-the-day): night, dawn, sunrise, morning, afternoon, sunset, dusk. Shown as an icon. |
+| ⏱ Previous and next sun event | `latitude`, `longitude` | The previous sunrise or sunset and the next. The nearer is shown with the time since or until it, e.g. "Sunset in 2h" or "Sunset 41m ago". |
 | ⏱ Sunrise and sunset | `latitude`, `longitude` | When the sun's elevation crosses −0.833° (horizon, allowing for refraction and the sun's disc). |
 | ⏱ Day length and change | `latitude`, `longitude` | Sunset minus sunrise; the change is today's length minus yesterday's, e.g. "10h 12m, +2m/day". |
 
 Country names come from `Localizable_Countries.loctable` in `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/`: a name for each of 242 country codes, plus 15 per-city overrides keyed by city identifier (London → England, Hong Kong → Hong Kong SAR, China), in each language Clock supports. English has four versions (`en`, `en_GB`, `en_AU`, `en_CA`), which differ only for US (U.S.A./USA), AE (U.A.E./UAE), VI and MO. `resources/clock-countries.csv` lists them all, with a column for the name to show. TO-DO: fill in that column and use it as the short-name map in `lib/format.js`, applied only to entries whose `languageCode` is English (`en` or `en_…`); other languages show the stored name.
 
-`describeCity` (in `lib/cities.js`) computes them all for a city at a moment, as one object of raw values: times are `Date`s, including the moment itself, and are shown in the city's time zone; offsets, durations and day lengths are in minutes; states are codes (`goldenHour`, `polarNight`); the day label is a `dayOffset` of −1, 0 or 1; the country is as stored, with its code. All text, including times, offsets, flags and short country names, comes from `lib/format.js`, so display options (such as a time format) only touch that layer. The local city is an `isLocal` flag, decided once over the whole list (`findLocalCity`) so that filtering doesn't change it. `polar` is `midnightSun` or `polarNight` when the sun doesn't cross the horizon on the city's current date (not merely because the city is inside a polar circle); the day length is then 1440 or 0 minutes, and the previous or next sunrise or sunset is null when it's more than a day away. The working day is a constant in `lib/time.js` until it moves to User Configuration: asleep 22:00–7:00, morning to 9:00, working to 17:00, then evening. It ignores weekends, which differ between countries.
+`describeCity` (in `lib/cities.js`) computes them all for a city at a moment, as one object of raw values: times are `Date`s, including the moment itself, and are shown in the city's time zone; offsets, durations and day lengths are in minutes; states are codes (`goldenHour`, `polarNight`); the day label is a `dayOffset` of −1, 0 or 1; the country is as stored, with its code. All text, including times, offsets, flags and short country names, comes from `lib/format.js`, so display options (such as a time format) only touch that layer. The local city is an `isLocal` flag, decided once over the whole list (`findLocalCity`) so that filtering doesn't change it. `polar` is `midnightSun` or `polarNight` when the sun doesn't cross the horizon on the city's current date (not merely because the city is inside a polar circle); the day length is then 1440 or 0 minutes, and the previous or next sunrise or sunset is null when it's more than a day away. The working day is a constant in `lib/time.js` until it moves to User Configuration: asleep 22:00–7:00, morning to 9:00, working to 17:00, then evening. It ignores weekends, which differ between countries; TO-DO: add the Weekend status in [Icon states](#icon-states).
 
 The sun values come from the NOAA solar position algorithm (after Meeus): about 50 lines of plain JavaScript, accurate to about a minute, and offline. Near the poles the sunrise equation has no solution on some days; that's 24-hour daylight or darkness, with no sunrise or sunset to count down to and no day length change.
 
-To decide: whether the upcoming clock change in the time mode is counted from now or from the typed time (the typed time would warn that `wcc 9am` on a Saturday falls after Sunday's change).
+### Results layout
+
+Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. None of this is built yet.
+
+#### The list
+
+At 10:33 PM on a Thursday in Auckland (sun times approximate):
+
+```
+[night]       10:33 PM  Auckland 🏠
+              🇳🇿 New Zealand · Sunset 2h ago
+[night]        8:33 PM  Canberra
+              🇦🇺 Australia · −2h · Sunset 41m ago
+[night]        1:33 AM  Los Angeles
+              🇺🇸 USA · −21h · Sunrise in 5h
+[night]        4:33 AM  New York
+              🇺🇸 USA · −18h · Sunrise in 2h
+[morning]      9:33 AM  London
+              🇬🇧 UK · −13h · Sunset in 7h
+```
+
+- **Title:** the time, the weekday when the city's date differs from the Mac's ("1:33 AM Wed"), then the city. The time comes first because it's the answer, and that way the times line up in a column, which city names of different lengths would break. One-digit hours are padded with a figure space (U+2007, the width of a digit) so "8:33" lines up with "10:33" in Alfred's proportional font. The local city ends with 🏠.
+- **Subtitle:** flag and country · offset from local · the nearer of the previous and next sunrise or sunset. The local city has no offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
+- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "🇬🇧 UK · −13h · Clocks go back Sun (−1h)".
+- **Icon:** the [phase of the day](#phases-of-the-day).
+
+#### The time mode
+
+`wcc 8am` at the same moment, which is 8am on Friday in Auckland:
+
+```
+[morning]      8:00 AM Fri  Auckland 🏠
+              🇳🇿 New Zealand · Early morning · work in 1h
+[asleep]       6:00 AM Fri  Canberra
+              🇦🇺 Australia · Asleep · work in 3h
+[working]     11:00 AM Thu  Los Angeles
+              🇺🇸 USA · Working · 6h left
+[working]      2:00 PM Thu  New York
+              🇺🇸 USA · Working · 3h left
+[evening]      7:00 PM Thu  London
+              🇬🇧 UK · Evening · 2h after work
+```
+
+- **Title:** as in the list, but always with the weekday, since crossing into another day is the main risk when planning a meeting.
+- **Subtitle:** flag and country · working status · how far into or out of the working day, for sliding a meeting by an hour or two. There's no offset, since the converted times already show it.
+- **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "🇬🇧 UK · Evening · Clocks go back Sun (−1h)".
+- **Icon:** the [working status](#working-statuses).
+
+#### Icon states
+
+##### Phases of the day
+
+The list's icons. A phase is a range of the sun's elevation, split by whether the sun is rising (before solar noon) or setting (after), so dawn and dusk differ. The hours a phase covers depend on the city's latitude and the season. Morning and afternoon split at solar noon rather than 12:00, since the icon pictures the sky; with daylight saving, solar noon can be near 1:30 PM.
+
+| Phase | Sun elevation | Sun | Word |
+|---|---|---|---|
+| `night` | Below −6° | Either | Night |
+| `dawn` | −6° to −0.833° (the horizon) | Rising | Dawn |
+| `sunrise` | −0.833° to 6° | Rising | Sunrise |
+| `morning` | Above 6° | Rising | Morning |
+| `afternoon` | Above 6° | Setting | Afternoon |
+| `sunset` | 6° to −0.833° | Setting | Sunset |
+| `dusk` | −0.833° to −6° | Setting | Dusk |
+
+The phases are defined in one list, `DAY_PHASES` in `lib/sun.js`: each has its code, word, elevation range and range of hours from solar noon (−12 to 0 rising, 0 to 12 setting), and the first that matches wins. Changing a boundary or adding a phase (a midday within an hour of noon, say, listed before morning and afternoon) only touches that list, plus an icon for a new phase.
+
+The icon design is to be decided. One idea: a horizon with the sun's path arcing over it, the sun on the left while rising and on the right while setting, below the line at night, and the sky's colour from the phase; a rooster or a moon could mark sunrise and night.
+
+Polar day and night have no phases of their own: the polar night's noon sun can reach dawn, and the midnight sun can be in sunset around midnight, so the icon follows the sun and the subtitle says "Midnight sun" or "Polar night". The finer elevation bands (golden hour, the three twilights) stay as the daylight state, shown in the ⌃ details.
+
+##### Working statuses
+
+The time mode's icons. The hours are the city's local time, from `WORKING_DAY` in `lib/time.js` (to move to User Configuration). The colours are a traffic light for scanning which cities a time suits.
+
+| Status | Local hours | Icon | Word | Detail |
+|---|---|---|---|---|
+| `morning` | 7:00–9:00 | Amber, coffee cup | Early morning | Until work starts: "work in 1h" |
+| `working` | 9:00–17:00 | Green, briefcase | Working | Until work ends: "3h left" |
+| `evening` | 17:00–22:00 | Amber, lamp | Evening | Since work ended: "2h after work" |
+| `asleep` | 22:00–7:00 | Red, bed | Asleep | Until work starts: "work in 3h" |
+| `weekend` | Saturday and Sunday, except the asleep hours | Grey, deckchair | Weekend | None |
+
+The detail is left out when the start of work it counts to falls on a weekend. TO-DO: the `weekend` status; Saturday and Sunday by default, with an override by country code for countries whose weekend is Friday and Saturday.
+
+#### Durations
+
+- **Offsets from local:** hours, with minutes only for zones that have them: "+11h", "−2h", "−7h 15m", "±0h".
+- **Sunrise and sunset:** to the nearest hour from an hour away ("Sunset in 2h", "Sunrise 5h ago"), and in minutes under an hour ("Sunset in 41m").
+- **Working day details:** exact hours and minutes ("2h 30m left"), since they decide whether a meeting fits.
+
+#### More details
+
+- **⌃ (held):** the subtitle shows the daylight state and sun times, e.g. "Nautical twilight · Sunset 7:52 PM · Sunrise 5:45 AM · Day 14h 6m (+2m/day)".
+- **⌥:** opens Clock (see [Opening Clock](#opening-clock)).
+- **⌘:** a copy variant; its subtitle shows what it copies.
+- **Large Type (⌘L, `text.largetype`):** every property, one per line, including the UTC offset and the next clock change however far away.
+- **`rerun`:** the list reruns every few seconds, so times and countdowns stay current while Alfred is open.
+
+The icons are image files, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by a JXA script in `resources/` with AppKit (`NSBezierPath` to PNG), so they can be regenerated from code.
 
 ### Time input
 
@@ -67,7 +167,26 @@ Rules:
 - Midnight is always the start of a day: `0:00 fri` is the start of Friday.
 - A day is any prefix of a day name that matches only one day (`m`, `tu`, `w`, `th`, `f`, `sa`, `su` and longer), plus `weds`, in any case.
 - The time is always its next occurrence, now or later, with or without a day: on a Monday at 11am, `12:00 mon` is today at noon; at 1pm it's next Monday.
-- No named times (`midnight`, `noon`): numbers only, so the time mode is simply any query starting with a digit.
+- No named times (`midnight`, `noon`): numbers only, so the time mode is simply any query starting with a digit, `+` or `-`.
+
+A time can also be relative to now, starting with `+` (later) or `-` (earlier):
+
+```
++                      doesn't resolve
++5, +5h                5 hours from now
++90m                   90 minutes from now
++1:30                  1 hour 30 minutes from now
++1:3                   doesn't resolve (minutes incomplete)
+-3                     3 hours ago
+```
+
+Rules:
+
+- A number alone, or with `h`, is hours; with `m`, it's minutes; `H:MM` is hours and minutes. Units in any case.
+- `−` (U+2212) is accepted as well as `-`.
+- The result is exactly that far from now, not rounded: at 10:33, `+5` is 15:33.
+- Relative times are the one way to reach the past, for "what time was it there when they sent that?".
+- A relative time is the same moment everywhere, so it takes no day name and needs no city to anchor it. Text after it narrows the list instead, as in the list mode (`wcc +5 new`).
 
 Open questions:
 
@@ -82,7 +201,7 @@ Open questions:
 - `results.js`: the Script Filter. Loads the files in `lib/`, chooses the mode from the query, and turns the results into Alfred's JSON, including the wording of every result.
 - `lib/cities.js`: reading Clock's city list, and matching cities against a query.
 - `lib/time.js`: time zone calculations, and reading typed times.
-- `lib/sun.js`: the sun's elevation, sunrise and sunset, and the daylight state.
+- `lib/sun.js`: the sun's position, sunrise and sunset, the daylight state, and the phases of the day.
 - `lib/format.js`: turning those values into text (times, offsets, flags, short country names).
 
 JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries`, which a workflow can't ship in. So `results.js` reads each `lib/` file and runs it with an indirect `eval` (`(0, eval)(source)`), which runs it in the global scope. Each file's top-level functions become globals, available to `results.js` and the other files; its top-level `const` and `let` stay private to it. The catches:

@@ -18,6 +18,23 @@ const DAYLIGHT_BANDS = [
   [-18, "astronomicalTwilight"],
 ];
 
+// The phases of the day, which the list's icons show. A phase is a range of the
+// sun's elevation, in degrees, and of the time from solar noon, in hours:
+// negative before noon, while the sun rises, and positive after, while it sets.
+// Ranges include their lower end and exclude their upper end; a phase without
+// `fromNoon` matches at any time. The first phase that matches wins, so a
+// narrower phase (a midday around noon, say) goes before the broader ones it
+// overlaps.
+const DAY_PHASES = [
+  { phase: "night", word: "Night", elevation: [-Infinity, -6] },
+  { phase: "dawn", word: "Dawn", elevation: [-6, HORIZON], fromNoon: [-12, 0] },
+  { phase: "sunrise", word: "Sunrise", elevation: [HORIZON, 6], fromNoon: [-12, 0] },
+  { phase: "morning", word: "Morning", elevation: [6, Infinity], fromNoon: [-12, 0] },
+  { phase: "afternoon", word: "Afternoon", elevation: [6, Infinity], fromNoon: [0, 12] },
+  { phase: "sunset", word: "Sunset", elevation: [HORIZON, 6], fromNoon: [0, 12] },
+  { phase: "dusk", word: "Dusk", elevation: [-6, HORIZON], fromNoon: [0, 12] },
+];
+
 const DAY_MS = 86400000;
 const MINUTE_MS = 60000;
 const RAD = Math.PI / 180;
@@ -53,14 +70,20 @@ function solarCoordinates(moment) {
   return { declination, equationOfTime };
 }
 
-// The sun's elevation above the horizon at a moment, in degrees.
-function sunElevation(latitude, longitude, moment) {
+// The sun's position at a moment: { elevation, hoursFromNoon }. The elevation
+// is above the horizon, in degrees. hoursFromNoon is the time from solar noon,
+// from −12 (solar midnight, the sun about to rise) up to 12, positive once the
+// sun is setting.
+function sunPosition(latitude, longitude, moment) {
   const { declination, equationOfTime } = solarCoordinates(moment);
   const utcMinutes = (moment.getTime() % DAY_MS) / MINUTE_MS;
   const hourAngle = (utcMinutes + equationOfTime + 4 * longitude) / 4 - 180;
   const cosZenith =
     sinDeg(latitude) * sinDeg(declination) + cosDeg(latitude) * cosDeg(declination) * cosDeg(hourAngle);
-  return 90 - Math.acos(Math.min(1, Math.max(-1, cosZenith))) / RAD;
+  return {
+    elevation: 90 - Math.acos(Math.min(1, Math.max(-1, cosZenith))) / RAD,
+    hoursFromNoon: ((((hourAngle + 180) % 360) + 360) % 360) / 15 - 12,
+  };
 }
 
 // The daylight state for an elevation: "day", "goldenHour", "civilTwilight",
@@ -68,6 +91,20 @@ function sunElevation(latitude, longitude, moment) {
 function daylightState(elevation) {
   const band = DAYLIGHT_BANDS.find(([lowest]) => elevation > lowest);
   return band ? band[1] : "night";
+}
+
+// The phase of the day for a sun position (see DAY_PHASES), e.g. "dawn", or
+// null if no phase matches.
+function dayPhase({ elevation, hoursFromNoon }) {
+  const within = (value, range) => !range || (value >= range[0] && value < range[1]);
+  const match = DAY_PHASES.find((p) => within(elevation, p.elevation) && within(hoursFromNoon, p.fromNoon));
+  return match ? match.phase : null;
+}
+
+// The word for a phase of the day, e.g. "Dawn".
+function dayPhaseWord(phase) {
+  const match = DAY_PHASES.find((p) => p.phase === phase);
+  return match ? match.word : "";
 }
 
 // Solar noon at a longitude: the one nearest the given moment.
@@ -125,7 +162,7 @@ function sunInfo(latitude, longitude, timeZone, day, moment) {
   const [yesterday, today, tomorrow] = [-1, 0, 1].map((n) =>
     sunEventsOnDay(latitude, longitude, timeZone, day + n * DAY_MS),
   );
-  const elevation = sunElevation(latitude, longitude, moment);
+  const position = sunPosition(latitude, longitude, moment);
 
   // Sunrises and sunsets from yesterday to tomorrow, in order. During polar day
   // or night the previous or next one can be weeks away; those are null.
@@ -145,8 +182,9 @@ function sunInfo(latitude, longitude, timeZone, day, moment) {
   const dayLengthChangeMinutes = today.polar || yesterday.polar ? null : dayLengthMinutes - length(yesterday);
 
   return {
-    sunElevation: elevation,
-    daylightState: daylightState(elevation),
+    sunElevation: position.elevation,
+    daylightState: daylightState(position.elevation),
+    dayPhase: dayPhase(position),
     previousSunEvent: previousEvent,
     nextSunEvent: nextEvent,
     sunrise: today.sunrise,
