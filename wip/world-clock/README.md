@@ -78,12 +78,17 @@ plutil -extract cities json -o - ~/Library/Containers/com.apple.clock/Data/Libra
 
 ## Opening Clock
 
-Launch Services maps `clock-worldclock://`, `clock-alarm://`, `clock-timer://` and `clock-stopwatch://` to Clock (checked with `NSWorkspace URLForApplicationToOpenURL`), even though Clock's `Info.plist` doesn't declare them. So `open clock-worldclock://` launches Clock; whether it also selects the World Clock tab, rather than the last-used one (`LAST_SELECTED_VIEW` in Clock's preferences), is not yet confirmed.
+Launch Services maps `clock-worldclock://`, `clock-alarm://`, `clock-timer://` and `clock-stopwatch://` to Clock (checked with `NSWorkspace URLForApplicationToOpenURL`), even though Clock's `Info.plist` doesn't declare them. They only launch or activate Clock: on macOS 27.2, `open clock-stopwatch://` followed by `open clock-worldclock://` left Clock on whichever tab it was already showing, so neither selects a tab. Clock reopens on the last-used tab (`LAST_SELECTED_VIEW` in Clock's preferences).
+
+Untested ways to land on the World Clock tab:
+
+- Choose World Clock from Clock's View menu with System Events after activating it. Needs Accessibility access for Alfred, which Alfred also asks for on first launch.
+- Set `LAST_SELECTED_VIEW` in the container's `com.apple.clock.plist` before launching Clock. Writing another app's preferences is fragile (`cfprefsd` caches them while Clock runs) and risks corrupting its settings; avoid.
 
 ## Design sketch
 
 - Script Filter in an external JXA script: one row per city, in Clock's order, with the local time and day as the title and the offset from local time in the subtitle (e.g. "Sat 2:15 PM · +2h"). Filtering by city or country name.
-- Actions: copy the time; open Clock (on the World Clock tab, if the URL scheme does that).
+- Actions: copy the time; open Clock (on the World Clock tab via its View menu, if that works; see [Opening Clock](#opening-clock)).
 - Fallback: an optional city list in User Configuration, used when Clock's list can't be read.
 - The coordinates could drive extras such as a day/night icon per city.
 - Read-only: adding, removing and reordering cities stays in Clock.
