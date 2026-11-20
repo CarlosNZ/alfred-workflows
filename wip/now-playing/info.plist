@@ -249,14 +249,13 @@ See the status of currently playing **music** or **video** via the `nowplaying` 
 Works with *any* music or video playing on your Mac — not limited to a particular music player.
 
 ![Now Playing Alfred Results (full)](docs/now-playing-result-full.png)
-![Now Playing Alfred Results (short)](docs/now-playing-result-short.png)
 
 - &lt;kbd&gt;↩&lt;/kbd&gt; Open the mini player panel
 
 
 ## The Mini Player
 
-The mini player is an interactive, resizeable window showing the currently playing item, with simple playback controls. Can also be launched directly via Hotkey.
+The mini player is an interactive, resizeable window showing the currently playing item, with simple playback controls. Configure the Hotkey to open it directly.
 
 ![Mini Player landscape](docs/now-playing-landscape.png)
 
@@ -271,12 +270,10 @@ The mini player is an interactive, resizeable window showing the currently playi
 
 ## Configuration
 
-![Now Playing config](docs/now-playing-config.png)
-
 Set the workflow's keyword triggers, and adjust various parameters of the mini player:
 
 - **Window buttons**: turn off the player window's close/maximise buttons for a simpler, sleek look
-- **Corner radius**: adjust the player's rounded corners — default matches the Mac OS default
+- **Corner radius**: rounding of the player's corners when the window buttons are off
 - **Transparency**: solid or see-through — you decide
 - **Default app**: when nothing is playing the mini player window presents a large link to open this app
 

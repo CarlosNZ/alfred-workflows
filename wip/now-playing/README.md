@@ -25,7 +25,7 @@ The ⌃N hotkey runs `scripts/window.sh` (a Run Script object), which builds the
 
 The window is forced to the `dark` appearance and dragged from anywhere on its background (`movablebybackground`). Its translucency comes from two layers: the window's `blur`, and a dark tint, the root view's (`panel`) `background`. The padding sits on the root view rather than the window so the tint reaches the edges.
 
-With the window buttons preference on (the default), the window has a title bar with no title (`titlevisibility: false`), made transparent (`titlebarappearstransparent`) with the content extending up behind it (`fullsizecontentview`), so only the window buttons show, over the panel at top left, and the corners have the system's standard window rounding. The app icon and name sit at the top right to keep clear of the buttons. Minimise is disabled (`minimisable: false`) but still drawn as a grey dot, and zoom is enabled, since the window is resizeable: it grows the window as far as the screen and the layout's maximum size allow (see [Layouts](#layouts); `fullscreenable: false` stops it going full screen). Alfred UI has no option to hide either button or disable zoom, and no hover event that could show the buttons only while the pointer is over the window. With the preference off, the window is `borderless` (the title bar options are then ignored) and its `cornerradius` comes from the corner radius preference.
+With the window buttons preference on (the default), the window has a title bar with no title (`titlevisibility: false`), made transparent (`titlebarappearstransparent`) with the content extending up behind it (`fullsizecontentview`), so only the window buttons show, over the panel at top left, and the corners have the system's standard window rounding. The app icon and name sit at the top right to keep clear of the buttons. Minimise is disabled (`minimisable: false`) but still drawn as a grey dot, and zoom is enabled, since the window is resizeable: it grows the window as far as the screen and the layout's maximum size allow (see [Layouts](#layouts); `fullscreenable: false` stops it going full screen). Alfred UI has no option to hide either button or disable zoom, and no hover event that could show the buttons only while the pointer is over the window. With the preference off, the window is `borderless` (the title bar options are then ignored) and its `cornerradius` comes from the corner radius preference. `cornerradius` has no effect on a window with a title bar, so the corner radius preference applies only to the borderless window.
 
 #### App icon and name
 
@@ -205,6 +205,8 @@ Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adap
 - [ ] Scrolling for long titles?
 - [ ] Actions from the Result -- back/forward/play/pause, etc
 - [ ] Keyboard for back/forward (arrows?)
+- [ ] When there's no thumbnail, show the app icon rather than generic music note
+- [ ] If 15s jump buttons aren't supported in current playback, hide them (if this is possible)
 
 ## Testing
 
