@@ -128,12 +128,14 @@ const WORKING_STATUS_WORDS = {
   asleep: "Asleep",
 };
 
-// The flag and country for a subtitle, e.g. "🇳🇿 New Zealand". For a city-state
-// (Singapore), where the title already names the country, just the flag.
+// The country for a subtitle, e.g. "New Zealand". Empty for a city-state
+// (Singapore), where the title already names the country. Clock marks some
+// city-states with countryOnly, but not all, so a country with the same name
+// as the city counts too.
 function formatCountry(info) {
-  const flag = flagEmoji(info.countryCode);
-  const country = info.countryOnly ? "" : displayCountry(info);
-  return [flag, country].filter(Boolean).join(" ");
+  const country = displayCountry(info) || "";
+  const isCityState = info.countryOnly || foldText(country) === foldText(info.name);
+  return isCityState ? "" : country;
 }
 
 const HOME = "\u{1F3E0}\uFE0F";
@@ -142,17 +144,20 @@ const TITLE_DIVIDER = " • ";
 const SUBTITLE_DIVIDER = " | ";
 
 // The list's title: the time, the weekday when the city's date differs from
-// the Mac's, the city, and 🏠 for the local city. E.g. "1:33 AM Wednesday •
-// Los Angeles".
+// the Mac's, the city, 🏠 for the local city, and the country's flag. E.g.
+// "1:33 AM Wednesday • Los Angeles • 🇺🇸". The flag is in the title rather
+// than the subtitle so that it's shown at a readable size.
 function listTitle(info) {
   const weekday = info.dayOffset ? ` ${formatWithTemplate(info.moment, info.timeZone, "EEEE")}` : "";
   const home = info.isLocal ? ` ${HOME}` : "";
-  return `${formatTime(info.moment, info.timeZone)}${weekday}${TITLE_DIVIDER}${info.name}${home}`;
+  return [`${formatTime(info.moment, info.timeZone)}${weekday}`, `${info.name}${home}`, flagEmoji(info.countryCode)]
+    .filter(Boolean)
+    .join(TITLE_DIVIDER);
 }
 
 // The list's subtitle: country, offset from the local city, and the clock
 // change when one is within a week, otherwise the nearest sunrise or sunset.
-// E.g. "🇦🇺 Australia | −2h | Sunset 41m ago".
+// E.g. "Australia | −2h | Sunset 41m ago".
 function listSubtitle(info) {
   return [
     formatCountry(info),

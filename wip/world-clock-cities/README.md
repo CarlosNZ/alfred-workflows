@@ -20,7 +20,7 @@ A typed time always means its next occurrence (now or later), since the time mod
 | Property | Source | Derivation |
 |---|---|---|
 | City name | `name` | As stored; already localized for the entry's `languageCode`. |
-| Country | `countryName` | As stored. When `displayNameIncludingCountryUsesOnlyCountry` is true (city-states such as Singapore), show the country alone, as Clock does. Shown shortened where `lib/format.js` has a short name (Great Britain → UK, U.S.A. → USA). |
+| Country | `countryName` | As stored. For a city-state (Singapore), the subtitle leaves the country out, since the title already names it: a city counts as one when `displayNameIncludingCountryUsesOnlyCountry` is true, or when its country has the same name, since Clock doesn't set that flag on every city-state. Shown shortened where `lib/format.js` has a short name (Great Britain → UK, U.S.A. → USA). |
 | Flag | `localeCode` | Kept as the country code; shown by mapping each letter to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters. |
 | Local city | `timeZone` | See [Design](#design). |
 | ⏱ Local time | `timeZone` | The moment, shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
@@ -50,21 +50,21 @@ Each mode answers one question, and a result's icon and title answer it. The lis
 At 10:33 PM on a Thursday in Auckland (sun times approximate):
 
 ```
-[night]      10:33 PM • Auckland 🏠
-             🇳🇿 New Zealand | Sunset 2h ago
-[night]      8:33 PM • Canberra
-             🇦🇺 Australia | −2h | Sunset 41m ago
-[night]      1:33 AM • Los Angeles
-             🇺🇸 USA | −21h | Sunrise in 5h
-[night]      4:33 AM • New York
-             🇺🇸 USA | −18h | Sunrise in 2h
-[morning]    9:33 AM • London
-             🇬🇧 UK | −13h | Sunset in 7h
+[night]      10:33 PM • Auckland 🏠 • 🇳🇿
+             New Zealand | Sunset 2h ago
+[night]      8:33 PM • Canberra • 🇦🇺
+             Australia | −2h | Sunset 41m ago
+[night]      1:33 AM • Los Angeles • 🇺🇸
+             USA | −21h | Sunrise in 5h
+[night]      4:33 AM • New York • 🇺🇸
+             USA | −18h | Sunrise in 2h
+[morning]    9:33 AM • London • 🇬🇧
+             UK | −13h | Sunset in 7h
 ```
 
-- **Title:** the time, the full weekday when the city's date differs from the Mac's ("1:33 AM Wednesday"), " • ", then the city. The time comes first because it's the answer, and that way the times start in a column, which city names of different lengths would break. One-digit hours aren't padded: padding them to line up with two-digit hours looked wonky in Alfred's proportional font. Times have an ordinary space before AM/PM; the system formatter's narrow no-break space (U+202F) is too narrow to see in Alfred's font. The local city ends with 🏠.
-- **Subtitle:** flag and country | offset from local | the nearer of the previous and next sunrise or sunset. Parts are divided by " | " rather than a dot, which looked poor before a minus sign. The local city has no offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
-- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "🇬🇧 UK | −13h | Clocks go back Sun (−1h)".
+- **Title:** the time, the full weekday when the city's date differs from the Mac's ("1:33 AM Wednesday"), " • ", then the city. The time comes first because it's the answer, and that way the times start in a column, which city names of different lengths would break. One-digit hours aren't padded: padding them to line up with two-digit hours looked wonky in Alfred's proportional font. Times have an ordinary space before AM/PM; the system formatter's narrow no-break space (U+202F) is too narrow to see in Alfred's font. The local city's name is followed by 🏠. The country's flag comes last, after another " • ": in the subtitle it was too small to read. A city without a country code (Vatican City) has no flag.
+- **Subtitle:** country | offset from local | the nearer of the previous and next sunrise or sunset. Parts are divided by " | " rather than a dot, which looked poor before a minus sign. The local city has no offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
+- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "UK | −13h | Clocks go back Sun (−1h)".
 - **Icon:** the [phase of the day](#phases-of-the-day).
 
 #### The time mode
@@ -72,21 +72,21 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
 `wcc 8am` at the same moment, which is 8am on Friday in Auckland:
 
 ```
-[morning]    8:00 AM Friday • Auckland 🏠
-             🇳🇿 New Zealand | Early morning | work in 1h
-[asleep]     6:00 AM Friday • Canberra
-             🇦🇺 Australia | Asleep | work in 3h
-[working]    11:00 AM Thursday • Los Angeles
-             🇺🇸 USA | Working | 6h left
-[working]    2:00 PM Thursday • New York
-             🇺🇸 USA | Working | 3h left
-[evening]    7:00 PM Thursday • London
-             🇬🇧 UK | Evening | 2h after work
+[morning]    8:00 AM Friday • Auckland 🏠 • 🇳🇿
+             New Zealand | Early morning | work in 1h
+[asleep]     6:00 AM Friday • Canberra • 🇦🇺
+             Australia | Asleep | work in 3h
+[working]    11:00 AM Thursday • Los Angeles • 🇺🇸
+             USA | Working | 6h left
+[working]    2:00 PM Thursday • New York • 🇺🇸
+             USA | Working | 3h left
+[evening]    7:00 PM Thursday • London • 🇬🇧
+             UK | Evening | 2h after work
 ```
 
 - **Title:** as in the list, but always with the weekday, since crossing into another day is the main risk when planning a meeting.
-- **Subtitle:** flag and country | working status | how far into or out of the working day, for sliding a meeting by an hour or two. There's no offset, since the converted times already show it.
-- **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "🇬🇧 UK | Evening | Clocks go back Sun (−1h)".
+- **Subtitle:** country | working status | how far into or out of the working day, for sliding a meeting by an hour or two. There's no offset, since the converted times already show it.
+- **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "UK | Evening | Clocks go back Sun (−1h)".
 - **Icon:** the [working status](#working-statuses).
 
 #### Icon states
@@ -377,7 +377,7 @@ An initial brainstorm of what the workflow should do. Decisions so far are in [D
 - **Working hours:** mark cities where it's outside working hours or the middle of the night (e.g. "Asleep · 2:14 AM"). Combined with conversion, find an hour that suits everyone. Working hours could be a setting.
 - **Day labels:** "Tomorrow" or "Yesterday" when a city's date differs from local.
 - **Upcoming clock changes:** e.g. "Clocks go back Sunday (−1h)" when a city's daylight saving change is close.
-- **Country flags** in the subtitle, from the country code (e.g. `NZ` → 🇳🇿).
+- **Country flags**, from the country code (e.g. `NZ` → 🇳🇿).
 - **More copy options:** copy just the time, or all cities as a list for pasting into a message; Large Type for showing the time across a room.
 - **Cities not in Clock:** e.g. `wcc tokyo` matches any time zone macOS knows when the city isn't in the list. Without coordinates these would show the time only, no daylight info.
 - **Local city:** if one of the cities is in the Mac's time zone, mark it as local and use it as the reference in subtitles (e.g. "+11h from you").
