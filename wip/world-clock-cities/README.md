@@ -7,7 +7,7 @@ Developer notes for a workflow that shows the current time in each city from the
 - **One keyword**, `wcc` by default (User Configuration variable `keyword`; `wc` is taken by Word Count). `wcc` alone lists every city. What's typed after it decides the mode: text starting with a digit, `+` or `-` is a time to convert (`wcc 3pm`, `wcc 9am London`, `wcc +5` for five hours from now; see [Time input](#time-input)); anything else narrows the list (`wcc new` matches New York and New Zealand). Meeting planning is part of the time mode rather than a separate keyword.
 - **A hotkey for the city list** only, for glancing at the times. A hotkey for the time mode would save nothing, since a time has to be typed anyway. Ship it unassigned so each user picks their own.
 - **JXA**, in external script files run as Script Filters (type 8, input as argv). JXA reads the plist through Foundation and does time zone maths with `Intl`, so nothing needs installing. One Script Filter handles every mode, with its logic split across files in `lib/` (see [Code layout](#code-layout)).
-- **The local city** is the one in the Mac's current time zone (`NSTimeZone.localTimeZone`), detected automatically, with no setting. It's the reference for relative values ("+11h", and the weekday shown when a city's date differs), so it should follow the Mac when travelling, which a fixed home city setting wouldn't; the locale (e.g. `en_NZ`) doesn't change with location, so it can't be used. Cities are compared by offset (same UTC offset now and the same next clock change), not by zone name, because aliases don't resolve: `Australia/Canberra` stays `Australia/Canberra` in both `Intl` and Foundation, never `Australia/Sydney`. When several cities share the zone (Auckland and Wellington), the first in Clock's order wins. If that proves a problem, a "Set as local city" modifier could store a choice in `$alfred_workflow_data`, used only as a tiebreaker between cities in the Mac's zone.
+- **The local city** is the one in the Mac's current time zone (`NSTimeZone.localTimeZone`), detected automatically, with no setting. It's the reference for relative values ("+11 hrs", and the weekday shown when a city's date differs), so it should follow the Mac when travelling, which a fixed home city setting wouldn't; the locale (e.g. `en_NZ`) doesn't change with location, so it can't be used. Cities are compared by offset (same UTC offset now and the same next clock change), not by zone name, because aliases don't resolve: `Australia/Canberra` stays `Australia/Canberra` in both `Intl` and Foundation, never `Australia/Sydney`. When several cities share the zone (Auckland and Wellington), the first in Clock's order wins. If that proves a problem, a "Set as local city" modifier could store a choice in `$alfred_workflow_data`, used only as a tiebreaker between cities in the Mac's zone.
 
 ### City properties
 
@@ -26,7 +26,7 @@ A typed time always means its next occurrence (now or later), since the time mod
 | ⏱ Local time | `timeZone` | The moment, shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
 | ⏱ Day label | `timeZone` | After the time. In the list, "Yesterday" or "Tomorrow" when the city's calendar date differs from the Mac's ("11:33 PM Yesterday"): the list is about now, relative to you. In the time mode, the full weekday, always ("1:33 AM Thursday"), since "Tomorrow" would be ambiguous when the reference is a typed day, and weekends matter for meetings. |
 | ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45". |
-| ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11h", "−2h", "−7h 15m", "±0h". |
+| ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11 hrs", "−2 hrs", "−7h 15m", "±0 hrs". |
 | ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close: within 7 days in the list, and between now and the typed time in the time mode. |
 | ⏱ Working status | `timeZone` | The city's local hour against a working day from User Configuration: e.g. working, evening, asleep. The main value in the time mode. |
 | ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown in the ⌃ details. |
@@ -53,18 +53,18 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
 [night]      10:33 PM • Auckland • 🇳🇿
              🏠 | New Zealand | Sunset 2h ago
 [night]      8:33 PM • Canberra • 🇦🇺
-             −2h | Australia | Sunset 41m ago
+             −2 hrs | Australia | Sunset 41m ago
 [night]      1:33 AM • Los Angeles • 🇺🇸
-             −21h | USA | Sunrise in 5h
+             −21 hrs | USA | Sunrise in 5h
 [night]      4:33 AM • New York • 🇺🇸
-             −18h | USA | Sunrise in 2h
+             −18 hrs | USA | Sunrise in 2h
 [morning]    9:33 AM • London • 🇬🇧
-             −13h | UK | Sunset in 7h
+             −13 hrs | UK | Sunset in 7h
 ```
 
 - **Title:** the time, "Yesterday" or "Tomorrow" when the city's date differs from the Mac's ("11:33 PM Yesterday"), " • ", then the city. The time comes first because it's the answer, and that way the times start in a column, which city names of different lengths would break. One-digit hours aren't padded: padding them to line up with two-digit hours looked wonky in Alfred's proportional font. Times have an ordinary space before AM/PM; the system formatter's narrow no-break space (U+202F) is too narrow to see in Alfred's font. The country's flag comes last, after another " • ": in the subtitle it was too small to read. A city without a country code (Vatican City) has no flag.
 - **Subtitle:** offset from local | country | the nearer of the previous and next sunrise or sunset. The offset comes first so that it starts in a column, like the times. Parts are divided by " | " rather than a dot, which looked poor before a minus sign. The local city shows 🏠 in place of the offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
-- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "−13h | UK | Clocks go back Sun (−1h)".
+- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "−13 hrs | UK | Clocks go back Sun (−1h)".
 - **Icon:** the [phase of the day](#phases-of-the-day).
 
 #### The time mode
@@ -127,7 +127,7 @@ The detail is left out when the start of work it counts to falls on a weekend. T
 
 #### Durations
 
-- **Offsets from local:** hours, with minutes only for zones that have them: "+11h", "−2h", "−7h 15m", "±0h".
+- **Offsets from local:** whole hours spelled out, so they're closer in length to offsets with minutes: "+11 hrs", "−1 hr", "±0 hrs"; otherwise hours and minutes: "−7h 15m", "+15m". Clock change shifts stay short: "(−1h)".
 - **Sunrise and sunset:** to the nearest hour from an hour away ("Sunset in 2h", "Sunrise 5h ago"), and in minutes under an hour ("Sunset in 41m").
 - **Working day details:** exact hours and minutes ("2h 30m left"), since they decide whether a meeting fits.
 

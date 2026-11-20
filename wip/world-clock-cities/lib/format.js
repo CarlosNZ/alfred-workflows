@@ -59,6 +59,16 @@ function formatSignedDuration(minutes) {
   return `${minutes < 0 ? "−" : "+"}${parts.join(" ")}`;
 }
 
+// An offset from the local city, e.g. "+11 hrs", "−1 hr", "−7h 15m", "+15m",
+// "±0 hrs". Whole hours are spelled out so they're closer in length to the
+// offsets with minutes.
+function formatOffsetFromLocal(minutes) {
+  if (minutes === 0) return "±0 hrs";
+  if (minutes % 60 !== 0) return formatSignedDuration(minutes);
+  const hours = Math.abs(minutes) / 60;
+  return `${minutes < 0 ? "−" : "+"}${hours} ${hours === 1 ? "hr" : "hrs"}`;
+}
+
 // A length of time rounded for a glance: to the nearest hour from an hour up
 // ("2h"), and to the minute below that ("41m"). Null under half a minute.
 function formatRoughDuration(minutes) {
@@ -161,7 +171,7 @@ function listTitle(info) {
 // the nearest sunrise or sunset. E.g. "−2h | Australia | Sunset 41m ago".
 function listSubtitle(info) {
   return [
-    info.isLocal ? HOME : formatSignedDuration(info.offsetFromLocalMinutes),
+    info.isLocal ? HOME : formatOffsetFromLocal(info.offsetFromLocalMinutes),
     formatCountry(info),
     formatSoonClockChange(info) || formatNearestSunEvent(info),
   ]
@@ -196,7 +206,7 @@ function largeTypeText(info) {
   const lines = [
     [info.name, info.countryOnly ? "" : displayCountry(info)].filter(Boolean).join(", "),
     `${formatTime(info.moment, info.timeZone)} ${formatWithTemplate(info.moment, info.timeZone, "EEEE")}`,
-    `${formatUtcOffset(info.utcOffsetMinutes)}${info.isLocal ? ", local" : ` (${formatSignedDuration(info.offsetFromLocalMinutes)} from local)`}`,
+    `${formatUtcOffset(info.utcOffsetMinutes)}${info.isLocal ? ", local" : ` (${formatOffsetFromLocal(info.offsetFromLocalMinutes)} from local)`}`,
   ];
   const change = info.nextClockChange;
   if (change) {
