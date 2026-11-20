@@ -1,6 +1,27 @@
 # World Clock
 
-Developer notes. Research for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. There is no workflow yet (no `info.plist`, so `bin/wf` ignores this folder); this file records how the data can be read, and initial ideas for the workflow.
+Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. The workflow is a skeleton so far: it lists the cities with their UTC offsets. This file also records how the data can be read, and ideas for what comes next.
+
+## Design
+
+- **One keyword**, `wcc` by default (User Configuration variable `keyword`; `wc` is taken by Word Count). `wcc` alone lists every city. What's typed after it decides the mode: text starting with a digit is a time to convert (`wcc 3pm`, `wcc 9am London`); anything else narrows the list (`wcc new` matches New York and New Zealand). Meeting planning is part of the time mode rather than a separate keyword.
+- **A hotkey for the city list** only, for glancing at the times. A hotkey for the time mode would save nothing, since a time has to be typed anyway. Ship it unassigned so each user picks their own.
+- **JXA**, in external script files run as Script Filters (type 8, input as argv). JXA reads the plist through Foundation and does time zone maths with `Intl`, so nothing needs installing. JXA can't easily share code between script files, so one script handles every mode.
+
+## How it works
+
+`results.js` is the Script Filter for the keyword. It reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order, and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Items have no `uid`, so Alfred doesn't reorder them by usage.
+
+Each result shows the city name, with the country and current UTC offset as the subtitle. Time conversion isn't implemented: a query starting with a digit lists every city.
+
+When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
+
+To test without Full Disk Access, run a copy pointed at the stale plist, which has the same shape:
+
+```zsh
+sed "s|~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist|$HOME/Library/Preferences/com.apple.mobiletimer.plist|" results.js > /tmp/test.js
+osascript -l JavaScript /tmp/test.js "new"
+```
 
 ## No public API
 
@@ -96,7 +117,7 @@ To check what Clock does with an input, watch its own log while trying it:
 
 ## Ideas
 
-An initial brainstorm of what the workflow should do; nothing here is designed or decided yet.
+An initial brainstorm of what the workflow should do. Decisions so far are in [Design](#design); the rest is undecided.
 
 ### Core behaviour
 
@@ -111,13 +132,13 @@ An initial brainstorm of what the workflow should do; nothing here is designed o
 ### Feature ideas
 
 - **Live times:** times and countdowns keep updating while Alfred is open.
-- **Time conversion:** e.g. `wc 3pm` shows what 3pm local time is in every city, and `wc 9am London` converts from a city's time. Useful for planning calls.
+- **Time conversion:** e.g. `wcc 3pm` shows what 3pm local time is in every city, and `wcc 9am London` converts from a city's time. Useful for planning calls.
 - **Working hours:** mark cities where it's outside working hours or the middle of the night (e.g. "Asleep · 2:14 AM"). Combined with conversion, find an hour that suits everyone. Working hours could be a setting.
 - **Day labels:** "Tomorrow" or "Yesterday" when a city's date differs from local.
 - **Upcoming clock changes:** e.g. "Clocks go back Sunday (−1h)" when a city's daylight saving change is close.
 - **Country flags** in the subtitle, from the country code (e.g. `NZ` → 🇳🇿).
 - **More copy options:** copy just the time, or all cities as a list for pasting into a message; Large Type for showing the time across a room.
-- **Cities not in Clock:** e.g. `wc tokyo` matches any time zone macOS knows when the city isn't in the list. Without coordinates these would show the time only, no daylight info.
+- **Cities not in Clock:** e.g. `wcc tokyo` matches any time zone macOS knows when the city isn't in the list. Without coordinates these would show the time only, no daylight info.
 - **Local city:** if one of the cities is in the Mac's time zone, mark it as local and use it as the reference in subtitles (e.g. "+11h from you").
 - **Small extras:** day length and how it's changing (e.g. "10h 12m, +2m/day"), and moon phase.
 - Weather is out of scope: it would need an online service and an API key.
