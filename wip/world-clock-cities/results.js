@@ -64,6 +64,20 @@ function cityItem(city) {
   };
 }
 
+const MODIFIERS = ["cmd", "alt", "ctrl"];
+
+// Every item defines each modifier, as inert (valid: false, same subtitle) where
+// it has no action of its own. Otherwise Alfred applies its own modifiers, e.g.
+// ⌥ "Search in Finder" and ⌃ "Search with default fallback", which the
+// strictmods flag doesn't stop. ⇧ is left alone for Quick Look.
 function output(items) {
-  return JSON.stringify({ items });
+  return JSON.stringify({ items: items.map(withInertMods) });
+}
+
+function withInertMods(item) {
+  const mods = { ...item.mods };
+  for (const key of MODIFIERS) {
+    if (!mods[key]) mods[key] = { subtitle: item.subtitle || "", valid: false };
+  }
+  return { ...item, mods };
 }
