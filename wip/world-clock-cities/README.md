@@ -4,24 +4,131 @@ Developer notes for a workflow that shows the current time in each city from the
 
 ## Design
 
-- **One keyword**, `wcc` by default (User Configuration variable `keyword`; `wc` is taken by Word Count). `wcc` alone lists every city. What's typed after it decides the mode: text starting with a digit is a time to convert (`wcc 3pm`, `wcc 9am London`); anything else narrows the list (`wcc new` matches New York and New Zealand). Meeting planning is part of the time mode rather than a separate keyword.
+- **One keyword**, `wcc` by default (User Configuration variable `keyword`; `wc` is taken by Word Count). `wcc` alone lists every city. What's typed after it decides the mode: text starting with a digit is a time to convert (`wcc 3pm`, `wcc 9am London`; see [Time input](#time-input)); anything else narrows the list (`wcc new` matches New York and New Zealand). Meeting planning is part of the time mode rather than a separate keyword.
 - **A hotkey for the city list** only, for glancing at the times. A hotkey for the time mode would save nothing, since a time has to be typed anyway. Ship it unassigned so each user picks their own.
-- **JXA**, in external script files run as Script Filters (type 8, input as argv). JXA reads the plist through Foundation and does time zone maths with `Intl`, so nothing needs installing. JXA can't easily share code between script files, so one script handles every mode.
+- **JXA**, in external script files run as Script Filters (type 8, input as argv). JXA reads the plist through Foundation and does time zone maths with `Intl`, so nothing needs installing. One Script Filter handles every mode, with its logic split across files in `lib/` (see [Code layout](#code-layout)).
+- **The local city** is the one in the Mac's current time zone (`NSTimeZone.localTimeZone`), detected automatically, with no setting. It's the reference for relative values ("+11h", "Tomorrow"), so it should follow the Mac when travelling, which a fixed home city setting wouldn't; the locale (e.g. `en_NZ`) doesn't change with location, so it can't be used. Cities are compared by offset (same UTC offset now and the same next clock change), not by zone name, because aliases don't resolve: `Australia/Canberra` stays `Australia/Canberra` in both `Intl` and Foundation, never `Australia/Sydney`. When several cities share the zone (Auckland and Wellington), the first in Clock's order wins. If that proves a problem, a "Set as local city" modifier could store a choice in `$alfred_workflow_data`, used only as a tiebreaker between cities in the Mac's zone.
+
+### City properties
+
+What the workflow knows about each city, and where each value comes from. How they're laid out in results is still to be designed.
+
+Values marked ⏱ depend on a moment in time: the current time, or the time typed in the time mode. The functions computing them take that moment as input, so the list and the time mode share them.
+
+A typed time always means its next occurrence (now or later), since the time mode is for planning ahead: at 3:30pm, `wcc 3pm` is 3pm tomorrow in the Mac's zone, while at exactly 3:00pm it's now. `wcc 9am London` is the next 9am in London's zone. Results say which day the time fell on (e.g. "Tomorrow (Sat) 3:00 PM"), and day labels in the time mode compare each city's date with that day, not today.
+
+| Property | Source | Derivation |
+|---|---|---|
+| City name | `name` | As stored; already localized for the entry's `languageCode`. |
+| Country | `countryName` | As stored. When `displayNameIncludingCountryUsesOnlyCountry` is true (city-states such as Singapore), show the country alone, as Clock does. |
+| Flag | `localeCode` | Map each letter of the two-letter country code to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters. |
+| Local city | `timeZone` | See [Design](#design). |
+| ⏱ Local time | `timeZone` | `NSDateFormatter` with a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
+| ⏱ Day label | `timeZone` | "Tomorrow" or "Yesterday" when the city's calendar date differs from the Mac's. |
+| ⏱ UTC offset | `timeZone` | `Intl.DateTimeFormat` with `timeZoneName: "shortOffset"`, e.g. "UTC+13". |
+| ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11h", "−2h 30m". |
+| ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close, e.g. within 7 days. |
+| ⏱ Working status | `timeZone` | The city's local hour against a working day from User Configuration: e.g. working, evening, asleep. The main value in the time mode. |
+| ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown with a countdown to the next sunrise or sunset, e.g. "Sunset in 2h 14m". |
+| ⏱ Sunrise and sunset | `latitude`, `longitude` | When the sun's elevation crosses −0.833° (horizon, allowing for refraction and the sun's disc). |
+| ⏱ Day length and change | `latitude`, `longitude` | Sunset minus sunrise; the change is today's length minus yesterday's, e.g. "10h 12m, +2m/day". |
+
+The sun values come from the NOAA solar position algorithm (after Meeus): about 50 lines of plain JavaScript, accurate to about a minute, and offline. Near the poles the sunrise equation has no solution on some days; that's 24-hour daylight or darkness, with no sunrise or sunset to count down to and no day length change.
+
+To decide: whether the upcoming clock change in the time mode is counted from now or from the typed time (the typed time would warn that `wcc 9am` on a Saturday falls after Sunday's change).
+
+### Time input
+
+Parsing isn't fully designed yet. Alfred reruns the script on every keystroke, so input is often partly typed: it resolves as soon as it's unambiguous, and not before.
+
+```
+3                      03:00 (24-hour when there's no am/pm)
+3:2                    doesn't resolve (minutes incomplete)
+3:25                   03:25
+3:25p                  15:25
+15:30                  15:30
+10:23PM                22:23
+11 AM                  11:00
+0, 0am, 12am, 00:00    00:00, the start of the day
+12:00 mon              12:00 Monday
+8am t                  doesn't resolve (Tuesday or Thursday)
+8am tu                 08:00 Tuesday
+13:35 Weds             13:35 Wednesday
+```
+
+Rules:
+
+- Hours are 0–23 without am/pm, and 0–12 with it. `a`, `am`, `p` or `pm`, in any case, with or without a space. 12am is midnight and 12pm is noon.
+- Minutes are two digits after a colon.
+- Midnight is always the start of a day: `0:00 fri` is the start of Friday.
+- A day is any prefix of a day name that matches only one day (`m`, `tu`, `w`, `th`, `f`, `sa`, `su` and longer), plus `weds`, in any case.
+- The time is always its next occurrence, now or later, with or without a day: on a Monday at 11am, `12:00 mon` is today at noon; at 1pm it's next Monday.
+- No named times (`midnight`, `noon`): numbers only, so the time mode is simply any query starting with a digit.
+
+Open questions:
+
+- What to show while the input doesn't resolve: probably a single "Keep typing…" item echoing the input. Falling back to the part that did resolve would mislead (`3:2` showing 03:00).
+- Input that can't become valid by typing more (`25:00`, `13pm`, `3:75`): a single "can't read that time" result.
+- Where a city goes alongside a day (`wcc 12:00 mon London`).
 
 ## How it works
 
-`results.js` is the Script Filter for the keyword. It reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order, and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Items have no `uid`, so Alfred doesn't reorder them by usage.
+### Code layout
+
+- `results.js`: the Script Filter. Loads the files in `lib/`, chooses the mode from the query, and turns the results into Alfred's JSON, including the wording of every result.
+- `lib/cities.js`: reading Clock's city list, and matching cities against a query.
+- `lib/time.js`: time zone calculations, and reading typed times.
+
+The solar calculations will go in `lib/sun.js`.
+
+JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries`, which a workflow can't ship in. So `results.js` reads each `lib/` file and runs it with an indirect `eval` (`(0, eval)(source)`), which runs it in the global scope. Each file's top-level functions become globals, available to `results.js` and the other files; its top-level `const` and `let` stay private to it. The catches:
+
+- All functions share one namespace, and a name defined twice silently resolves to the later file's. Name functions for what they do on their own (`matchesCity`, not `matches`).
+- An error's line number is within its file, but the error doesn't say which file.
+- `lib/` paths are relative to the working directory. Alfred runs scripts from the workflow folder; when running `results.js` by hand, do the same.
+
+### Behaviour
+
+`results.js` reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order, and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Items have no `uid`, so Alfred doesn't reorder them by usage.
+
+The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay; in `info.plist`, `queuedelaymode` 2 and `queuedelaycustom` 2, in tenths of a second), and immediately for the first character. That skips most partly typed times without slowing down filtering, which "Automatic after last character typed" (`queuedelaymode` 1) did.
 
 Each result shows the city name, with the country and current UTC offset as the subtitle. Time conversion isn't implemented: a query starting with a digit lists every city.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
 
-To test without Full Disk Access, run a copy pointed at the stale plist, which has the same shape:
+### Testing
+
+Run `results.js` from the workflow folder, with the query as its argument. In Alfred it reads Clock's real city list, but outside Alfred that usually fails: a terminal or Claude Code session normally lacks Full Disk Access (see [Access](#access)). So when the environment variable `WCC_CITIES_PLIST` is set, the script reads the file it names instead. Alfred never sets it.
+
+`test/cities.plist` is a city list for testing, in the same format as Clock's:
 
 ```zsh
-sed "s|~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist|$HOME/Library/Preferences/com.apple.mobiletimer.plist|" results.js > /tmp/test.js
-osascript -l JavaScript /tmp/test.js "new"
+WCC_CITIES_PLIST=test/cities.plist ./results.js "new"
+WCC_CITIES_PLIST=/nonexistent ./results.js          # the "can't find" result
 ```
+
+`test/` is in `.wfignore`, so it isn't shipped.
+
+#### The test city list
+
+Its entries come from the database Clock picks cities from, `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/CityInfo.db` (SQLite; tables `cities` and `locales`), so the identifiers, coordinates and time zones are real. A city's `countryName` is its `country_override` if it has one, otherwise its locale's `country_name`; that matches every entry in the stale copy. `displayNameIncludingCountryUsesOnlyCountry` is set where the city and country names are the same, which is a guess at Clock's rule.
+
+The cities are chosen for edge cases:
+
+| City | Edge case |
+|---|---|
+| Auckland, Wellington | Southern hemisphere daylight saving; two cities in the same zone (local city tiebreak) |
+| Kolkata | Half-hour offset (+5:30) |
+| Kathmandu | 45-minute offset (+5:45); zone stored as the old alias `Asia/Katmandu` |
+| Singapore | City-state: city and country names are the same |
+| Hong Kong | Country override "Hong Kong SAR, China", but locale code `CN` (so its flag would be China's) |
+| London | Country override "England"; UTC+0 in winter |
+| Vatican City | No locale code or country name in the database: no flag, no country |
+| Longyearbyen | 78°N: midnight sun and polar night |
+| New York | Northern hemisphere daylight saving |
+| Phoenix | No daylight saving, unlike the rest of its region; same country as New York |
+| Amundsen–Scott Station | The South Pole, −90° exactly; zone `Antarctica/South_Pole` (an alias, following New Zealand time) |
 
 ## No public API
 
@@ -140,8 +247,8 @@ An initial brainstorm of what the workflow should do. Decisions so far are in [D
 - **More copy options:** copy just the time, or all cities as a list for pasting into a message; Large Type for showing the time across a room.
 - **Cities not in Clock:** e.g. `wcc tokyo` matches any time zone macOS knows when the city isn't in the list. Without coordinates these would show the time only, no daylight info.
 - **Local city:** if one of the cities is in the Mac's time zone, mark it as local and use it as the reference in subtitles (e.g. "+11h from you").
-- **Small extras:** day length and how it's changing (e.g. "10h 12m, +2m/day"), and moon phase.
-- Weather is out of scope: it would need an online service and an API key.
+- **Small extras:** day length and how it's changing (e.g. "10h 12m, +2m/day").
+- Weather is out of scope: it would need an online service and an API key. So is moon phase: it's the same everywhere at a given moment, so it isn't a property of a city, and would suit a separate workflow.
 
 ## Caveats
 

@@ -34,11 +34,11 @@
 				<key>keyword</key>
 				<string>{var:keyword}</string>
 				<key>queuedelaycustom</key>
-				<integer>1</integer>
+				<integer>2</integer>
 				<key>queuedelayimmediatelyinitially</key>
 				<true/>
 				<key>queuedelaymode</key>
-				<integer>0</integer>
+				<integer>2</integer>
 				<key>queuemode</key>
 				<integer>1</integer>
 				<key>runningsubtext</key>
@@ -73,9 +73,9 @@
 		<key>2708C946-AF32-4037-BDA4-3EBEE9654D1D</key>
 		<dict>
 			<key>xpos</key>
-			<integer>35</integer>
+			<real>35</real>
 			<key>ypos</key>
-			<integer>100</integer>
+			<real>100</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
