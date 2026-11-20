@@ -41,3 +41,19 @@ Features we'd like added to Alfred, each with the use case in our workflows that
 **Use case:** Now Playing ([`wip/now-playing`](wip/now-playing/README.md)) shows the default media app's icon when nothing is playing, and clicking the icon opens the app. The playing app's icon and name in the panel's top row open it too. Nothing tells the user these are clickable: they look like plain images and text, and the cursor stays an arrow. A tooltip appears only after a pause.
 
 **Why it can't be worked around:** Alfred UI has no cursor property and no hover event that could change the cursor or the component's look. In Alfred 6's framework the pointing-hand cursor is set only in Alfred's own windows (the workflow editor, the configuration sheet, the import window's website link); the only Alfred UI component that tracks the mouse is the data view, for its rows. A `webkitview` could set `cursor: pointer` in CSS, but replacing an image view with a web page just for the cursor is heavy and loses the native image view.
+
+## Alfred UI: several windows in one UI process
+
+**Request:** a way for one running Alfred UI to show several windows. For example, an option on the Alfred UI workflow object (or in `ui.json`) so that launching a `.alfredui` that's already running, with the same `bundleid`, opens a new window in the running process instead of starting another process. Each window would keep its own variables, events and `frameautosave` name. Or a JSON Action that opens a new window from a window definition, with its own variables.
+
+**Use case:** ScratchNotes ([`wip/scratchnotes`](wip/scratchnotes/DESIGN.md)) keeps quick notes as Markdown files and opens each in its own small window, like sticky notes, so several can be open around the desktop at once. Each window is a separate process, so each note is its own entry in ⌘-Tab and the Dock, instead of one ScratchNotes app with several windows. ⌘-\` can't cycle between the notes, ⌘H and ⌘Q act on one note rather than all of them, and every open note costs its own process (about 50 MB each, measured).
+
+**Why it can't be worked around:** every launch of an Alfred UI, from the workflow object or otherwise, starts a new process of `Alfred UI.app`, and each process has exactly one window. Nothing in the UI JSON or the JSON Actions creates a second window: `sheet` is a modal overlay on the same window. Only a process can change how it's grouped and shown in ⌘-Tab and the Dock, and the helper is Alfred's signed app.
+
+## Alfred UI: keep a UI out of ⌘-Tab and the Dock
+
+**Request:** a top-level `ui.json` setting for the UI process's activation policy, for example `"activationpolicy": "accessory"` (`NSApplicationActivationPolicyAccessory`), so its windows can still be shown, clicked and typed in, but the process has no Dock icon and no ⌘-Tab entry. Standard editing shortcuts (⌘C, ⌘V, ⌘Z, ⌘A) in text components would need to keep working.
+
+**Use case:** ScratchNotes ([`wip/scratchnotes`](wip/scratchnotes/DESIGN.md)) opens each note in its own window, and the notes are reached through the workflow's Alfred results, which bring an open note's window to the front. With several notes open, each one adds an entry to ⌘-Tab and an icon to the Dock (see the request above), so it would be better for them to have neither. It would also suit any small utility panel that isn't meant to be switched to like an app.
+
+**Why it can't be worked around:** the activation policy can only be set by the process itself (`-[NSApplication setActivationPolicy:]`), and Alfred UI has no setting for it. Adding `LSUIElement` to the helper's `Info.plist` would break Alfred's code signature and affect every Alfred UI.
