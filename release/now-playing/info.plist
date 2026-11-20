@@ -275,7 +275,7 @@ Set the workflow's keyword triggers, and adjust various parameters of the mini p
 - **Window buttons**: turn off the player window's close/maximise buttons for a simpler, sleek look
 - **Corner radius**: rounding of the player's corners when the window buttons are off
 - **Transparency**: solid or see-through — you decide
-- **Default app**: when nothing is playing the mini player window presents a large link to open this app
+- **Default app**: when nothing is playing the mini player window presents a link to open this app
 
 
 ## Acknowledgements
