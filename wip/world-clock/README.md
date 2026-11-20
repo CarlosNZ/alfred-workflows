@@ -6,9 +6,10 @@ Developer notes. Research for a workflow that shows the current time in each cit
 
 The Clock app (`/System/Applications/Clock.app`, bundle ID `com.apple.clock`) has no supported way for another app to read its World Clock cities:
 
-- No AppleScript dictionary (no `.sdef`, no `OSAScriptingDefinition`).
-- The App Intents it declares in `NSUserActivityTypes` are all for alarms (`MTCreateAlarmIntent`, `MTGetAlarmsIntent`, …). The only other App Intent is `OpenTabIntent` in the World Clock widget extension, which opens a tab and returns nothing.
-- `Info.plist` has no `CFBundleURLTypes`, though Launch Services maps some URL schemes to Clock (see [Opening Clock](#opening-clock)).
+- No AppleScript dictionary (no `.sdef`, no `OSAScriptingDefinition`; `sdef /System/Applications/Clock.app` fails with error -192), so AppleScript only has the generic `activate`/`quit` and UI scripting through System Events.
+- No Automator actions (nothing for Clock in `/System/Library/Automator`).
+- The App Intents it declares in `NSUserActivityTypes` are all for alarms (`MTCreateAlarmIntent`, `MTGetAlarmsIntent`, …). The only other App Intent is `OpenTabIntent` in the World Clock widget extension ("Open Clock Tab" in Shortcuts), which opens a tab and returns nothing.
+- `Info.plist` has no `CFBundleURLTypes`; its URL schemes are under `PrivateURLSchemes` (see [Opening Clock](#opening-clock)).
 
 ## Where the cities are stored
 
@@ -78,17 +79,25 @@ plutil -extract cities json -o - ~/Library/Containers/com.apple.clock/Data/Libra
 
 ## Opening Clock
 
-Launch Services maps `clock-worldclock://`, `clock-alarm://`, `clock-timer://` and `clock-stopwatch://` to Clock (checked with `NSWorkspace URLForApplicationToOpenURL`), even though Clock's `Info.plist` doesn't declare them. They only launch or activate Clock: on macOS 27.2, `open clock-stopwatch://` followed by `open clock-worldclock://` left Clock on whichever tab it was already showing, so neither selects a tab. Clock reopens on the last-used tab (`LAST_SELECTED_VIEW` in Clock's preferences).
+Clock reopens on the last-used tab (`LAST_SELECTED_VIEW` in Clock's preferences). Ways to land on the World Clock tab:
 
-Untested ways to land on the World Clock tab:
+- **Shortcuts "Open Clock Tab"** (`OpenTabIntent`), with Destination World Clock. Works. Its `ClockDestination` enum has the cases `worldclock`, `alarm`, `timer` and `stopwatch`. The system delivers the intent to Clock itself, which logs `didSelectTab MTTab(rawValue: 0) with delegate … MTAppIntentsProvider` and then `-[MTAAppController appIntentsProvider:didSelectTab:]: Handling AppIntents action for MTProviderTabClock`. There's no public API for one app to perform another app's App Intent (Shortcuts does it through private system services), so a workflow has to go through a shortcut: ship a one-action `.shortcut` file for the user to import, then run it with `shortcuts run "<name>"`.
+- **URL schemes don't work.** Clock's `Info.plist` lists `clock-worldclock`, `clock-alarm`, `clock-stopwatch`, `clock-sleep-alarm`, `clock-timer` and `clock-timer-running` under `PrivateURLSchemes`, and Launch Services maps them to Clock (`lsregister -dump` lists them as claimed schemes). Clock receives them (its log shows `MTASceneManager … openURLContexts:` with the URL) but does nothing more: on macOS 27.2, `clock-worldclock://`, `clock-worldclock:`, `clock-worldclock:/`, `clock-worldclock://worldclock`, `clock-worldclock://open`, `clock-stopwatch://`, `clock-timer://` and `clock-alarm://` were each followed by no `didSelectTab` or other Clock log line (and where the window was watched, the tab didn't change). The schemes are undocumented, and the Mac app appears to accept and ignore them.
+- **Clock's View menu**, chosen with System Events after activating Clock. Needs Accessibility access for Alfred, which Alfred also asks for on first launch. Not yet tested.
+- Setting `LAST_SELECTED_VIEW` in the container's `com.apple.clock.plist` before launching Clock. Writing another app's preferences is fragile (`cfprefsd` caches them while Clock runs) and risks corrupting its settings; avoid.
 
-- Choose World Clock from Clock's View menu with System Events after activating it. Needs Accessibility access for Alfred, which Alfred also asks for on first launch.
-- Set `LAST_SELECTED_VIEW` in the container's `com.apple.clock.plist` before launching Clock. Writing another app's preferences is fragile (`cfprefsd` caches them while Clock runs) and risks corrupting its settings; avoid.
+To check what Clock does with an input, watch its own log while trying it:
+
+```zsh
+/usr/bin/log stream --style compact --predicate 'process == "Clock" AND subsystem == "com.apple.mobiletimer.logging"'
+```
+
+(Use `/usr/bin/log`: in zsh, `log` is a shell builtin.)
 
 ## Design sketch
 
 - Script Filter in an external JXA script: one row per city, in Clock's order, with the local time and day as the title and the offset from local time in the subtitle (e.g. "Sat 2:15 PM · +2h"). Filtering by city or country name.
-- Actions: copy the time; open Clock (on the World Clock tab via its View menu, if that works; see [Opening Clock](#opening-clock)).
+- Actions: copy the time; open Clock on the World Clock tab, via a bundled shortcut if the user has imported it and plain `open -b com.apple.clock` otherwise (see [Opening Clock](#opening-clock)).
 - Fallback: an optional city list in User Configuration, used when Clock's list can't be read.
 - The coordinates could drive extras such as a day/night icon per city.
 - Read-only: adding, removing and reordering cities stays in Clock.
