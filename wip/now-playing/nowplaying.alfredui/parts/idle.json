@@ -12,16 +12,26 @@
           "id": "idleicon",
           "type": "imageview",
           "constraints": { "size": 112, "position": "centre" },
-          "image": { "type": "symbol", "src": "music.note" }
+          "image": { "type": "symbol", "src": "app" }
         },
         {
+          "id": "idletext",
           "type": "label",
           "text": "𝙉𝙤 𝙢𝙚𝙙𝙞𝙖 𝙥𝙡𝙖𝙮𝙞𝙣𝙜",
           "textalign": "centre",
           "font": { "size": 21, "weight": "bold" },
-          "opacity": 0.8,
           "accessibility": { "label": "No media playing" },
-          "constraints": { "position": "bottom", "insets": { "bottom": 15 } }
+          "constraints": { "position": "bottom", "insets": { "bottom": 25 } }
+        },
+        {
+          "id": "opendefault",
+          "type": "button",
+          "text": "",
+          "bordered": false,
+          "constraints": { "size": 112, "position": "centre" },
+          "events": [
+            { "triggers": "actioned", "action": { "type": "script", "src": "./scripts/opendefault.sh", "async": true } }
+          ]
         }
       ]
     },

@@ -78,6 +78,13 @@ layout_maxsize() {
 #
 # Either way the artwork view fills its space and `resize: fit` scales the
 # image to fit it, keeping its aspect ratio and centring it.
+#
+# The workflow's icon (icon.png in the workflow folder), shown in place of
+# the artwork when nothing is playing (`idleart`; see idle_update), is put in its image view here, at
+# IDLE_ART_SIZE, rather than by an update, so the view is laid out at that
+# size from the start. Alfred doesn't always lay the window out again when
+# an update changes an image's size, so an image sent later could stay at
+# the size of the one it replaced until the window was resized.
 TOPROW_HEIGHT=28
 PORTRAIT_GAP=6
 LANDSCAPE_GAP=14
@@ -88,8 +95,12 @@ content_view() {
   jq -n --arg layout "$1" --argjson row "$TOPROW_HEIGHT" --argjson pgap "$PORTRAIT_GAP" \
      --argjson lgap "$LANDSCAPE_GAP" --argjson inset "$LANDSCAPE_INSET" --slurpfile art "$ROOT/parts/art.json" \
      --argjson text "$(text_view "${2:-track}")" --slurpfile controls "$ROOT/parts/controls.json" \
-     --arg kind "${2:-track}" --argjson plift "$IDLE_LIFT_PORTRAIT" --argjson llift "$IDLE_LIFT_LANDSCAPE" '
-    $art[0] as $art | ($kind == "idle") as $idle
+     --arg kind "${2:-track}" --argjson plift "$IDLE_LIFT_PORTRAIT" --argjson llift "$IDLE_LIFT_LANDSCAPE" \
+     --arg icon "$(dirname "$ROOT")/icon.png" --argjson iconsize "$IDLE_ART_SIZE" '
+    ($art[0] | (.components[] | select(.id == "idleart") | .components[]
+                | select(.id == "idleartimage") | .image)
+                 = {type: "file", src: $icon, size: {width: $iconsize, height: $iconsize}}) as $art
+    | ($kind == "idle") as $idle
     | (if $idle then [] else $controls end) as $controls
     | {id: "content", type: "view"}
     + if $layout == "landscape" then {
@@ -116,18 +127,47 @@ content_view() {
 
 # Print the text view for kind $1, as JSON: "track" is the title, artist
 # and album labels (parts/text.json), which status messages use too; "idle"
-# is for when nothing is playing (parts/idle.json): the panel's own app
-# icon, with "No media playing" over it, and below that a hint to
-# click the default app's icon, or nothing when there's no default app.
+# is for when nothing is playing (parts/idle.json): the default app's icon,
+# with "No media playing" over it and the `opendefault` button over both, so
+# a click opens the app, and below that a hint to click the icon. With no
+# default app, the icon and button are hidden and the hint is empty.
+#
+# Alfred UI labels have no stroke or shadow, so "No media playing" (the
+# `idletext` label) is given an outline by `stroked`: eight dark copies of
+# the label behind it, each moved IDLE_STROKE points in one direction (less
+# on the diagonals, to keep the outline round). A label is moved
+# horizontally by stretching it across the stack and insetting one side by
+# twice the distance, as the text is centred in what's left; a label that
+# isn't stretched disappears when inset from the side. The copies have no
+# accessibility label; Alfred UI has no documented way to hide a component
+# from VoiceOver.
+IDLE_STROKE=1.5
 text_view() {
   if [ "$1" = idle ]; then
-    jq -c --arg icon "$ROOT/appicon.png" --arg app "$(default_app)" '
-      .components |= map(
+    jq -c --arg app "$(default_app)" --argjson r "$IDLE_STROKE" '
+      def stroked($label):
+        ([[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]][] as [$x, $y]
+        | (if $x != 0 and $y != 0 then 0.7 else 1 end * $r) as $d
+        | $label + {colour: "rgb(0, 0, 0, 1)", opacity: 0.75, constraints: ($label.constraints + {
+            stretch: "horizontal",
+            insets: {bottom: ($label.constraints.insets.bottom - $y * $d),
+                     left: ([2 * $x * $d, 0] | max), right: ([-2 * $x * $d, 0] | max)}})}
+        | del(.id, .accessibility)),
+        $label;
+      ($app | split("/") | last // "" | rtrimstr(".app")) as $name
+      | ("Open \($name)") as $tip
+      | .components |= map(
         if .id == "hint" then
-          .text = (if $app == "" then "" else
-                   "Click \($app | split("/") | last | rtrimstr(".app")) icon to launch it" end)
-        else .components |= map(
-          if .id == "idleicon" then .image = {type: "file", src: $icon} else . end)
+          .text = (if $app == "" then "" else "Click \($name) icon to launch it" end)
+        else .components |= (map(
+          if .id == "idleicon" then
+            if $app == "" then .hidden = true
+            else .image = {type: "fileicon", src: $app, size: {width: 112, height: 112}} end
+          elif .id == "idletext" then [stroked(.)]
+          elif .id == "opendefault" then
+            if $app == "" then .hidden = true
+            else .tooltip = $tip | .accessibility = {label: $tip} end
+          else . end) | flatten)
         end)' "$ROOT/parts/idle.json"
   else
     jq -c . "$ROOT/parts/text.json"
@@ -256,7 +296,7 @@ default_app() {
 show_message() {
   jq -nc --arg t "$1" --arg s "${2:-}" --argjson img "${3:-$(symbol_image music.note)}" '{update: {ids: {
     art:       {image: $img, hidden: false},
-    defaultapp: {hidden: true},
+    idleart:   {hidden: true},
     title:     {text: $t},
     artist:    {text: $s},
     album:     {text: ""},
@@ -267,30 +307,20 @@ show_message() {
   }}}'
 }
 
-# Print the update for when nothing is playing: the default app's icon in
-# place of the artwork, with the `opendefault` button over it, so a click
-# opens the app; or the music.note symbol when there's no default app. The
-# text is the idle kind, which needs no update, and has no controls. Pass it through with_content
-# idle and with_toprow "".
+# Print the update for when nothing is playing: the workflow's icon in
+# place of the artwork. The text is the idle kind (with the default app's
+# icon to click; see text_view), which needs no update, and has no controls.
+# Pass it through with_content idle and with_toprow "".
 #
-# The icon is in its own image view, `defaultapp` in parts/art.json, rather
+# The icon is in its own image view, `idleart` in parts/art.json, rather
 # than the artwork view, which stretches to fill its space and scales its
-# image to fit, up as well as down. `defaultapp` is centred in that space
-# without stretching, so it takes the icon's own size, DEFAULT_APP_SIZE
-# points, and shrinks only when the space is smaller.
-DEFAULT_APP_SIZE=256
+# image to fit, up as well as down. `idleart` is centred in that space
+# without stretching, so it takes the icon's own size, IDLE_ART_SIZE points,
+# and shrinks only when the space is smaller. content_view puts the icon in
+# it.
+IDLE_ART_SIZE=512
 idle_update() {
-  jq -nc --arg app "$(default_app)" --argjson n "$DEFAULT_APP_SIZE" --argjson note "$(symbol_image music.note)" '
-    ($app | split("/") | last // "" | rtrimstr(".app") | "Open \(.)") as $tip
-    | {update: {ids: (if $app == "" then {
-        art:         {image: $note, hidden: false},
-        defaultapp:  {hidden: true}
-      } else {
-        art:         {hidden: true},
-        defaultapp:  {hidden: false},
-        defaulticon: {image: {type: "fileicon", src: $app, size: {width: $n, height: $n}}},
-        opendefault: {tooltip: $tip, accessibility: {label: $tip}}
-      } end)}}'
+  jq -nc '{update: {ids: {art: {hidden: true}, idleart: {hidden: false}}}}'
 }
 
 # Pulse intervals in seconds: fast while playing (the elapsed time ticks),

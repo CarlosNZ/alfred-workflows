@@ -29,7 +29,7 @@ jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" "$JQ_TIME"'
   | {update: {ids: {
       art: {image: (if $art == "" then {type: "symbol", src: "music.note", size: {width: 96}}
                     else {type: "file", src: $art} end), hidden: false},
-      defaultapp: {hidden: true},
+      idleart:   {hidden: true},
       title:     {text: $i.title},
       artist:    {text: ($i.artist // "")},
       album:     {text: ($i.album // "")},
