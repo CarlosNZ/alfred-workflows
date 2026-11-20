@@ -1,6 +1,6 @@
 # World Clock
 
-Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. The workflow is a skeleton so far: it lists the cities with their UTC offsets, and computes every [city property](#city-properties), which it logs but doesn't show yet. This file also records how the data can be read, and ideas for what comes next.
+Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. So far it shows the list of cities as designed in [Results layout](#results-layout); converting a typed time isn't built yet. This file also records how the data can be read, and ideas for what comes next.
 
 ## Design
 
@@ -43,7 +43,7 @@ The sun values come from the NOAA solar position algorithm (after Meeus): about 
 
 ### Results layout
 
-Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. None of this is built yet.
+Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. The list is built, with placeholder icons; the time mode, ⌥ and ⌘ aren't yet.
 
 #### The list
 
@@ -133,13 +133,13 @@ The detail is left out when the start of work it counts to falls on a weekend. T
 
 #### More details
 
-- **⌃ (held):** the subtitle shows the daylight state and sun times, e.g. "Nautical twilight · Sunset 7:52 PM · Sunrise 5:45 AM · Day 14h 6m (+2m/day)".
+- **⌃ (held):** the subtitle shows the daylight state and sun times, e.g. "Nautical twilight · Sunrise 5:45 AM · Sunset 7:52 PM · Day 14h 6m (+2m/day)". The `day` state reads "Daylight" here, so it isn't confused with the day length.
 - **⌥:** opens Clock (see [Opening Clock](#opening-clock)).
 - **⌘:** a copy variant; its subtitle shows what it copies.
 - **Large Type (⌘L, `text.largetype`):** every property, one per line, including the UTC offset and the next clock change however far away.
-- **`rerun`:** the list reruns every few seconds, so times and countdowns stay current while Alfred is open.
+- **`rerun`:** the list reruns every second (a run takes about 0.1s), so times and countdowns stay current while Alfred is open.
 
-The icons are image files, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by a JXA script in `resources/` with AppKit (`NSBezierPath` to PNG), so they can be regenerated from code.
+The icons are image files in `icons/`, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by a JXA script with AppKit (`NSBezierPath` to PNG), so they can be regenerated from code. A phase's icon is `icons/phase-<phase>.png`. TO-DO: design the icons. The ones there are placeholders, a plain colour with the phase's word, from `resources/make-placeholder-icons.js` (run from the workflow folder), which draws one for each phase in `DAY_PHASES`; rerun it after adding a phase.
 
 ### Time input
 
@@ -198,11 +198,12 @@ Open questions:
 
 ### Code layout
 
-- `results.js`: the Script Filter. Loads the files in `lib/`, chooses the mode from the query, and turns the results into Alfred's JSON, including the wording of every result.
+- `results.js`: the Script Filter. Loads the files in `lib/`, chooses the mode from the query, and turns the results into Alfred's JSON, including the messages for when the list can't be loaded.
 - `lib/cities.js`: reading Clock's city list, and matching cities against a query.
 - `lib/time.js`: time zone calculations, and reading typed times.
 - `lib/sun.js`: the sun's position, sunrise and sunset, the daylight state, and the phases of the day.
-- `lib/format.js`: turning those values into text (times, offsets, flags, short country names).
+- `lib/format.js`: turning those values into text: times, offsets, durations, flags, short country names, and each city result's title, subtitle, ⌃ details and Large Type.
+- `icons/`: result icons (see [More details](#more-details)).
 
 JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries`, which a workflow can't ship in. So `results.js` reads each `lib/` file and runs it with an indirect `eval` (`(0, eval)(source)`), which runs it in the global scope. Each file's top-level functions become globals, available to `results.js` and the other files; its top-level `const` and `let` stay private to it. The catches:
 
@@ -218,7 +219,7 @@ Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`
 
 The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay; in `info.plist`, `queuedelaymode` 2 and `queuedelaycustom` 2, in tenths of a second), and immediately for the first character. That skips most partly typed times without slowing down filtering, which "Automatic after last character typed" (`queuedelaymode` 1) did.
 
-Each result shows the city name, with the country and current UTC offset as the subtitle. The computed values for the listed cities are written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit lists every city.
+Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit lists every city at the current time.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
 

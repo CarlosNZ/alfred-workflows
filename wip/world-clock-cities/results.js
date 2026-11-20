@@ -48,12 +48,14 @@ function run(argv) {
   const infos = cities.map((city) => describeCity(city, now, { isLocal: city === localCity }));
   logCityInfos(infos);
 
-  return output(infos.map(cityItem));
+  // Rerunning every second keeps the times and countdowns current while
+  // Alfred is open; a run takes about a tenth of a second.
+  return output(infos.map(cityItem), { rerun: 1 });
 }
 
 // Writes the cities' computed values to stderr as one JSON array, which Alfred
-// shows in the workflow's debugger. Dates appear as UTC ISO strings.
-// TO-DO: remove once the results show these values.
+// shows in the workflow's debugger, for checking the raw values behind the
+// results. Dates appear as UTC ISO strings.
 function logCityInfos(infos) {
   console.log(JSON.stringify(infos, null, 2));
 }
@@ -69,13 +71,17 @@ function loadLib(file) {
   (0, eval)(source.js);
 }
 
-// An Alfred item for a city, from describeCity's values.
+// An Alfred item for a city in the list, from describeCity's values.
 function cityItem(info) {
+  const details = sunDetails(info);
   // No uid, so Alfred keeps Clock's order instead of reordering by usage.
   return {
-    title: info.name,
-    subtitle: [displayCountry(info), formatUtcOffset(info.utcOffsetMinutes)].filter(Boolean).join(" · "),
+    title: listTitle(info),
+    subtitle: listSubtitle(info),
     arg: info.name,
+    ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
+    text: { largetype: largeTypeText(info) },
+    ...(details && { mods: { ctrl: { subtitle: details, valid: false } } }),
   };
 }
 
@@ -85,8 +91,9 @@ const MODIFIERS = ["cmd", "alt", "ctrl"];
 // it has no action of its own. Otherwise Alfred applies its own modifiers, e.g.
 // ⌥ "Search in Finder" and ⌃ "Search with default fallback", which the
 // strictmods flag doesn't stop. ⇧ is left alone for Quick Look.
-function output(items) {
-  return JSON.stringify({ items: items.map(withInertMods) });
+// `options` adds top-level Script Filter keys, such as rerun.
+function output(items, options = {}) {
+  return JSON.stringify({ ...options, items: items.map(withInertMods) });
 }
 
 function withInertMods(item) {

@@ -73,6 +73,12 @@ function dayOffset(timeZone, referenceZone, moment) {
   return (calendarDay(zonedParts(timeZone, moment)) - calendarDay(zonedParts(referenceZone, moment))) / 86400000;
 }
 
+// Whole calendar days from one moment's date to another's in a time zone: 1
+// when `to` falls tomorrow there, even if it's only minutes later.
+function calendarDaysBetween(timeZone, from, to) {
+  return (calendarDay(zonedParts(timeZone, to)) - calendarDay(zonedParts(timeZone, from))) / 86400000;
+}
+
 // A calendar date as a UTC timestamp, for comparing and stepping dates.
 function calendarDay({ year, month, day }) {
   return Date.UTC(year, month - 1, day);

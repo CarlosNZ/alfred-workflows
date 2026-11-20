@@ -107,6 +107,11 @@ function dayPhaseWord(phase) {
   return match ? match.word : "";
 }
 
+// Every phase of the day, as [{ phase, word }] in DAY_PHASES order.
+function dayPhases() {
+  return DAY_PHASES.map(({ phase, word }) => ({ phase, word }));
+}
+
 // Solar noon at a longitude: the one nearest the given moment.
 // Returns a timestamp.
 function solarNoonNear(longitude, moment) {
