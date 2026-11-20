@@ -10,6 +10,7 @@
 // The logic lives in lib/; this file turns it into Alfred results.
 
 ObjC.import("Foundation");
+ObjC.import("CoreFoundation");
 
 const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js"];
 
@@ -49,8 +50,10 @@ function run(argv) {
   logCityInfos(infos);
 
   // Rerunning every second keeps the times and countdowns current while
-  // Alfred is open; a run takes about a tenth of a second.
-  return output(infos.map(cityItem), { rerun: 1 });
+  // Alfred is open; a run takes about a tenth of a second. skipknowledge stops
+  // Alfred reordering the items by usage, which their uids would otherwise
+  // allow, so they stay in Clock's order.
+  return output(infos.map(cityItem), { rerun: 1, skipknowledge: true });
 }
 
 // Writes the cities' computed values to stderr as one JSON array, which Alfred
@@ -74,8 +77,10 @@ function loadLib(file) {
 // An Alfred item for a city in the list, from describeCity's values.
 function cityItem(info) {
   const details = sunDetails(info);
-  // No uid, so Alfred keeps Clock's order instead of reordering by usage.
   return {
+    // On a rerun, Alfred keeps the selection on the item with the selected
+    // item's uid; without uids it jumps back to the first item.
+    uid: info.id,
     title: listTitle(info),
     subtitle: listSubtitle(info),
     arg: info.name,

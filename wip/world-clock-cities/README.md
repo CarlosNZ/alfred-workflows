@@ -62,7 +62,7 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
               🇬🇧 UK · −13h · Sunset in 7h
 ```
 
-- **Title:** the time, the weekday when the city's date differs from the Mac's ("1:33 AM Wed"), then the city. The time comes first because it's the answer, and that way the times line up in a column, which city names of different lengths would break. One-digit hours are padded with a figure space (U+2007, the width of a digit) so "8:33" lines up with "10:33" in Alfred's proportional font. The local city ends with 🏠.
+- **Title:** the time, the weekday when the city's date differs from the Mac's ("1:33 AM Wed"), then the city. The time comes first because it's the answer, and that way the times start in a column, which city names of different lengths would break. One-digit hours aren't padded: padding them to line up with two-digit hours looked wonky in Alfred's proportional font. The local city ends with 🏠.
 - **Subtitle:** flag and country · offset from local · the nearer of the previous and next sunrise or sunset. The local city has no offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
 - **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "🇬🇧 UK · −13h · Clocks go back Sun (−1h)".
 - **Icon:** the [phase of the day](#phases-of-the-day).
@@ -213,7 +213,7 @@ JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries
 
 ### Behaviour
 
-`results.js` reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order, and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Items have no `uid`, so Alfred doesn't reorder them by usage.
+`results.js` reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order, and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Each item's `uid` is Clock's `identifier` for the city: on a rerun, Alfred keeps the selection on the item with the selected item's `uid`, where without one it jumps back to the first item. `skipknowledge: true` in the output stops Alfred reordering the items by usage, which `uid`s would otherwise allow, so they stay in Clock's order.
 
 Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`); those without an action of their own are inert (`valid: false`, with the result's own subtitle). Without them Alfred applies its own modifiers, ⌥ "Search in Finder" and ⌃ "Search with default fallback", which the `strictmods` flag in the JSON doesn't stop. ⇧ is left alone for Quick Look.
 
@@ -225,7 +225,7 @@ When the list can't be loaded, the script returns a single explanatory result: t
 
 ### Testing
 
-Run `results.js` from the workflow folder, with the query as its argument. In Alfred it reads Clock's real city list, but outside Alfred that usually fails: a terminal or Claude Code session normally lacks Full Disk Access (see [Access](#access)). So when the environment variable `WCC_CITIES_PLIST` is set, the script reads the file it names instead. Alfred never sets it.
+Run `results.js` from the workflow folder, with the query as its argument. In Alfred it reads Clock's real city list, but outside Alfred that usually fails: a terminal or Claude Code session normally lacks Full Disk Access (see [Access](#access)). So when the environment variable `WCC_CITIES_PLIST` is set, the script reads the file it names instead. Alfred never sets it. That file is read directly, not through cfprefsd, which caches a file once it has read it and would miss later edits to it.
 
 `test/cities.plist` is a city list for testing, in the same format as Clock's:
 
@@ -299,6 +299,8 @@ under the key `cities`. Each entry looks like this (from an older copy of the sa
 
 The array is in the order the cities appear in Clock. Checked on macOS 27.2 against a Clock app showing Auckland, Canberra, Los Angeles, New York and London: the container file lists exactly those, in that order, and had been modified that day.
 
+The file isn't always current. Adding or removing a city writes it straight away, but reordering doesn't (checked on macOS 27.2 by watching the file's modification time): the new order reaches cfprefsd, the service that holds apps' preferences and writes them to their files, when Clock quits, and the file only when Clock next launches. While Clock is open after a reorder, neither has it, and if Clock is force quit, the new order is lost. So the workflow reads the list through cfprefsd (see [Reading it](#reading-it)), which shows a reorder once Clock has quit; nothing shows it sooner.
+
 Things that look like the answer but aren't:
 
 - `~/Library/Preferences/com.apple.mobiletimer.plist`, which is what `defaults read com.apple.mobiletimer` and `NSUserDefaults` (suite `com.apple.mobiletimer`) read, holds a stale copy last written by macOS 14.5 (`citiesLastModified` 2024-07-15). Clock no longer updates it.
@@ -312,21 +314,25 @@ The workflow should still handle the file being unreadable or missing (Full Disk
 
 ### Reading it
 
-Read the file directly; don't go through `NSUserDefaults` or `defaults`, which return the stale copy. In JXA:
+Read it through cfprefsd with the container file's full path, without `.plist`, as the domain. Not by the domain name `com.apple.mobiletimer` (`NSUserDefaults` suite, or `defaults read com.apple.mobiletimer`), which gets the stale copy in `~/Library/Preferences`. In JXA:
 
 ```js
 ObjC.import("Foundation");
-const path = $("~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist").stringByExpandingTildeInPath;
-const prefs = ObjC.deepUnwrap($.NSDictionary.dictionaryWithContentsOfFile(path)); // undefined if unreadable
-const cities = (prefs && prefs.cities) || [];
+ObjC.import("CoreFoundation");
+const domain = $("~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer").stringByExpandingTildeInPath;
+const ref = $.CFPreferencesCopyAppValue($("cities"), domain);
+const cities = (ref && ObjC.deepUnwrap(ObjC.castRefToObject(ref))) || []; // empty if unreadable
 cities.map(c => c.city.name + ": " + new Intl.DateTimeFormat("en-NZ", {
   timeZone: c.city.timeZone, weekday: "short", hour: "numeric", minute: "2-digit"
 }).format(new Date()));
 ```
 
-From a terminal with Full Disk Access, for a quick look:
+Without Full Disk Access, cfprefsd returns nothing, the same as when there's no list. To tell those apart, `loadCities` (in `lib/cities.js`) also reads the file directly with `NSDictionary.dictionaryWithContentsOfFile`, which fails without access, and falls back to the file's list if cfprefsd has none.
+
+From a terminal with Full Disk Access, for a quick look (the first through cfprefsd, the second from the file):
 
 ```zsh
+defaults read ~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist cities | grep unlocalizedName
 plutil -extract cities json -o - ~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist |
   jq -r '.[].city | "\(.unlocalizedName)\t\(.timeZone)"'
 ```

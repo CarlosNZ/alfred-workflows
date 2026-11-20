@@ -31,13 +31,6 @@ function formatTime(moment, timeZone) {
   return timeFormatter.stringFromDate(nsDate(moment)).js;
 }
 
-// A time padded to line up in a column: a one-digit hour gets a figure space
-// (U+2007, the width of a digit), so "8:33 PM" lines up with "10:33 PM".
-function formatAlignedTime(moment, timeZone) {
-  const time = formatTime(moment, timeZone);
-  return /^\d\D/.test(time) ? ` ${time}` : time;
-}
-
 const templateFormatters = {};
 
 // A moment in a time zone, with a date format template such as "EEE" (short
@@ -141,14 +134,14 @@ function formatCountry(info) {
   return [flag, country].filter(Boolean).join(" ");
 }
 
-const HOME = "\u{1F3E0}️";
+const HOME = "\u{1F3E0}\uFE0F";
 
 // The list's title: the time, the weekday when the city's date differs from
 // the Mac's, the city, and 🏠 for the local city. E.g. "1:33 AM Wed  Los Angeles".
 function listTitle(info) {
   const weekday = info.dayOffset ? ` ${formatWithTemplate(info.moment, info.timeZone, "EEE")}` : "";
   const home = info.isLocal ? ` ${HOME}` : "";
-  return `${formatAlignedTime(info.moment, info.timeZone)}${weekday}  ${info.name}${home}`;
+  return `${formatTime(info.moment, info.timeZone)}${weekday}  ${info.name}${home}`;
 }
 
 // The list's subtitle: country, offset from the local city, and the clock
