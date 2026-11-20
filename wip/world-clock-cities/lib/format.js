@@ -105,6 +105,19 @@ function formatNearestSunEvent(info) {
   return minutes > 0 ? `${word} in ${duration}` : `${word} ${duration} ago`;
 }
 
+// ☀ with the text variation selector, so it's drawn as a symbol rather than an
+// emoji.
+const SUN = "☀︎";
+
+// The city's sunrise and sunset today, e.g. "☀↑ 7:28 AM  ☀↓ 4:03 PM". During
+// polar day or night, "Midnight sun" or "Polar night". Empty without sun
+// values.
+function formatSunTimes(info) {
+  if (info.polar) return POLAR_WORDS[info.polar];
+  if (!info.sunrise || !info.sunset) return "";
+  return `${SUN}↑ ${formatTime(info.sunrise, info.timeZone)}  ${SUN}↓ ${formatTime(info.sunset, info.timeZone)}`;
+}
+
 const CLOCK_CHANGE_SOON_DAYS = 7;
 
 // The city's next clock change when it's within a week of the moment, e.g.
@@ -167,13 +180,15 @@ function listTitle(info) {
 }
 
 // The list's subtitle: offset from the local city (🏠 for the local city
-// itself), country, and the clock change when one is within a week, otherwise
-// the nearest sunrise or sunset. E.g. "−2h | Australia | Sunset 41m ago".
+// itself) and the UTC offset, country, and the clock change when one is
+// within a week, otherwise today's sunrise and sunset. E.g. "−2 hrs (UTC+11) |
+// Australia | ☀↑ 5:46 AM  ☀↓ 7:52 PM".
 function listSubtitle(info) {
+  const offset = info.isLocal ? HOME : formatOffsetFromLocal(info.offsetFromLocalMinutes);
   return [
-    info.isLocal ? HOME : formatOffsetFromLocal(info.offsetFromLocalMinutes),
+    `${offset} (${formatUtcOffset(info.utcOffsetMinutes)})`,
     formatCountry(info),
-    formatSoonClockChange(info) || formatNearestSunEvent(info),
+    formatSoonClockChange(info) || formatSunTimes(info),
   ]
     .filter(Boolean)
     .join(SUBTITLE_DIVIDER);

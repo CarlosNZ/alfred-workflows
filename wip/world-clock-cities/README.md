@@ -25,14 +25,14 @@ A typed time always means its next occurrence (now or later), since the time mod
 | Local city | `timeZone` | See [Design](#design). |
 | ⏱ Local time | `timeZone` | The moment, shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
 | ⏱ Day label | `timeZone` | After the time. In the list, "Yesterday" or "Tomorrow" when the city's calendar date differs from the Mac's ("11:33 PM Yesterday"): the list is about now, relative to you. In the time mode, the full weekday, always ("1:33 AM Thursday"), since "Tomorrow" would be ambiguous when the reference is a typed day, and weekends matter for meetings. |
-| ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45". |
+| ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45", after the offset from local in the list's subtitle. |
 | ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11 hrs", "−2 hrs", "−7h 15m", "±0 hrs". |
 | ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close: within 7 days in the list, and between now and the typed time in the time mode. |
 | ⏱ Working status | `timeZone` | The city's local hour against a working day from User Configuration: e.g. working, evening, asleep. The main value in the time mode. |
 | ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown in the ⌃ details. |
 | ⏱ Phase of the day | `latitude`, `longitude` | The sun's elevation and whether it's rising or setting (before or after solar noon), as one of the [phases of the day](#phases-of-the-day): night, dawn, sunrise, morning, afternoon, sunset, dusk. Shown as an icon. |
-| ⏱ Previous and next sun event | `latitude`, `longitude` | The previous sunrise or sunset and the next. The nearer is shown with the time since or until it, e.g. "Sunset in 2h" or "Sunset 41m ago". |
-| ⏱ Sunrise and sunset | `latitude`, `longitude` | When the sun's elevation crosses −0.833° (horizon, allowing for refraction and the sun's disc). |
+| ⏱ Previous and next sun event | `latitude`, `longitude` | The previous sunrise or sunset and the next. The nearer is shown in Large Type with the time since or until it, e.g. "Sunset in 2h" or "Sunset 41m ago". |
+| ⏱ Sunrise and sunset | `latitude`, `longitude` | When the sun's elevation crosses −0.833° (horizon, allowing for refraction and the sun's disc). Today's are shown in the list's subtitle. |
 | ⏱ Day length and change | `latitude`, `longitude` | Sunset minus sunrise; the change is today's length minus yesterday's, e.g. "10h 12m, +2m/day". |
 
 Country names come from `Localizable_Countries.loctable` in `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/`: a name for each of 242 country codes, plus 15 per-city overrides keyed by city identifier (London → England, Hong Kong → Hong Kong SAR, China), in each language Clock supports. English has four versions (`en`, `en_GB`, `en_AU`, `en_CA`), which differ only for US (U.S.A./USA), AE (U.A.E./UAE), VI and MO. `resources/clock-countries.csv` lists them all, with a column for the name to show. TO-DO: fill in that column and use it as the short-name map in `lib/format.js`, applied only to entries whose `languageCode` is English (`en` or `en_…`); other languages show the stored name.
@@ -51,20 +51,20 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
 
 ```
 [night]      10:33 PM • Auckland • 🇳🇿
-             🏠 | New Zealand | Sunset 2h ago
+             🏠 (UTC+13) | New Zealand | ☀︎↑ 5:59 AM  ☀︎↓ 8:14 PM
 [night]      8:33 PM • Canberra • 🇦🇺
-             −2 hrs | Australia | Sunset 41m ago
+             −2 hrs (UTC+11) | Australia | ☀︎↑ 5:46 AM  ☀︎↓ 7:52 PM
 [night]      1:33 AM • Los Angeles • 🇺🇸
-             −21 hrs | USA | Sunrise in 5h
+             −21 hrs (UTC−8) | USA | ☀︎↑ 6:41 AM  ☀︎↓ 4:46 PM
 [night]      4:33 AM • New York • 🇺🇸
-             −18 hrs | USA | Sunrise in 2h
+             −18 hrs (UTC−5) | USA | ☀︎↑ 6:48 AM  ☀︎↓ 4:34 PM
 [morning]    9:33 AM • London • 🇬🇧
-             −13 hrs | UK | Sunset in 7h
+             −13 hrs (UTC) | UK | ☀︎↑ 7:27 AM  ☀︎↓ 4:05 PM
 ```
 
 - **Title:** the time, "Yesterday" or "Tomorrow" when the city's date differs from the Mac's ("11:33 PM Yesterday"), " • ", then the city. The time comes first because it's the answer, and that way the times start in a column, which city names of different lengths would break. One-digit hours aren't padded: padding them to line up with two-digit hours looked wonky in Alfred's proportional font. Times have an ordinary space before AM/PM; the system formatter's narrow no-break space (U+202F) is too narrow to see in Alfred's font. The country's flag comes last, after another " • ": in the subtitle it was too small to read. A city without a country code (Vatican City) has no flag.
-- **Subtitle:** offset from local | country | the nearer of the previous and next sunrise or sunset. The offset comes first so that it starts in a column, like the times. Parts are divided by " | " rather than a dot, which looked poor before a minus sign. The local city shows 🏠 in place of the offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun event. Working status is left out: the time already says it's evening.
-- **Clock change:** when one is within 7 days, it replaces the sun event, e.g. "−13 hrs | UK | Clocks go back Sun (−1h)".
+- **Subtitle:** offset from local (UTC offset) | country | today's sunrise and sunset in the city, as "☀↑ 7:27 AM  ☀↓ 4:05 PM". The ☀ has the text variation selector (U+FE0E) so it's drawn as a symbol, not an emoji; Clock's own sunrise and sunset icons are SF Symbols, which aren't in the system font, so they can't go in text. The offset comes first so that it starts in a column, like the times. Parts are divided by " | " rather than a dot, which looked poor before a minus sign. The local city shows 🏠 in place of the offset from local, still followed by its UTC offset. During polar day or night, "Midnight sun" or "Polar night" replaces the sun times. Working status is left out: the time already says it's evening.
+- **Clock change:** when one is within 7 days, it replaces the sun times, e.g. "−12 hrs (UTC+1) | UK | Clocks go back Sun (−1h)".
 - **Icon:** the [phase of the day](#phases-of-the-day).
 
 #### The time mode
@@ -128,7 +128,7 @@ The detail is left out when the start of work it counts to falls on a weekend. T
 #### Durations
 
 - **Offsets from local:** whole hours spelled out, so they're closer in length to offsets with minutes: "+11 hrs", "−1 hr", "±0 hrs"; otherwise hours and minutes: "−7h 15m", "+15m". Clock change shifts stay short: "(−1h)".
-- **Sunrise and sunset:** to the nearest hour from an hour away ("Sunset in 2h", "Sunrise 5h ago"), and in minutes under an hour ("Sunset in 41m").
+- **Time since or until sunrise or sunset** (Large Type): to the nearest hour from an hour away ("Sunset in 2h", "Sunrise 5h ago"), and in minutes under an hour ("Sunset in 41m").
 - **Working day details:** exact hours and minutes ("2h 30m left"), since they decide whether a meeting fits.
 
 #### More details
