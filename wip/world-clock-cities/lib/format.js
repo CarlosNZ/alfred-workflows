@@ -20,7 +20,9 @@ function displayCountry(info) {
 let timeFormatter;
 
 // A moment's time in a time zone, e.g. "5:42 PM" or "17:42". Uses the Mac's
-// locale and its date and time settings, including 24-hour time.
+// locale and its date and time settings, including 24-hour time. The narrow
+// no-break space the formatter puts before AM/PM (U+202F) becomes an ordinary
+// space, since Alfred's font draws it too narrow to see.
 function formatTime(moment, timeZone) {
   if (!timeFormatter) {
     timeFormatter = $.NSDateFormatter.alloc.init;
@@ -28,7 +30,7 @@ function formatTime(moment, timeZone) {
     timeFormatter.timeStyle = $.NSDateFormatterShortStyle;
   }
   timeFormatter.timeZone = nsTimeZone(timeZone);
-  return timeFormatter.stringFromDate(nsDate(moment)).js;
+  return timeFormatter.stringFromDate(nsDate(moment)).js.replace(/ /g, " ");
 }
 
 const templateFormatters = {};
@@ -136,17 +138,21 @@ function formatCountry(info) {
 
 const HOME = "\u{1F3E0}\uFE0F";
 
+const TITLE_DIVIDER = " • ";
+const SUBTITLE_DIVIDER = " | ";
+
 // The list's title: the time, the weekday when the city's date differs from
-// the Mac's, the city, and 🏠 for the local city. E.g. "1:33 AM Wed  Los Angeles".
+// the Mac's, the city, and 🏠 for the local city. E.g. "1:33 AM Wednesday •
+// Los Angeles".
 function listTitle(info) {
-  const weekday = info.dayOffset ? ` ${formatWithTemplate(info.moment, info.timeZone, "EEE")}` : "";
+  const weekday = info.dayOffset ? ` ${formatWithTemplate(info.moment, info.timeZone, "EEEE")}` : "";
   const home = info.isLocal ? ` ${HOME}` : "";
-  return `${formatTime(info.moment, info.timeZone)}${weekday}  ${info.name}${home}`;
+  return `${formatTime(info.moment, info.timeZone)}${weekday}${TITLE_DIVIDER}${info.name}${home}`;
 }
 
 // The list's subtitle: country, offset from the local city, and the clock
 // change when one is within a week, otherwise the nearest sunrise or sunset.
-// E.g. "🇦🇺 Australia · −2h · Sunset 41m ago".
+// E.g. "🇦🇺 Australia | −2h | Sunset 41m ago".
 function listSubtitle(info) {
   return [
     formatCountry(info),
@@ -154,11 +160,11 @@ function listSubtitle(info) {
     formatSoonClockChange(info) || formatNearestSunEvent(info),
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(SUBTITLE_DIVIDER);
 }
 
-// The sun details shown while ⌃ is held, e.g. "Nautical twilight · Sunrise
-// 5:45 AM · Sunset 7:52 PM · Day 14h 6m (+2m/day)". Empty without sun values.
+// The sun details shown while ⌃ is held, e.g. "Nautical twilight | Sunrise
+// 5:45 AM | Sunset 7:52 PM | Day 14h 6m (+2m/day)". Empty without sun values.
 function sunDetails(info) {
   if (!info.daylightState) return "";
   const parts = [DAYLIGHT_STATE_WORDS[info.daylightState]];
@@ -168,7 +174,7 @@ function sunDetails(info) {
     parts.push(`Sunrise ${formatTime(info.sunrise, info.timeZone)}`, `Sunset ${formatTime(info.sunset, info.timeZone)}`);
   }
   parts.push(`Day ${formatDayLength(info)}`);
-  return parts.join(" · ");
+  return parts.join(SUBTITLE_DIVIDER);
 }
 
 // The day length and its change since yesterday, e.g. "14h 6m (+2m/day)".
