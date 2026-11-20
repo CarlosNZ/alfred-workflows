@@ -1,6 +1,6 @@
 # World Clock
 
-Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. The workflow is a skeleton so far: it lists the cities with their UTC offsets. This file also records how the data can be read, and ideas for what comes next.
+Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. The workflow is a skeleton so far: it lists the cities with their UTC offsets, and computes every [city property](#city-properties), which it logs but doesn't show yet. This file also records how the data can be read, and ideas for what comes next.
 
 ## Design
 
@@ -20,18 +20,20 @@ A typed time always means its next occurrence (now or later), since the time mod
 | Property | Source | Derivation |
 |---|---|---|
 | City name | `name` | As stored; already localized for the entry's `languageCode`. |
-| Country | `countryName` | As stored. When `displayNameIncludingCountryUsesOnlyCountry` is true (city-states such as Singapore), show the country alone, as Clock does. |
-| Flag | `localeCode` | Map each letter of the two-letter country code to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters. |
+| Country | `countryName` | As stored. When `displayNameIncludingCountryUsesOnlyCountry` is true (city-states such as Singapore), show the country alone, as Clock does. Shown shortened where `lib/format.js` has a short name (Great Britain → UK, U.S.A. → USA). |
+| Flag | `localeCode` | Kept as the country code; shown by mapping each letter to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters. |
 | Local city | `timeZone` | See [Design](#design). |
-| ⏱ Local time | `timeZone` | `NSDateFormatter` with a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
+| ⏱ Local time | `timeZone` | The city's calendar date, weekday and time of day as numbers (`Intl.DateTimeFormat` parts). Shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
 | ⏱ Day label | `timeZone` | "Tomorrow" or "Yesterday" when the city's calendar date differs from the Mac's. |
-| ⏱ UTC offset | `timeZone` | `Intl.DateTimeFormat` with `timeZoneName: "shortOffset"`, e.g. "UTC+13". |
+| ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45". |
 | ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11h", "−2h 30m". |
 | ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close, e.g. within 7 days. |
 | ⏱ Working status | `timeZone` | The city's local hour against a working day from User Configuration: e.g. working, evening, asleep. The main value in the time mode. |
-| ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown with a countdown to the next sunrise or sunset, e.g. "Sunset in 2h 14m". |
+| ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown with the time since the previous sunrise or sunset, or until the next, e.g. "Sunset in 2h 14m" or "Sunset 1h ago". |
 | ⏱ Sunrise and sunset | `latitude`, `longitude` | When the sun's elevation crosses −0.833° (horizon, allowing for refraction and the sun's disc). |
 | ⏱ Day length and change | `latitude`, `longitude` | Sunset minus sunrise; the change is today's length minus yesterday's, e.g. "10h 12m, +2m/day". |
+
+`describeCity` (in `lib/cities.js`) computes them all for a city at a moment, as one object of raw values: times are `Date`s; offsets, durations and day lengths are in minutes; the local date and time are numbers; states are codes (`goldenHour`, `polarNight`); the day label is a `dayOffset` of −1, 0 or 1; the country is as stored, with its code. All text, including times, offsets, flags and short country names, comes from `lib/format.js`, so display options (such as a time format) only touch that layer. The local city is an `isLocal` flag, decided once over the whole list (`findLocalCity`) so that filtering doesn't change it. `polar` is `midnightSun` or `polarNight` when the sun doesn't cross the horizon on the city's current date (not merely because the city is inside a polar circle); the day length is then 1440 or 0 minutes, and the previous or next sunrise or sunset is null when it's more than a day away. The working day is a constant in `lib/time.js` until it moves to User Configuration: asleep 22:00–7:00, morning to 9:00, working to 17:00, then evening. It ignores weekends, which differ between countries.
 
 The sun values come from the NOAA solar position algorithm (after Meeus): about 50 lines of plain JavaScript, accurate to about a minute, and offline. Near the poles the sunrise equation has no solution on some days; that's 24-hour daylight or darkness, with no sunrise or sunset to count down to and no day length change.
 
@@ -78,8 +80,8 @@ Open questions:
 - `results.js`: the Script Filter. Loads the files in `lib/`, chooses the mode from the query, and turns the results into Alfred's JSON, including the wording of every result.
 - `lib/cities.js`: reading Clock's city list, and matching cities against a query.
 - `lib/time.js`: time zone calculations, and reading typed times.
-
-The solar calculations will go in `lib/sun.js`.
+- `lib/sun.js`: the sun's elevation, sunrise and sunset, and the daylight state.
+- `lib/format.js`: turning those values into text (times, offsets, flags, short country names).
 
 JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries`, which a workflow can't ship in. So `results.js` reads each `lib/` file and runs it with an indirect `eval` (`(0, eval)(source)`), which runs it in the global scope. Each file's top-level functions become globals, available to `results.js` and the other files; its top-level `const` and `let` stay private to it. The catches:
 
@@ -95,7 +97,7 @@ Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`
 
 The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay; in `info.plist`, `queuedelaymode` 2 and `queuedelaycustom` 2, in tenths of a second), and immediately for the first character. That skips most partly typed times without slowing down filtering, which "Automatic after last character typed" (`queuedelaymode` 1) did.
 
-Each result shows the city name, with the country and current UTC offset as the subtitle. Time conversion isn't implemented: a query starting with a digit lists every city.
+Each result shows the city name, with the country and current UTC offset as the subtitle. The computed values for the listed cities are written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit lists every city.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
 
@@ -110,11 +112,13 @@ WCC_CITIES_PLIST=test/cities.plist ./results.js "new"
 WCC_CITIES_PLIST=/nonexistent ./results.js          # the "can't find" result
 ```
 
+The computed values go to stderr and the Alfred JSON to stdout, so `2>/dev/null` shows just the JSON. (osascript also echoes the returned JSON to stderr, after the computed values.)
+
 `test/` is in `.wfignore`, so it isn't shipped.
 
 #### The test city list
 
-Its entries come from the database Clock picks cities from, `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/CityInfo.db` (SQLite; tables `cities` and `locales`), so the identifiers, coordinates and time zones are real. A city's `countryName` is its `country_override` if it has one, otherwise its locale's `country_name`; that matches every entry in the stale copy. `displayNameIncludingCountryUsesOnlyCountry` is set where the city and country names are the same, which is a guess at Clock's rule.
+Its entries come from the database Clock picks cities from, `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/CityInfo.db` (SQLite; tables `cities` and `locales`), so the identifiers, coordinates and time zones are real. A city's `countryName` is its `country_override` if it has one, otherwise its locale's `country_name`; that matches every entry in the stale copy. `displayNameIncludingCountryUsesOnlyCountry` is set where the city and country names are the same, which is a guess at Clock's rule. Clock's live list doesn't always use the database's country names: it has shown London's country as "Great Britain" and US cities' as "USA", where the database has "England" and "U.S.A.".
 
 The cities are chosen for edge cases:
 

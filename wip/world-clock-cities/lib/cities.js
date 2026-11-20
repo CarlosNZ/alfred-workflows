@@ -43,3 +43,34 @@ function cityWords(text) {
 function foldText(text) {
   return (text || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
+
+// Everything the workflow knows about a city at a moment, as one object of raw
+// values; lib/format.js turns them into text. Times are Dates; offsets,
+// durations and day lengths are in minutes; states are codes such as
+// "goldenHour".
+function describeCity(city, moment, { isLocal = false, macZone = macTimeZone() } = {}) {
+  const local = zonedParts(city.timeZone, moment);
+  const latitude = Number(city.latitude);
+  const longitude = Number(city.longitude);
+  const hasCoordinates = city.latitude != null && city.longitude != null && isFinite(latitude) && isFinite(longitude);
+  const offset = utcOffsetMinutes(city.timeZone, moment);
+
+  return {
+    name: city.name,
+    country: city.countryName || null,
+    countryCode: city.localeCode || null,
+    countryOnly: Boolean(city.displayNameIncludingCountryUsesOnlyCountry),
+    timeZone: city.timeZone,
+    isLocal,
+    moment,
+    // The calendar date and time of day in the city at the moment.
+    local,
+    dayOffset: dayOffset(city.timeZone, macZone, moment),
+    utcOffsetMinutes: offset,
+    offsetFromLocalMinutes: offset - utcOffsetMinutes(macZone, moment),
+    nextClockChange: nextClockChange(city.timeZone, moment),
+    workingStatus: workingStatus(local),
+    // Without coordinates there's nothing to say about the sun.
+    ...(hasCoordinates ? sunInfo(latitude, longitude, city.timeZone, calendarDay(local), moment) : {}),
+  };
+}

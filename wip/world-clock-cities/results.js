@@ -11,7 +11,7 @@
 
 ObjC.import("Foundation");
 
-const LIBS = ["lib/cities.js", "lib/time.js"];
+const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js"];
 
 const LOAD_ERRORS = {
   missing: { title: "Can't find Clock's city list", subtitle: "Open Clock and add a city in World Clock, then try again" },
@@ -29,6 +29,10 @@ function run(argv) {
   const loaded = loadCities();
   if (loaded.error) return output([{ ...LOAD_ERRORS[loaded.error], valid: false }]);
 
+  const now = new Date();
+  // Found in the whole list, so filtering doesn't change which city is local.
+  const localCity = findLocalCity(loaded.cities, now);
+
   let cities = loaded.cities;
   if (isTimeQuery(query)) {
     // TO-DO: convert the typed time into each city's local time.
@@ -41,7 +45,17 @@ function run(argv) {
     }
   }
 
-  return output(cities.map(cityItem));
+  const infos = cities.map((city) => describeCity(city, now, { isLocal: city === localCity }));
+  logCityInfos(infos);
+
+  return output(infos.map(cityItem));
+}
+
+// Writes the cities' computed values to stderr as one JSON array, which Alfred
+// shows in the workflow's debugger. Dates appear as UTC ISO strings.
+// TO-DO: remove once the results show these values.
+function logCityInfos(infos) {
+  console.log(JSON.stringify(infos, null, 2));
 }
 
 // Runs a file from lib/ in the global scope, so its top-level functions are
@@ -55,12 +69,13 @@ function loadLib(file) {
   (0, eval)(source.js);
 }
 
-function cityItem(city) {
+// An Alfred item for a city, from describeCity's values.
+function cityItem(info) {
   // No uid, so Alfred keeps Clock's order instead of reordering by usage.
   return {
-    title: city.name,
-    subtitle: [city.countryName, utcOffset(city.timeZone)].filter(Boolean).join(" · "),
-    arg: city.name,
+    title: info.name,
+    subtitle: [displayCountry(info), formatUtcOffset(info.utcOffsetMinutes)].filter(Boolean).join(" · "),
+    arg: info.name,
   };
 }
 
