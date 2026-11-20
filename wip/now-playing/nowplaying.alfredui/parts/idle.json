@@ -9,11 +9,10 @@
       "constraints": { "region": "centre" },
       "components": [
         {
-          "id": "alfredicon",
+          "id": "idleicon",
           "type": "imageview",
-          "opacity": 0.75,
-          "constraints": { "size": 88, "position": "centre" },
-          "image": { "type": "symbol", "src": "app" }
+          "constraints": { "size": 112, "position": "centre" },
+          "image": { "type": "symbol", "src": "music.note" }
         },
         {
           "type": "label",

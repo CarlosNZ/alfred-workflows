@@ -116,20 +116,18 @@ content_view() {
 
 # Print the text view for kind $1, as JSON: "track" is the title, artist
 # and album labels (parts/text.json), which status messages use too; "idle"
-# is for when nothing is playing (parts/idle.json): Alfred's icon, faded,
-# with "No media playing" over it, and below that a hint to click the
-# default app's icon, or nothing when there's no default app.
+# is for when nothing is playing (parts/idle.json): the panel's own app
+# icon, with "No media playing" over it, and below that a hint to
+# click the default app's icon, or nothing when there's no default app.
 text_view() {
   if [ "$1" = idle ]; then
-    jq -c --arg alfred "$(app_path com.runningwithcrayons.Alfred)" --arg app "$(default_app)" '
+    jq -c --arg icon "$ROOT/appicon.png" --arg app "$(default_app)" '
       .components |= map(
         if .id == "hint" then
           .text = (if $app == "" then "" else
-                   "Click \($app | split("/") | last | rtrimstr(".app")) icon to launch" end)
+                   "Click \($app | split("/") | last | rtrimstr(".app")) icon to launch it" end)
         else .components |= map(
-          if .id == "alfredicon" and $alfred != "" then
-            .image = {type: "fileicon", src: $alfred, size: {width: 88, height: 88}}
-          else . end)
+          if .id == "idleicon" then .image = {type: "file", src: $icon} else . end)
         end)' "$ROOT/parts/idle.json"
   else
     jq -c . "$ROOT/parts/text.json"
