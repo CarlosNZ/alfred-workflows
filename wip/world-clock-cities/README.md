@@ -8,7 +8,7 @@ Developer notes for a workflow that shows the current time in each city from the
   - [ ] **Detail view (↩ inside Alfred, ⌘↩ in its own window):** working, but bare bones: the city, country and time (see [Detail views](#detail-views)). Design decisions to make:
     - [ ] **Content and layout:** which properties it shows (Large Type's list is the starting point) and how they're laid out, in one design that works both inside Alfred (theme width, height to fit) and in a window.
     - [ ] **The time mode (meeting planning):** how the view reflects a typed time. It shows the city now, ticking, whatever the mode. Opened from the time mode, it could show the typed time instead, or both; the typed time doesn't tick, and a window outlives the query that opened it, so a permanent window showing a typed time may mislead later.
-  - [ ] **City picture in the detail view:** a cache of pictures filled in the background by a single fetcher, which open views pick up through their pulse. Designed in outline in [City pictures](#city-pictures-planned); to check first:
+  - [ ] **City picture in the detail view:** a cache of pictures filled in the background by a single fetcher, which open views pick up through their pulse, with a User Configuration option to turn it off and a backoff when offline. Designed in outline in [City pictures](#city-pictures-planned); to check first:
     - [ ] Whether a pulse `update` can set an image component's path, and whether sending the same path every second reloads or flickers the image.
     - [ ] Whether a fetcher started from the Script Filter outlives the run that started it.
     - [ ] The picture's size in the view, which sets the width to fetch.
@@ -227,6 +227,7 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 - **Show the home city:** whether the local city is in the list. It's a reference for the others, but its time is already in the menu bar.
 - **Sort by time zone:** list the cities by UTC offset instead of in Clock's order (direction to decide).
 - **Working day:** the hours behind the working status, a constant in `lib/time.js` until then (see [City properties](#city-properties)).
+- **Download city thumbnails:** whether to fetch the detail view's city pictures from Wikimedia, on by default (see [City pictures](#city-pictures-planned)).
 
 ## How it works
 
@@ -281,9 +282,15 @@ A picture of the city for the detail view. Fetching one takes too long to do whe
 - Wikimedia served 960px-wide thumbnails when asked for 640, 85 KB to 1.1 MB each (PNGs are the large ones).
 - A city still has to be matched to its article or Wikidata item: by name it fails on ambiguous names. Clock's coordinates can pick the right one.
 
-**The cache.** `$alfred_workflow_cache/images/`, one file per city named after its `detail_slug`: `<detail_slug>.jpg` for a picture, or a marker for a city without one: "none found" (not retried), or "failed" with a time to retry after (a network error, so being offline doesn't start a doomed fetch every second).
+**The setting.** A User Configuration checkbox, "Download city thumbnails" (`download_thumbnails`), on by default, for anyone who'd rather the workflow made no network requests or kept nothing on disk. Off, no fetcher is started, and `results.js` deletes `images/` whenever it finds it, so cached pictures go too. Deleting them is also how open views find out: the pulse runs in the `Alfred UI` process, which doesn't see the workflow's settings (as Now Playing found), but it does see the picture disappear. A fetcher already running when the setting is turned off may still save a picture or two; the next run of `results.js` deletes those.
 
-**Starting the fetcher.** `results.js` runs every second and on every keystroke, so its part has to be cheap: it checks each listed city for a picture or a marker, which is a stat per city. If any city has neither, it starts the fetcher detached (output redirected and backgrounded, so Alfred doesn't wait for it), passing the missing cities with their names, countries and coordinates from Clock's list. The fetcher then never reads Clock's list itself, which needs Full Disk Access. `panel.zsh` makes the same check for its one city.
+**The cache.** `$alfred_workflow_cache/images/`, one file per city named after its `detail_slug`: `<detail_slug>.jpg` for a picture, or a marker for a city without one: "none found" (not retried), or "failed" for a failure particular to the city, such as a thumbnail that won't download or convert, retried after a delay that doubles with each failure, as below. A "failed" marker's modification time is the time to retry, and it holds the current delay.
+
+**Backoff.** A network failure (no connection, a timeout, or Wikimedia answering 429 or 5xx) isn't the city's fault, and would fail the next city too. So the fetcher stops the whole run at the first one and records a backoff for the whole cache in `images/.backoff`: its modification time (set into the future) is when to try again, and it holds the delay, which starts at 5 minutes and doubles with each failed attempt (10, 20, 40 minutes…) up to a day. A 429's `Retry-After` is used when it's longer. Any request that succeeds deletes the file, so the delay starts at 5 minutes again after the next failure. Being offline for a day therefore costs about nine attempts, each ending at its first request.
+
+**Starting the fetcher.** `results.js` runs every second and on every keystroke, so its part has to be cheap. With the setting on, it stats `images/.backoff` and stops if its time is still in the future; otherwise it checks each listed city for a picture or a marker that isn't due for a retry, which is a stat per city. If any city has neither, it starts the fetcher detached (output redirected and backgrounded, so Alfred doesn't wait for it), passing the missing cities with their names, countries and coordinates from Clock's list. The fetcher then never reads Clock's list itself, which needs Full Disk Access. `panel.zsh` makes the same check for its one city.
+
+**Removed cities.** `results.js` also deletes the picture and marker of any city no longer in Clock's list. It's the one place that reads the whole list on every run (the fetcher only runs, and is only given cities, when a picture is missing), and listing `images/` is one directory read of a dozen or so names. Two catches: it compares against the whole list, never the list narrowed by the query, and it deletes nothing when the list fails to load or is empty, so a lost Full Disk Access permission doesn't empty the cache.
 
 **One fetcher at a time.** The fetcher takes a non-blocking lock when it starts and exits at once if another fetcher holds it:
 
@@ -302,8 +309,7 @@ zsystem flock -t 0 $lock 2>/dev/null || exit 0
 
 1. Match the city to its Wikidata item: search by name, then take the result whose coordinates (P625) are within a few km of Clock's.
 2. Get its P18 image's thumbnail URL from Commons (or Wikipedia's page image if it has none), at the width the view needs.
-3. Download it to a temporary file, convert it with `sips` to a JPEG of that size (which also shrinks the large PNGs), and `mv` it into place, so the pulse never sees half a file. If there's no picture, or the fetch fails, write the city's marker.
-4. Remove the pictures and markers of cities no longer in the list it was given.
+3. Download it to a temporary file, convert it with `sips` to a JPEG of that size (which also shrinks the large PNGs), and `mv` it into place, so the pulse never sees half a file. If there's no picture, or the fetch fails for this city alone, write the city's marker. On a network failure, write `.backoff` and stop (see [Backoff](#city-pictures-planned) above).
 
 Requests carry a User-Agent naming the workflow, as Wikimedia's API policy asks.
 
