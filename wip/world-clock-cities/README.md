@@ -254,7 +254,7 @@ A city's detail view is one Alfred UI, `panel.alfredui/ui.json`, opened two ways
 - **↩:** "Open within Alfred" (`launchmode` 0), stacked (`stackview`), so Esc goes back to the results. The window settings in `ui.json` (title, size, `frameautosave`) don't apply here: the view takes the theme's width and the height its content needs.
 - **⌘↩:** "Launch externally" (`launchmode` 1): a window of its own, titled with the city's name, which stays open until closed (Esc or the close button). Each window is a separate `Alfred UI` process.
 
-Each object comes after its own Run Script running `panel.zsh` (modifiers on connections only exist from the Script Filter, so the two routes can't share one Run Script), and opens the path it prints (`{query}`). The ⌘ modifier repeats the item's variables, since a modifier with its own `arg` needs them too.
+Each object comes after its own Run Script running `panel.zsh` (modifiers on connections only exist from the Script Filter, so the two routes can't share one Run Script), and opens the path it prints (`{query}`). The ⌘ modifier repeats the item's variables, since a modifier with its own `arg` needs them too. `panel.zsh` takes the city from the variables (`detail_slug`, `detail_city`), not its argument: on ↩ that's the item's `arg`, the city's name, kept for ⌘C and Universal Actions.
 
 **One package per city.** Alfred keeps one window per `.alfredui` path: opening a path that's already open brings its window to the front rather than starting another (tested). So `panel.zsh` gives each city its own package, `$alfred_workflow_cache/panels/<detail_slug>.alfredui`, and prints its path. Each city gets its own window, reopening a city brings its window forward, and `frameautosave` (keyed on the path) remembers each city's position. A city can be open inside Alfred and in its window at the same time (tested). The package holds symlinks to `panel.alfredui/ui.json` and `detail.js`, so edits to them reach every city, and `city.json`, the city's record.
 
@@ -383,8 +383,9 @@ In Alfred, set any of these as workflow environment variables (the [𝒙] sheet)
 To try the detail view's scripts, build a city's package in a scratch cache from a result's variables, then run its pulse (from anywhere, since `detail.js` finds `lib/` itself):
 
 ```zsh
-export detail_city=$(WCC_CITIES_PLIST=test/cities.plist ./results.js 2>/dev/null | jq -r '.items[0].variables.detail_city')
-package=$(alfred_workflow_cache=/tmp/wcc-test ./panel.zsh 20)
+item=$(WCC_CITIES_PLIST=test/cities.plist ./results.js 2>/dev/null | jq '.items[0].variables')
+export detail_slug=$(jq -r .detail_slug <<< $item) detail_city=$(jq -r .detail_city <<< $item)
+package=$(alfred_workflow_cache=/tmp/wcc-test ./panel.zsh)
 $package/detail.js
 ```
 

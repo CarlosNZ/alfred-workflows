@@ -3,10 +3,12 @@
 # path for the Alfred UI object to open: inside Alfred for ↩, in a window of
 # its own for ⌘↩.
 #
-# $1 is the city's detail_slug, and $detail_city its record (see
-# detailVariables in lib/detail.js). If the city has no picture yet, it starts
-# a fetch for it alone, from $detail_picture_city, so the view gets it within
-# seconds (see fetch-pictures.js). Each city's package is in the cache, named
+# The city comes from the result's variables (see detailVariables in
+# lib/detail.js): $detail_slug names it and $detail_city is its record. Not
+# from $1, which on ↩ is the item's arg, the city's name for copying and
+# Universal Actions. If the city has no picture yet, it starts a fetch for it
+# alone, from $detail_picture_city, so the view gets it within seconds (see
+# fetch-pictures.js). Each city's package is in the cache, named
 # after it, and holds links to panel.alfredui/ui.json and detail.js (the pulse
 # script) and the city's record in city.json. Alfred keeps one window per
 # package path, so each city gets its own window, and opening a city that's
@@ -16,7 +18,7 @@
 emulate -L zsh
 setopt err_exit no_unset
 
-slug=$1
+slug=${detail_slug:-}
 [[ $slug =~ '^[A-Za-z0-9_-]+$' ]] || { print -u2 "panel.zsh: bad city slug '$slug'"; exit 1 }
 
 workflow=${0:A:h}
