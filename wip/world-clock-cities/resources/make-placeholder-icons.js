@@ -1,8 +1,9 @@
 #!/usr/bin/osascript -l JavaScript
 
-// Draws a placeholder icon for each phase of the day: a rounded square in a
-// plain colour with the phase's word on it, saved as icons/phase-<phase>.png.
-// The phases and words come from DAY_PHASES in lib/sun.js.
+// Draws a placeholder icon for each phase of the day and each working status:
+// a rounded square in a plain colour with the phase's or status's word on it,
+// saved as icons/phase-<phase>.png and icons/status-<status>.png. The phases
+// and words come from DAY_PHASES in lib/sun.js; the statuses are listed below.
 //
 // Run from the workflow folder:  resources/make-placeholder-icons.js
 //
@@ -26,6 +27,15 @@ const COLOURS = {
 };
 const FALLBACK_COLOURS = ["#888888", "#FFFFFF"];
 
+// The working statuses (workingStatus in lib/time.js), with their words as in
+// WORKING_STATUS_WORDS in lib/format.js, and colours as a traffic light.
+const WORKING_STATUSES = [
+  { status: "morning", word: "Early morning", colours: ["#F2B63D", "#1B2240"] },
+  { status: "working", word: "Working", colours: ["#3DAA5C", "#FFFFFF"] },
+  { status: "evening", word: "Evening", colours: ["#F2B63D", "#1B2240"] },
+  { status: "asleep", word: "Asleep", colours: ["#D9453D", "#FFFFFF"] },
+];
+
 function run() {
   const source = $.NSString.stringWithContentsOfFileEncodingError("lib/sun.js", $.NSUTF8StringEncoding, null);
   if (source.isNil()) throw new Error("Can't load lib/sun.js (run from the workflow folder)");
@@ -37,9 +47,11 @@ function run() {
     $(),
     null,
   );
-  const written = dayPhases().map(({ phase, word }) => {
-    const path = `icons/phase-${phase}.png`;
-    drawIcon(path, word, COLOURS[phase] || FALLBACK_COLOURS);
+  const written = [
+    ...dayPhases().map(({ phase, word }) => ({ path: `icons/phase-${phase}.png`, word, colours: COLOURS[phase] })),
+    ...WORKING_STATUSES.map(({ status, word, colours }) => ({ path: `icons/status-${status}.png`, word, colours })),
+  ].map(({ path, word, colours }) => {
+    drawIcon(path, word, colours || FALLBACK_COLOURS);
     return path;
   });
   return `Wrote ${written.join(", ")}`;

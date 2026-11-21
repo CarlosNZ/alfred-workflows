@@ -77,6 +77,14 @@ function formatRoughDuration(minutes) {
   return rounded < 60 ? `${rounded}m` : `${Math.round(minutes / 60)}h`;
 }
 
+// A length of time in exact hours and minutes, leaving out a part that's zero:
+// "2h 30m", "3h", "45m", "0m".
+function formatHoursMinutes(minutes) {
+  const total = Math.round(minutes);
+  const parts = [Math.floor(total / 60) && `${Math.floor(total / 60)}h`, total % 60 && `${total % 60}m`];
+  return parts.filter(Boolean).join(" ") || "0m";
+}
+
 // A length of time in hours and minutes, e.g. "14h 6m", "45m", "0m".
 function formatDuration(minutes) {
   const total = Math.round(minutes);
@@ -192,6 +200,38 @@ function listSubtitle(info) {
   ]
     .filter(Boolean)
     .join(SUBTITLE_DIVIDER);
+}
+
+// The time mode's title: the time with the full weekday, the city, and the
+// country's flag, e.g. "2:00 PM Thursday • New York • 🇺🇸". Always the weekday,
+// since crossing into another day is the main risk when planning a meeting.
+function timeTitle(info) {
+  const time = `${formatTime(info.moment, info.timeZone)} ${formatWithTemplate(info.moment, info.timeZone, "EEEE")}`;
+  return [time, info.name, flagEmoji(info.countryCode)].filter(Boolean).join(TITLE_DIVIDER);
+}
+
+// The time mode's subtitle: 🏠 for the local city, country, working status, and
+// how far into or out of the working day, e.g. "USA | Working | 3h left". No
+// offset, since the converted times already show it.
+function timeSubtitle(info) {
+  return [
+    info.isLocal ? HOME : "",
+    formatCountry(info),
+    WORKING_STATUS_WORDS[info.workingStatus],
+    formatWorkingDayTiming(info.workingDayTiming),
+  ]
+    .filter(Boolean)
+    .join(SUBTITLE_DIVIDER);
+}
+
+// A working status's detail, in exact hours and minutes since it decides
+// whether a meeting fits: "work in 1h", "2h 30m left", "2h after work", and
+// "work just ended" at the end of the working day itself.
+function formatWorkingDayTiming({ untilStart, untilEnd, sinceEnd }) {
+  if (untilEnd != null) return `${formatHoursMinutes(untilEnd)} left`;
+  if (sinceEnd === 0) return "work just ended";
+  if (sinceEnd != null) return `${formatHoursMinutes(sinceEnd)} after work`;
+  return `work in ${formatHoursMinutes(untilStart)}`;
 }
 
 // The sun details shown while ⌃ is held, e.g. "Nautical twilight | Sunrise

@@ -38,16 +38,19 @@ function run(argv) {
   // Text that narrows the list: the whole query in the list mode, and the text
   // after a relative time in the time mode.
   let filter = query;
+  // The moment the cities are shown at: now, or the typed time.
+  let moment = now;
   const timeQuery = isTimeQuery(query);
+  let typed;
   if (timeQuery) {
-    const typed = readTypedTime(query, loaded.cities, now);
+    typed = readTypedTime(query, loaded.cities, now);
     logTypedTime(typed);
     // A query that gives no moment shows a single message in place of the
     // cities, since the cities at any other time would mislead.
     const message = typedTimeMessage(typed, query);
     if (message) return output([{ ...message, valid: false }]);
     filter = typed.filter;
-    // TO-DO: convert the typed time into each city's local time.
+    moment = typed.moment;
   }
   if (filter) {
     cities = cities.filter((city) => matchesCity(city, filter));
@@ -58,16 +61,17 @@ function run(argv) {
     }
   }
 
-  const infos = cities.map((city) => describeCity(city, now, { isLocal: city === localCity }));
-  // TO-DO: log the city values in the time mode too, once they're for the
-  // typed time rather than now.
-  if (!timeQuery) logCityInfos(infos);
+  const infos = cities.map((city) => describeCity(city, moment, { isLocal: city === localCity }));
+  logCityInfos(infos);
 
   // Rerunning every second keeps the times and countdowns current while
-  // Alfred is open; a run takes about a tenth of a second. skipknowledge stops
-  // Alfred reordering the items by usage, which their uids would otherwise
-  // allow, so they stay in Clock's order.
-  return output(infos.map(cityItem), { rerun: 1, skipknowledge: true });
+  // Alfred is open; a run takes about a tenth of a second. A typed clock time
+  // is a fixed moment, so it doesn't rerun, but a relative time moves with the
+  // clock. skipknowledge stops Alfred reordering the items by usage, which
+  // their uids would otherwise allow, so they stay in Clock's order.
+  const rerun = !timeQuery || typed.kind === "relative";
+  const items = infos.map((info) => (timeQuery ? timeCityItem(info) : cityItem(info)));
+  return output(items, { ...(rerun && { rerun: 1 }), skipknowledge: true });
 }
 
 // Writes the cities' computed values to stderr as one JSON array, which Alfred
@@ -127,6 +131,17 @@ function cityItem(info) {
     ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
     text: { largetype: largeTypeText(info) },
     ...(details && { mods: { ctrl: { subtitle: details, valid: false } } }),
+  };
+}
+
+// An Alfred item for a city in the time mode, from describeCity's values at the
+// typed time. Its icon is the working status.
+function timeCityItem(info) {
+  return {
+    ...cityItem(info),
+    title: timeTitle(info),
+    subtitle: timeSubtitle(info),
+    icon: { path: `icons/status-${info.workingStatus}.png` },
   };
 }
 

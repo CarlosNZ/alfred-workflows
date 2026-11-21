@@ -84,6 +84,7 @@ function describeCity(city, moment, { isLocal = false, macZone = macTimeZone() }
   const longitude = Number(city.longitude);
   const hasCoordinates = city.latitude != null && city.longitude != null && isFinite(latitude) && isFinite(longitude);
   const offset = utcOffsetMinutes(city.timeZone, moment);
+  const status = workingStatus(local);
 
   return {
     // Clock's identifier for the city, stable across runs and languages.
@@ -99,7 +100,8 @@ function describeCity(city, moment, { isLocal = false, macZone = macTimeZone() }
     utcOffsetMinutes: offset,
     offsetFromLocalMinutes: offset - utcOffsetMinutes(macZone, moment),
     nextClockChange: nextClockChange(city.timeZone, moment),
-    workingStatus: workingStatus(local),
+    workingStatus: status,
+    workingDayTiming: workingDayTiming(local, status),
     // Without coordinates there's nothing to say about the sun.
     ...(hasCoordinates ? sunInfo(latitude, longitude, city.timeZone, calendarDay(local), moment) : {}),
   };

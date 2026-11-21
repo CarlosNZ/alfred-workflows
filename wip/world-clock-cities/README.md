@@ -1,6 +1,6 @@
 # World Clock
 
-Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. So far it shows the list of cities as designed in [Results layout](#results-layout); a typed time is read but not yet converted. This file also records how the data can be read, and ideas for what comes next.
+Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. So far it shows the list of cities and the time mode as designed in [Results layout](#results-layout), apart from what's marked TO-DO there. This file also records how the data can be read, and ideas for what comes next.
 
 ## Design
 
@@ -37,13 +37,13 @@ A typed time always means its next occurrence (now or later), since the time mod
 
 Country names come from `Localizable_Countries.loctable` in `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/`: a name for each of 242 country codes, plus 15 per-city overrides keyed by city identifier (London → England, Hong Kong → Hong Kong SAR, China), in each language Clock supports. English has four versions (`en`, `en_GB`, `en_AU`, `en_CA`), which differ only for US (U.S.A./USA), AE (U.A.E./UAE), VI and MO. `resources/clock-countries.csv` lists them all, with a column for the name to show. TO-DO: fill in that column and use it as the short-name map in `lib/format.js`, applied only to entries whose `languageCode` is English (`en` or `en_…`); other languages show the stored name.
 
-`describeCity` (in `lib/cities.js`) computes them all for a city at a moment, as one object of raw values: times are `Date`s, including the moment itself, and are shown in the city's time zone; offsets, durations and day lengths are in minutes; states are codes (`goldenHour`, `polarNight`); the day label is a `dayOffset` of −1, 0 or 1; the country is as stored, with its code. All text, including times, offsets, flags and short country names, comes from `lib/format.js`, so display options (such as a time format) only touch that layer. The local city is an `isLocal` flag, decided once over the whole list (`findLocalCity`) so that filtering doesn't change it. `polar` is `midnightSun` or `polarNight` when the sun doesn't cross the horizon on the city's current date (not merely because the city is inside a polar circle); the day length is then 1440 or 0 minutes, and the previous or next sunrise or sunset is null when it's more than a day away. The working day is a constant in `lib/time.js` until it moves to User Configuration: asleep 22:00–7:00, morning to 9:00, working to 17:00, then evening. It ignores weekends, which differ between countries; TO-DO: add the Weekend status in [Icon states](#icon-states).
+`describeCity` (in `lib/cities.js`) computes them all for a city at a moment, as one object of raw values: times are `Date`s, including the moment itself, and are shown in the city's time zone; offsets, durations and day lengths are in minutes; states are codes (`goldenHour`, `polarNight`); the day label is a `dayOffset` of −1, 0 or 1; the working day detail is a `workingDayTiming` of `{ untilStart }`, `{ untilEnd }` or `{ sinceEnd }`, in minutes; the country is as stored, with its code. All text, including times, offsets, flags and short country names, comes from `lib/format.js`, so display options (such as a time format) only touch that layer. The local city is an `isLocal` flag, decided once over the whole list (`findLocalCity`) so that filtering doesn't change it. `polar` is `midnightSun` or `polarNight` when the sun doesn't cross the horizon on the city's current date (not merely because the city is inside a polar circle); the day length is then 1440 or 0 minutes, and the previous or next sunrise or sunset is null when it's more than a day away. The working day is a constant in `lib/time.js` until it moves to User Configuration: asleep 22:00–7:00, morning to 9:00, working to 17:00, then evening. It ignores weekends, which differ between countries; TO-DO: add the Weekend status in [Icon states](#icon-states).
 
 The sun values come from the NOAA solar position algorithm (after Meeus): about 50 lines of plain JavaScript, accurate to about a minute, and offline. Near the poles the sunrise equation has no solution on some days; that's 24-hour daylight or darkness, with no sunrise or sunset to count down to and no day length change.
 
 ### Results layout
 
-Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. The list is built, with placeholder icons; the time mode, ⌥ and ⌘ aren't yet.
+Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. The list and the time mode are built, with placeholder icons; ⌥ and ⌘ aren't yet.
 
 #### The list
 
@@ -86,7 +86,7 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
 
 - **Title:** as in the list, but always with the full weekday instead of "Yesterday" or "Tomorrow", since crossing into another day is the main risk when planning a meeting.
 - **Subtitle:** country | working status | how far into or out of the working day, for sliding a meeting by an hour or two. There's no offset, since the converted times already show it. The local city's subtitle starts with 🏠, as in the list.
-- **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "UK | Evening | Clocks go back Sun (−1h)".
+- **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "UK | Evening | Clocks go back Sun (−1h)". TO-DO.
 - **Icon:** the [working status](#working-statuses).
 
 #### Icon states
@@ -129,7 +129,7 @@ The detail is left out when the start of work it counts to falls on a weekend. T
 
 - **Offsets from local:** whole hours spelled out, so they're closer in length to offsets with minutes: "+11 hrs", "−1 hr", "±0 hrs"; otherwise hours and minutes: "−7h 15m", "+15m". Clock change shifts stay short: "(−1h)".
 - **Time since or until sunrise or sunset** (Large Type): to the nearest hour from an hour away ("Sunset in 2h", "Sunrise 5h ago"), and in minutes under an hour ("Sunset in 41m").
-- **Working day details:** exact hours and minutes ("2h 30m left"), since they decide whether a meeting fits.
+- **Working day details:** exact hours and minutes ("2h 30m left", "work in 1h"), since they decide whether a meeting fits. At the end of the working day itself, "work just ended" rather than "0m after work".
 
 #### More details
 
@@ -139,7 +139,7 @@ The detail is left out when the start of work it counts to falls on a weekend. T
 - **Large Type (⌘L, `text.largetype`):** every property, one per line, including the UTC offset and the next clock change however far away.
 - **`rerun`:** the list reruns every second (a run takes about 0.1s), so times and countdowns stay current while Alfred is open.
 
-The icons are image files in `icons/`, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by a JXA script with AppKit (`NSBezierPath` to PNG), so they can be regenerated from code. A phase's icon is `icons/phase-<phase>.png`. TO-DO: design the icons. The ones there are placeholders, a plain colour with the phase's word, from `resources/make-placeholder-icons.js` (run from the workflow folder), which draws one for each phase in `DAY_PHASES`; rerun it after adding a phase.
+The icons are image files in `icons/`, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by a JXA script with AppKit (`NSBezierPath` to PNG), so they can be regenerated from code. A phase's icon is `icons/phase-<phase>.png`, and a working status's `icons/status-<status>.png`. TO-DO: design the icons. The ones there are placeholders, a plain colour with the phase's or status's word, from `resources/make-placeholder-icons.js` (run from the workflow folder), which draws one for each phase in `DAY_PHASES` and each working status in its own list (no `weekend` yet); rerun it after adding a phase or status.
 
 ### Time input
 
@@ -231,7 +231,9 @@ Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`
 
 The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay; in `info.plist`, `queuedelaymode` 2 and `queuedelaycustom` 2, in tenths of a second), and immediately for the first character. That skips most partly typed times without slowing down filtering, which "Automatic after last character typed" (`queuedelaymode` 1) did.
 
-Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit, `+`, `-` or `−` that gives a moment lists the cities at the current time (narrowed by the text after a relative time), and one that doesn't shows a single message (see [Time input](#time-input)). What it was read as goes to stderr on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. The city values aren't logged in the time mode, since they're for now rather than the typed time.
+Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger.
+
+A query starting with a digit, `+`, `-` or `−` is a time (see [Time input](#time-input)). One that gives a moment lists the cities at that moment, laid out as in [The time mode](#the-time-mode) and still in Clock's order, including with an anchor city (`9am London` doesn't move London to the top); the text after a relative time narrows the list. One that doesn't give a moment shows a single message. What the query was read as goes to stderr first, on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. Only the list and relative times rerun every second: a typed clock time is a fixed moment, while a relative time moves with the clock.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
 

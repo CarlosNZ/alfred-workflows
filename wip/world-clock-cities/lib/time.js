@@ -272,3 +272,14 @@ function workingStatus({ hour, minute }, day = WORKING_DAY) {
   if (within(day.end, day.sleep)) return "evening";
   return "asleep";
 }
+
+// How a local time of day stands to the working day, in minutes, for a working
+// status's detail: { untilStart } while asleep or in the early morning,
+// { untilEnd } while working, { sinceEnd } in the evening.
+function workingDayTiming({ hour, minute }, status, day = WORKING_DAY) {
+  const time = hour * 60 + minute;
+  const minutesFrom = (from, to) => (((to - from) % 1440) + 1440) % 1440;
+  if (status === "working") return { untilEnd: minutesFrom(time, day.end * 60) };
+  if (status === "evening") return { sinceEnd: minutesFrom(day.end * 60, time) };
+  return { untilStart: minutesFrom(time, day.start * 60) };
+}
