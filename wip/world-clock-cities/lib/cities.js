@@ -8,11 +8,19 @@ const CITIES_PLIST = "~/Library/Containers/com.apple.clock/Data/Library/Preferen
 // directly, since cfprefsd caches a file it has read and would miss later
 // edits to it.
 function citiesSource() {
-  const override = $.NSProcessInfo.processInfo.environment.objectForKey("WCC_CITIES_PLIST");
+  const override = environmentValue("WCC_CITIES_PLIST");
   return {
-    path: $(override.isNil() ? CITIES_PLIST : override.js).stringByExpandingTildeInPath.js,
-    viaPreferences: override.isNil(),
+    path: $(override || CITIES_PLIST).stringByExpandingTildeInPath.js,
+    viaPreferences: !override,
   };
+}
+
+// The value of an environment variable, or null when it's unset or empty. The
+// testing variables (WCC_CITIES_PLIST, WCC_NOW) can be workflow variables left
+// empty in Alfred, which counts as unset.
+function environmentValue(name) {
+  const value = $.NSProcessInfo.processInfo.environment.objectForKey(name);
+  return value.isNil() || value.js === "" ? null : value.js;
 }
 
 // Reads Clock's city list, in Clock's order. Returns { cities } on success, or
@@ -77,8 +85,9 @@ function foldText(text) {
 // Everything the workflow knows about a city at a moment, as one object of raw
 // values; lib/format.js turns them into text. Times are Dates (instants, shown
 // in the city's timeZone); offsets, durations and day lengths are in minutes;
-// states are codes such as "goldenHour".
-function describeCity(city, moment, { isLocal = false, macZone = macTimeZone() } = {}) {
+// states are codes such as "goldenHour". `now` is the current time, when the
+// moment is a typed time, for the clock change between the two.
+function describeCity(city, moment, { isLocal = false, macZone = macTimeZone(), now = moment } = {}) {
   const local = zonedParts(city.timeZone, moment);
   const latitude = Number(city.latitude);
   const longitude = Number(city.longitude);
@@ -100,6 +109,7 @@ function describeCity(city, moment, { isLocal = false, macZone = macTimeZone() }
     utcOffsetMinutes: offset,
     offsetFromLocalMinutes: offset - utcOffsetMinutes(macZone, moment),
     nextClockChange: nextClockChange(city.timeZone, moment),
+    clockChangeFromNow: clockChangeFromNow(city.timeZone, now, moment),
     workingStatus: status,
     workingDayTiming: workingDayTiming(local, status),
     // Without coordinates there's nothing to say about the sun.

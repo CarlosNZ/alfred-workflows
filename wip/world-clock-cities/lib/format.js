@@ -139,8 +139,23 @@ function formatSoonClockChange(info) {
   return `${clockChangeWords(change)} ${when} (${formatSignedDuration(change.shiftMinutes)})`;
 }
 
-function clockChangeWords(change) {
-  return change.shiftMinutes > 0 ? "Clocks go forward" : "Clocks go back";
+function clockChangeWords(change, past = false) {
+  const direction = change.shiftMinutes > 0 ? "forward" : "back";
+  return `Clocks ${past ? "went" : "go"} ${direction}`;
+}
+
+// The clock change between now and a typed time, named from now, e.g. "Clocks
+// go back Sun (−1h)", "Clocks went forward yesterday (+1h)", or with a date
+// when it's more than 6 days away: "Clocks go back 28 Mar (−1h)". Empty when
+// there's none.
+function formatClockChangeFromNow(info) {
+  const change = info.clockChangeFromNow;
+  if (!change) return "";
+  const days = change.daysFromNow;
+  const when =
+    { "-1": "yesterday", 0: "today", 1: "tomorrow" }[days] ||
+    formatWithTemplate(change.date, info.timeZone, Math.abs(days) <= 6 ? "EEE" : "d MMM");
+  return `${clockChangeWords(change, change.isPast)} ${when} (${formatSignedDuration(change.shiftMinutes)})`;
 }
 
 const DAYLIGHT_STATE_WORDS = {
@@ -211,14 +226,16 @@ function timeTitle(info) {
 }
 
 // The time mode's subtitle: 🏠 for the local city, country, working status, and
-// how far into or out of the working day, e.g. "USA | Working | 3h left". No
-// offset, since the converted times already show it.
+// how far into or out of the working day, e.g. "USA | Working | 3h left", or in
+// place of that, a clock change between now and the typed time, which explains
+// why the time differs from what today's offset suggests. No offset, since the
+// converted times already show it.
 function timeSubtitle(info) {
   return [
     info.isLocal ? HOME : "",
     formatCountry(info),
     WORKING_STATUS_WORDS[info.workingStatus],
-    formatWorkingDayTiming(info.workingDayTiming),
+    formatClockChangeFromNow(info) || formatWorkingDayTiming(info.workingDayTiming),
   ]
     .filter(Boolean)
     .join(SUBTITLE_DIVIDER);

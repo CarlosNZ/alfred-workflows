@@ -161,6 +161,16 @@ function zonedMoments(timeZone, year, month, day, hour, minute) {
   return moments.length ? moments : [wall - before * 60000];
 }
 
+// The current time, or for testing, the moment in WCC_NOW: an ISO 8601 date and
+// time such as "2026-09-26T12:00+12:00" or "2026-09-26T00:00Z".
+function currentTime() {
+  const override = environmentValue("WCC_NOW");
+  if (!override) return new Date();
+  const date = new Date(override);
+  if (isNaN(date)) throw new Error(`WCC_NOW isn't an ISO 8601 date and time: ${override}`);
+  return date;
+}
+
 // IANA name of the Mac's current time zone, e.g. "Pacific/Auckland".
 function macTimeZone() {
   return $.NSTimeZone.localTimeZone.name.js;
@@ -243,6 +253,24 @@ function nextClockChange(timeZone, moment) {
   const before = zone.secondsFromGMTForDate(nsDate(new Date(date.getTime() - 1000)));
   const after = zone.secondsFromGMTForDate(next);
   return { date, shiftMinutes: (after - before) / 60 };
+}
+
+// The clock change between now and a moment (in either order) that makes the
+// time zone's UTC offset differ at the two, as { date, shiftMinutes,
+// daysFromNow, isPast }: the last change before the later of the two, the
+// calendar days from now's date to its date in the zone (negative when it's on
+// an earlier day), and whether it's before now. Null
+// when the offset is the same at both, including when changes in between
+// cancel out.
+function clockChangeFromNow(timeZone, now, moment) {
+  if (utcOffsetMinutes(timeZone, now) === utcOffsetMinutes(timeZone, moment)) return null;
+  const [earlier, later] = now <= moment ? [now, moment] : [moment, now];
+  let last = null;
+  for (let change = nextClockChange(timeZone, earlier); change && change.date <= later; ) {
+    last = change;
+    change = nextClockChange(timeZone, new Date(change.date.getTime() + 1000));
+  }
+  return last && { ...last, daysFromNow: calendarDaysBetween(timeZone, now, last.date), isPast: last.date < now };
 }
 
 // The first city, in Clock's order, that keeps the same time as the Mac: the

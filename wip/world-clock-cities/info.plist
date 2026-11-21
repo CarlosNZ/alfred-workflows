@@ -154,6 +154,20 @@
 			<string>keyword</string>
 		</dict>
 	</array>
+	<key>variables</key>
+	<dict>
+		<key>TZ</key>
+		<string></string>
+		<key>WCC_NOW</key>
+		<string></string>
+	</dict>
+	<key>variablesdontexport</key>
+	<array>
+		<string>WCC_NOW</string>
+		<string>TZ</string>
+	</array>
+	<key>version</key>
+	<string></string>
 	<key>webaddress</key>
 	<string></string>
 </dict>

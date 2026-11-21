@@ -27,7 +27,7 @@ A typed time always means its next occurrence (now or later), since the time mod
 | ⏱ Day label | `timeZone` | After the time. In the list, "Yesterday" or "Tomorrow" when the city's calendar date differs from the Mac's ("11:33 PM Yesterday"): the list is about now, relative to you. In the time mode, the full weekday, always ("1:33 AM Thursday"), since "Tomorrow" would be ambiguous when the reference is a typed day, and weekends matter for meetings. |
 | ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45", after the offset from local in the list's subtitle. |
 | ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11 hrs", "−2 hrs", "−7h 15m", "±0 hrs". |
-| ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown only when it's close: within 7 days in the list, and between now and the typed time in the time mode. |
+| ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown in the list only when it's within 7 days. In the time mode, the change that matters is the one between now and the typed time (`clockChangeFromNow`, below). |
 | ⏱ Working status | `timeZone` | The city's local hour against a working day from User Configuration: e.g. working, evening, asleep. The main value in the time mode. |
 | ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown in the ⌃ details. |
 | ⏱ Phase of the day | `latitude`, `longitude` | The sun's elevation and whether it's rising or setting (before or after solar noon), as one of the [phases of the day](#phases-of-the-day): night, dawn, sunrise, morning, afternoon, sunset, dusk. Shown as an icon. |
@@ -37,7 +37,7 @@ A typed time always means its next occurrence (now or later), since the time mod
 
 Country names come from `Localizable_Countries.loctable` in `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/`: a name for each of 242 country codes, plus 15 per-city overrides keyed by city identifier (London → England, Hong Kong → Hong Kong SAR, China), in each language Clock supports. English has four versions (`en`, `en_GB`, `en_AU`, `en_CA`), which differ only for US (U.S.A./USA), AE (U.A.E./UAE), VI and MO. `resources/clock-countries.csv` lists them all, with a column for the name to show. TO-DO: fill in that column and use it as the short-name map in `lib/format.js`, applied only to entries whose `languageCode` is English (`en` or `en_…`); other languages show the stored name.
 
-`describeCity` (in `lib/cities.js`) computes them all for a city at a moment, as one object of raw values: times are `Date`s, including the moment itself, and are shown in the city's time zone; offsets, durations and day lengths are in minutes; states are codes (`goldenHour`, `polarNight`); the day label is a `dayOffset` of −1, 0 or 1; the working day detail is a `workingDayTiming` of `{ untilStart }`, `{ untilEnd }` or `{ sinceEnd }`, in minutes; the country is as stored, with its code. All text, including times, offsets, flags and short country names, comes from `lib/format.js`, so display options (such as a time format) only touch that layer. The local city is an `isLocal` flag, decided once over the whole list (`findLocalCity`) so that filtering doesn't change it. `polar` is `midnightSun` or `polarNight` when the sun doesn't cross the horizon on the city's current date (not merely because the city is inside a polar circle); the day length is then 1440 or 0 minutes, and the previous or next sunrise or sunset is null when it's more than a day away. The working day is a constant in `lib/time.js` until it moves to User Configuration: asleep 22:00–7:00, morning to 9:00, working to 17:00, then evening. It ignores weekends, which differ between countries; TO-DO: add the Weekend status in [Icon states](#icon-states).
+`describeCity` (in `lib/cities.js`) computes them all for a city at a moment, as one object of raw values: times are `Date`s, including the moment itself, and are shown in the city's time zone; offsets, durations and day lengths are in minutes; states are codes (`goldenHour`, `polarNight`); the day label is a `dayOffset` of −1, 0 or 1; the clock change between now and a typed time is a `clockChangeFromNow` of `{ date, shiftMinutes, daysFromNow, isPast }`, or null (always null in the list, where the moment is now); the working day detail is a `workingDayTiming` of `{ untilStart }`, `{ untilEnd }` or `{ sinceEnd }`, in minutes; the country is as stored, with its code. All text, including times, offsets, flags and short country names, comes from `lib/format.js`, so display options (such as a time format) only touch that layer. The local city is an `isLocal` flag, decided once over the whole list (`findLocalCity`) so that filtering doesn't change it. `polar` is `midnightSun` or `polarNight` when the sun doesn't cross the horizon on the city's current date (not merely because the city is inside a polar circle); the day length is then 1440 or 0 minutes, and the previous or next sunrise or sunset is null when it's more than a day away. The working day is a constant in `lib/time.js` until it moves to User Configuration: asleep 22:00–7:00, morning to 9:00, working to 17:00, then evening. It ignores weekends, which differ between countries; TO-DO: add the Weekend status in [Icon states](#icon-states).
 
 The sun values come from the NOAA solar position algorithm (after Meeus): about 50 lines of plain JavaScript, accurate to about a minute, and offline. Near the poles the sunrise equation has no solution on some days; that's 24-hour daylight or darkness, with no sunrise or sunset to count down to and no day length change.
 
@@ -86,7 +86,7 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
 
 - **Title:** as in the list, but always with the full weekday instead of "Yesterday" or "Tomorrow", since crossing into another day is the main risk when planning a meeting.
 - **Subtitle:** country | working status | how far into or out of the working day, for sliding a meeting by an hour or two. There's no offset, since the converted times already show it. The local city's subtitle starts with 🏠, as in the list.
-- **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "UK | Evening | Clocks go back Sun (−1h)". TO-DO.
+- **Clock change:** when one falls between now and the typed time, it replaces the working day detail, e.g. "UK | Evening | Clocks go back Sun (−1h)". The converted time is already right; the note explains why it differs from what today's offset suggests, and warns that a regular meeting's offset is about to change. It's shown when the city's UTC offset at the typed time differs from now, naming the last change before the typed time, so changes that cancel out (`+8800`, a year ahead) show nothing. The day is named from now, since the change falls between now and the typed time: "today", "tomorrow", a weekday within 6 days, otherwise a date ("Clocks go forward 28 Mar (+1h)"). For a relative time in the past, it's past tense: "Clocks went forward yesterday (+1h)".
 - **Icon:** the [working status](#working-statuses).
 
 #### Icon states
@@ -239,7 +239,7 @@ When the list can't be loaded, the script returns a single explanatory result: t
 
 ### Testing
 
-Run `results.js` from the workflow folder, with the query as its argument. In Alfred it reads Clock's real city list, but outside Alfred that usually fails: a terminal or Claude Code session normally lacks Full Disk Access (see [Access](#access)). So when the environment variable `WCC_CITIES_PLIST` is set, the script reads the file it names instead. Alfred never sets it. That file is read directly, not through cfprefsd, which caches a file once it has read it and would miss later edits to it.
+Run `results.js` from the workflow folder, with the query as its argument. In Alfred it reads Clock's real city list, but outside Alfred that usually fails: a terminal or Claude Code session normally lacks Full Disk Access (see [Access](#access)). So when the environment variable `WCC_CITIES_PLIST` is set, the script reads the file it names instead. Alfred only sets it when it's given a value in the workflow's variables (see below). That file is read directly, not through cfprefsd, which caches a file once it has read it and would miss later edits to it.
 
 `test/cities.plist` is a city list for testing, in the same format as Clock's:
 
@@ -248,13 +248,19 @@ WCC_CITIES_PLIST=test/cities.plist ./results.js "new"
 WCC_CITIES_PLIST=/nonexistent ./results.js          # the "can't find" result
 ```
 
+To pretend it's another time, set `WCC_NOW` to an ISO 8601 date and time, e.g. to try a time just before New Zealand's clocks go forward:
+
+```zsh
+TZ=Pacific/Auckland WCC_NOW=2026-09-26T12:00+12:00 WCC_CITIES_PLIST=test/cities.plist ./results.js "9am mon"
+```
+
 To try another home city, set `TZ` to an IANA zone name: macOS takes the local time zone from it, so the city in that zone becomes the local one. In a terminal:
 
 ```zsh
 TZ=America/New_York WCC_CITIES_PLIST=test/cities.plist ./results.js
 ```
 
-In Alfred, add `TZ` as a workflow environment variable (the [𝒙] sheet) and tick Don't Export. It's saved in `info.plist`, but the pre-commit hook blocks a commit while a Don't Export variable has a value, so it can't be committed by mistake. Delete it when done.
+In Alfred, set any of these as workflow environment variables (the [𝒙] sheet), with Don't Export ticked. A relative `WCC_CITIES_PLIST` is relative to the workflow folder, so `test/cities.plist` works. They're saved in `info.plist`, but the pre-commit hook blocks a commit while a Don't Export variable has a value, so they can't be committed by mistake. An empty `WCC_CITIES_PLIST` or `WCC_NOW` counts as unset (`environmentValue` in `lib/cities.js`), so they can be left in the sheet, empty, between tests. An empty `TZ` is harmless too: Foundation ignores it, and the workflow takes the Mac's zone from Foundation (`macTimeZone`). JavaScript's own `Date` treats an empty `TZ` as UTC, so a `WCC_NOW` without an offset would be read as UTC; give it one.
 
 The computed values go to stderr and the Alfred JSON to stdout, so `2>/dev/null` shows just the JSON. (osascript also echoes the returned JSON to stderr, after the computed values.)
 

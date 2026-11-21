@@ -30,7 +30,7 @@ function run(argv) {
   const loaded = loadCities();
   if (loaded.error) return output([{ ...LOAD_ERRORS[loaded.error], valid: false }]);
 
-  const now = new Date();
+  const now = currentTime();
   // Found in the whole list, so filtering doesn't change which city is local.
   const localCity = findLocalCity(loaded.cities, now);
 
@@ -61,7 +61,7 @@ function run(argv) {
     }
   }
 
-  const infos = cities.map((city) => describeCity(city, moment, { isLocal: city === localCity }));
+  const infos = cities.map((city) => describeCity(city, moment, { isLocal: city === localCity, now }));
   logCityInfos(infos);
 
   // Rerunning every second keeps the times and countdowns current while
