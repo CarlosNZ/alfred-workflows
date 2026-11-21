@@ -6,11 +6,60 @@
 	<string>net.smithnz.carl.worldclockcities</string>
 	<key>connections</key>
 	<dict>
+		<key>2708C946-AF32-4037-BDA4-3EBEE9654D1D</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>D5C16EFE-115C-4460-AE71-C46F5A173AAE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>95658810-9A7C-478C-BD30-2AD0748E50B8</key>
 		<array>
 			<dict>
 				<key>destinationuid</key>
 				<string>2708C946-AF32-4037-BDA4-3EBEE9654D1D</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>D5C16EFE-115C-4460-AE71-C46F5A173AAE</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>AC30014C-8E82-48F3-BAD2-00D8A93307A1</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -110,6 +159,86 @@
 			<key>version</key>
 			<integer>2</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>launchmode</key>
+				<integer>0</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>AC30014C-8E82-48F3-BAD2-00D8A93307A1</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>panel.zsh</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>launchmode</key>
+				<integer>1</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>panel.zsh</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>D5C16EFE-115C-4460-AE71-C46F5A173AAE</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string></string>
@@ -122,12 +251,40 @@
 			<key>ypos</key>
 			<real>125</real>
 		</dict>
+		<key>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</key>
+		<dict>
+			<key>xpos</key>
+			<integer>645</integer>
+			<key>ypos</key>
+			<integer>205</integer>
+		</dict>
+		<key>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</key>
+		<dict>
+			<key>xpos</key>
+			<integer>445</integer>
+			<key>ypos</key>
+			<integer>205</integer>
+		</dict>
 		<key>95658810-9A7C-478C-BD30-2AD0748E50B8</key>
 		<dict>
 			<key>xpos</key>
 			<real>45</real>
 			<key>ypos</key>
 			<real>125</real>
+		</dict>
+		<key>AC30014C-8E82-48F3-BAD2-00D8A93307A1</key>
+		<dict>
+			<key>xpos</key>
+			<integer>645</integer>
+			<key>ypos</key>
+			<integer>45</integer>
+		</dict>
+		<key>D5C16EFE-115C-4460-AE71-C46F5A173AAE</key>
+		<dict>
+			<key>xpos</key>
+			<integer>445</integer>
+			<key>ypos</key>
+			<integer>45</integer>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>

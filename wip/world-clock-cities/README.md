@@ -4,9 +4,15 @@ Developer notes for a workflow that shows the current time in each city from the
 
 ## To-do
 
-- [ ] **Actions** for a city result (see [More details](#more-details)). Nothing is connected after the Script Filter yet, so ↩ does nothing.
-  - [ ] **↩:** open a full detail panel for the city, with every property. To be confirmed, but probably an HTML page shown in Alfred.
-  - [ ] **Copy** (modifier to be decided, probably ⌘): to decide what it copies in each mode, e.g. "9:00 AM Monday in London is 10:00 PM Monday in Auckland" in the time mode.
+- [ ] **Actions** for a city result (see [More details](#more-details)).
+  - [ ] **Detail view (↩ inside Alfred, ⌘↩ in its own window):** working, but bare bones: the city, country and time (see [Detail views](#detail-views)). Design decisions to make:
+    - [ ] **Content and layout:** which properties it shows (Large Type's list is the starting point) and how they're laid out, in one design that works both inside Alfred (theme width, height to fit) and in a window.
+    - [ ] **The time mode (meeting planning):** how the view reflects a typed time. It shows the city now, ticking, whatever the mode. Opened from the time mode, it could show the typed time instead, or both; the typed time doesn't tick, and a window outlives the query that opened it, so a permanent window showing a typed time may mislead later.
+  - [ ] **City picture in the detail view:** a cache of pictures filled in the background by a single fetcher, which open views pick up through their pulse. Designed in outline in [City pictures](#city-pictures-planned); to check first:
+    - [ ] Whether a pulse `update` can set an image component's path, and whether sending the same path every second reloads or flickers the image.
+    - [ ] Whether a fetcher started from the Script Filter outlives the run that started it.
+    - [ ] The picture's size in the view, which sets the width to fetch.
+  - [ ] **Copy** (modifier to be decided; ⌘ is taken by the detail window): probably not worth having. If kept, to decide what it copies in each mode, e.g. "9:00 AM Monday in London is 10:00 PM Monday in Auckland" in the time mode.
   - [ ] **⌥:** edit the list in the Clock app, on the World Clock tab (see [Opening Clock](#opening-clock) for the ways to get there).
   - [ ] **Alternative details:** show other data in the subtitle while a modifier is held, as ⌃ does with the sun details now.
   - [ ] **Configurable modifiers:** which modifier does which action, as User Configuration options.
@@ -148,9 +154,9 @@ When weekend days come before the next start of work, the detail names the day w
 #### More details
 
 - **⌃ (held):** the subtitle shows the daylight state and sun times, e.g. "Nautical twilight | Sunrise 5:45 AM | Sunset 7:52 PM | Day 14h 6m (+2m/day)". The `day` state reads "Daylight" here, so it isn't confused with the day length.
-- **↩:** opens a detail panel with every property, including the UTC offset and the next clock change however far away (planned; see [To-do](#to-do)).
+- **↩:** shows the city's detail view inside Alfred, and **⌘↩** opens it in a window of its own (see [Detail views](#detail-views)). It's to show every property, including the UTC offset and the next clock change however far away (planned; see [To-do](#to-do)).
 - **⌥:** opens Clock, to edit the list (see [Opening Clock](#opening-clock)).
-- **Copy** (probably ⌘): its subtitle shows what it copies.
+- **Copy** (if kept): its subtitle shows what it copies.
 - Which modifier does which action is to be configurable.
 - **Large Type (⌘L, `text.largetype`):** every property, one per line. To be removed, since the detail panel replaces it.
 - **`rerun`:** the list reruns every second (a run takes about 0.1s), so times and countdowns stay current while Alfred is open.
@@ -232,12 +238,83 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 - `lib/sun.js`: the sun's position, sunrise and sunset, the daylight state, and the phases of the day.
 - `lib/format.js`: turning those values into text: times, offsets, durations, flags, short country names, and each city result's title, subtitle, ⌃ details and Large Type.
 - `icons/`: result icons (see [More details](#more-details)).
+- `lib/detail.js`, `panel.alfredui/`, `panel.zsh` and `detail.js`: the detail view (see [Detail views](#detail-views)).
 
 JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries`, which a workflow can't ship in. So `results.js` reads each `lib/` file and runs it with an indirect `eval` (`(0, eval)(source)`), which runs it in the global scope. Each file's top-level functions become globals, available to `results.js` and the other files; its top-level `const` and `let` stay private to it. The catches:
 
 - All functions share one namespace, and a name defined twice silently resolves to the later file's. Name functions for what they do on their own (`matchesCity`, not `matches`).
 - An error's line number is within its file, but the error doesn't say which file.
 - `lib/` paths are relative to the working directory. Alfred runs scripts from the workflow folder; when running `results.js` by hand, do the same.
+
+### Detail views
+
+A city's detail view is one Alfred UI, `panel.alfredui/ui.json`, opened two ways by two Alfred UI objects that differ only in their launch mode, which is a setting of the object, not of `ui.json`:
+
+- **↩:** "Open within Alfred" (`launchmode` 0), stacked (`stackview`), so Esc goes back to the results. The window settings in `ui.json` (title, size, `frameautosave`) don't apply here: the view takes the theme's width and the height its content needs.
+- **⌘↩:** "Launch externally" (`launchmode` 1): a window of its own, titled with the city's name, which stays open until closed (Esc or the close button). Each window is a separate `Alfred UI` process.
+
+Each object comes after its own Run Script running `panel.zsh` (modifiers on connections only exist from the Script Filter, so the two routes can't share one Run Script), and opens the path it prints (`{query}`). The ⌘ modifier repeats the item's variables, since a modifier with its own `arg` needs them too.
+
+**One package per city.** Alfred keeps one window per `.alfredui` path: opening a path that's already open brings its window to the front rather than starting another (tested). So `panel.zsh` gives each city its own package, `$alfred_workflow_cache/panels/<detail_slug>.alfredui`, and prints its path. Each city gets its own window, reopening a city brings its window forward, and `frameautosave` (keyed on the path) remembers each city's position. A city can be open inside Alfred and in its window at the same time (tested). The package holds symlinks to `panel.alfredui/ui.json` and `detail.js`, so edits to them reach every city, and `city.json`, the city's record.
+
+**The pulse.** `ui.json`'s `pulse` runs `./detail.js` (through the package's link) when the view opens (`now: true`) and every second after the previous run ends (`intervalmode: delay`). It prints a JSON `update` setting the labels' text by `id` (`city`, `country`, `time`), from `detailUpdate` in `lib/detail.js`, so the time ticks over on the minute in both views (tested). A run takes about 0.06s of CPU (0.4s of wall time, mostly `osascript` starting up). `detail.js` finds the package from its own path (osascript's fourth argument) and the workflow folder by resolving the link, then loads `lib/` from there like `results.js`. The labels start as a space, filled in by the first pulse; they show in full, unlike Now Playing's app name, which was truncated when its text arrived after layout, possibly because these labels are in an inline layout.
+
+**The city's record.** The pulse describes the city from `city.json` rather than reading Clock's list: `detailVariables` puts the fields `describeCity` reads (and `isLocal`) on each result as `detail_city`, and `panel.zsh` writes them to the package each time the city is opened. That spares reading Clock's list every second, which needs Full Disk Access that the `Alfred UI` helper process may not have (untested). The record is as of the last time the city was opened.
+
+**The view shows now**, not the result's moment: in the time mode it still shows the current time, since the pulse updates it. See [To-do](#to-do).
+
+Notes:
+
+- Alfred's other in-window viewer, the Text View, takes plain text or Markdown only, not HTML. Alfred UI's `webkitview` component renders HTML (`text`, or a URL or file in `src`); it was tried for the ↩ view and dropped for native components, which size to their content inside Alfred (a web view has no height of its own) and can be updated a label at a time.
+- New windows all open at the default position, on top of each other, until moved.
+- The root view binds ⎋ to a `finish` action. Inside Alfred, Esc in a scripted test once seemed not to leave a web view; not checked since with native components or a real key press.
+- When testing with System Events, `key code 36 using command down` reaches Alfred as a plain ↩. Hold ⌘ with `key down command` … `key up command` instead.
+
+### City pictures (planned)
+
+A picture of the city for the detail view. Fetching one takes too long to do when the view opens, so pictures are fetched ahead of time into a cache, by one background process at a time, and an open view shows its picture once it arrives. Nothing here is built yet.
+
+**Source.** Wikidata's image (P18) for the city, with Wikipedia's page image as the fallback for a city with none (it's sometimes the nicer picture: Kathmandu, Longyearbyen). A trial on the 11 cities in Clock on 21 Nov 2026 (not in the repo):
+
+- Wikipedia's page image (`prop=pageimages`, the article's lead image) gives the flag for a city that's also a country (Singapore, Vatican City), and nothing for "New York", which is a disambiguation page ("New York City" works).
+- Wikidata's image property (P18) of the city's item (`pageprops.wikibase_item`, then `wbgetentities`), fetched as a thumbnail through Commons (`prop=imageinfo`, `iiurlwidth`), gave a photo for all 11, mostly skylines or landmarks, never a flag.
+- Wikimedia served 960px-wide thumbnails when asked for 640, 85 KB to 1.1 MB each (PNGs are the large ones).
+- A city still has to be matched to its article or Wikidata item: by name it fails on ambiguous names. Clock's coordinates can pick the right one.
+
+**The cache.** `$alfred_workflow_cache/images/`, one file per city named after its `detail_slug`: `<detail_slug>.jpg` for a picture, or a marker for a city without one: "none found" (not retried), or "failed" with a time to retry after (a network error, so being offline doesn't start a doomed fetch every second).
+
+**Starting the fetcher.** `results.js` runs every second and on every keystroke, so its part has to be cheap: it checks each listed city for a picture or a marker, which is a stat per city. If any city has neither, it starts the fetcher detached (output redirected and backgrounded, so Alfred doesn't wait for it), passing the missing cities with their names, countries and coordinates from Clock's list. The fetcher then never reads Clock's list itself, which needs Full Disk Access. `panel.zsh` makes the same check for its one city.
+
+**One fetcher at a time.** The fetcher takes a non-blocking lock when it starts and exits at once if another fetcher holds it:
+
+```zsh
+zmodload zsh/system
+lock=$alfred_workflow_cache/images/.lock
+: >> $lock
+zsystem flock -t 0 $lock 2>/dev/null || exit 0
+```
+
+`zsystem flock` is built into the zsh that ships with macOS. It needs the lock file to exist (`: >>` creates it, leaving it alone if it does), and it prints an error when it's refused, hence the `2>/dev/null`. The lock belongs to the process, so the kernel releases it when the fetcher exits or crashes and a stale lock can't be left behind, as it can with a PID file or a `mkdir` lock (tested: a second shell is refused while the first holds the lock, and gets it once the first exits). So the trigger needn't know whether a fetcher is running: starting a second one costs a zsh startup that exits straight away.
+
+**Scripts.** Everything has to ship with macOS 12, Alfred 6's minimum, which rules out `jq` (macOS 15 on), and zsh can't parse JSON. So the fetcher is two scripts: a short zsh script that takes the lock and then runs a JXA script, which makes the requests (`curl` through `doShellScript`, or `NSURLSession`) and reads the replies with `JSON.parse`. The lock belongs to the zsh process, so it's held for as long as the JXA script runs. `curl`, `sips` and `nohup` all ship with macOS 12.
+
+**Fetching.** One city at a time, to go easy on Wikimedia:
+
+1. Match the city to its Wikidata item: search by name, then take the result whose coordinates (P625) are within a few km of Clock's.
+2. Get its P18 image's thumbnail URL from Commons (or Wikipedia's page image if it has none), at the width the view needs.
+3. Download it to a temporary file, convert it with `sips` to a JPEG of that size (which also shrinks the large PNGs), and `mv` it into place, so the pulse never sees half a file. If there's no picture, or the fetch fails, write the city's marker.
+4. Remove the pictures and markers of cities no longer in the list it was given.
+
+Requests carry a User-Agent naming the workflow, as Wikimedia's API policy asks.
+
+**Showing it.** The pulse already runs every second in each open view, so `detail.js` checks for the city's picture and, once it's there, sets it in the `update` it prints. That's one stat a second in a process that runs anyway, and a view shows its picture within a second of it arriving. Telling open views directly would need a way to find and message each `Alfred UI` process, for no visible gain.
+
+**To check** (also in [To-do](#to-do)):
+
+- Whether a pulse `update` can set an image component's path, and whether sending the same path every second reloads or flickers the image. If it does, `detail.js` needs to send the picture only once; each pulse is a fresh process with no memory, so it would compare the picture's time against a note left in the city's package.
+- Whether a fetcher started from the Script Filter outlives the run that started it. The Script Filter waits for the previous run rather than terminating it (`queuemode` 1), so it probably does; if not, the fetcher can detach itself (`nohup`, or relaunch in a new session).
+- The picture's size in the view, which sets the width to fetch.
+- That `zsystem flock -t 0` refuses at once, without waiting, on macOS 12's zsh 5.8. Tested only on zsh 5.9.
 
 ### Behaviour
 
@@ -277,6 +354,14 @@ TZ=America/New_York WCC_CITIES_PLIST=test/cities.plist ./results.js
 ```
 
 In Alfred, set any of these as workflow environment variables (the [𝒙] sheet), with Don't Export ticked. A relative `WCC_CITIES_PLIST` is relative to the workflow folder, so `test/cities.plist` works. They're saved in `info.plist`, but the pre-commit hook blocks a commit while a Don't Export variable has a value, so they can't be committed by mistake. An empty `WCC_CITIES_PLIST` or `WCC_NOW` counts as unset (`environmentValue` in `lib/cities.js`), so they can be left in the sheet, empty, between tests. An empty `TZ` is harmless too: Foundation ignores it, and the workflow takes the Mac's zone from Foundation (`macTimeZone`). JavaScript's own `Date` treats an empty `TZ` as UTC, so a `WCC_NOW` without an offset would be read as UTC; give it one.
+
+To try the detail view's scripts, build a city's package in a scratch cache from a result's variables, then run its pulse (from anywhere, since `detail.js` finds `lib/` itself):
+
+```zsh
+export detail_city=$(WCC_CITIES_PLIST=test/cities.plist ./results.js 2>/dev/null | jq -r '.items[0].variables.detail_city')
+package=$(alfred_workflow_cache=/tmp/wcc-test ./panel.zsh 20)
+$package/detail.js
+```
 
 The computed values go to stderr and the Alfred JSON to stdout, so `2>/dev/null` shows just the JSON. (osascript also echoes the returned JSON to stderr, after the computed values.)
 

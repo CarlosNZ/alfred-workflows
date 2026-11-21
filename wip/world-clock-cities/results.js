@@ -12,7 +12,7 @@
 ObjC.import("Foundation");
 ObjC.import("CoreFoundation");
 
-const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js"];
+const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js", "lib/detail.js"];
 
 const LOAD_ERRORS = {
   missing: { title: "Can't find Clock's city list", subtitle: "Open Clock and add a city in World Clock, then try again" },
@@ -70,7 +70,7 @@ function run(argv) {
   // clock. skipknowledge stops Alfred reordering the items by usage, which
   // their uids would otherwise allow, so they stay in Clock's order.
   const rerun = !timeQuery || typed.kind === "relative";
-  const items = infos.map((info) => (timeQuery ? timeCityItem(info) : cityItem(info)));
+  const items = infos.map((info, i) => (timeQuery ? timeCityItem(info, cities[i]) : cityItem(info, cities[i])));
   return output(items, { ...(rerun && { rerun: 1 }), skipknowledge: true });
 }
 
@@ -118,9 +118,13 @@ function loadLib(file) {
   (0, eval)(source.js);
 }
 
-// An Alfred item for a city in the list, from describeCity's values.
-function cityItem(info) {
+// An Alfred item for a city in the list, from describeCity's values and the
+// city's Clock record. ↩ shows the city's detail view inside Alfred and ⌘↩ in
+// a window of its own, both from the item's variables (see detailVariables).
+function cityItem(info, city) {
   const details = sunDetails(info);
+  const variables = detailVariables(city, info);
+  const panel = { subtitle: `Open ${info.name} in its own panel`, arg: variables.detail_slug, variables };
   return {
     // On a rerun, Alfred keeps the selection on the item with the selected
     // item's uid; without uids it jumps back to the first item.
@@ -129,16 +133,17 @@ function cityItem(info) {
     subtitle: listSubtitle(info),
     arg: info.name,
     ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
+    variables,
     text: { largetype: largeTypeText(info) },
-    ...(details && { mods: { ctrl: { subtitle: details, valid: false } } }),
+    mods: { cmd: panel, ...(details && { ctrl: { subtitle: details, valid: false } }) },
   };
 }
 
 // An Alfred item for a city in the time mode, from describeCity's values at the
 // typed time. Its icon is the working status.
-function timeCityItem(info) {
+function timeCityItem(info, city) {
   return {
-    ...cityItem(info),
+    ...cityItem(info, city),
     title: timeTitle(info),
     subtitle: timeSubtitle(info),
     icon: { path: `icons/status-${info.workingStatus}.png` },
