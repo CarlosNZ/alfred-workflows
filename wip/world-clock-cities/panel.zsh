@@ -4,7 +4,9 @@
 # its own for ⌘↩.
 #
 # $1 is the city's detail_slug, and $detail_city its record (see
-# detailVariables in lib/detail.js). Each city's package is in the cache, named
+# detailVariables in lib/detail.js). If the city has no picture yet, it starts
+# a fetch for it alone, from $detail_picture_city, so the view gets it within
+# seconds (see fetch-pictures.js). Each city's package is in the cache, named
 # after it, and holds links to panel.alfredui/ui.json and detail.js (the pulse
 # script) and the city's record in city.json. Alfred keeps one window per
 # package path, so each city gets its own window, and opening a city that's
@@ -29,4 +31,14 @@ ln -sfh $workflow/detail.js $package/detail.js
 # temporary file then moved into place, so the pulse never reads half a file.
 print -rn -- $detail_city > $package/city.json.tmp
 mv -f $package/city.json.tmp $package/city.json
+
+# The cheap checks here, so a view of a city that has its picture (or has
+# none to find) doesn't start osascript; fetch-pictures.js checks the rest.
+images=$cache/images
+if [[ ${download_thumbnails:-1} != 0 && -n ${detail_picture_city:-} && ! -e $images/$slug.jpg && ! -e $images/$slug.none ]]; then
+  # In the background and with no output, so Alfred opens the view without
+  # waiting for it.
+  $workflow/fetch-pictures.zsh --view $detail_picture_city < /dev/null &> /dev/null &!
+fi
+
 print -rn -- $package

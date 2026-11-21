@@ -12,7 +12,7 @@
 ObjC.import("Foundation");
 ObjC.import("CoreFoundation");
 
-const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js", "lib/detail.js"];
+const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js", "lib/detail.js", "lib/pictures.js"];
 
 const LOAD_ERRORS = {
   missing: { title: "Can't find Clock's city list", subtitle: "Open Clock and add a city in World Clock, then try again" },
@@ -29,6 +29,9 @@ function run(argv) {
   const query = (argv[0] || "").trim();
   const loaded = loadCities();
   if (loaded.error) return output([{ ...LOAD_ERRORS[loaded.error], valid: false }]);
+  // Every run, whatever the query, with the whole list, so the cache follows
+  // Clock's list and fills whenever the keyword is used.
+  updatePictureCache(loaded.cities);
 
   const now = currentTime();
   // Found in the whole list, so filtering doesn't change which city is local.

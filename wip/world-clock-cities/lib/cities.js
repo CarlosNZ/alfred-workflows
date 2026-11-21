@@ -82,6 +82,18 @@ function foldText(text) {
   return (text || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
+// Clock's identifier for the city, stable across runs and languages, as a
+// string; the name and time zone for an entry without one.
+function cityId(city) {
+  return city.identifier != null ? String(city.identifier) : `${city.name}|${city.timeZone}`;
+}
+
+// The city's id made safe for a file name, keying its files in the cache: its
+// detail view package (see panel.zsh) and its picture (see lib/pictures.js).
+function citySlug(city) {
+  return cityId(city).replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
 // Everything the workflow knows about a city at a moment, as one object of raw
 // values; lib/format.js turns them into text. Times are Dates (instants, shown
 // in the city's timeZone); offsets, durations and day lengths are in minutes;
@@ -97,8 +109,7 @@ function describeCity(city, moment, { isLocal = false, macZone = macTimeZone(), 
   const status = workingStatus(local, weekend);
 
   return {
-    // Clock's identifier for the city, stable across runs and languages.
-    id: city.identifier != null ? String(city.identifier) : `${city.name}|${city.timeZone}`,
+    id: cityId(city),
     name: city.name,
     country: city.countryName || null,
     countryCode: city.localeCode || null,

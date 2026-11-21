@@ -8,10 +8,10 @@ Developer notes for a workflow that shows the current time in each city from the
   - [ ] **Detail view (↩ inside Alfred, ⌘↩ in its own window):** working, but bare bones: the city, country and time (see [Detail views](#detail-views)). Design decisions to make:
     - [ ] **Content and layout:** which properties it shows (Large Type's list is the starting point) and how they're laid out, in one design that works both inside Alfred (theme width, height to fit) and in a window.
     - [ ] **The time mode (meeting planning):** how the view reflects a typed time. It shows the city now, ticking, whatever the mode. Opened from the time mode, it could show the typed time instead, or both; the typed time doesn't tick, and a window outlives the query that opened it, so a permanent window showing a typed time may mislead later.
-  - [ ] **City picture in the detail view:** a cache of pictures filled in the background by a single fetcher, which open views pick up through their pulse, with a User Configuration option to turn it off and a backoff when offline. Designed in outline in [City pictures](#city-pictures-planned); to check first:
-    - [ ] Whether a pulse `update` can set an image component's path, and whether sending the same path every second reloads or flickers the image.
-    - [ ] Whether a fetcher started from the Script Filter outlives the run that started it.
-    - [ ] The picture's size in the view, which sets the width to fetch.
+  - [ ] **City picture in the detail view** (see [City pictures](#city-pictures)):
+    - [x] **Fetching:** a cache of pictures filled in the background by a single fetcher, with a User Configuration option to turn it off and a backoff when offline.
+    - [ ] **Showing it:** the picture's size and place in the view (which sets `PICTURE_WIDTH` in `fetch-pictures.js`), what shows while there's none, and crediting it from its `<slug>.json`. The pulse picks the picture up (see [Showing it](#city-pictures)).
+    - [ ] **User-Agent contact:** replace the GitHub repo's URL in `USER_AGENT` (in `fetch-pictures.js`) with the workflow's Alfred forum or gallery URL once there is one. Wikimedia's User-Agent policy asks for a way to get in touch, and its rate limits are stricter for clients that don't give one.
   - [ ] **Copy** (modifier to be decided; ⌘ is taken by the detail window): probably not worth having. If kept, to decide what it copies in each mode, e.g. "9:00 AM Monday in London is 10:00 PM Monday in Auckland" in the time mode.
   - [ ] **⌥:** edit the list in the Clock app, on the World Clock tab (see [Opening Clock](#opening-clock) for the ways to get there).
   - [ ] **Alternative details:** show other data in the subtitle while a modifier is held, as ⌃ does with the sun details now.
@@ -221,13 +221,12 @@ Input that doesn't give a moment shows a single result in place of the cities (`
 
 ### Configuration
 
-Options for the workflow's User Configuration (saved to the gitignored `prefs.plist`). So far there's only the keyword (`keyword`, default `wcc`). TO-DO, probably:
+Options for the workflow's User Configuration (saved to the gitignored `prefs.plist`). So far there are the keyword (`keyword`, default `wcc`) and "Download city thumbnails" (`download_thumbnails`, on by default), which fetches the detail view's city pictures from Wikimedia (see [City pictures](#city-pictures)). TO-DO, probably:
 
 - **12- or 24-hour time:** times follow the Mac's setting (System Settings › General › Date & Time); an option would override it for this workflow.
 - **Show the home city:** whether the local city is in the list. It's a reference for the others, but its time is already in the menu bar.
 - **Sort by time zone:** list the cities by UTC offset instead of in Clock's order (direction to decide).
 - **Working day:** the hours behind the working status, a constant in `lib/time.js` until then (see [City properties](#city-properties)).
-- **Download city thumbnails:** whether to fetch the detail view's city pictures from Wikimedia, on by default (see [City pictures](#city-pictures-planned)).
 
 ## How it works
 
@@ -240,6 +239,7 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 - `lib/format.js`: turning those values into text: times, offsets, durations, flags, short country names, and each city result's title, subtitle, ⌃ details and Large Type.
 - `icons/`: result icons (see [More details](#more-details)).
 - `lib/detail.js`, `panel.alfredui/`, `panel.zsh` and `detail.js`: the detail view (see [Detail views](#detail-views)).
+- `lib/pictures.js`, `fetch-pictures.zsh` and `fetch-pictures.js`: the cache of city pictures, and the fetcher that fills it (see [City pictures](#city-pictures)).
 
 JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries`, which a workflow can't ship in. So `results.js` reads each `lib/` file and runs it with an indirect `eval` (`(0, eval)(source)`), which runs it in the global scope. Each file's top-level functions become globals, available to `results.js` and the other files; its top-level `const` and `let` stay private to it. The catches:
 
@@ -271,55 +271,74 @@ Notes:
 - The root view binds ⎋ to a `finish` action. Inside Alfred, Esc in a scripted test once seemed not to leave a web view; not checked since with native components or a real key press.
 - When testing with System Events, `key code 36 using command down` reaches Alfred as a plain ↩. Hold ⌘ with `key down command` … `key up command` instead.
 
-### City pictures (planned)
+### City pictures
 
-A picture of the city for the detail view. Fetching one takes too long to do when the view opens, so pictures are fetched ahead of time into a cache, by one background process at a time, and an open view shows its picture once it arrives. Nothing here is built yet.
+A picture of each city, for the detail view. Fetching one takes too long to do when the view opens, so pictures are fetched ahead of time into a cache, by one background process at a time. The detail view doesn't show them yet (see [To-do](#to-do)); to see what's been fetched, open the cache folder in Finder (`~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/net.smithnz.carl.worldclockcities/images/`).
 
-**Source.** Wikidata's image (P18) for the city, with Wikipedia's page image as the fallback for a city with none (it's sometimes the nicer picture: Kathmandu, Longyearbyen). A trial on the 11 cities in Clock on 21 Nov 2026 (not in the repo):
+**Source.** Wikidata's image (P18) for the city, with Wikipedia's page image as the fallback for a city with none. A trial on the 11 cities in Clock on 21 Nov 2026 (not in the repo):
 
-- Wikipedia's page image (`prop=pageimages`, the article's lead image) gives the flag for a city that's also a country (Singapore, Vatican City), and nothing for "New York", which is a disambiguation page ("New York City" works).
-- Wikidata's image property (P18) of the city's item (`pageprops.wikibase_item`, then `wbgetentities`), fetched as a thumbnail through Commons (`prop=imageinfo`, `iiurlwidth`), gave a photo for all 11, mostly skylines or landmarks, never a flag.
+- Wikipedia's page image (`prop=pageimages`, the article's lead image) gives the flag for a city that's also a country (Singapore, Vatican City), and nothing for "New York", which is a disambiguation page ("New York City" works). It's sometimes the nicer picture (Kathmandu, Longyearbyen).
+- Wikidata's image property (P18) of the city's item, fetched as a thumbnail through Commons (`prop=imageinfo`, `iiurlwidth`), gave a photo for all 11, mostly skylines or landmarks, never a flag.
 - Wikimedia served 960px-wide thumbnails when asked for 640, 85 KB to 1.1 MB each (PNGs are the large ones).
-- A city still has to be matched to its article or Wikidata item: by name it fails on ambiguous names. Clock's coordinates can pick the right one.
+- A city has to be matched to its item: by name alone it fails on ambiguous names. Clock's coordinates pick the right one (see [Fetching](#city-pictures)).
 
-**The setting.** A User Configuration checkbox, "Download city thumbnails" (`download_thumbnails`), on by default, for anyone who'd rather the workflow made no network requests or kept nothing on disk. Off, no fetcher is started, and `results.js` deletes `images/` whenever it finds it, so cached pictures go too. Deleting them is also how open views find out: the pulse runs in the `Alfred UI` process, which doesn't see the workflow's settings (as Now Playing found), but it does see the picture disappear. A fetcher already running when the setting is turned off may still save a picture or two; the next run of `results.js` deletes those.
+The fetcher as built found a P18 image for all 12 test cities and all 11 in Clock, so the fallback hasn't been needed yet.
 
-**The cache.** `$alfred_workflow_cache/images/`, one file per city named after its `detail_slug`: `<detail_slug>.jpg` for a picture, or a marker for a city without one: "none found" (not retried), or "failed" for a failure particular to the city, such as a thumbnail that won't download or convert, retried after a delay that doubles with each failure, as below. A "failed" marker's modification time is the time to retry, and it holds the current delay.
+**The setting.** A User Configuration checkbox, "Download city thumbnails" (`download_thumbnails`, `1` or `0`), on by default, for anyone who'd rather the workflow made no network requests or kept nothing on disk. Off, no fetcher is started, and `results.js` deletes `images/` and the fetcher's log whenever it finds them, so cached pictures go too. Deleting them is also how open views will find out: the pulse runs in the `Alfred UI` process, which doesn't see the workflow's settings (as Now Playing found), but it does see the picture disappear. A fetcher already running when the setting is turned off notices the cache has gone before its next city and stops; it may save the picture it's fetching, which the next run of `results.js` deletes. Outside Alfred the variable is unset, which counts as on.
 
-**Backoff.** A network failure (no connection, a timeout, or Wikimedia answering 429 or 5xx) isn't the city's fault, and would fail the next city too. So the fetcher stops the whole run at the first one and records a backoff for the whole cache in `images/.backoff`: its modification time (set into the future) is when to try again, and it holds the delay, which starts at 5 minutes and doubles with each failed attempt (10, 20, 40 minutes…) up to a day. A 429's `Retry-After` is used when it's longer. Any request that succeeds deletes the file, so the delay starts at 5 minutes again after the next failure. Being offline for a day therefore costs about nine attempts, each ending at its first request.
+**The cache.** `$alfred_workflow_cache/images/`, with each city's files named after its slug (`citySlug` in `lib/cities.js`, Clock's identifier made safe for a file name, which also names its detail view package):
 
-**Starting the fetcher.** `results.js` runs every second and on every keystroke, so its part has to be cheap. With the setting on, it stats `images/.backoff` and stops if its time is still in the future; otherwise it checks each listed city for a picture or a marker that isn't due for a retry, which is a stat per city. If any city has neither, it starts the fetcher detached (output redirected and backgrounded, so Alfred doesn't wait for it), passing the missing cities with their names, countries and coordinates from Clock's list. The fetcher then never reads Clock's list itself, which needs Full Disk Access. `panel.zsh` makes the same check for its one city.
+| File | Meaning |
+|---|---|
+| `<slug>.jpg` | The picture: a JPEG 960px wide (`PICTURE_WIDTH`), or the original's width when that's smaller. It's moved into place last, with `mv`, so a reader never sees half a file. |
+| `<slug>.json` | Where it came from: the Wikidata item and its distance from Clock's coordinates, the source (P18 or Wikipedia's page image), the Commons file page, artist and licence (plain text from Commons' `extmetadata`), and when it was fetched. For checking matches now, and crediting the picture later. |
+| `<slug>.none` | No picture found, holding the reason (no item within range, or an item with no image). Not retried. |
+| `<slug>.failed` | A failure particular to the city, such as a reply that isn't JSON or a download `sips` can't convert. Its modification time is when to retry, and it holds the delay in seconds, which doubles with each failure on the same scale as the backoff. |
+| `.backoff` | See [Backoff](#city-pictures). |
+| `.lock` | The fetcher's lock (see [One fetcher at a time](#city-pictures)). |
+| `.tmp-<pid>-*` | A fetch's temporary files: replies, headers and downloads, named with its process ID, since a fetch for a view can run alongside the fetcher. Each fetch deletes its own when it ends, and any older than 10 minutes when it starts (`STALE_TEMPORARY_MINUTES`), which are left over from one that was stopped. |
 
-**Removed cities.** `results.js` also deletes the picture and marker of any city no longer in Clock's list. It's the one place that reads the whole list on every run (the fetcher only runs, and is only given cities, when a picture is missing), and listing `images/` is one directory read of a dozen or so names. Two catches: it compares against the whole list, never the list narrowed by the query, and it deletes nothing when the list fails to load or is empty, so a lost Full Disk Access permission doesn't empty the cache.
+The fetcher's log is `$alfred_workflow_cache/pictures.log`, next to `images/`: one line per city, with the item it matched, the distance and the file, or why it found nothing or failed. Each fetcher that gets the lock empties it, so it covers the last run; it and fetches for a view append to it, so their lines interleave in time order.
 
-**One fetcher at a time.** The fetcher takes a non-blocking lock when it starts and exits at once if another fetcher holds it:
+**Backoff.** A network failure (no connection, a timeout, or Wikimedia answering 429 or 5xx) isn't the city's fault, and would fail the next city too. So the fetcher stops the whole run at the first one and records a backoff for the whole cache in `images/.backoff`: its modification time (set into the future) is when to try again, and it holds the delay, which starts at 5 minutes and doubles with each failed attempt (10, 20, 40 minutes…) up to a day (`RETRY_DELAY_FIRST`, `RETRY_DELAY_MOST`). A `Retry-After` is used when it's longer. Any request that succeeds deletes the file, so the delay starts at 5 minutes again after the next failure. Being offline for a day therefore costs about nine attempts, each ending at its first request. The next run carries on from the cities still missing.
+
+**Rate limits.** Wikimedia limits clients that send requests in quick succession, answering 429 with a `Retry-After`: in testing, after about 10 requests in a few seconds, with a `Retry-After` of 3 seconds, rising to 45 after a few runs close together. So the fetcher spaces its requests 2 seconds apart (`REQUEST_INTERVAL_SECONDS`), and waits out a 429 whose `Retry-After` is at most 60 seconds, twice at most (`RATE_LIMIT_MOST_WAIT_SECONDS`, `RATE_LIMIT_RETRIES`), before treating it as a network failure. Filling the cache for 11 cities took 88 seconds, about 8 per city (four requests 2 seconds apart), with no 429s; after that, only a newly added city is fetched. A city whose detail view is opened meanwhile doesn't wait its turn (see [A city's view opened before its picture](#city-pictures)).
+
+**Starting the fetcher.** `updatePictureCache` (in `lib/pictures.js`), which `results.js` calls on every run, with Clock's whole list, once it has loaded. With the setting on, it lists `images/` once, reads the modification time of `.backoff` and of any `.failed` file, and stops if `.backoff`'s time is still in the future. Any city with no picture, no `.none`, and no `.failed` waiting for its time is missing; if any are, it starts `fetch-pictures.zsh` with `NSTask` (no shell, so city names can't be read as commands), without waiting for it, passing the missing cities as JSON with their names, countries and coordinates. The fetcher then never reads Clock's list itself, which needs Full Disk Access. Errors in all this are logged to the debugger, never shown as results. It adds nothing measurable to a run (0.11s with the setting on or off, with a full cache).
+
+The fetcher outlives the Script Filter run that started it, and Alfred's window closing (tested in Alfred).
+
+**A city's view opened before its picture.** The fetcher goes through the missing cities in Clock's order, so on a first fill a city's view could open more than a minute before the fetcher reaches it. So `panel.zsh`, which runs each time a view opens, starts a fetch for that city alone (`fetch-pictures.zsh --view`) when the setting is on and the city has neither a picture nor a `.none`. The city's record comes from the result's `detail_picture_city` variable (`pictureFetchRecord` in `lib/pictures.js`, the same record the fetcher gets). The fetch runs in the background, alongside any fetcher already running, without the lock; it doesn't run while `.backoff` is waiting, and sends its four requests without a pause, so the picture is there about 3 seconds after the view opens (tested in a terminal: 3.4 seconds, with the fetcher running). `panel.zsh` still takes 0.01s. If the fetcher reaches the same city meanwhile, both fetch it: the picture and its `.json` are each moved into place whole, so the second just replaces the first, and each fetch's temporary files are its own. The fetcher skips any city that has its picture by the time it gets there. That overlap costs four extra requests at most, which is less trouble than coordinating the two: the fetcher is JXA, which can't take a lock per city. TO-DO: check in Alfred that the fetch survives `panel.zsh` ending (it's started with `&!`), and that the log shows its "for its detail view" line.
+
+**Removed cities.** `updatePictureCache` also deletes the files of any city no longer in Clock's list. It's the one place that reads the whole list on every run (the fetcher only runs, and is only given cities, when a picture is missing), and listing `images/` is one directory read of a few dozen names. Two catches: it compares against the whole list, never the list narrowed by the query, and it isn't called when the list fails to load or is empty, so a lost Full Disk Access permission doesn't empty the cache.
+
+**One fetcher at a time.** `fetch-pictures.zsh` takes a non-blocking lock when it starts and exits at once if another fetcher holds it:
 
 ```zsh
 zmodload zsh/system
-lock=$alfred_workflow_cache/images/.lock
+lock=$images/.lock
 : >> $lock
 zsystem flock -t 0 $lock 2>/dev/null || exit 0
 ```
 
-`zsystem flock` is built into the zsh that ships with macOS. It needs the lock file to exist (`: >>` creates it, leaving it alone if it does), and it prints an error when it's refused, hence the `2>/dev/null`. The lock belongs to the process, so the kernel releases it when the fetcher exits or crashes and a stale lock can't be left behind, as it can with a PID file or a `mkdir` lock (tested: a second shell is refused while the first holds the lock, and gets it once the first exits). So the trigger needn't know whether a fetcher is running: starting a second one costs a zsh startup that exits straight away.
+`zsystem flock` is built into the zsh that ships with macOS. It needs the lock file to exist (`: >>` creates it, leaving it alone if it does), and it prints an error when it's refused, hence the `2>/dev/null`. The lock belongs to the process, so the kernel releases it when the fetcher exits or crashes and a stale lock can't be left behind, as it can with a PID file or a `mkdir` lock (tested: a second fetcher is refused while the first holds the lock, and gets it once the first exits). So the trigger needn't know whether a fetcher is running: starting a second one costs a zsh startup that exits straight away. The log is only opened once the lock is held, so a refused fetcher leaves the running one's log alone. A fetch for a view is the one exception to the lock (see above). If the cache is deleted (the setting turned off) and made again while a fetcher runs, the new `.lock` is a different file, which another fetcher could hold; so the fetcher checks before each city that `.lock` is still the file it locked (by inode number), and stops if not.
 
-**Scripts.** Everything has to ship with macOS 12, Alfred 6's minimum, which rules out `jq` (macOS 15 on), and zsh can't parse JSON. So the fetcher is two scripts: a short zsh script that takes the lock and then runs a JXA script, which makes the requests (`curl` through `doShellScript`, or `NSURLSession`) and reads the replies with `JSON.parse`. The lock belongs to the zsh process, so it's held for as long as the JXA script runs. `curl`, `sips` and `nohup` all ship with macOS 12.
+**Scripts.** Everything has to ship with macOS 12, Alfred 6's minimum, which rules out `jq` (macOS 15 on), and zsh can't parse JSON. So the fetcher is two scripts: `fetch-pictures.zsh` takes the lock and runs `fetch-pictures.js` as a child, so the lock is held for as long as the JXA script runs; the JXA script does everything else, running `curl`, `sips` and `mv` through `NSTask` with argument arrays, and reading the replies with `JSON.parse`. Apart from starting a fetch for a view, the zsh script exists only for the lock: JXA can't call `flock` or `open` with `O_EXLOCK` (`$.flock` and `$.open` are undefined, whichever header is imported), and Foundation's only lock, `NSDistributedLock`, is a file that can be left behind. `curl` and `sips` ship with macOS 12.
 
-**Fetching.** One city at a time, to go easy on Wikimedia:
+**Fetching.** `fetch-pictures.js`, one city at a time, to go easy on Wikimedia (for a view, the one city):
 
-1. Match the city to its Wikidata item: search by name, then take the result whose coordinates (P625) are within a few km of Clock's.
-2. Get its P18 image's thumbnail URL from Commons (or Wikipedia's page image if it has none), at the width the view needs.
-3. Download it to a temporary file, convert it with `sips` to a JPEG of that size (which also shrinks the large PNGs), and `mv` it into place, so the pulse never sees half a file. If there's no picture, or the fetch fails for this city alone, write the city's marker. On a network failure, write `.backoff` and stop (see [Backoff](#city-pictures-planned) above).
+1. Match the city to its Wikidata item, by its unlocalized name (so the search is in English): `wbsearchentities` gives the results in order, then one `query` on wikidata.org with `prop=coordinates|pageimages` gives each result's coordinates (P625) and image (Wikidata's page image is its P18), in 2 KB rather than the 1.3 MB of `wbgetentities` claims for 10 items. Of the results within 50 km of Clock's coordinates (`MATCH_RADIUS_KM`), the first whose label, or the alias the search matched, is the city's name wins, otherwise the first. The name rules out Auckland Region, which comes first in the search and whose centre is 5.6 km from Clock's Auckland; search order puts New York City (alias "New York") before the New York Stock Exchange, which is nearer to Clock's coordinates; the distance rules out New York State. Matches so far were 0.2 to 17 km away (Phoenix is the furthest).
+2. Take the item's P18 image. If it has none, its English Wikipedia article (from `wbgetentities` sitelinks) and that article's page image, which the API limits to free images.
+3. Get the file's thumbnail URL from Commons at 960px (`iiurlwidth`), with its artist and licence.
+4. Download it to a temporary file, convert it with `sips` to a JPEG (quality 80; resampled only if wider than 960px, which also shrinks the large PNGs), write `<slug>.json`, and `mv` the picture into place. If there's no picture, write `<slug>.none`; if the fetch fails for this city alone, `<slug>.failed`. On a network failure, write `.backoff` and stop.
 
-Requests carry a User-Agent naming the workflow, as Wikimedia's API policy asks.
+Requests carry a User-Agent naming the workflow, its version and a URL to get in touch through, as Wikimedia's API policy asks (`USER_AGENT`): the GitHub repo for now, to be replaced with the workflow's forum or gallery page (see [To-do](#to-do)).
 
-**Showing it.** The pulse already runs every second in each open view, so `detail.js` checks for the city's picture and, once it's there, sets it in the `update` it prints. That's one stat a second in a process that runs anyway, and a view shows its picture within a second of it arriving. Telling open views directly would need a way to find and message each `Alfred UI` process, for no visible gain.
+**Showing it** (planned). The pulse already runs every second in each open view, so `detail.js` can check for the city's picture and, once it's there, set it in the `update` it prints. That's one stat a second in a process that runs anyway, and a view shows its picture within a second of it arriving. Telling open views directly would need a way to find and message each `Alfred UI` process, for no visible gain. Now Playing's pulse sets its artwork's image view to a file path in every update, so sending the same path every second is a known pattern; its notes also found that an image arriving by update can keep a smaller placeholder's size, so give the image view a fixed size from the start.
 
-**To check** (also in [To-do](#to-do)):
+**To check:**
 
-- Whether a pulse `update` can set an image component's path, and whether sending the same path every second reloads or flickers the image. If it does, `detail.js` needs to send the picture only once; each pulse is a fresh process with no memory, so it would compare the picture's time against a note left in the city's package.
-- Whether a fetcher started from the Script Filter outlives the run that started it. The Script Filter waits for the previous run rather than terminating it (`queuemode` 1), so it probably does; if not, the fetcher can detach itself (`nohup`, or relaunch in a new session).
-- The picture's size in the view, which sets the width to fetch.
+- The picture's size in the view, which sets `PICTURE_WIDTH`.
 - That `zsystem flock -t 0` refuses at once, without waiting, on macOS 12's zsh 5.8. Tested only on zsh 5.9.
 
 ### Behaviour
@@ -370,6 +389,19 @@ $package/detail.js
 ```
 
 The computed values go to stderr and the Alfred JSON to stdout, so `2>/dev/null` shows just the JSON. (osascript also echoes the returned JSON to stderr, after the computed values.)
+
+To try the picture cache, point the cache at a scratch folder. `results.js` starts the fetcher in the background for any city missing a picture, as in Alfred; `fetch-pictures.zsh` can also be run directly, with cities as JSON, and waits until it's done:
+
+```zsh
+export alfred_workflow_cache=/tmp/wcc-test WCC_CITIES_PLIST=test/cities.plist
+./results.js > /dev/null                 # starts the fetcher if a picture is missing
+cat /tmp/wcc-test/pictures.log; ls /tmp/wcc-test/images
+./fetch-pictures.zsh '[{"slug":"999","name":"Paris","latitude":48.86,"longitude":2.35}]'
+download_thumbnails=0 ./results.js > /dev/null   # deletes the cache and the log
+https_proxy=http://127.0.0.1:9 ./results.js      # curl fails, as when offline: sets .backoff
+```
+
+A city that isn't in the list (like slug 999 above) is deleted from the cache by the next run of `results.js`. To end a backoff early, delete `images/.backoff`.
 
 `test/` and `resources/` are in `.wfignore`, so they aren't shipped.
 
