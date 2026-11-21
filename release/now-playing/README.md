@@ -189,7 +189,7 @@ One-time setup, with a paid Apple Developer Program membership:
 
 To check a signed framework by hand: `codesign -dv --verbose=4 vendor/MediaRemoteAdapter.framework` shows `Authority=Developer ID Application: …` and a `TeamIdentifier`, and `spctl -a -vv -t open --context context:primary-signature vendor/MediaRemoteAdapter.framework/Versions/A/MediaRemoteAdapter` shows `accepted` and `source=Notarized Developer ID`. For an end-to-end check, download a release with a browser and import it on another Mac (or another user account). `wf build` and `wf release` run the same `spctl` check and refuse to build an unnotarised framework; `wf build --allow-unsigned now-playing` makes a local test build.
 
-Other runtime requirements ship with macOS: `/usr/bin/perl`, `/usr/bin/jq`, `osascript`. `lib.sh` sets `PATH` to the system directories only.
+Other runtime requirements: `/usr/bin/perl` and `osascript`, which ship with macOS, and `/usr/bin/jq`, which only ships from macOS 15. Alfred 6 supports macOS 12, so on macOS 12–14 the scripts fail wherever they call `jq`, which is nearly everywhere. TO-DO: bundle `jq` in `vendor/` and use it when `/usr/bin/jq` is missing ([#1](https://github.com/CarlosNZ/alfred-workflows/issues/1)). `lib.sh` sets `PATH` to the system directories only.
 
 Run `/usr/bin/perl vendor/mediaremote-adapter.pl` with no arguments for the adapter's full usage. Besides `get` and `send` it has `stream`, which emits changes as they happen and could replace the one-second polling.
 
