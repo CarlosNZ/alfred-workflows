@@ -172,6 +172,7 @@ const WORKING_STATUS_WORDS = {
   working: "Working",
   evening: "Evening",
   asleep: "Asleep",
+  weekend: "Weekend",
 };
 
 // The country for a subtitle, e.g. "New Zealand". Empty for a city-state
@@ -243,12 +244,23 @@ function timeSubtitle(info) {
 
 // A working status's detail, in exact hours and minutes since it decides
 // whether a meeting fits: "work in 1h", "2h 30m left", "2h after work", and
-// "work just ended" at the end of the working day itself.
-function formatWorkingDayTiming({ untilStart, untilEnd, sinceEnd }) {
+// "work just ended" at the end of the working day itself. When weekend days
+// come before the next start of work, the day it starts: "work Mon".
+function formatWorkingDayTiming({ untilStart, untilEnd, sinceEnd, nextWorkday }) {
   if (untilEnd != null) return `${formatHoursMinutes(untilEnd)} left`;
   if (sinceEnd === 0) return "work just ended";
   if (sinceEnd != null) return `${formatHoursMinutes(sinceEnd)} after work`;
-  return `work in ${formatHoursMinutes(untilStart)}`;
+  if (untilStart != null) return `work in ${formatHoursMinutes(untilStart)}`;
+  if (nextWorkday != null) return `work ${shortWeekdayName(nextWorkday)}`;
+  return "";
+}
+
+let shortWeekdayNames;
+
+// A weekday's short name in the Mac's language, e.g. "Mon" for 1.
+function shortWeekdayName(weekday) {
+  if (!shortWeekdayNames) shortWeekdayNames = ObjC.deepUnwrap($.NSDateFormatter.alloc.init.shortWeekdaySymbols);
+  return shortWeekdayNames[weekday];
 }
 
 // The sun details shown while ⌃ is held, e.g. "Nautical twilight | Sunrise

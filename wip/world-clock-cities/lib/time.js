@@ -9,6 +9,27 @@
 // TO-DO: read the working day from User Configuration.
 const WORKING_DAY = { wake: 7, start: 9, end: 17, sleep: 22 };
 
+// Saturday and Sunday, as weekdays (0 Sunday – 6 Saturday).
+const DEFAULT_WEEKEND = new Set([0, 6]);
+const weekends = {};
+
+// The weekdays (0 Sunday – 6 Saturday) a country takes off, from the Unicode
+// CLDR data that ships with macOS: Friday and Saturday for IL, Sunday alone for
+// IN. Saturday and Sunday for a missing or unknown country code, or if the
+// data isn't available. It's the country's official weekend: regional
+// differences (some Malaysian states), shifted working days and public
+// holidays aren't covered.
+function weekendDays(countryCode) {
+  const code = /^[A-Za-z]{2}$/.test(countryCode || "") ? countryCode.toUpperCase() : "001";
+  if (!weekends[code]) {
+    const locale = new Intl.Locale(`und-${code}`);
+    const info = locale.getWeekInfo ? locale.getWeekInfo() : locale.weekInfo;
+    // CLDR numbers the days 1 Monday – 7 Sunday.
+    weekends[code] = info ? new Set(info.weekend.map((day) => day % 7)) : DEFAULT_WEEKEND;
+  }
+  return weekends[code];
+}
+
 // True when the query is a time to convert rather than a city filter: it
 // starts with a digit, or with +, - or − for a time relative to now.
 function isTimeQuery(query) {
@@ -290,24 +311,35 @@ function clockKey(timeZone, moment) {
   return [utcOffsetMinutes(timeZone, moment), change && change.date.getTime(), change && change.shiftMinutes].join();
 }
 
-// Where a local time of day falls in the working day: "asleep", "morning",
-// "working" or "evening".
-function workingStatus({ hour, minute }, day = WORKING_DAY) {
+// Where a local time falls in the working day: "asleep", "morning", "working"
+// or "evening", or "weekend" for any but the asleep hours of a day in
+// `weekend`, the weekdays the city's country takes off.
+function workingStatus({ weekday, hour, minute }, weekend = DEFAULT_WEEKEND, day = WORKING_DAY) {
   const time = hour + minute / 60;
   const within = (from, to) => (from <= to ? time >= from && time < to : time >= from || time < to);
-  if (within(day.start, day.end)) return "working";
-  if (within(day.wake, day.start)) return "morning";
-  if (within(day.end, day.sleep)) return "evening";
-  return "asleep";
+  let status = "asleep";
+  if (within(day.start, day.end)) status = "working";
+  else if (within(day.wake, day.start)) status = "morning";
+  else if (within(day.end, day.sleep)) status = "evening";
+  return status !== "asleep" && weekend.has(weekday) ? "weekend" : status;
 }
 
-// How a local time of day stands to the working day, in minutes, for a working
-// status's detail: { untilStart } while asleep or in the early morning,
-// { untilEnd } while working, { sinceEnd } in the evening.
-function workingDayTiming({ hour, minute }, status, day = WORKING_DAY) {
+// How a local time stands to the working day, for a working status's detail:
+// { untilEnd } minutes while working, { sinceEnd } minutes in the evening, and
+// otherwise the next start of work: { untilStart } minutes when it's the next
+// day's start, or { nextWorkday } (a weekday) when weekend days come first,
+// e.g. on a Friday night. Empty if every day is a weekend day.
+function workingDayTiming({ weekday, hour, minute }, status, weekend = DEFAULT_WEEKEND, day = WORKING_DAY) {
   const time = hour * 60 + minute;
   const minutesFrom = (from, to) => (((to - from) % 1440) + 1440) % 1440;
   if (status === "working") return { untilEnd: minutesFrom(time, day.end * 60) };
   if (status === "evening") return { sinceEnd: minutesFrom(day.end * 60, time) };
-  return { untilStart: minutesFrom(time, day.start * 60) };
+
+  // Today's start of work if it's still to come, otherwise tomorrow's, then
+  // past any weekend days.
+  const first = time < day.start * 60 ? 0 : 1;
+  let days = first;
+  while (weekend.has((weekday + days) % 7) && days < first + 7) days++;
+  if (weekend.has((weekday + days) % 7)) return {};
+  return days === first ? { untilStart: minutesFrom(time, day.start * 60) } : { nextWorkday: (weekday + days) % 7 };
 }

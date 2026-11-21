@@ -28,12 +28,14 @@ const COLOURS = {
 const FALLBACK_COLOURS = ["#888888", "#FFFFFF"];
 
 // The working statuses (workingStatus in lib/time.js), with their words as in
-// WORKING_STATUS_WORDS in lib/format.js, and colours as a traffic light.
+// WORKING_STATUS_WORDS in lib/format.js, and colours as a traffic light, with
+// grey for the weekend.
 const WORKING_STATUSES = [
   { status: "morning", word: "Early morning", colours: ["#F2B63D", "#1B2240"] },
   { status: "working", word: "Working", colours: ["#3DAA5C", "#FFFFFF"] },
   { status: "evening", word: "Evening", colours: ["#F2B63D", "#1B2240"] },
   { status: "asleep", word: "Asleep", colours: ["#D9453D", "#FFFFFF"] },
+  { status: "weekend", word: "Weekend", colours: ["#9AA0A6", "#FFFFFF"] },
 ];
 
 function run() {
