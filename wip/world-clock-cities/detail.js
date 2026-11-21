@@ -1,27 +1,62 @@
 #!/usr/bin/osascript -l JavaScript
 
-// Pulse script for a city's detail view (panel.alfredui): prints the JSON
-// update that fills in the view with the city now, run when the view opens and
-// every second while it's open.
+// Pulse script for a city's detail view: prints the JSON update that fills in
+// the view, run when the view opens and every second while it's open.
 //
 // It's run through the link to it in the city's package (see panel.zsh): the
 // package, the folder the link is in, holds the city's record in city.json,
-// and the link resolves to the workflow folder, which holds lib/.
+// and the link resolves to the workflow folder, which holds lib/. The
+// package is in panels/ in the workflow's cache folder, next to images/,
+// which holds the city's picture.
+//
+// With the arguments `ui <mode> <launch> <picture> <clockChange>`, it prints
+// that variant of the view's ui.json instead (see lib/panel.js), for
+// panel.zsh. <picture> and <clockChange> are 1 or 0.
 
 ObjC.import("Foundation");
 ObjC.import("CoreFoundation");
+ObjC.import("AppKit");
 
-const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js", "lib/detail.js"];
+const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js", "lib/pictures.js", "lib/detail.js", "lib/panel.js"];
 
-function run() {
+function run(argv) {
   const { packageDir, workflowDir } = scriptFolders();
   $.NSFileManager.defaultManager.changeCurrentDirectoryPath(workflowDir);
   LIBS.forEach(loadLib);
 
+  if (argv[0] === "ui") {
+    const [mode, launch, picture, clockChange] = argv.slice(1);
+    return JSON.stringify(panelUi({ mode, launch, picture: picture === "1", clockChange: clockChange === "1" }), null, 2);
+  }
+
   const saved = readJson(`${packageDir}/city.json`);
   if (!saved) return JSON.stringify({});
-  const info = describeCity(saved.city, currentTime(), { isLocal: saved.isLocal });
-  return JSON.stringify(detailUpdate(info));
+  const now = currentTime();
+  const moment = detailMoment(saved.typed, now);
+  const info = describeCity(saved.city, moment, { isLocal: saved.isLocal, now });
+  const imagesDir = $(`${packageDir}/../../images`).stringByStandardizingPath.js;
+  const ui = readJson(`${packageDir}/ui.json`);
+  const update = detailUpdate(info, {
+    typed: saved.typed,
+    now,
+    picture: pictureState(imagesDir, citySlug(saved.city)),
+    iconsDir: `${workflowDir}/icons`,
+    layout: { picture: layoutHasComponent(ui, "picture") },
+  });
+  return JSON.stringify({ ...update, ...windowResize(packageDir, ui) });
+}
+
+// For a window (a package named …-window.alfredui, see panel.zsh), a JSON
+// Action giving it the size in its layout (`ui`, the package's ui.json):
+// frameautosave restores the window's saved size over the size in its
+// layout, which would keep the size of whichever layout it last had. The
+// layout is the one the window opened with, since panel.zsh doesn't relink an
+// open window's. Never for the view inside Alfred, which would resize
+// Alfred's own window.
+function windowResize(packageDir, ui) {
+  if (!packageDir.endsWith("-window.alfredui")) return {};
+  const size = ui && ui.window && ui.window.size;
+  return size ? { window: { resize: windowSizeFromLayout(size) } } : {};
 }
 
 // The folder this script was run from (through the link), and the folder of

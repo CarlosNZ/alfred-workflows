@@ -46,10 +46,10 @@ const DAY_ALIASES = { weds: 3 };
 //   ("3:2", "8am t"), including a city that matches cities in different zones.
 // - { kind: "invalid" }: typing more can't make it a time ("25:00", "13pm").
 // - { kind: "unknownCity", place }: the text after the time matches no city.
-// - { kind: "clock" | "relative", moment, timeZone, anchor, filter }: the
-//   moment (a Date); the zone a clock time was read in, and the name of the
-//   city that set it (null for the Mac's zone); and, for a relative time, the
-//   text after it, which narrows the list.
+// - { kind: "clock" | "relative", moment, timeZone, anchor, anchorCountry,
+//   filter }: the moment (a Date); the zone a clock time was read in, and the
+//   name and country of the city that set it (null for the Mac's zone); and,
+//   for a relative time, the text after it, which narrows the list.
 function readTypedTime(query, cities, now, macZone = macTimeZone()) {
   const typed = parseTimeInput(query);
   if (typed.kind === "relative") {
@@ -58,6 +58,7 @@ function readTypedTime(query, cities, now, macZone = macTimeZone()) {
       moment: new Date(now.getTime() + typed.minutes * 60000),
       timeZone: macZone,
       anchor: null,
+      anchorCountry: null,
       filter: typed.filter,
     };
   }
@@ -65,14 +66,16 @@ function readTypedTime(query, cities, now, macZone = macTimeZone()) {
 
   let timeZone = macZone;
   let anchor = null;
+  let anchorCountry = null;
   if (typed.place) {
     const found = findAnchorCity(cities, typed.place, now);
     if (found.error === "noCity") return { kind: "unknownCity", place: typed.place };
     if (found.error) return { kind: "incomplete" };
     timeZone = found.city.timeZone;
     anchor = found.city.name;
+    anchorCountry = found.city.countryName || null;
   }
-  return { kind: "clock", moment: nextOccurrence(typed, timeZone, now), timeZone, anchor, filter: "" };
+  return { kind: "clock", moment: nextOccurrence(typed, timeZone, now), timeZone, anchor, anchorCountry, filter: "" };
 }
 
 // The syntax of a time query, without working out a moment. Returns

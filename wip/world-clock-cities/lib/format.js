@@ -263,6 +263,14 @@ function shortWeekdayName(weekday) {
   return shortWeekdayNames[weekday];
 }
 
+let weekdayNames;
+
+// A weekday's full name in the Mac's language, e.g. "Monday" for 1.
+function weekdayName(weekday) {
+  if (!weekdayNames) weekdayNames = ObjC.deepUnwrap($.NSDateFormatter.alloc.init.weekdaySymbols);
+  return weekdayNames[weekday];
+}
+
 // The sun details shown while ⌃ is held, e.g. "Nautical twilight | Sunrise
 // 5:45 AM | Sunset 7:52 PM | Day 14h 6m (+2m/day)". Empty without sun values.
 function sunDetails(info) {
@@ -308,6 +316,144 @@ function largeTypeText(info) {
     lines.push(formatNearestSunEvent(info), `Day ${formatDayLength(info)}`);
   }
   return lines.join("\n");
+}
+
+// The detail view's text (see detailUpdate in lib/detail.js).
+
+// A city's date, e.g. "Sunday 22 November 2026", arranged for the Mac's
+// locale.
+function formatLongDate(moment, timeZone) {
+  return formatWithTemplate(moment, timeZone, "EEEEdMMMMy");
+}
+
+// The time zone's name, its abbreviation when it has one, and its UTC offset,
+// e.g. "New Zealand Daylight Time (NZDT) • UTC+13".
+//
+// The names are in the Mac's language, as used in the city's country: the
+// formatter only gives the abbreviations common in its locale's region, so
+// with the Mac's own region (en_NZ) New York has no "EST" and Kolkata no
+// "IST", while en_US and en_IN have them. Where there's no abbreviation, the
+// formatter gives "GMT+5:45", which the UTC offset already says, so it's left
+// out. London in winter has no name either ("GMT+00:00"), so a zone at UTC+0
+// without one takes GMT's: "Greenwich Mean Time (GMT)".
+function formatZoneLine(info) {
+  const locale = info.countryCode ? `${$.NSLocale.currentLocale.languageCode.js}_${info.countryCode}` : null;
+  const isOffset = (text) => /^(GMT|UTC)[+\-−]/.test(text);
+  let zone = info.timeZone;
+  if (info.utcOffsetMinutes === 0 && isOffset(formatZoneName(info.moment, zone, "zzzz", locale))) zone = "GMT";
+  const name = formatZoneName(info.moment, zone, "zzzz", locale);
+  const abbreviation = formatZoneName(info.moment, zone, "zzz", locale);
+  const named = isOffset(name) ? "" : isOffset(abbreviation) ? name : `${name} (${abbreviation})`;
+  return [named, formatUtcOffset(info.utcOffsetMinutes)].filter(Boolean).join(TITLE_DIVIDER);
+}
+
+const zoneNameFormatters = {};
+
+// A time zone's name at a moment, in a date format such as "zzzz" (long) or
+// "zzz" (abbreviation), for a locale identifier, or the Mac's locale if null.
+function formatZoneName(moment, timeZone, format, locale) {
+  const key = `${format}|${locale}`;
+  if (!zoneNameFormatters[key]) {
+    const formatter = $.NSDateFormatter.alloc.init;
+    if (locale) formatter.locale = $.NSLocale.localeWithLocaleIdentifier(locale);
+    formatter.dateFormat = format;
+    zoneNameFormatters[key] = formatter;
+  }
+  const formatter = zoneNameFormatters[key];
+  formatter.timeZone = nsTimeZone(timeZone);
+  return formatter.stringFromDate(nsDate(moment)).js;
+}
+
+// A clock change as a sentence, told from now: "Clocks go back 1 hour in 3
+// days, on Sunday", "Clocks go forward 1 hour tomorrow", "Clocks go back 1
+// hour in 5 hours", "Clocks went forward 1 hour yesterday". More than 6 days
+// away, with the date: "Clocks go back 1 hour on Sunday 28 March". `change` is
+// { date, shiftMinutes }.
+function formatClockChangeSentence(change, now, timeZone) {
+  const past = change.date < now;
+  const shift = formatSpokenDuration(Math.abs(change.shiftMinutes));
+  const words = `${clockChangeWords(change, past)} ${shift}`;
+  const minutes = Math.abs(change.date - now) / 60000;
+  if (minutes < 24 * 60) {
+    const distance = formatSpokenRoughDuration(minutes);
+    return past ? `${words} ${distance} ago` : `${words} in ${distance}`;
+  }
+  const days = Math.abs(calendarDaysBetween(timeZone, now, change.date));
+  if (days === 1) return `${words} ${past ? "yesterday" : "tomorrow"}`;
+  const weekday = formatWithTemplate(change.date, timeZone, "EEEE");
+  if (days <= 6) return past ? `${words} ${days} days ago, on ${weekday}` : `${words} in ${days} days, on ${weekday}`;
+  return `${words} on ${formatWithTemplate(change.date, timeZone, "EEEEdMMMM")}`;
+}
+
+// The sun's elevation, e.g. "Sun elevation: 8.2°", "Sun elevation: −12.5°".
+// Empty without sun values.
+function formatSunElevation(info) {
+  if (info.sunElevation == null) return "";
+  const elevation = Math.round(info.sunElevation * 10) / 10;
+  return `Sun elevation: ${elevation < 0 ? "−" : ""}${Math.abs(elevation).toFixed(1)}°`;
+}
+
+// The day length, e.g. "Day length: 10h 47m (+2m/day)". Empty without sun
+// values.
+function formatDayLengthLine(info) {
+  return info.dayLengthMinutes == null ? "" : `Day length: ${formatDayLength(info)}`;
+}
+
+// A working status's detail as a sentence, in exact hours and minutes: "Work
+// ends in 7h 15m", "Work ended 2h ago", "Work just ended", "Work starts in
+// 1h", or the day work starts when weekend days come first: "Work starts
+// Monday".
+function formatWorkingDaySentence({ untilStart, untilEnd, sinceEnd, nextWorkday }) {
+  if (untilEnd != null) return `Work ends in ${formatHoursMinutes(untilEnd)}`;
+  if (sinceEnd === 0) return "Work just ended";
+  if (sinceEnd != null) return `Work ended ${formatHoursMinutes(sinceEnd)} ago`;
+  if (untilStart != null) return `Work starts in ${formatHoursMinutes(untilStart)}`;
+  if (nextWorkday != null) return `Work starts ${weekdayName(nextWorkday)}`;
+  return "";
+}
+
+// The meeting mode's line saying which moment the view shows, from the typed
+// time (see detailVariables in lib/detail.js): "When it's 9:00 PM Sunday in
+// London, UK…", "When it's 9:00 PM Sunday here…" for a time in the Mac's
+// zone, or for a relative time, "In 5 hours, at 5:12 PM Sunday here…" and "3
+// hours ago, at 9:12 AM Sunday here…".
+function formatTypedReference(typed, moment) {
+  const when = `${formatTime(moment, typed.timeZone)} ${formatWithTemplate(moment, typed.timeZone, "EEEE")}`;
+  if (typed.kind === "relative") {
+    if (typed.minutes === 0) return `Now, at ${when} here…`;
+    const distance = formatSpokenDuration(Math.abs(typed.minutes));
+    return typed.minutes > 0 ? `In ${distance}, at ${when} here…` : `${distance} ago, at ${when} here…`;
+  }
+  const where = typed.anchor ? `in ${formatPlace(typed.anchor, typed.anchorCountry)}` : "here";
+  return `When it's ${when} ${where}…`;
+}
+
+// A city and its country, e.g. "London, UK", or the city alone when it has no
+// country or the country has the same name (Singapore).
+function formatPlace(name, country) {
+  const shown = SHORT_COUNTRY_NAMES[country] || country || "";
+  return shown && foldText(shown) !== foldText(name) ? `${name}, ${shown}` : name;
+}
+
+// An exact length of time in words: "1 hour", "30 minutes", "1 hour 30
+// minutes".
+function formatSpokenDuration(minutes) {
+  const total = Math.round(minutes);
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  const parts = [hours && plural(hours, "hour"), rest && plural(rest, "minute")].filter(Boolean);
+  return parts.join(" ") || plural(0, "minute");
+}
+
+// A length of time in words, rounded for a glance: to the nearest hour from an
+// hour up ("5 hours"), and to the minute below that ("40 minutes"), at least
+// one.
+function formatSpokenRoughDuration(minutes) {
+  return minutes < 59.5 ? plural(Math.max(1, Math.round(minutes)), "minute") : plural(Math.round(minutes / 60), "hour");
+}
+
+function plural(count, word) {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
 // A UTC offset in minutes as text, e.g. "UTC+13", "UTC+5:45", "UTC−3", "UTC".

@@ -107,6 +107,22 @@ function startPictureFetcher(cities) {
   task.launch;
 }
 
+// Whether a city's picture can be shown, for the detail view, from the cache
+// in `dir`: { state: "shown", path } when it's there; "loading" while a fetch
+// can still bring it; "none" when there's no picture to find, the city's
+// fetch failed or the whole cache is backing off (it's not coming soon), or
+// the cache is gone because the setting is off. panel.zsh makes the same
+// call, in zsh, when the view opens, to decide whether it has a picture slot.
+function pictureState(dir, slug) {
+  const fm = $.NSFileManager.defaultManager;
+  const path = `${dir}/${slug}.jpg`;
+  if (fm.fileExistsAtPath(path)) return { state: "shown", path };
+  if (!fm.fileExistsAtPath(dir) || fm.fileExistsAtPath(`${dir}/${slug}.none`)) return { state: "none" };
+  const now = Date.now();
+  const waiting = [".backoff", `${slug}.failed`].some((name) => modificationTime(`${dir}/${name}`) > now);
+  return { state: waiting ? "none" : "loading" };
+}
+
 // The slug a cache file belongs to: its name up to the first dot.
 function slugOfFile(name) {
   return name.split(".")[0];
