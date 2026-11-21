@@ -2,6 +2,20 @@
 
 Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. So far it shows the list of cities and the time mode as designed in [Results layout](#results-layout), apart from what's marked TO-DO there. This file also records how the data can be read, and ideas for what comes next.
 
+## To-do
+
+- [ ] **Actions** for a city result (see [More details](#more-details)). Nothing is connected after the Script Filter yet, so ↩ does nothing.
+  - [ ] **↩:** open a full detail panel for the city, with every property. To be confirmed, but probably an HTML page shown in Alfred.
+  - [ ] **Copy** (modifier to be decided, probably ⌘): to decide what it copies in each mode, e.g. "9:00 AM Monday in London is 10:00 PM Monday in Auckland" in the time mode.
+  - [ ] **⌥:** edit the list in the Clock app, on the World Clock tab (see [Opening Clock](#opening-clock) for the ways to get there).
+  - [ ] **Alternative details:** show other data in the subtitle while a modifier is held, as ⌃ does with the sun details now.
+  - [ ] **Configurable modifiers:** which modifier does which action, as User Configuration options.
+  - [ ] **Remove Large Type** (`text.largetype`, `largeTypeText` in `lib/format.js`): it isn't very helpful, and the detail panel replaces it.
+- [ ] **Working day in User Configuration:** the hours behind the working status, fixed in `WORKING_DAY` in `lib/time.js` (see [Configuration](#configuration)).
+- [ ] **Icons:** design the 12 icons (7 phases, 5 working statuses) to replace the placeholders (see [Icon states](#icon-states)).
+- [ ] **Short country names:** fill in the name-to-show column of `resources/clock-countries.csv` and use it in `lib/format.js` (see [City properties](#city-properties)).
+- [ ] **Other configuration:** 12- or 24-hour time, showing the home city, sorting by time zone (see [Configuration](#configuration)).
+
 ## Design
 
 - **One keyword**, `wcc` by default (User Configuration variable `keyword`; `wc` is taken by Word Count). `wcc` alone lists every city. What's typed after it decides the mode: text starting with a digit, `+` or `-` is a time to convert (`wcc 3pm`, `wcc 9am London`, `wcc +5` for five hours from now; see [Time input](#time-input)); anything else narrows the list (`wcc new` matches New York and New Zealand). Meeting planning is part of the time mode rather than a separate keyword.
@@ -134,9 +148,11 @@ When weekend days come before the next start of work, the detail names the day w
 #### More details
 
 - **⌃ (held):** the subtitle shows the daylight state and sun times, e.g. "Nautical twilight | Sunrise 5:45 AM | Sunset 7:52 PM | Day 14h 6m (+2m/day)". The `day` state reads "Daylight" here, so it isn't confused with the day length.
-- **⌥:** opens Clock (see [Opening Clock](#opening-clock)).
-- **⌘:** a copy variant; its subtitle shows what it copies.
-- **Large Type (⌘L, `text.largetype`):** every property, one per line, including the UTC offset and the next clock change however far away.
+- **↩:** opens a detail panel with every property, including the UTC offset and the next clock change however far away (planned; see [To-do](#to-do)).
+- **⌥:** opens Clock, to edit the list (see [Opening Clock](#opening-clock)).
+- **Copy** (probably ⌘): its subtitle shows what it copies.
+- Which modifier does which action is to be configurable.
+- **Large Type (⌘L, `text.largetype`):** every property, one per line. To be removed, since the detail panel replaces it.
 - **`rerun`:** the list reruns every second (a run takes about 0.1s), so times and countdowns stay current while Alfred is open.
 
 The icons are image files in `icons/`, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by a JXA script with AppKit (`NSBezierPath` to PNG), so they can be regenerated from code. A phase's icon is `icons/phase-<phase>.png`, and a working status's `icons/status-<status>.png`. TO-DO: design the icons. The ones there are placeholders, a plain colour with the phase's or status's word, from `resources/make-placeholder-icons.js` (run from the workflow folder), which draws one for each phase in `DAY_PHASES` and each working status in its own list; rerun it after adding a phase or status.
