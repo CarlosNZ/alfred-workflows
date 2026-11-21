@@ -49,6 +49,19 @@ function matchesCity(city, query) {
   return cityWords(query).every((term) => words.some((word) => word.startsWith(term)));
 }
 
+// The city a query names, for reading a typed time in its zone: the first city
+// in Clock's order that matches it (as in matchesCity), as { city }. Several
+// matches are fine when they keep the same time at the moment (Auckland and
+// Wellington, for "new zealand"). Otherwise { error: "noCity" } or
+// { error: "severalZones" }.
+function findAnchorCity(cities, query, moment) {
+  const matches = cities.filter((city) => matchesCity(city, query));
+  if (matches.length === 0) return { error: "noCity" };
+  const key = clockKey(matches[0].timeZone, moment);
+  if (matches.some((city) => clockKey(city.timeZone, moment) !== key)) return { error: "severalZones" };
+  return { city: matches[0] };
+}
+
 // Splits text into words on spaces and punctuation, so "U.S.A." is three words
 // and typing "u.s" matches it.
 function cityWords(text) {

@@ -35,8 +35,10 @@ function run(argv) {
   const localCity = findLocalCity(loaded.cities, now);
 
   let cities = loaded.cities;
-  if (isTimeQuery(query)) {
+  const timeQuery = isTimeQuery(query);
+  if (timeQuery) {
     // TO-DO: convert the typed time into each city's local time.
+    logTypedTime(readTypedTime(query, loaded.cities, now));
   } else if (query) {
     cities = cities.filter((city) => matchesCity(city, query));
     if (cities.length === 0) {
@@ -47,7 +49,9 @@ function run(argv) {
   }
 
   const infos = cities.map((city) => describeCity(city, now, { isLocal: city === localCity }));
-  logCityInfos(infos);
+  // TO-DO: log the city values in the time mode too, once they're for the
+  // typed time rather than now.
+  if (!timeQuery) logCityInfos(infos);
 
   // Rerunning every second keeps the times and countdowns current while
   // Alfred is open; a run takes about a tenth of a second. skipknowledge stops
@@ -61,6 +65,14 @@ function run(argv) {
 // results. Dates appear as UTC ISO strings.
 function logCityInfos(infos) {
   console.log(JSON.stringify(infos, null, 2));
+}
+
+// Writes what a time query was read as to stderr, for the workflow's debugger,
+// as one line: readTypedTime's result, with the moment also shown in the zone it
+// was read in.
+function logTypedTime(typed) {
+  const shown = typed.moment && formatWithTemplate(typed.moment, typed.timeZone, "EEE d MMM y jj:mm z");
+  console.log(`Typed time: ${JSON.stringify({ ...typed, ...(shown && { shown }) })}`);
 }
 
 // Runs a file from lib/ in the global scope, so its top-level functions are

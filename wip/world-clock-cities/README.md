@@ -1,6 +1,6 @@
 # World Clock
 
-Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. So far it shows the list of cities as designed in [Results layout](#results-layout); converting a typed time isn't built yet. This file also records how the data can be read, and ideas for what comes next.
+Developer notes for a workflow that shows the current time in each city from the macOS Clock app's World Clock list. So far it shows the list of cities as designed in [Results layout](#results-layout); a typed time is read but not yet converted. This file also records how the data can be read, and ideas for what comes next.
 
 ## Design
 
@@ -143,7 +143,7 @@ The icons are image files in `icons/`, since Alfred's item icons are paths: 12 P
 
 ### Time input
 
-Parsing isn't fully designed yet. Alfred reruns the script on every keystroke, so input is often partly typed: it resolves as soon as it's unambiguous, and not before.
+Alfred reruns the script on every keystroke, so input is often partly typed: it resolves as soon as it's unambiguous, and not before. `readTypedTime` (in `lib/time.js`) reads it and works out the moment it means; its comment lists the results, including `incomplete` (could still become a time), `invalid` (can't) and `unknownCity`.
 
 ```
 3                      03:00 (24-hour when there's no am/pm)
@@ -166,7 +166,10 @@ Rules:
 - Minutes are two digits after a colon.
 - Midnight is always the start of a day: `0:00 fri` is the start of Friday.
 - A day is any prefix of a day name that matches only one day (`m`, `tu`, `w`, `th`, `f`, `sa`, `su` and longer), plus `weds`, in any case.
-- The time is always its next occurrence, now or later, with or without a day: on a Monday at 11am, `12:00 mon` is today at noon; at 1pm it's next Monday.
+- The time is always its next occurrence, now or later, with or without a day: on a Monday at 11am, `12:00 mon` is today at noon; at 1pm it's next Monday. A time in the current minute counts as now: at 3:00:27pm, `3pm` is today.
+- A city after the time, or after the day, reads the time in that city's zone: `9am London`, `12:00 mon London`. It's matched as in the list mode, and resolves once the cities it matches all keep the same time (`new zealand` matches Auckland and Wellington); `lon` (London, Longyearbyen) doesn't resolve yet. Text that matches no city is `unknownCity`.
+- The word after the time is read as a day if it can be one, so a city starting with a day's prefix needs enough letters to rule the day out: `9am sa` doesn't resolve (Saturday or Sunday), `9am san` is a city. Likewise a lone `a` or `p` after a space is am or pm: `3 a` is 3am until `3 au` makes it Auckland.
+- When the clocks go back and a time happens twice, it's the next of the two. When they go forward past it, it's read with the offset from before the change, as calendar apps do: `2:30` when clocks go forward at 2am is the moment they show 3:30.
 - No named times (`midnight`, `noon`): numbers only, so the time mode is simply any query starting with a digit, `+` or `-`.
 
 A time can also be relative to now, starting with `+` (later) or `-` (earlier):
@@ -192,7 +195,6 @@ Open questions:
 
 - What to show while the input doesn't resolve: probably a single "Keep typing…" item echoing the input. Falling back to the part that did resolve would mislead (`3:2` showing 03:00).
 - Input that can't become valid by typing more (`25:00`, `13pm`, `3:75`): a single "can't read that time" result.
-- Where a city goes alongside a day (`wcc 12:00 mon London`).
 
 ### Configuration
 
@@ -228,7 +230,7 @@ Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`
 
 The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay; in `info.plist`, `queuedelaymode` 2 and `queuedelaycustom` 2, in tenths of a second), and immediately for the first character. That skips most partly typed times without slowing down filtering, which "Automatic after last character typed" (`queuedelaymode` 1) did.
 
-Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit lists every city at the current time.
+Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit, `+`, `-` or `−` lists every city at the current time, unfiltered. It is read, though (see [Time input](#time-input)), and what it was read as goes to stderr on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. The city values aren't logged in the time mode, since they're for now rather than the typed time.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
 
