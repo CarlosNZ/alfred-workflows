@@ -191,10 +191,11 @@ Rules:
 - Relative times are the one way to reach the past, for "what time was it there when they sent that?".
 - A relative time is the same moment everywhere, so it takes no day name and needs no city to anchor it. Text after it narrows the list instead, as in the list mode (`wcc +5 new`).
 
-Open questions:
+Input that doesn't give a moment shows a single result in place of the cities (`typedTimeMessage` in `results.js`), since the cities at any other time would mislead (`3:2` showing 03:00, or the current time):
 
-- What to show while the input doesn't resolve: probably a single "Keep typing…" item echoing the input. Falling back to the part that did resolve would mislead (`3:2` showing 03:00).
-- Input that can't become valid by typing more (`25:00`, `13pm`, `3:75`): a single "can't read that time" result.
+- **Not resolved yet** (`3:2`, `8am t`, `9am lon`): "Keep typing…", with the input as the subtitle. It's usually only seen briefly, since the script waits for typing to pause.
+- **Can't become valid by typing more** (`25:00`, `13pm`, `3:75`): "Can't read that time", with examples of times it can read.
+- **Text after the time that matches no city** (`9am xyz`): "No city matches “xyz”".
 
 ### Configuration
 
@@ -230,7 +231,7 @@ Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`
 
 The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay; in `info.plist`, `queuedelaymode` 2 and `queuedelaycustom` 2, in tenths of a second), and immediately for the first character. That skips most partly typed times without slowing down filtering, which "Automatic after last character typed" (`queuedelaymode` 1) did.
 
-Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit, `+`, `-` or `−` lists every city at the current time, unfiltered. It is read, though (see [Time input](#time-input)), and what it was read as goes to stderr on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. The city values aren't logged in the time mode, since they're for now rather than the typed time.
+Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger. Time conversion isn't implemented: a query starting with a digit, `+`, `-` or `−` that gives a moment lists the cities at the current time (narrowed by the text after a relative time), and one that doesn't shows a single message (see [Time input](#time-input)). What it was read as goes to stderr on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. The city values aren't logged in the time mode, since they're for now rather than the typed time.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
 

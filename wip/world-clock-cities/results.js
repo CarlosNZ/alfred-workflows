@@ -35,15 +35,25 @@ function run(argv) {
   const localCity = findLocalCity(loaded.cities, now);
 
   let cities = loaded.cities;
+  // Text that narrows the list: the whole query in the list mode, and the text
+  // after a relative time in the time mode.
+  let filter = query;
   const timeQuery = isTimeQuery(query);
   if (timeQuery) {
+    const typed = readTypedTime(query, loaded.cities, now);
+    logTypedTime(typed);
+    // A query that gives no moment shows a single message in place of the
+    // cities, since the cities at any other time would mislead.
+    const message = typedTimeMessage(typed, query);
+    if (message) return output([{ ...message, valid: false }]);
+    filter = typed.filter;
     // TO-DO: convert the typed time into each city's local time.
-    logTypedTime(readTypedTime(query, loaded.cities, now));
-  } else if (query) {
-    cities = cities.filter((city) => matchesCity(city, query));
+  }
+  if (filter) {
+    cities = cities.filter((city) => matchesCity(city, filter));
     if (cities.length === 0) {
       return output([
-        { title: "No matching cities", subtitle: `Nothing in Clock's list matches “${query}”`, valid: false },
+        { title: "No matching cities", subtitle: `Nothing in Clock's list matches “${filter}”`, valid: false },
       ]);
     }
   }
@@ -65,6 +75,24 @@ function run(argv) {
 // results. Dates appear as UTC ISO strings.
 function logCityInfos(infos) {
   console.log(JSON.stringify(infos, null, 2));
+}
+
+// The single result for a time query that gives no moment (see readTypedTime),
+// as { title, subtitle }, or null when it gives one.
+function typedTimeMessage(typed, query) {
+  switch (typed.kind) {
+    case "incomplete":
+      return { title: "Keep typing…", subtitle: query };
+    case "invalid":
+      return { title: "Can't read that time", subtitle: `“${query}” isn't a time. Try 3pm, 15:30, 9am tu or +2` };
+    case "unknownCity":
+      return {
+        title: `No city matches “${typed.place}”`,
+        subtitle: "Type a city from Clock's list after the time, or leave it out",
+      };
+    default:
+      return null;
+  }
 }
 
 // Writes what a time query was read as to stderr, for the workflow's debugger,
