@@ -489,7 +489,7 @@
 				<key>pairs</key>
 				<array>
 					<array>
-						<string>Mac’s setting</string>
+						<string>System</string>
 						<string>system</string>
 					</array>
 					<array>
@@ -503,7 +503,7 @@
 				</array>
 			</dict>
 			<key>description</key>
-			<string>How times are shown. “Mac’s setting” follows System Settings › General › Date &amp; Time.</string>
+			<string>How times are shown. “System” follows System Settings › General › Date &amp; Time.</string>
 			<key>label</key>
 			<string>Time format</string>
 			<key>type</key>
@@ -564,6 +564,170 @@
 			<key>config</key>
 			<dict>
 				<key>default</key>
+				<string>09:00</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>5:30 AM</string>
+						<string>05:30</string>
+					</array>
+					<array>
+						<string>6:00 AM</string>
+						<string>06:00</string>
+					</array>
+					<array>
+						<string>6:30 AM</string>
+						<string>06:30</string>
+					</array>
+					<array>
+						<string>7:00 AM</string>
+						<string>07:00</string>
+					</array>
+					<array>
+						<string>7:30 AM</string>
+						<string>07:30</string>
+					</array>
+					<array>
+						<string>8:00 AM</string>
+						<string>08:00</string>
+					</array>
+					<array>
+						<string>8:30 AM</string>
+						<string>08:30</string>
+					</array>
+					<array>
+						<string>9:00 AM</string>
+						<string>09:00</string>
+					</array>
+					<array>
+						<string>9:30 AM</string>
+						<string>09:30</string>
+					</array>
+					<array>
+						<string>10:00 AM</string>
+						<string>10:00</string>
+					</array>
+					<array>
+						<string>10:30 AM</string>
+						<string>10:30</string>
+					</array>
+					<array>
+						<string>11:00 AM</string>
+						<string>11:00</string>
+					</array>
+					<array>
+						<string>11:30 AM</string>
+						<string>11:30</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Used for the working status shown for a specific time.</string>
+			<key>label</key>
+			<string>Working day start time</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>work_start</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>17:00</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>12:30 PM</string>
+						<string>12:30</string>
+					</array>
+					<array>
+						<string>1:00 PM</string>
+						<string>13:00</string>
+					</array>
+					<array>
+						<string>1:30 PM</string>
+						<string>13:30</string>
+					</array>
+					<array>
+						<string>2:00 PM</string>
+						<string>14:00</string>
+					</array>
+					<array>
+						<string>2:30 PM</string>
+						<string>14:30</string>
+					</array>
+					<array>
+						<string>3:00 PM</string>
+						<string>15:00</string>
+					</array>
+					<array>
+						<string>3:30 PM</string>
+						<string>15:30</string>
+					</array>
+					<array>
+						<string>4:00 PM</string>
+						<string>16:00</string>
+					</array>
+					<array>
+						<string>4:30 PM</string>
+						<string>16:30</string>
+					</array>
+					<array>
+						<string>5:00 PM</string>
+						<string>17:00</string>
+					</array>
+					<array>
+						<string>5:30 PM</string>
+						<string>17:30</string>
+					</array>
+					<array>
+						<string>6:00 PM</string>
+						<string>18:00</string>
+					</array>
+					<array>
+						<string>6:30 PM</string>
+						<string>18:30</string>
+					</array>
+					<array>
+						<string>7:00 PM</string>
+						<string>19:00</string>
+					</array>
+					<array>
+						<string>7:30 PM</string>
+						<string>19:30</string>
+					</array>
+					<array>
+						<string>8:00 PM</string>
+						<string>20:00</string>
+					</array>
+					<array>
+						<string>8:30 PM</string>
+						<string>20:30</string>
+					</array>
+					<array>
+						<string>9:00 PM</string>
+						<string>21:00</string>
+					</array>
+					<array>
+						<string>9:30 PM</string>
+						<string>21:30</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>⠀</string>
+			<key>label</key>
+			<string>Working day end time</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>work_end</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
 				<true/>
 				<key>required</key>
 				<false/>
@@ -571,7 +735,7 @@
 				<string>Download city thumbnails</string>
 			</dict>
 			<key>description</key>
-			<string>Downloads a picture of each city from Wikimedia Commons for its detail view. When off, no requests are made and cached pictures are deleted.</string>
+			<string>Downloads city images from Wikimedia Commons for the detail views. When off, no requests are made and cached pictures are deleted.</string>
 			<key>label</key>
 			<string>City pictures</string>
 			<key>type</key>

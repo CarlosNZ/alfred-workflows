@@ -5,9 +5,32 @@
 // and the time mode (a typed time) share them. They return values, not text;
 // lib/format.js turns values into text.
 
-// The working day, as hours of the day in each city's local time.
-// TO-DO: read the working day from User Configuration.
+// The working day by default, as hours of the day in each city's local time:
+// awake from 7:00, working 9:00–17:00, asleep from 22:00.
 const WORKING_DAY = { wake: 7, start: 9, end: 17, sleep: 22 };
+
+// The working day, as hours of the day in each city's local time, with the
+// start and end of work from the User Configuration (work_start and work_end,
+// "HH:MM"), each the default when it's unset or unreadable, and both when
+// they don't make a day. The waking and sleeping hours stay at the default,
+// since asleep is the night wherever work falls, unless work starts before
+// waking or ends after sleeping, which then move with it.
+function workingDay() {
+  let start = hourOfDay(environmentValue("work_start"));
+  let end = hourOfDay(environmentValue("work_end"));
+  if (start == null) start = WORKING_DAY.start;
+  if (end == null) end = WORKING_DAY.end;
+  if (start >= end) ({ start, end } = WORKING_DAY);
+  return { wake: Math.min(WORKING_DAY.wake, start), start, end, sleep: Math.max(WORKING_DAY.sleep, end) };
+}
+
+// A time of day as "HH:MM" (or "H:MM") in hours, e.g. 9.5 for "09:30", or
+// null if it isn't one.
+function hourOfDay(text) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(text || "");
+  if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) return null;
+  return Number(match[1]) + Number(match[2]) / 60;
+}
 
 // Saturday and Sunday, as weekdays (0 Sunday – 6 Saturday).
 const DEFAULT_WEEKEND = new Set([0, 6]);
@@ -318,7 +341,7 @@ function clockKey(timeZone, moment) {
 // Where a local time falls in the working day: "asleep", "morning", "working"
 // or "evening", or "weekend" for any but the asleep hours of a day in
 // `weekend`, the weekdays the city's country takes off.
-function workingStatus({ weekday, hour, minute }, weekend = DEFAULT_WEEKEND, day = WORKING_DAY) {
+function workingStatus({ weekday, hour, minute }, weekend = DEFAULT_WEEKEND, day = workingDay()) {
   const time = hour + minute / 60;
   const within = (from, to) => (from <= to ? time >= from && time < to : time >= from || time < to);
   let status = "asleep";
@@ -333,7 +356,7 @@ function workingStatus({ weekday, hour, minute }, weekend = DEFAULT_WEEKEND, day
 // otherwise the next start of work: { untilStart } minutes when it's the next
 // day's start, or { nextWorkday } (a weekday) when weekend days come first,
 // e.g. on a Friday night. Empty if every day is a weekend day.
-function workingDayTiming({ weekday, hour, minute }, status, weekend = DEFAULT_WEEKEND, day = WORKING_DAY) {
+function workingDayTiming({ weekday, hour, minute }, status, weekend = DEFAULT_WEEKEND, day = workingDay()) {
   const time = hour * 60 + minute;
   const minutesFrom = (from, to) => (((to - from) % 1440) + 1440) % 1440;
   if (status === "working") return { untilEnd: minutesFrom(time, day.end * 60) };

@@ -29,20 +29,11 @@ function allTimeFormats() {
   return Object.keys(TIME_FORMAT_TEMPLATES);
 }
 
-let chosenTimeFormat;
-
-// The time format formatTime uses: the one set with setTimeFormat, or else
-// the User Configuration's time_format.
+// The time format formatTime uses, from the User Configuration's
+// time_format. An unset or unknown value is "system".
 function timeFormat() {
-  if (chosenTimeFormat === undefined) setTimeFormat(environmentValue("time_format"));
-  return chosenTimeFormat;
-}
-
-// Sets the time format formatTime uses, for the detail views' pulse, which
-// doesn't get the workflow's variables (see saveShownTime in lib/detail.js).
-// An unset or unknown value is "system".
-function setTimeFormat(format) {
-  chosenTimeFormat = allTimeFormats().includes(format) ? format : "system";
+  const format = environmentValue("time_format");
+  return allTimeFormats().includes(format) ? format : "system";
 }
 
 // A moment's time in a time zone, in the chosen time format (timeFormat),

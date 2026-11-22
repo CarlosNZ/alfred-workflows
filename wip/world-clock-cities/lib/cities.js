@@ -15,10 +15,22 @@ function citiesSource() {
   };
 }
 
-// The value of an environment variable, or null when it's unset or empty. The
-// testing variables (WCC_CITIES_PLIST, WCC_NOW) can be workflow variables left
-// empty in Alfred, which counts as unset.
+// User Configuration values given with useSavedSettings, by variable name.
+let savedSettings = {};
+
+// Makes environmentValue give these User Configuration values ({ name: value
+// or null }), for the detail views' pulse, which doesn't get the workflow's
+// variables (see saveShownTime in lib/detail.js).
+function useSavedSettings(settings) {
+  savedSettings = settings || {};
+}
+
+// The value of an environment variable, or null when it's unset or empty, or
+// the value given with useSavedSettings. The testing variables
+// (WCC_CITIES_PLIST, WCC_NOW) can be workflow variables left empty in Alfred,
+// which counts as unset.
 function environmentValue(name) {
+  if (Object.prototype.hasOwnProperty.call(savedSettings, name)) return savedSettings[name] || null;
   const value = $.NSProcessInfo.processInfo.environment.objectForKey(name);
   return value.isNil() || value.js === "" ? null : value.js;
 }

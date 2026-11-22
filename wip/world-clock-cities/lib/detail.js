@@ -47,6 +47,11 @@ function detailVariables(city, info, typed, now) {
   };
 }
 
+// The User Configuration variables the detail views' text depends on, saved
+// for the pulse with the time the results show (saveShownTime): the time
+// format, and the working day behind the meeting mode's working status.
+const VIEW_SETTINGS = ["time_format", "work_start", "work_end"];
+
 // Where results.js saves the time its results show, for the detail views:
 // panels/shown-time.json in the cache, next to the views' packages.
 function shownTimePath() {
@@ -55,9 +60,9 @@ function shownTimePath() {
 
 // Saves the time the results show, so every open detail view shows the same:
 // { typed: null } for now (the list), or { typed } with the typed time (see
-// savedTypedTime), with timeFormat, the time format from the User
-// Configuration (timeFormat in lib/format.js). When the testing variables are
-// set, it also saves testNow, WCC_NOW's value, and testTimeZone, the Mac's
+// savedTypedTime), with the values of the User Configuration variables the
+// views use (VIEW_SETTINGS) as settings. When the testing variables are set,
+// it also saves testNow, WCC_NOW's value, and testTimeZone, the Mac's
 // zone as TZ made it. They're saved because the views' pulse runs in Alfred's
 // UI helper, which doesn't get the workflow's variables. results.js calls it whenever a query gives a moment, not
 // while a typed time is incomplete or unreadable, so views keep the last
@@ -69,7 +74,7 @@ function saveShownTime(typed, now) {
   try {
     const text = JSON.stringify({
       typed: typed ? savedTypedTime(typed, now) : null,
-      timeFormat: timeFormat(),
+      settings: Object.fromEntries(VIEW_SETTINGS.map((name) => [name, environmentValue(name)])),
       testNow: environmentValue("WCC_NOW") || undefined,
       testTimeZone: environmentValue("TZ") ? macTimeZone() : undefined,
     });
