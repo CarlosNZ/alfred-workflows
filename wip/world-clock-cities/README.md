@@ -20,9 +20,9 @@ Developer notes for a workflow that shows the current time in each city from the
   - [ ] **Configurable modifiers:** which modifier does which action, as User Configuration options.
   - [ ] **Remove Large Type** (`text.largetype`, `largeTypeText` in `lib/format.js`): it isn't very helpful, and the detail view replaces it. The daylight state (golden hour, the twilights) is only shown there; move it to the detail view, beside the sun's elevation, or let it go.
 - [ ] **Working day in User Configuration:** the hours behind the working status, fixed in `WORKING_DAY` in `lib/time.js` (see [Configuration](#configuration)).
-- [ ] **Icons:** design the 12 icons (7 phases, 5 working statuses) to replace the placeholders (see [Icon states](#icon-states)).
+- [x] **Icons:** design the 12 icons (7 phases, 5 working statuses) to replace the placeholders (see [Icon states](#icon-states)).
   - [x] **Phases of the day:** a sky over the sea with the sun along an arc (see [Phases of the day](#phases-of-the-day)).
-  - [ ] **Working statuses:** the same tile and finish as the phases, in the traffic-light colours, with a simple symbol in place of the sky.
+  - [x] **Working statuses:** the same tile and finish as the phases, in the traffic-light colours, with a simple symbol in place of the sky (see [Working statuses](#working-statuses)).
 - [ ] **Short country names:** fill in the name-to-show column of `resources/clock-countries.csv` and use it in `lib/format.js` (see [City properties](#city-properties)).
 - [ ] **Other configuration:** 12- or 24-hour time, showing the home city, sorting by time zone (see [Configuration](#configuration)).
 
@@ -67,7 +67,7 @@ The sun values come from the NOAA solar position algorithm (after Meeus): about 
 
 ### Results layout
 
-Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. The list and the time mode are built, the time mode with placeholder icons; ⌥ and ⌘ aren't yet.
+Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. The list and the time mode are built; ⌥ and ⌘ aren't yet.
 
 #### The list
 
@@ -137,17 +137,19 @@ Polar day and night have no phases of their own: the polar night's noon sun can 
 
 ##### Working statuses
 
-The time mode's icons. The hours are the city's local time, from `WORKING_DAY` in `lib/time.js` (to move to User Configuration). The colours are a traffic light for scanning which cities a time suits.
+The time mode's icons. The hours are the city's local time, from `WORKING_DAY` in `lib/time.js` (to move to User Configuration). The colours are a traffic light for scanning which cities a time suits, with orange between amber and red for the evening, and a royal blue for the weekend, as strong as the working green, with a hue between the phases' sky blues and the violet of dawn and dusk.
 
 | Status    | Local hours                                         | Icon              | Word          | Detail                                                                  |
 | --------- | --------------------------------------------------- | ----------------- | ------------- | ----------------------------------------------------------------------- |
 | `morning` | 7:00–9:00                                           | Amber, coffee cup | Early morning | Until work starts: "work in 1h"                                         |
 | `working` | 9:00–17:00                                          | Green, briefcase  | Working       | Until work ends: "3h left"                                              |
-| `evening` | 17:00–22:00                                         | Amber, lamp       | Evening       | Since work ended: "2h after work"                                       |
+| `evening` | 17:00–22:00                                         | Orange, lamp      | Evening       | Since work ended: "2h after work"                                       |
 | `asleep`  | 22:00–7:00                                          | Red, bed          | Asleep        | Until work starts: "work in 3h"                                         |
-| `weekend` | The country's weekend days, except the asleep hours | Grey, deckchair   | Weekend       | Until work starts: "work Mon", or "work in 18h" on the last weekend day |
+| `weekend` | The country's weekend days, except the asleep hours | Blue, umbrella    | Weekend       | Until work starts: "work Mon", or "work in 18h" on the last weekend day |
 
 When weekend days come before the next start of work, the detail names the day work starts instead of counting the hours: "work Mon" on a Friday night (asleep) or a Saturday afternoon (weekend), "work Sun" in Israel. Once the next start of work is the following morning, it counts the hours again: "work in 18h" on a Sunday afternoon.
+
+Every status's icon is the phases' tile, with the same glossy sheen and thin light edge, so the two sets look like one family. Rather than a scene, it's filled with the status's colour, lighter at the top, with a white symbol in the middle that casts a soft shadow: a coffee cup with steam, a briefcase, a table lamp, someone asleep in bed (a head by the headboard and a body under the covers, kept plain so it reads at 16px, with rising Zs as in 💤), and a beach umbrella on a tilt, centred by its bounds. Having no horizon or sky keeps a status from being read as a phase, even at 16px. The evening is orange rather than the early morning's amber, so the two differ by more than their symbols, and amber, orange and red run through the day; it stays clear of the purples of the sunset and dusk phases. The weekend's symbol is an umbrella rather than a deckchair, which turned into a stick figure at Alfred's result size.
 
 #### Durations
 
@@ -169,7 +171,7 @@ The icons are image files in `icons/`, since Alfred's item icons are paths: 12 P
 
 The phases' icons come from `resources/make-phase-icons.js` (run from the workflow folder), which draws one for each phase in `DAY_PHASES`, with each phase's colours and the sun's place in its `LOOKS`, and refuses to run if a phase has none. It builds each icon as SVG and has `NSImage` draw it to a PNG: CoreSVG renders the gradients, clipping, masks and Gaussian blur the scene needs, which in AppKit alone would mean piecing gradients together stop by stop. CoreSVG's SVG support is partial, so check what it draws rather than a browser: it ignores separate horizontal and vertical blur amounts (logging "Different radii for gaussian blur not supported"; run with `CORESVG_VERBOSE=1` to see its messages), and placed the reflection's radial gradient differently from a browser, so the reflection uses a linear gradient in user space. Given a folder as its argument, the script also writes each icon's SVG there.
 
-TO-DO: design the working statuses' icons. The ones there are placeholders, a plain colour with the status's word, from `resources/make-placeholder-icons.js`; rerun it after adding a status.
+The working statuses' icons come from `resources/make-status-icons.js` (run from the workflow folder), which draws one for each status in `WORKING_STATUS_WORDS` (in `lib/format.js`), with each status's colours and symbol in its `LOOKS` and the symbols' shapes in `SYMBOLS`, and refuses to run if a status has no look. It builds the SVG and draws it as the phases' script does, and also writes the SVGs to a folder given as its argument. A symbol's cut-out details (the briefcase's band and clasp, the umbrella's ribs) are drawn over it in the tile's own gradient, set in user space so it lines up with the tile behind, rather than cut out with a mask: CoreSVG drew a mask's curves jagged.
 
 ### Time input
 
