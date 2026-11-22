@@ -76,9 +76,12 @@ function run(argv) {
   // clock. skipknowledge stops Alfred reordering the items by usage, which
   // their uids would otherwise allow, so they stay in Clock's order.
   const rerun = !timeQuery || typed.kind === "relative";
-  const items = infos.map((info, i) =>
-    timeQuery ? timeCityItem(info, cities[i], typed, now) : cityItem(info, cities[i], null, now),
-  );
+  // The search that shows these results, for ⌫ in a city's inline view to go
+  // back to (see panel.zsh). On each item's own variables, beside the city's.
+  const search = `${environmentValue("keyword") || "wcc"} ${query}`;
+  const items = infos
+    .map((info, i) => (timeQuery ? timeCityItem(info, cities[i], typed, now) : cityItem(info, cities[i], null, now)))
+    .map((item) => ({ ...item, variables: { ...item.variables, detail_search: search } }));
   return output(items, { ...(rerun && { rerun: 1 }), skipknowledge: true });
 }
 
@@ -127,16 +130,16 @@ function loadLib(file) {
 }
 
 // An Alfred item for a city in the list, from describeCity's values and the
-// city's Clock record. ↩ shows the city's detail view inside Alfred and ⌘↩ in
-// a window of its own, both from the item's variables (see detailVariables),
-// which ⌘ marks with detail_launch. ⌥↩ opens Clock on its World Clock tab
+// city's Clock record. ↩ shows the city's inline view and ⌘↩ its detail
+// window, both from the item's variables (see detailVariables), which ⌘
+// marks with detail_launch. ⌥↩ opens Clock on its World Clock tab
 // (open-clock.applescript), to edit the list. `typed` is the typed time in the
 // time mode (readTypedTime), for the detail view, and null in the list.
 function cityItem(info, city, typed, now) {
   const details = sunDetails(info);
   const variables = detailVariables(city, info, typed, now);
-  const panel = {
-    subtitle: `Open ${info.name} in its own panel`,
+  const detailWindow = {
+    subtitle: `Open ${info.name} in its own window`,
     arg: variables.detail_slug,
     variables: { ...variables, detail_launch: "window" },
   };
@@ -151,7 +154,7 @@ function cityItem(info, city, typed, now) {
     variables,
     text: { largetype: largeTypeText(info) },
     mods: {
-      cmd: panel,
+      cmd: detailWindow,
       alt: { subtitle: "Edit cities in Clock app" },
       ...(details && { ctrl: { subtitle: details, valid: false } }),
     },

@@ -1,5 +1,5 @@
-// The city detail view, shown inside Alfred with ↩ and in a window of its own
-// with ⌘↩. Loaded by results.js, which hands each city to the view through
+// The city detail view, in two versions: the inline view, inside Alfred, on
+// ↩, and the detail window, a window of its own, on ⌘↩. Loaded by results.js, which hands each city to the view through
 // workflow variables, and by detail.js, the view's pulse script, which fills
 // it in. Its layout is in lib/panel.js. Uses format.js, pictures.js and, in the
 // pulse, panel.js.
@@ -22,7 +22,7 @@ const DETAIL_CLOCK_CHANGE_DAYS = 7;
 
 // Workflow variables set on a city's result, for the detail view:
 // detail_slug names the city (citySlug, from Clock's identifier);
-// detail_title is the window's title; detail_clock_change is "1" when the
+// detail_title is the detail window's title; detail_clock_change is "1" when the
 // view has a line for a clock change (detailClockChange), "0" otherwise.
 // panel.zsh uses these to pick the city's package and its layout.
 // detail_city is the city's record,
@@ -131,12 +131,12 @@ function detailClockChange(info, meeting, now) {
 // ignored by Alfred. The labels that can be too long get a font that fits
 // their text (fittedFont), sent every time, since the text can change.
 //
-// The two modes fill the same components, so a window can switch between
-// them: the context line is the offset from you (now) or the typed time
-// (meeting); the tile is the phase of the day or the working status; and the
-// sun details are the sun's elevation and the day length, or the working day
-// and the nearest sunrise or sunset at the typed time (left out in polar day
-// or night, which the sun times line already names).
+// The two modes fill the same components, so a detail window can switch
+// between them: the context line is the offset from you (now) or the typed
+// time (meeting); the tile is the phase of the day or the working status; and
+// the sun details are the sun's elevation and the day length, or the working
+// day and the nearest sunrise or sunset at the typed time (left out in polar
+// day or night, which the sun times line already names).
 function detailUpdate(info, { typed, now, picture, iconsDir, layout }) {
   const meeting = Boolean(typed);
   const change = detailClockChange(info, meeting, now);

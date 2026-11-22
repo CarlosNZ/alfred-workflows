@@ -1,7 +1,7 @@
 #!/bin/zsh -f
 # Gives a city its own Alfred UI package for the detail view, and prints its
-# path for the Alfred UI object to open: inside Alfred for ↩, in a window of
-# its own for ⌘↩.
+# path for the Alfred UI object to open: the inline view, inside Alfred, for
+# ↩, and the detail window, a window of its own, for ⌘↩.
 #
 # The city comes from the result's variables (see detailVariables in
 # lib/detail.js): $detail_slug names it, $detail_city is its record and
@@ -13,17 +13,18 @@
 #
 # Each city has a package per launch in the cache, named after them (e.g.
 # panels/20-window.alfredui). It holds a link to detail.js (the pulse
-# script), the city's record in city.json, and a link to the view's layout:
+# script), the city's record in city.json, for the inline view the search it
+# was opened from in search.txt, and a link to the view's layout:
 # the variant of lib/panel.js's layout for the launch and whether there's a
 # picture slot and a clock change line, built into panels/layouts/ the first
 # time it's needed and again whenever lib/panel.js changes. Alfred keeps one
-# window per package path, so each city gets one window, and opening one
-# that's already open brings its window to the front, keeping the layout it
-# opened with; so an open window's layout link is left alone, since its pulse
-# sizes the window from it (windowResize in detail.js). The mode and typed
-# time aren't the package's: every view follows the results' latest, from
-# panels/shown-time.json (saveShownTime in lib/detail.js). frameautosave is
-# keyed on the path too, so each window keeps its own position.
+# window per package path, so each city gets one detail window, and opening
+# one that's already open brings its window to the front, keeping the layout
+# it opened with; so an open detail window's layout link is left alone, since
+# its pulse sizes the window from it (windowResize in detail.js). The mode and
+# typed time aren't the package's: every view follows the results' latest,
+# from panels/shown-time.json (saveShownTime in lib/detail.js). frameautosave
+# is keyed on the path too, so each detail window keeps its own position.
 
 emulate -L zsh
 setopt err_exit no_unset
@@ -85,6 +86,12 @@ ln -sfh $workflow/detail.js $package/detail.js
 # reads half a file.
 print -rn -- $detail_city > $package/city.json.tmp
 mv -f $package/city.json.tmp $package/city.json
+# The search whose results the inline view was opened from, which its ⌫ goes
+# back to (`detail.js back`).
+if [[ $launch == inline ]]; then
+  print -rn -- ${detail_search:-} > $package/search.txt.tmp
+  mv -f $package/search.txt.tmp $package/search.txt
+fi
 
 # The cheap checks here, so a view of a city that has its picture (or has
 # none to find) doesn't start osascript; fetch-pictures.js checks the rest.

@@ -4,15 +4,16 @@
 // fills in the view's components, by id, on every pulse (detailUpdate in
 // lib/detail.js).
 //
-// The now and meeting modes share the layout, so an open window can switch
-// between them when its city is opened again from the other mode: only the
-// text and the tile differ (see detailUpdate).
+// The now and meeting modes share the layout, so an open detail window can
+// switch between them when its city is opened again from the other mode: only
+// the text and the tile differ (see detailUpdate).
 //
 // What's in the layout is fixed when the view opens, because Alfred UI can't
 // add or remove a line later: a hidden component, or a label with no text,
 // still takes its space. So each combination of these has its own variant:
-//   launch       "inline" (↩, inside Alfred) or "window" (⌘↩), which leaves
-//                room for the window buttons at the top
+//   launch       "inline" (↩, the inline view, inside Alfred) or "window"
+//                (⌘↩, the detail window), which leaves room for the window
+//                buttons at the top
 //   picture      true for a slot for the city's picture, which shows the
 //                picture or a placeholder while it's loading; false when
 //                there's none, so the city's name and time move to the left
@@ -20,8 +21,8 @@
 //                change (see detailClockChange in lib/detail.js)
 
 // Colours: hex RGB or RGBA, or rgb(r, g, b, alpha). Explicit colours rather
-// than the system's label colours, since inside Alfred the view takes the
-// theme's appearance, which may be light, while its background is dark.
+// than the system's label colours, since the inline view takes the theme's
+// appearance, which may be light, while its background is dark.
 const PANEL_TINT = "rgb(18, 18, 20, 0.55)"; // Now Playing's default (transparency 45)
 const TEXT_COLOUR = "#FFFFFF";
 const SECONDARY_TEXT_COLOUR = "#FFFFFFA6";
@@ -30,7 +31,7 @@ const PICTURE_PLACEHOLDER_COLOUR = "#FFFFFF1A";
 
 // Spacing, in points.
 const PANEL_PADDING = 20; // around the content
-const WINDOW_BUTTONS_INSET = 14; // extra space above the content in a window, clear of its buttons
+const WINDOW_BUTTONS_INSET = 14; // extra space above the content in a detail window, clear of its buttons
 const SECTION_SPACING = 16; // between the sections, from the top: the context line, the city, the time zone, the sun
 const LINE_SPACING = 2; // between the lines within a section
 const PICTURE_GAP = 18; // between the picture and the city's name
@@ -73,16 +74,16 @@ const TEXT_WIDTH_MARGIN = 6;
 // height (Alfred UI can't fit a window to its content).
 const LINE_HEIGHT = 1.22;
 
-// Added to the window's height in its layout: with these window settings,
-// Alfred opens the window this much shorter than the size it's given
-// (measured on macOS 26, where it's the title bar's height). Inside Alfred
-// the view is exactly the height it's given. The pulse's resize
+// Added to a detail window's height in its layout: with these window
+// settings, Alfred opens the window this much shorter than the size it's
+// given (measured on macOS 26, where it's the title bar's height). The inline
+// view is exactly the height it's given. The pulse's resize
 // (windowResize in detail.js) gives the size exactly, so it takes it off.
 const WINDOW_HEIGHT_ADJUSTMENT = 32;
 
-// The window: Now Playing's defaults, with the window buttons over a
-// transparent title bar. Inside Alfred these are ignored, and the view takes
-// the theme's width and the height in `size`.
+// The detail window: Now Playing's defaults, with the window buttons over a
+// transparent title bar. The inline view ignores these, and takes the theme's
+// width and the height in `size`.
 const WINDOW_SETTINGS = {
   title: "{var:detail_title}",
   titlevisibility: false,
@@ -95,6 +96,23 @@ const WINDOW_SETTINGS = {
   appearance: "dark",
   frameautosave: true,
 };
+
+// The root view's shortcuts. In the detail window, ⎋ closes it. In the inline
+// view, Alfred takes ⎋ before the view sees it, and hides; ⌫ goes back to the
+// results the view was opened from (`detail.js back`), since Alfred's stacking
+// can't: the results are gone by the time the view opens. ↩ and ⌘↩ open the
+// city's detail window: finishing hands detail_launch to the inline view's
+// Alfred UI object, which connects to the detail window's Run Script, with the
+// city's other variables still in the stream from its result.
+function panelShortcuts(inWindow) {
+  if (inWindow) return [{ shortcut: "⎋", action: { type: "json", src: { finish: {} } } }];
+  const openWindow = { type: "json", src: { finish: { variables: { detail_launch: "window" } } } };
+  return [
+    { shortcut: "⌫", action: { type: "script", src: "./detail.js", args: ["back"], async: true } },
+    { shortcut: "↩", action: openWindow },
+    { shortcut: "⌘↩", action: openWindow },
+  ];
+}
 
 // The ui.json for a variant of the view (see the top of this file).
 function panelUi({ launch, picture, clockChange }) {
@@ -120,7 +138,7 @@ function panelUi({ launch, picture, clockChange }) {
         direction: "vertical",
         padding: PANEL_PADDING,
         background: PANEL_TINT,
-        shortcuts: [{ shortcut: "⎋", action: { type: "json", src: { finish: {} } } }],
+        shortcuts: panelShortcuts(inWindow),
         // The sections are in a column of their own, so the space for the
         // window buttons above them isn't followed by a section's spacing.
         components: [
@@ -137,8 +155,9 @@ function panelUi({ launch, picture, clockChange }) {
 // country, time, date, flag.
 //
 // The rows are border layouts so the text is in the centre region, which
-// takes the width the sides leave: a label in an inline row keeps the width
-// of the space it starts with, so the pulse's text was cut off.
+// takes the width the sides leave: a label in a row with an inline layout
+// keeps the width of the space it starts with, so the pulse's text was cut
+// off.
 function cityHeader(picture) {
   const text = column(LINE_SPACING, [
     panelLabel("city", FONTS.city),
@@ -258,8 +277,8 @@ function flagWidth() {
 // The font a label that shrinks to fit (one in MIN_FONT_SIZES) needs for
 // `text`: its font in FONTS if the text fits the label's width, otherwise
 // the largest size, by half points, that fits, down to its minimum. `layout`
-// says whether the view has a picture slot ({ picture }). Inside Alfred the
-// view is the theme's width, which the pulse can't see, so the label's width
+// says whether the view has a picture slot ({ picture }). The inline view is
+// the theme's width, which the pulse can't see, so the label's width
 // is worked out from WINDOW_WIDTH there too: with a narrower theme, a long
 // name can still be cut off.
 function fittedFont(id, text, layout) {

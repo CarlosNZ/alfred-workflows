@@ -13,6 +13,10 @@
 // With the arguments `ui <launch> <picture> <clockChange>`, it prints that
 // variant of the view's ui.json instead (see lib/panel.js), for panel.zsh.
 // <picture> and <clockChange> are 1 or 0.
+//
+// With the argument `back`, run by ⌫ in the inline view, it shows Alfred's
+// results again, by searching for what the view was opened from (search.txt
+// in the package, see panel.zsh), or finishes the view if there's none.
 
 ObjC.import("Foundation");
 ObjC.import("CoreFoundation");
@@ -22,6 +26,7 @@ const LIBS = ["lib/cities.js", "lib/time.js", "lib/sun.js", "lib/format.js", "li
 
 function run(argv) {
   const { packageDir, workflowDir } = scriptFolders();
+  if (argv[0] === "back") return backToResults(packageDir);
   $.NSFileManager.defaultManager.changeCurrentDirectoryPath(workflowDir);
   LIBS.forEach(loadLib);
 
@@ -52,13 +57,13 @@ function run(argv) {
   return JSON.stringify({ ...update, ...windowResize(packageDir, ui) });
 }
 
-// For a window (a package named …-window.alfredui, see panel.zsh), a JSON
-// Action giving it the size in its layout (`ui`, the package's ui.json):
+// For a detail window (a package named …-window.alfredui, see panel.zsh), a
+// JSON Action giving it the size in its layout (`ui`, the package's ui.json):
 // frameautosave restores the window's saved size over the size in its
 // layout, which would keep the size of whichever layout it last had. The
 // layout is the one the window opened with, since panel.zsh doesn't relink an
-// open window's. Never for the view inside Alfred, which would resize
-// Alfred's own window.
+// open window's. Never for the inline view, which would resize Alfred's own
+// window.
 function windowResize(packageDir, ui) {
   if (!packageDir.endsWith("-window.alfredui")) return {};
   const size = ui && ui.window && ui.window.size;
@@ -69,6 +74,28 @@ function windowResize(packageDir, ui) {
 // the file it links to. osascript's arguments are its own path, "-l",
 // "JavaScript", then the script's path, which may be relative to the working
 // directory.
+// Starts a search in Alfred for the package's search.txt, which replaces the
+// inline view with those results, and prints no JSON Action. Without a search, a
+// finish action, which hides Alfred.
+function backToResults(packageDir) {
+  const search = $.NSString.stringWithContentsOfFileEncodingError(`${packageDir}/search.txt`, $.NSUTF8StringEncoding, null);
+  if (search.isNil() || search.js === "") return JSON.stringify({ finish: {} });
+  // From a process of its own, not waited for: Alfred runs this script from
+  // the view and waits for it to end, so asking Alfred to search from here
+  // and waiting for its reply would deadlock (tested: Alfred hung). The
+  // search goes in as an argument, not into the script's source.
+  $.NSTask.launchedTaskWithLaunchPathArguments("/usr/bin/osascript", [
+    "-e",
+    "on run argv",
+    "-e",
+    'tell application id "com.runningwithcrayons.Alfred" to search (item 1 of argv)',
+    "-e",
+    "end run",
+    search.js,
+  ]);
+  return JSON.stringify({});
+}
+
 function scriptFolders() {
   const path = ObjC.deepUnwrap($.NSProcessInfo.processInfo.arguments)[3];
   const url = $.NSURL.fileURLWithPath(path);
