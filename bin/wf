@@ -204,6 +204,10 @@ ship_files() {
 # either area, since promote moves workflows after release.
 warn_if_not_release() {
   local slug=$1 d=$2 ver=$3 tag=$1/v$3 rel=${2#$REPO/} area tagged=
+  if [[ -z $ver ]]; then
+    info "Warning: $slug has no version set, so this build is not a release"
+    return 0
+  fi
   if ! git -C $REPO rev-parse -q --verify refs/tags/$tag >/dev/null; then
     info "Warning: there is no $tag tag, so this build is not a tagged release"
     return 0
@@ -260,13 +264,12 @@ cmd_build() {
   d=$(wf_path $slug)
   sync_workflow $d
   ver=$(plist_get $d/info.plist version)
-  [[ -n $ver ]] || die "$slug has no version set (use 'wf release $slug <version>')"
   if (( allow_unsigned )); then
     check_notarised $d warn
   else
     check_notarised $d
   fi
-  warn_if_not_release $slug $d $ver
+  warn_if_not_release $slug $d "$ver"
   stage=$(mktemp -d)
   trap "rm -rf ${(q)stage}" EXIT
   ship_files $d | while IFS= read -r f; do
@@ -276,7 +279,7 @@ cmd_build() {
   [[ -f $stage/info.plist ]] || die "info.plist is not part of the build (is it gitignored?)"
   $PLIST_TOOL strip $stage/info.plist
   mkdir -p $REPO/dist
-  out=$REPO/dist/$slug-$ver.alfredworkflow
+  out=$REPO/dist/$slug-${ver:-unversioned}.alfredworkflow
   rm -f $out
   (cd $stage && zip -q -r -X -y $out .)
   info "Built dist/${out:t}"
@@ -480,7 +483,8 @@ Usage: wf <command> [args]
   build [--allow-unsigned] <slug>
                               Sync the workflow's info.plist (as sync-config and sync-readme do),
                               then build dist/<slug>-<version>.alfredworkflow at the current
-                              version; fails if a compiled binary isn't notarised, unless
+                              version (<slug>-unversioned without one), warning when it isn't
+                              a tagged release; fails if a compiled binary isn't notarised, unless
                               --allow-unsigned
   release [--allow-unsigned] <slug> <version>
                               Set the version, commit, tag <slug>/v<version>, build, and open a

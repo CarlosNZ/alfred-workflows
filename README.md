@@ -38,7 +38,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
 | `wf release [--allow-unsigned] <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
-| `wf build [--allow-unsigned] <slug>` | Sync the workflow's `info.plist` (as `sync-config` and `sync-readme` do), then rebuild `dist/<slug>-<version>.alfredworkflow` at the current version; see [Compiled binaries](#compiled-binaries) |
+| `wf build [--allow-unsigned] <slug>` | Sync the workflow's `info.plist` (as `sync-config` and `sync-readme` do), then build `dist/<slug>-<version>.alfredworkflow` at the current version, or `dist/<slug>-unversioned.alfredworkflow` before the first release, to try a build before releasing it. It warns when the build isn't exactly a tagged release; see [Compiled binaries](#compiled-binaries) |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
 | `wf sync-config [<slug>]` | Copy the shared User Configuration options into every workflow that uses them, or only into one; see [Shared User Configuration](#shared-user-configuration) |
 | `wf sync-readme [--force] [<slug>]` | Copy each workflow's user guide from `README.md` into its `info.plist`, or only one's; see [User-facing docs](#user-facing-docs) |
