@@ -8,7 +8,7 @@
 // It runs in one of two ways:
 // - The fetcher, for every city missing a picture, started by results.js.
 //   fetch-pictures.zsh holds the lock, so only one runs at a time, and its
-//   requests are REQUEST_INTERVAL_SECONDS apart.
+//   requests to each host are REQUEST_INTERVAL_SECONDS apart.
 // - For one city whose detail view has just opened (argv[1] "view"), started
 //   by panel.zsh, so its picture arrives within seconds rather than when the
 //   fetcher gets to it. It runs alongside the fetcher, without the lock, and
@@ -18,18 +18,20 @@
 //   waiting.
 //
 // For each city:
-// 1. Match it to its Wikidata item: among the search results for its name
-//    whose coordinates are within MATCH_RADIUS_KM of Clock's, the first
-//    named exactly that (by label or alias), or failing that the first. The
-//    name rules out Auckland Region, whose centre is near Auckland's; search
-//    order puts New York City (alias "New York") before the New York Stock
-//    Exchange; the distance rules out New York State.
-// 2. Take the item's image (P18), or failing that, its English Wikipedia
-//    article's page image, which is sometimes the nicer picture.
+// 1. Match it to its English Wikipedia article, with one search: of the
+//    results whose coordinates are within MATCH_RADIUS_KM of Clock's, the
+//    first titled with its name (as "Phoenix, Arizona" is), or failing that
+//    the first. The search ranks the city's own article first ("New York"
+//    finds New York City), and the distance rules out namesakes elsewhere.
+// 2. Take the article's page image (its lead image), which editors choose to
+//    stand for the city, so it's usually its best-known sight (the Opera House
+//    for Sydney). Failing that, or when it's a flag or map rather than a
+//    photograph (as for a city that's also a country), take the image (P18)
+//    of the article's Wikidata item.
 // 3. Download a PICTURE_WIDTH thumbnail of it from Commons, convert it to JPEG
 //    with sips, and move it into place, so a reader never sees half a file.
 //
-// No item or no image: the city gets a .none marker and isn't tried again.
+// No article or no image: the city gets a .none marker and isn't tried again.
 // A failure particular to the city gets a .failed marker, retried later. A
 // network failure (no connection, a timeout, or Wikimedia answering 429 or
 // 5xx) would fail the next city too, so it stops the run and sets .backoff.
@@ -53,8 +55,8 @@ const MATCH_RADIUS_KM = 50;
 const SEARCH_LIMIT = 10;
 const REQUEST_TIMEOUT_SECONDS = 20;
 // Wikimedia rate-limits clients that send requests in quick succession,
-// answering 429 with a Retry-After of a few seconds. Requests are spaced out,
-// and a short Retry-After is waited out rather than treated as a network
+// answering 429 with a Retry-After of a few seconds. Requests to each host are
+// spaced out, and a short Retry-After is waited out rather than treated as a network
 // failure.
 const REQUEST_INTERVAL_SECONDS = 2;
 // Temporary files older than this are left over from a fetch that was
@@ -131,19 +133,24 @@ function fetchPictures(cities, dir, lock) {
 
 function fetchCityPicture(city, dir) {
   const label = `${city.slug} ${city.name}`;
-  const item = matchWikidataItem(city);
-  if (!item.id) return recordNone(dir, city, item.reason);
+  const article = matchWikipediaArticle(city);
+  if (!article.title) return recordNone(dir, city, article.reason);
 
-  let source = "Wikidata image (P18)";
-  let file = item.image;
-  if (!file) {
-    source = "English Wikipedia page image";
-    file = wikipediaPageImage(item.id);
+  // The page image, if it's a photograph on Commons, otherwise P18.
+  let source = "English Wikipedia page image";
+  let file = article.image;
+  let info = file && isPhotograph(file) ? commonsImageInfo(file) : null;
+  let passedOver = "";
+  if (!info) {
+    if (file) passedOver = ` (passed over Wikipedia's ${file})`;
+    source = "Wikidata image (P18)";
+    file = article.wikidataId ? wikidataImage(article.wikidataId) : null;
+    info = file ? commonsImageInfo(file) : null;
   }
-  if (!file) return recordNone(dir, city, `${item.id} has no image, and no Wikipedia page image`);
-
-  const info = commonsImageInfo(file);
-  if (!info) return recordNone(dir, city, `${file} isn't on Commons`);
+  if (!info) {
+    const item = article.wikidataId || "its Wikidata item";
+    return recordNone(dir, city, `“${article.title}” has no page image to use, and ${item} no P18 image on Commons${passedOver}`);
+  }
 
   const download = `${dir}/${temporaryName(city.slug)}`;
   const converted = `${download}.jpg`;
@@ -159,9 +166,9 @@ function fetchCityPicture(city, dir) {
       {
         city: city.name,
         country: city.country,
-        wikidata: `https://www.wikidata.org/wiki/${item.id}`,
-        wikidataLabel: item.label,
-        distanceKm: Math.round(item.distanceKm * 10) / 10,
+        wikipedia: `https://en.wikipedia.org/wiki/${encodeURIComponent(article.title.replace(/ /g, "_"))}`,
+        wikidata: article.wikidataId ? `https://www.wikidata.org/wiki/${article.wikidataId}` : null,
+        distanceKm: Math.round(article.distanceKm * 10) / 10,
         source,
         file: info.descriptionurl,
         artist: plainText(meta.Artist && meta.Artist.value),
@@ -176,66 +183,99 @@ function fetchCityPicture(city, dir) {
   moveFile(converted, `${dir}/${city.slug}.jpg`);
   removeFile(download);
   removeFile(`${dir}/${city.slug}.failed`);
-  log(`${label}: ${item.id} (${item.label}, ${item.distanceKm.toFixed(1)} km), ${source}: ${file}`);
+  log(`${label}: “${article.title}” (${article.wikidataId}, ${article.distanceKm.toFixed(1)} km), ${source}: ${file}${passedOver}`);
 }
 
-// The city's Wikidata item, as { id, label, distanceKm, image }, where image is
-// its P18 file name, or null. { reason } when no search result is close enough.
-// Of the results close enough, the first whose label or matched alias is the
-// city's name wins, otherwise the first.
-// One request for the search (which gives the order) and one for the results'
-// coordinates and images (which Wikidata's page image takes from P18).
-function matchWikidataItem(city) {
-  const search = requestJson(WIKIDATA_API, {
-    action: "wbsearchentities",
-    search: city.name,
-    language: "en",
-    uselang: "en",
-    type: "item",
-    limit: SEARCH_LIMIT,
-  }).search;
-  if (!search || search.length === 0) return { reason: `no Wikidata item named “${city.name}”` };
+// Whether a page image looks like a single photograph rather than a flag, coat
+// of arms, seal, map or montage. A city that's also a country (Singapore,
+// Vatican City) has its flag as its article's lead image, and some cities have
+// a montage of several photos (Bangui, Belize City), which is too busy cropped
+// to the picture's slot. Flags, arms and maps are drawn as SVGs, and the rest
+// are told by their names.
+function isPhotograph(file) {
+  if (/\.svg$/i.test(file)) return false;
+  if (/montage|collage|коллаж/i.test(file)) return false;
+  if (/^(flag|coat[_ ]of[_ ]arms|emblem|seal|logo)[_ ]/i.test(file)) return false;
+  return !/(^|[_ ().,-])(map|locator)([_ ().,-]|$)/i.test(file);
+}
 
+// The city's English Wikipedia article, as { title, distanceKm, image,
+// wikidataId }, where image is its page image's file name (free images only,
+// the API's default), or null. { reason } when no search result is close
+// enough. One request gives the search results with their coordinates, page
+// images and Wikidata items. Of the results close enough, the first titled with
+// the city's name (alone, or before a comma or bracket) wins, otherwise the
+// first. Disambiguation pages are left out.
+// Some articles have no coordinates in Wikipedia's API ("Benicia, California"),
+// which would leave a namesake nearby (Benicia Refinery) as the match. So when
+// no result close enough is titled with the city's name, the coordinates of
+// those that are titled with it but have none come from their Wikidata items,
+// with one more request.
+function matchWikipediaArticle(city) {
+  const reply = requestJson(WIKIPEDIA_API, {
+    action: "query",
+    generator: "search",
+    gsrsearch: city.name,
+    gsrlimit: SEARCH_LIMIT,
+    prop: "coordinates|pageimages|pageprops",
+    ppprop: "wikibase_item|disambiguation",
+    piprop: "name",
+    pilimit: "max",
+    colimit: "max",
+  });
+  const pages = ((reply.query && reply.query.pages) || []).sort((a, b) => a.index - b.index);
+  if (pages.length === 0) return { reason: `no English Wikipedia article for “${city.name}”` };
+
+  const name = foldText(city.name);
+  const isNamed = (title) => foldText(title.split(/,| \(/)[0]) === name;
+  const close = [];
+  const namedWithoutCoordinates = [];
+  let nearest = null;
+  for (const page of pages) {
+    const props = page.pageprops || {};
+    if ("disambiguation" in props) continue;
+    const article = { title: page.title, image: page.pageimage || null, wikidataId: props.wikibase_item || null };
+    const coordinates = page.coordinates && (page.coordinates.find((c) => c.primary) || page.coordinates[0]);
+    if (!coordinates) {
+      if (article.wikidataId && isNamed(article.title)) namedWithoutCoordinates.push(article);
+      continue;
+    }
+    if (coordinates.globe && coordinates.globe !== "earth") continue;
+    article.distanceKm = haversineKm(city.latitude, city.longitude, coordinates.lat, coordinates.lon);
+    if (article.distanceKm <= MATCH_RADIUS_KM) close.push(article);
+    if (!nearest || article.distanceKm < nearest.distanceKm) nearest = article;
+  }
+  const chosen = close.find(({ title }) => isNamed(title)) || closeByWikidata(city, namedWithoutCoordinates) || close[0];
+  if (chosen) return chosen;
+  const closest = nearest ? `; nearest “${nearest.title}”, ${Math.round(nearest.distanceKm)} km` : "";
+  return { reason: `no English Wikipedia article for “${city.name}” within ${MATCH_RADIUS_KM} km${closest}` };
+}
+
+// The first of the articles whose Wikidata item's coordinates (P625) are within
+// MATCH_RADIUS_KM of the city's, with its distanceKm set, or null.
+function closeByWikidata(city, articles) {
+  if (articles.length === 0) return null;
   const pages = requestJson(WIKIDATA_API, {
     action: "query",
-    titles: search.map((result) => result.id).join("|"),
-    prop: "coordinates|pageimages",
-    piprop: "name",
-    pilicense: "any",
+    titles: articles.map((article) => article.wikidataId).join("|"),
+    prop: "coordinates",
     colimit: "max",
-    pilimit: "max",
   }).query.pages;
   const byId = Object.fromEntries(pages.map((page) => [page.title, page]));
-
-  const close = [];
-  let nearest = null;
-  for (const result of search) {
-    const page = byId[result.id];
+  for (const article of articles) {
+    const page = byId[article.wikidataId];
     const coordinates = page && page.coordinates && (page.coordinates.find((c) => c.primary) || page.coordinates[0]);
     if (!coordinates || (coordinates.globe && coordinates.globe !== "earth")) continue;
     const distanceKm = haversineKm(city.latitude, city.longitude, coordinates.lat, coordinates.lon);
-    if (distanceKm <= MATCH_RADIUS_KM) close.push({ id: result.id, label: result.label, distanceKm, image: page.pageimage || null, result });
-    if (!nearest || distanceKm < nearest.distanceKm) nearest = { id: result.id, distanceKm };
+    if (distanceKm <= MATCH_RADIUS_KM) return { ...article, distanceKm };
   }
-  const name = foldText(city.name);
-  const named = close.find(({ result }) => [result.label, result.match && result.match.text].some((text) => foldText(text) === name));
-  const chosen = named || close[0];
-  if (chosen) {
-    const { result, ...item } = chosen;
-    return item;
-  }
-  const closest = nearest ? `; nearest ${nearest.id}, ${Math.round(nearest.distanceKm)} km` : "";
-  return { reason: `no Wikidata item named “${city.name}” within ${MATCH_RADIUS_KM} km${closest}` };
+  return null;
 }
 
-// The page image (lead image) of the item's English Wikipedia article, or null.
-// Only free images, the API's default.
-function wikipediaPageImage(id) {
-  const entity = requestJson(WIKIDATA_API, { action: "wbgetentities", ids: id, props: "sitelinks", sitefilter: "enwiki" })
-    .entities[id];
-  const title = entity && entity.sitelinks && entity.sitelinks.enwiki && entity.sitelinks.enwiki.title;
-  if (!title) return null;
-  const pages = requestJson(WIKIPEDIA_API, { action: "query", titles: title, redirects: 1, prop: "pageimages", piprop: "name" })
+// The image (P18) of a Wikidata item, as a file name, or null. Wikidata's page
+// image is the item's P18.
+function wikidataImage(id) {
+  const pages = requestJson(WIKIDATA_API, { action: "query", titles: id, prop: "pageimages", piprop: "name", pilicense: "any" })
     .query.pages;
   return (pages && pages[0] && pages[0].pageimage) || null;
 }
@@ -287,14 +327,18 @@ function request(url, out) {
   }
 }
 
-let lastRequestTime = 0;
+// When the last request to each host was sent, in milliseconds.
+const lastRequestTimes = {};
 let requestInterval = REQUEST_INTERVAL_SECONDS;
 
-// One request, spaced requestInterval seconds after the one before.
+// One request, spaced requestInterval seconds after the one before to the same
+// host. Wikimedia's rate limits are per service, so a request to another host
+// (Wikidata, Wikipedia, Commons, the thumbnail server) goes straight away.
 function requestOnce(url, out) {
-  const wait = lastRequestTime + requestInterval * 1000 - Date.now();
+  const host = (url.match(/^https?:\/\/([^/?#]+)/i) || [null, ""])[1].toLowerCase();
+  const wait = (lastRequestTimes[host] || 0) + requestInterval * 1000 - Date.now();
   if (wait > 0) delay(wait / 1000);
-  lastRequestTime = Date.now();
+  lastRequestTimes[host] = Date.now();
   const dir = picturesDir();
   const body = out || `${dir}/${temporaryName("body")}`;
   const headers = `${dir}/${temporaryName("headers")}`;
