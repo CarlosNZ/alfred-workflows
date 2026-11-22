@@ -23,7 +23,7 @@ Developer notes for a workflow that shows the current time in each city from the
   - [x] **Phases of the day:** a sky over the sea with the sun along an arc (see [Phases of the day](#phases-of-the-day)).
   - [x] **Working statuses:** the same tile and finish as the phases, in the traffic-light colours, with a simple symbol in place of the sky (see [Working statuses](#working-statuses)).
 - [ ] **Short country names:** fill in the name-to-show column of `resources/clock-countries.csv` and use it in `lib/format.js` (see [City properties](#city-properties)).
-- [ ] **Other configuration:** sorting by time zone (see [Configuration](#configuration)).
+- [x] **Other configuration:** 12- or 24-hour time, showing the home city, sorting by time zone (see [Configuration](#configuration)).
 
 ## Design
 
@@ -235,6 +235,7 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 
 - The keyword (`keyword`, default `wcc`).
 - "Show home city" (`show_home_city`, on by default): whether the results include the local city (see [Design](#design)), for keeping your own city in Clock without it in the workflow, where you know its time. When it's off, `results.js` leaves it out everywhere (`showHomeCity`): the list, the time mode and searches for it. It's still the local city, so the offsets and day labels of the others don't change, and a typed time can still be anchored to it (`9am Auckland`), as typed times are read against Clock's whole list. When it's the only city in Clock, the result is "No other cities in Clock". Other cities in the Mac's zone stay (Wellington, when Auckland is the local city): they're cities you added, and only the first is the local one.
+- "Sort by time zone" (`sort_by_time_zone`): "Off" (`off`, the default, Clock's order), "Ascending" (`ascending`) or "Descending" (`descending`). It sorts by each city's UTC offset at the moment the results show (`sortedByTimeZone` in `results.js`), so in the time mode a clock change between now and the typed time is taken into account. Ascending puts the furthest west first, whose local time is earliest, so the times read in order. Cities with the same offset keep Clock's order in either direction. It applies in both modes and after filtering.
 - "Download city thumbnails" (`download_thumbnails`, on by default), which fetches the detail view's city pictures from Wikimedia (see [City pictures](#city-pictures)).
 - The key for each of a city result's actions: show the detail panel (↩), open it in its own window (⌘), edit cities in Clock (⌥) and show the alternative details (⌃ held). See [Action keys](#action-keys).
 - "Time format" (`time_format`): "Mac's setting" (`system`, the default), "12-hour" (`12`) or "24-hour" (`24`), for every time the workflow shows, in the results and the detail views. `formatTime` in `lib/format.js` formats every time, so it's the only place that reads it (`timeFormat`): the Mac's setting is `NSDateFormatter`'s short time style, and the overrides are the localized templates `hmma` ("9:35 PM") and `HHmm` ("21:35", "09:05"). The Mac's locale applies the Mac's 24-hour setting to any format, templates included (tested: with it on, `hmma` gave "20:58"), so the overrides use a locale made from its identifier, which leaves the setting out; the locale still decides the rest (Japanese 24-hour time has no padding, "9:05"). The detail views' pulse doesn't get the workflow's variables, so `results.js` saves the setting in `panels/shown-time.json` with the time its results show, and the pulse sets it from there (`setTimeFormat`); a view follows a change the next time the keyword is used.
@@ -242,7 +243,6 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 
 TO-DO, probably:
 
-- **Sort by time zone:** list the cities by UTC offset instead of in Clock's order (direction to decide).
 - **Working day:** the hours behind the working status, a constant in `lib/time.js` until then (see [City properties](#city-properties)).
 
 ## How it works
@@ -423,7 +423,7 @@ Requests carry a User-Agent naming the workflow, its version and a URL to get in
 
 ### Behaviour
 
-`results.js` reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order, and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Each item's `uid` is Clock's `identifier` for the city: on a rerun, Alfred keeps the selection on the item with the selected item's `uid`, where without one it jumps back to the first item. `skipknowledge: true` in the output stops Alfred reordering the items by usage, which `uid`s would otherwise allow, so they stay in Clock's order.
+`results.js` reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order unless they're sorted by time zone (see [Configuration](#configuration)), and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Each item's `uid` is Clock's `identifier` for the city: on a rerun, Alfred keeps the selection on the item with the selected item's `uid`, where without one it jumps back to the first item. `skipknowledge: true` in the output stops Alfred reordering the items by usage, which `uid`s would otherwise allow, so they stay in Clock's order.
 
 Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`); those without an action of their own are inert (`valid: false`, with the result's own subtitle). Without them Alfred applies its own modifiers, ⌥ "Search in Finder" and ⌃ "Search with default fallback", which the `strictmods` flag in the JSON doesn't stop. ⇧ is left alone for Quick Look.
 
@@ -448,7 +448,7 @@ The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay;
 
 Each result is laid out as in [The list](#the-list), and the output asks Alfred to rerun the script every second. The computed values for the listed cities are also written to stderr as one JSON array (`logCityInfos`), which Alfred shows in the workflow's debugger.
 
-A query starting with a digit, `+`, `-` or `−` is a time (see [Time input](#time-input)). One that gives a moment lists the cities at that moment, laid out as in [The time mode](#the-time-mode) and still in Clock's order, including with an anchor city (`9am London` doesn't move London to the top); the text after a relative time narrows the list. One that doesn't give a moment shows a single message. What the query was read as goes to stderr first, on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. Only the list and relative times rerun every second: a typed clock time is a fixed moment, while a relative time moves with the clock.
+A query starting with a digit, `+`, `-` or `−` is a time (see [Time input](#time-input)). One that gives a moment lists the cities at that moment, laid out as in [The time mode](#the-time-mode) and in the same order as the list, including with an anchor city (`9am London` doesn't move London to the top); the text after a relative time narrows the list. One that doesn't give a moment shows a single message. What the query was read as goes to stderr first, on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. Only the list and relative times rerun every second: a typed clock time is a fixed moment, while a relative time moves with the clock.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
 

@@ -70,22 +70,24 @@ function run(argv) {
     }
   }
 
-  const infos = cities.map((city) => describeCity(city, moment, { isLocal: city === localCity, now }));
-  logCityInfos(infos);
+  const rows = sortedByTimeZone(
+    cities.map((city) => ({ city, info: describeCity(city, moment, { isLocal: city === localCity, now }) })),
+  );
+  logCityInfos(rows.map((row) => row.info));
 
   // Rerunning every second keeps the times and countdowns current while
   // Alfred is open; a run takes about a tenth of a second. A typed clock time
   // is a fixed moment, so it doesn't rerun, but a relative time moves with the
   // clock. skipknowledge stops Alfred reordering the items by usage, which
-  // their uids would otherwise allow, so they stay in Clock's order.
+  // their uids would otherwise allow, so they stay in the order given.
   const rerun = !timeQuery || typed.kind === "relative";
   // The search that shows these results, for ⌫ in a city's inline view to go
   // back to (see panel.zsh). On each item's variables, beside the city's.
   const search = `${environmentValue("keyword") || "wcc"} ${query}`;
   const { keys, clashes } = cityActionKeys();
   const context = { keys, search };
-  const items = infos.map((info, i) =>
-    timeQuery ? timeCityItem(info, cities[i], typed, now, context) : cityItem(info, cities[i], null, now, context),
+  const items = rows.map(({ city, info }) =>
+    timeQuery ? timeCityItem(info, city, typed, now, context) : cityItem(info, city, null, now, context),
   );
   return output([...clashes.map(keyClashItem), ...items], { ...(rerun && { rerun: 1 }), skipknowledge: true });
 }
@@ -146,6 +148,21 @@ const HOME_CITY_ONLY = {
   title: "No other cities in Clock",
   subtitle: "Your home city is hidden in the workflow's configuration",
 };
+
+// The User Configuration's sort_by_time_zone values, as the direction to sort
+// the UTC offsets in. "off", unset or unknown keeps Clock's order.
+const TIME_ZONE_SORTS = { ascending: 1, descending: -1 };
+
+// The rows ({ city, info }) in the order the User Configuration's
+// sort_by_time_zone sets: by the cities' UTC offsets at the moment shown,
+// ascending (the furthest west, whose local time is earliest, first) or
+// descending, or as given, in Clock's order. Cities with the same offset keep
+// Clock's order either way, as sort is stable.
+function sortedByTimeZone(rows) {
+  const direction = TIME_ZONE_SORTS[environmentValue("sort_by_time_zone")];
+  if (!direction) return rows;
+  return [...rows].sort((a, b) => direction * (a.info.utcOffsetMinutes - b.info.utcOffsetMinutes));
+}
 
 // Writes the cities' computed values to stderr as one JSON array, which Alfred
 // shows in the workflow's debugger, for checking the raw values behind the

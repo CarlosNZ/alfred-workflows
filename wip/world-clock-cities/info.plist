@@ -534,6 +534,36 @@
 			<key>config</key>
 			<dict>
 				<key>default</key>
+				<string>off</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Off</string>
+						<string>off</string>
+					</array>
+					<array>
+						<string>Ascending</string>
+						<string>ascending</string>
+					</array>
+					<array>
+						<string>Descending</string>
+						<string>descending</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Lists the cities by UTC offset, either ascending or descending. 'Off' follows the Clock app’s order.</string>
+			<key>label</key>
+			<string>Sort by time zone</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>sort_by_time_zone</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
 				<true/>
 				<key>required</key>
 				<false/>
