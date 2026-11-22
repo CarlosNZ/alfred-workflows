@@ -146,7 +146,7 @@
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
 	<key>description</key>
-	<string>World city times from the Clock app</string>
+	<string>World city times from the Clock app, with meeting planner</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
