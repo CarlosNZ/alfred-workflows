@@ -12,18 +12,25 @@
 // add or remove a line later: a hidden component, or a label with no text,
 // still takes its space. So each combination of these has its own variant:
 //   launch       "inline" (↩, the inline view, inside Alfred) or "window"
-//                (⌘↩, the detail window), which leaves room for the window
-//                buttons at the top
+//                (⌘↩, the detail window)
 //   picture      true for a slot for the city's picture, which shows the
 //                picture or a placeholder while it's loading; false when
 //                there's none, so the city's name and time move to the left
 //   clockChange  true for the line under the time zone that tells of a clock
 //                change (see detailClockChange in lib/detail.js)
+//   windowPrefs  a detail window's preferences, from the workflow's User
+//                Configuration (the same options as Now Playing's): `buttons`,
+//                true for the window buttons over a transparent title bar,
+//                with room left for them at the top, or false for a borderless
+//                window with `cornerRadius` (0-32) corners; and `transparency`
+//                (0-100), how much the panel's tint lets the blur through. The
+//                inline view takes none of them.
 
 // Colours: hex RGB or RGBA, or rgb(r, g, b, alpha). Explicit colours rather
 // than the system's label colours, since the inline view takes the theme's
 // appearance, which may be light, while its background is dark.
-const PANEL_TINT = "rgb(18, 18, 20, 0.55)"; // Now Playing's default (transparency 45)
+const PANEL_TINT_RGB = "18, 18, 20"; // the panel's tint over the blur, as Now Playing's; its alpha comes from the transparency (panelTint)
+const INLINE_TRANSPARENCY = 45; // the inline view's, the transparency preference's default
 const TEXT_COLOUR = "#FFFFFF";
 const SECONDARY_TEXT_COLOUR = "#FFFFFFA6";
 const CLOCK_CHANGE_COLOUR = "#F5C451";
@@ -36,7 +43,7 @@ const SUN_ARROW_COLOUR = "#FFFFFF";
 
 // Spacing, in points.
 const PANEL_PADDING = 20; // around the content
-const WINDOW_BUTTONS_INSET = 14; // extra space above the content in a detail window, clear of its buttons
+const WINDOW_BUTTONS_INSET = 14; // extra space above the content in a detail window with buttons, clear of them
 const SECTION_SPACING = 16; // between the sections, from the top: the context line, the city, the time zone, the sun
 const LINE_SPACING = 2; // between the lines within a section
 const PICTURE_GAP = 18; // between the picture and the city's name
@@ -95,16 +102,18 @@ const TEXT_WIDTH_MARGIN = 6;
 // height (Alfred UI can't fit a window to its content).
 const LINE_HEIGHT = 1.22;
 
-// Added to a detail window's height in its layout: with these window
-// settings, Alfred opens the window this much shorter than the size it's
-// given (measured on macOS 26, where it's the title bar's height). The inline
-// view is exactly the height it's given. The pulse's resize
-// (windowResize in detail.js) gives the size exactly, so it takes it off.
+// Added to the height in the layout of a detail window with buttons: with
+// these window settings, Alfred opens the window this much shorter than the
+// size it's given (measured on macOS 26, where it's the title bar's height).
+// A borderless window, and the inline view, are exactly the height they're
+// given. The pulse's resize (windowResize in detail.js) gives the size
+// exactly, so it takes it off.
 const WINDOW_HEIGHT_ADJUSTMENT = 32;
 
-// The detail window: Now Playing's defaults, with the window buttons over a
-// transparent title bar. The inline view ignores these, and takes the theme's
-// width and the height in `size`.
+// The detail window, as Now Playing's: the window buttons over a transparent
+// title bar, unless the preference makes it borderless, which ignores the
+// title bar's settings (see panelUi). The inline view ignores these, and
+// takes the theme's width and the height in `size`.
 const WINDOW_SETTINGS = {
   title: "{var:detail_title}",
   titlevisibility: false,
@@ -136,8 +145,10 @@ function panelShortcuts(inWindow) {
 }
 
 // The ui.json for a variant of the view (see the top of this file).
-function panelUi({ launch, picture, clockChange }) {
+function panelUi({ launch, picture, clockChange, windowPrefs }) {
   const inWindow = launch === "window";
+  const buttons = inWindow && windowPrefs.buttons;
+  const borderless = inWindow && !windowPrefs.buttons;
   const sections = [
     panelLabel("context", FONTS.context, SECONDARY_TEXT_COLOUR),
     cityHeader(picture),
@@ -153,21 +164,22 @@ function panelUi({ launch, picture, clockChange }) {
     pulse: { src: "./detail.js", interval: 1, intervalmode: "delay", now: true },
     window: {
       ...WINDOW_SETTINGS,
+      ...(borderless && { borderless: true, cornerradius: windowPrefs.cornerRadius }),
       size: {
         width: WINDOW_WIDTH,
-        height: panelHeight({ inWindow, picture, clockChange }) + (inWindow ? WINDOW_HEIGHT_ADJUSTMENT : 0),
+        height: panelHeight({ buttons, picture, clockChange }) + (buttons ? WINDOW_HEIGHT_ADJUSTMENT : 0),
       },
       root: {
         type: "view",
         layout: "inline",
         direction: "vertical",
         padding: PANEL_PADDING,
-        background: PANEL_TINT,
+        background: panelTint(inWindow ? windowPrefs.transparency : INLINE_TRANSPARENCY),
         shortcuts: panelShortcuts(inWindow),
         // The sections are in a column of their own, so the space for the
         // window buttons above them isn't followed by a section's spacing.
         components: [
-          inWindow && spacer(WINDOW_BUTTONS_INSET),
+          buttons && spacer(WINDOW_BUTTONS_INSET),
           { ...column(SECTION_SPACING, sections), constraints: { stretch: "horizontal" } },
         ].filter(Boolean),
       },
@@ -362,9 +374,16 @@ function sunTimeWidth() {
   return Math.ceil(Math.max(...widths) + TEXT_WIDTH_MARGIN);
 }
 
+// The panel's tint for a transparency from 0 (solid) to 100 (blur only), as
+// Now Playing's: its alpha is (100 - transparency) / 100.
+function panelTint(transparency) {
+  return `rgb(${PANEL_TINT_RGB}, ${(100 - transparency) / 100})`;
+}
+
 // The view's height for a variant: the content's height worked out from the
-// constants above, plus the padding.
-function panelHeight({ inWindow, picture, clockChange }) {
+// constants above, plus the padding, and the space for the window buttons if
+// it has them.
+function panelHeight({ buttons, picture, clockChange }) {
   const lines = (...fonts) => fonts.reduce((sum, font) => sum + lineHeight(font), 0) + LINE_SPACING * (fonts.length - 1);
   const header = Math.max(
     (picture ? PICTURE_SIZE.height : 0) + FLAG_RAISE,
@@ -375,7 +394,7 @@ function panelHeight({ inWindow, picture, clockChange }) {
   const sun = Math.max(TILE_SIZE, sunTimesRowHeight() + LINE_SPACING + lines(FONTS.sunDetail, FONTS.sunDetail));
   const sections = [lineHeight(FONTS.context), header, zone, sun];
   const content = sections.reduce((sum, height) => sum + height, 0) + SECTION_SPACING * (sections.length - 1);
-  return Math.ceil(content + 2 * PANEL_PADDING + (inWindow ? WINDOW_BUTTONS_INSET : 0));
+  return Math.ceil(content + 2 * PANEL_PADDING + (buttons ? WINDOW_BUTTONS_INSET : 0));
 }
 
 function flagWidth() {
@@ -435,10 +454,11 @@ function layoutHasComponent(node, id) {
   return Object.values(node).some((value) => layoutHasComponent(value, id));
 }
 
-// The size a window should be, from the size in its layout, for a resize,
+// The size a window should be, from its layout's `window`, for a resize,
 // which gives the size exactly.
-function windowSizeFromLayout(size) {
-  return { width: size.width, height: size.height - WINDOW_HEIGHT_ADJUSTMENT };
+function windowSizeFromLayout(window) {
+  const { width, height } = window.size;
+  return { width, height: height - (window.borderless ? 0 : WINDOW_HEIGHT_ADJUSTMENT) };
 }
 
 function lineHeight(font) {

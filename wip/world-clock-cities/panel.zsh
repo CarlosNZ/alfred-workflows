@@ -15,9 +15,12 @@
 # panels/20-window.alfredui). It holds a link to detail.js (the pulse
 # script), a link to appicon.png (the view's app icon), the city's record in city.json, for the inline view the search it
 # was opened from in search.txt, and a link to the view's layout:
-# the variant of lib/panel.js's layout for the launch and whether there's a
-# picture slot and a clock change line, built into panels/layouts/ the first
-# time it's needed and again whenever lib/panel.js changes. Alfred keeps one
+# the variant of lib/panel.js's layout for the launch, whether there's a
+# picture slot and a clock change line, and for a detail window its
+# preferences (window buttons, corner radius and transparency), built into
+# panels/layouts/ the first time it's needed and again whenever lib/panel.js
+# changes. A changed preference takes effect in a detail window the next time
+# it opens. Alfred keeps one
 # window per package path, so each city gets one detail window, and opening
 # one that's already open brings its window to the front, keeping the layout
 # it opened with; so an open detail window's layout link is left alone, since
@@ -61,14 +64,34 @@ elif [[ ! -e $images/$slug.jpg ]] && waiting $images/.backoff $images/$slug.fail
   picture=0
 fi
 
+# Prints $1 if it's a whole number from 0 to $3, else the default $2.
+number() {
+  if [[ $1 == <-> ]] && (( $1 <= $3 )); then print -r -- $(( $1 )); else print -r -- $2; fi
+}
+
+# A detail window's preferences, from the workflow's User Configuration, with
+# its defaults (see shared/userconfig/window.json in the repo). They're part
+# of the variant's name: the radius only matters without window buttons.
+variant=$launch-$picture-$clock_change
+window_prefs=()
+if [[ $launch == window ]]; then
+  buttons=1
+  [[ ${window_buttons:-1} == 0 ]] && buttons=0
+  radius=$(number "${corner_radius:-}" 16 32)
+  transparency=$(number "${transparency:-}" 45 100)
+  window_prefs=($buttons $radius $transparency)
+  if (( buttons )); then variant+=-buttons; else variant+=-r$radius; fi
+  variant+=-t$transparency
+fi
+
 # The layout, built by detail.js (which runs lib/panel.js) when it's missing
 # or older than lib/panel.js, so editing the layout's constants takes effect
 # the next time a view opens. Written to a temporary file then moved into
 # place, so Alfred never reads half a file.
-layout=$cache/panels/layouts/$launch-$picture-$clock_change.json
+layout=$cache/panels/layouts/$variant.json
 if [[ ! -e $layout || $layout -ot $workflow/lib/panel.js ]]; then
   mkdir -p ${layout:h}
-  $workflow/detail.js ui $launch $picture $clock_change > $layout.tmp.$$
+  $workflow/detail.js ui $launch $picture $clock_change $window_prefs > $layout.tmp.$$
   mv -f $layout.tmp.$$ $layout
 fi
 

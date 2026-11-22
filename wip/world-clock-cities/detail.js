@@ -10,9 +10,11 @@
 // the time the results last showed (saveShownTime in lib/detail.js), and
 // next to images/, which holds the city's picture.
 //
-// With the arguments `ui <launch> <picture> <clockChange>`, it prints that
-// variant of the view's ui.json instead (see lib/panel.js), for panel.zsh.
-// <picture> and <clockChange> are 1 or 0.
+// With the arguments `ui <launch> <picture> <clockChange>`, and for the
+// window launch `<buttons> <cornerRadius> <transparency>` after them, it
+// prints that variant of the view's ui.json instead (see lib/panel.js), for
+// panel.zsh. <picture>, <clockChange> and <buttons> are 1 or 0, and the
+// others whole numbers, which panel.zsh checks.
 //
 // With the argument `back`, run by ⌫ in the inline view, it shows Alfred's
 // results again, by searching for what the view was opened from (search.txt
@@ -31,8 +33,17 @@ function run(argv) {
   LIBS.forEach(loadLib);
 
   if (argv[0] === "ui") {
-    const [launch, picture, clockChange] = argv.slice(1);
-    return JSON.stringify(panelUi({ launch, picture: picture === "1", clockChange: clockChange === "1" }), null, 2);
+    const [launch, picture, clockChange, buttons, cornerRadius, transparency] = argv.slice(1);
+    const windowPrefs = launch === "window" && {
+      buttons: buttons === "1",
+      cornerRadius: Number(cornerRadius),
+      transparency: Number(transparency),
+    };
+    if (windowPrefs && [windowPrefs.cornerRadius, windowPrefs.transparency].some(isNaN)) {
+      throw new Error("ui window needs <buttons> <cornerRadius> <transparency>");
+    }
+    const variant = { launch, picture: picture === "1", clockChange: clockChange === "1", windowPrefs };
+    return JSON.stringify(panelUi(variant), null, 2);
   }
 
   const saved = readJson(`${packageDir}/city.json`);
@@ -66,8 +77,8 @@ function run(argv) {
 // window.
 function windowResize(packageDir, ui) {
   if (!packageDir.endsWith("-window.alfredui")) return {};
-  const size = ui && ui.window && ui.window.size;
-  return size ? { window: { resize: windowSizeFromLayout(size) } } : {};
+  const window = ui && ui.window;
+  return window && window.size ? { window: { resize: windowSizeFromLayout(window) } } : {};
 }
 
 // The folder this script was run from (through the link), and the folder of
