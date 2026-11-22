@@ -33,6 +33,13 @@ function formatTime(moment, timeZone) {
   return timeFormatter.stringFromDate(nsDate(moment)).js.replace(/ /g, " ");
 }
 
+// A moment's time in 12-hour time in the Mac's locale, whatever its 24-hour
+// time setting, e.g. "5:42 PM", with an ordinary space as in formatTime. For
+// sizing a label that shows formatTime's text (sunTimeWidth in lib/panel.js).
+function formatTwelveHourTime(moment, timeZone) {
+  return formatWithTemplate(moment, timeZone, "hmma").replace(/\u202F/g, " ");
+}
+
 const templateFormatters = {};
 
 // A moment in a time zone, with a date format template such as "EEE" (short
@@ -95,6 +102,12 @@ function formatDuration(minutes) {
 const SUN_EVENT_WORDS = { sunrise: "Sunrise", sunset: "Sunset" };
 const POLAR_WORDS = { midnightSun: "Midnight sun", polarNight: "Polar night" };
 
+// "Midnight sun" or "Polar night" when the sun doesn't cross the horizon on
+// the city's date; empty otherwise.
+function formatPolar(info) {
+  return info.polar ? POLAR_WORDS[info.polar] : "";
+}
+
 // The nearer of the previous and next sunrise or sunset, relative to the
 // moment: "Sunset in 2h", "Sunrise 41m ago", "Sunset now". During polar day or
 // night, "Midnight sun" or "Polar night". Empty without sun values.
@@ -117,11 +130,11 @@ function formatNearestSunEvent(info) {
 // emoji.
 const SUN = "☀︎";
 
-// The city's sunrise and sunset today, e.g. "☀↑ 7:28 AM  ☀↓ 4:03 PM". During
-// polar day or night, "Midnight sun" or "Polar night". Empty without sun
-// values.
+// The city's sunrise and sunset today, for the list's subtitle, e.g. "☀↑ 7:28
+// AM  ☀↓ 4:03 PM". During polar day or night, "Midnight sun" or "Polar
+// night". Empty without sun values.
 function formatSunTimes(info) {
-  if (info.polar) return POLAR_WORDS[info.polar];
+  if (info.polar) return formatPolar(info);
   if (!info.sunrise || !info.sunset) return "";
   return `${SUN}↑ ${formatTime(info.sunrise, info.timeZone)}  ${SUN}↓ ${formatTime(info.sunset, info.timeZone)}`;
 }

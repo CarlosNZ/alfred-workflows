@@ -125,7 +125,7 @@ function detailClockChange(info, meeting, now) {
 // The pulse's output for a city: a JSON update of the view's components, by
 // id (see lib/panel.js). `typed` is the saved typed time in the meeting mode
 // (see savedTypedTime); `picture` is the city's picture state (pictureState);
-// `iconsDir` holds the tiles' icons; `layout` says whether the view has a
+// `iconsDir` holds the tiles' icons and the sunrise and sunset symbols; `layout` says whether the view has a
 // picture slot ({ picture }), which sets how wide the city's text can be.
 // Ids the view's layout doesn't have (the clock change line, say) are
 // ignored by Alfred. The labels that can be too long get a font that fits
@@ -144,6 +144,7 @@ function detailUpdate(info, { typed, now, picture, iconsDir, layout }) {
   const details = meeting
     ? [formatWorkingDaySentence(info.workingDayTiming), info.polar ? "" : formatNearestSunEvent(info)]
     : [formatSunElevation(info), formatDayLengthLine(info)];
+  const sunEvents = Boolean(!info.polar && info.sunrise && info.sunset);
   const ids = {
     context: { text: meeting ? formatTypedReference(typed, info.moment) : formatOffsetFromYou(info) },
     city: { text: info.name },
@@ -154,7 +155,12 @@ function detailUpdate(info, { typed, now, picture, iconsDir, layout }) {
     zone: { text: formatZoneLine(info) },
     clockchange: { text: change ? formatClockChangeSentence(change, now, info.timeZone) : " " },
     tile: tile ? { image: { type: "file", src: `${iconsDir}/${tile}.png` }, hidden: false } : { hidden: true },
-    suntimes: { text: formatSunTimes(info) || " " },
+    sunevents: { hidden: !sunEvents },
+    sunrisesymbol: { image: { type: "file", src: `${iconsDir}/symbol-sunrise.png` } },
+    sunsetsymbol: { image: { type: "file", src: `${iconsDir}/symbol-sunset.png` } },
+    sunrisetime: { text: sunEvents ? formatTime(info.sunrise, info.timeZone) : " " },
+    sunsettime: { text: sunEvents ? formatTime(info.sunset, info.timeZone) : " " },
+    sunpolar: { text: formatPolar(info) || " " },
     sundetail1: { text: details[0] || " " },
     sundetail2: { text: details[1] || " " },
     picture: picture.state === "shown" ? { image: { type: "file", src: picture.path }, hidden: false } : { hidden: true },

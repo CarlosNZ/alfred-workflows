@@ -28,6 +28,11 @@ const TEXT_COLOUR = "#FFFFFF";
 const SECONDARY_TEXT_COLOUR = "#FFFFFFA6";
 const CLOCK_CHANGE_COLOUR = "#F5C451";
 const PICTURE_PLACEHOLDER_COLOUR = "#FFFFFF1A";
+// The sunrise and sunset symbols' sun, and their arrow and horizon. Drawn into
+// the symbols' images by resources/make-sun-symbols.js: run it after changing
+// these.
+const SUN_SYMBOL_COLOUR = "#F5C451";
+const SUN_ARROW_COLOUR = "#FFFFFF";
 
 // Spacing, in points.
 const PANEL_PADDING = 20; // around the content
@@ -36,6 +41,8 @@ const SECTION_SPACING = 16; // between the sections, from the top: the context l
 const LINE_SPACING = 2; // between the lines within a section
 const PICTURE_GAP = 18; // between the picture and the city's name
 const TILE_GAP = 16; // between the tile and the sun times
+const SUN_SYMBOL_GAP = 5; // between the sunrise or sunset symbol and its time
+const SUN_TIMES_GAP = 12; // between the sunrise time's label and the sunset symbol; the label's spare width adds to it
 const FLAG_RAISE = 4; // lifts the flag (by lowering the rest of its row) so its top lines up with the city's name
 
 // Sizes, in points.
@@ -43,6 +50,20 @@ const WINDOW_WIDTH = 600;
 const PICTURE_SIZE = { width: 210, height: 140 };
 const PICTURE_CORNER_RADIUS = 8;
 const TILE_SIZE = 88; // the phase of the day (now) or working status (meeting) icon
+// The Clock app's sunrise and sunset symbols, sunrise.fill and sunset.fill, as
+// AppKit sizes them at 24pt, the times' size, so they match the digits as
+// they would inline in text: their alignment rect is the font's cap height.
+// Both are this size (34×29 at 22pt, 30×25 at 20pt). resources/make-sun-symbols.js
+// draws them at the times' size, and stops if that isn't this size.
+const SUN_SYMBOL_SIZE = { width: 37, height: 31 };
+// Lowers the times below the top of the symbols, so the bottom of a symbol's
+// horizon bar sits just below the times' baseline. At 24pt the bar's bottom
+// is 27pt below the top of the image, and the times' baseline 23pt below the
+// top of their label (measured in screenshots), so 4 puts the bar's bottom
+// exactly on the baseline; a thin bar there looks too high, as a round
+// letter would without overshoot, so it hangs 1pt below. Whole points only,
+// as it's an inset. Change it with SUN_SYMBOL_SIZE.
+const SUN_TIMES_DROP = 3;
 
 // Fonts: size in points; weight one of ultralight, thin, light, regular,
 // medium, semibold, bold, heavy, black; monospaced: "digits" keeps a ticking
@@ -233,10 +254,10 @@ function zoneSection(clockChange) {
 
 // The tile (the phase of the day, or the working status in the meeting mode)
 // beside the sunrise and sunset and two lines of details. Ids: tile,
-// suntimes, sundetail1, sundetail2.
+// sundetail1, sundetail2, and those in sunTimesRow.
 function sunSection() {
   const text = column(LINE_SPACING, [
-    panelLabel("suntimes", FONTS.sunTimes),
+    sunTimesRow(),
     panelLabel("sundetail1", FONTS.sunDetail, SECONDARY_TEXT_COLOUR),
     panelLabel("sundetail2", FONTS.sunDetail, SECONDARY_TEXT_COLOUR),
   ]);
@@ -258,6 +279,89 @@ function sunSection() {
   };
 }
 
+// Today's sunrise and sunset, each the Clock app's symbol beside its time
+// (ids: sunevents, the row; sunrisesymbol, sunrisetime, sunsetsymbol,
+// sunsettime), stacked with a label for what's said in their place during
+// polar day or night (sunpolar). The pulse shows the row or fills the label;
+// it's a stack because a hidden component still takes its space. A label
+// can't hold a symbol, so the symbols are image views, given their images by
+// the pulse, as the tile is: icons/symbol-sunrise.png and symbol-sunset.png,
+// the symbols in two colours, which Alfred UI can't do with an SF Symbol (see
+// resources/make-sun-symbols.js). The times are lowered by a top inset
+// (SUN_TIMES_DROP). An image view fills the row's height and centres its
+// image in it, so each symbol's has a bottom inset that keeps it the image's
+// height, at the top of the row: the row is SUN_TIMES_ROW_SLACK taller than
+// the lowered times' line, so a label a little taller than lineHeight works
+// out doesn't make the row taller and move the symbol off the top. Each part
+// of the row has a fixed width, since a label in an inline row keeps the
+// width of the text it starts with. The two are in border layouts, each in a
+// left region, which takes its desired width: an inline row wider than its
+// content centres it.
+function sunTimesRow() {
+  const timeWidth = sunTimeWidth();
+  const sunEvent = (event) => ({
+    type: "view",
+    layout: "inline",
+    direction: "horizontal",
+    spacing: SUN_SYMBOL_GAP,
+    components: [
+      {
+        id: `${event}symbol`,
+        type: "imageview",
+        constraints: { size: SUN_SYMBOL_SIZE, insets: { bottom: sunTimesRowHeight() - SUN_SYMBOL_SIZE.height } },
+      },
+      { ...panelLabel(`${event}time`, FONTS.sunTimes), constraints: { size: { width: timeWidth }, insets: { top: SUN_TIMES_DROP } } },
+    ],
+  });
+  const leftAligned = (component, spacing = 0, rest = []) => ({
+    type: "view",
+    layout: "border",
+    spacing,
+    components: [{ ...component, constraints: { region: "left" } }, ...rest],
+  });
+  const sunset = leftAligned(sunEvent("sunset"));
+  return {
+    type: "view",
+    layout: "stack",
+    constraints: { stretch: "horizontal" },
+    components: [
+      {
+        ...leftAligned(sunEvent("sunrise"), SUN_TIMES_GAP, [{ ...sunset, constraints: { region: "centre" } }]),
+        id: "sunevents",
+        hidden: true,
+      },
+      { ...panelLabel("sunpolar", FONTS.sunTimes), constraints: { insets: { top: SUN_TIMES_DROP } } },
+    ],
+  };
+}
+
+// Extra height for the sunrise and sunset row, below the lowered times' line
+// (see sunTimesRow).
+const SUN_TIMES_ROW_SLACK = 2;
+
+// The height of the sunrise and sunset row: the lowered times' line and the
+// slack, or the symbols if they're taller.
+function sunTimesRowHeight() {
+  return Math.max(lineHeight(FONTS.sunTimes) + SUN_TIMES_DROP + SUN_TIMES_ROW_SLACK, SUN_SYMBOL_SIZE.height);
+}
+
+// The width of a sunrise or sunset time's label: the widest time of day in
+// the Mac's time format, or in 12-hour time if that's wider, so that turning
+// 24-hour time off doesn't cut the times off in a layout built before.
+// A time's width is taken as its hour's plus its minutes', so it measures
+// each hour, then each minute of the widest hour, not all 1440 times.
+function sunTimeWidth() {
+  const at = (hour, minute) => new Date(Date.UTC(2000, 0, 1, hour, minute));
+  const formats = [(date) => formatTime(date, "UTC"), (date) => formatTwelveHourTime(date, "UTC")];
+  const widths = formats.map((format) => {
+    const widest = (dates) =>
+      dates.map((date) => ({ date, width: textWidth(format(date), FONTS.sunTimes) })).reduce((a, b) => (b.width > a.width ? b : a));
+    const hour = widest(Array.from({ length: 24 }, (_, h) => at(h, 0))).date.getUTCHours();
+    return widest(Array.from({ length: 60 }, (_, m) => at(hour, m))).width;
+  });
+  return Math.ceil(Math.max(...widths) + TEXT_WIDTH_MARGIN);
+}
+
 // The view's height for a variant: the content's height worked out from the
 // constants above, plus the padding.
 function panelHeight({ inWindow, picture, clockChange }) {
@@ -268,7 +372,7 @@ function panelHeight({ inWindow, picture, clockChange }) {
     lineHeight(FONTS.flag),
   );
   const zone = clockChange ? lines(FONTS.zone, FONTS.clockChange) : lines(FONTS.zone);
-  const sun = Math.max(TILE_SIZE, lines(FONTS.sunTimes, FONTS.sunDetail, FONTS.sunDetail));
+  const sun = Math.max(TILE_SIZE, sunTimesRowHeight() + LINE_SPACING + lines(FONTS.sunDetail, FONTS.sunDetail));
   const sections = [lineHeight(FONTS.context), header, zone, sun];
   const content = sections.reduce((sum, height) => sum + height, 0) + SECTION_SPACING * (sections.length - 1);
   return Math.ceil(content + 2 * PANEL_PADDING + (inWindow ? WINDOW_BUTTONS_INSET : 0));
