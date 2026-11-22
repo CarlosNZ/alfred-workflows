@@ -63,7 +63,7 @@ function isTimeQuery(query) {
 const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const DAY_ALIASES = { weds: 3 };
 
-// Reads a time query (see "Time input" in README.md) and works out the moment
+// Reads a time query (see "Time input" in DEVELOPMENT.md) and works out the moment
 // it means. Returns one of:
 // - { kind: "incomplete" }: not a time yet, but typing more could make it one
 //   ("3:2", "8am t"), including a city that matches cities in different zones.

@@ -22,7 +22,7 @@ dist/               built .alfredworkflow files (not committed)
 
 Each `<slug>/` folder is the workflow itself, exactly as Alfred sees it (`info.plist` at the root). Workflows are self-contained and don't share code with each other. Only the wording of some User Configuration options is shared, and each workflow keeps its own copy; see [Shared User Configuration](#shared-user-configuration).
 
-Each workflow has a `README.md` of developer notes: how it works, how to test it, to-dos. It isn't included in builds. User-facing documentation goes in the workflow's own readme ("About this Workflow" in Alfred, stored in `info.plist`), which is what Alfred and the Gallery display; see [User-facing docs](#user-facing-docs).
+Each workflow's `README.md` is its user guide, which GitHub shows in the workflow's folder, and `wf` copies it into the workflow's readme in `info.plist`, which is what Alfred and the Gallery display; see [User-facing docs](#user-facing-docs). Its `DEVELOPMENT.md` holds the developer notes: how it works, how to test it, to-dos. Neither file is included in builds.
 
 The three tiers are structured and linked identically; the tier records where a workflow is in its public life. A workflow moves up one tier at a time with `wf promote`, and only workflows with a tagged release can leave `wip/`. Workflows in `release/` and `gallery/` have users, so their bundle IDs must never change.
 
@@ -38,9 +38,10 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
 | `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
 | `wf release [--allow-unsigned] <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
-| `wf build [--allow-unsigned] <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version; see [Compiled binaries](#compiled-binaries) |
+| `wf build [--allow-unsigned] <slug>` | Sync the workflow's `info.plist` (as `sync-config` and `sync-readme` do), then rebuild `dist/<slug>-<version>.alfredworkflow` at the current version; see [Compiled binaries](#compiled-binaries) |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
-| `wf sync-config` | Copy the shared User Configuration options into every workflow that uses them; see [Shared User Configuration](#shared-user-configuration) |
+| `wf sync-config [<slug>]` | Copy the shared User Configuration options into every workflow that uses them, or only into one; see [Shared User Configuration](#shared-user-configuration) |
+| `wf sync-readme [--force] [<slug>]` | Copy each workflow's user guide from `README.md` into its `info.plist`, or only one's; see [User-facing docs](#user-facing-docs) |
 
 To start a new workflow, create it in Alfred, then `wf adopt` it.
 
@@ -48,7 +49,7 @@ If a link is ever broken, even briefly (for example while moving or renaming the
 
 ### What goes into a build
 
-A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes; a pattern also matches everything under a folder it names, and may end in a slash, as in `.gitignore`). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
+A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and `DEVELOPMENT.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes; a pattern also matches everything under a folder it names, and may end in a slash, as in `.gitignore`). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
 
 ### Compiled binaries
 
@@ -56,9 +57,26 @@ Any compiled (Mach-O) binary in a build must be signed with a Developer ID certi
 
 ### User-facing docs
 
-A workflow's readme ("About this Workflow" in Alfred, and its page in the Gallery) is the `readme` string in `info.plist`. Write it in Alfred: in the workflow editor, the [𝒙] sheet's "About this Workflow" tab. The workflow's configuration sheet shows it rendered beside the settings.
+A workflow's user guide is its `README.md`, which GitHub shows when someone opens the workflow's folder. Alfred shows its readme in the workflow's "About this Workflow" tab and its configuration sheet, and the Gallery on the workflow's page; that's the `readme` string in `info.plist`, which `wf sync-readme` copies from `README.md`:
 
-The readme can use [Alfred's Markdown](https://www.alfredapp.com/help/kb/markdown-syntax/) (no raw HTML apart from `<kbd>`). Images must be files in the workflow, at paths relative to the workflow folder; keep them in `docs/` and write them as `![Alt text](docs/shot.png)`. Everything in `docs/` ships in builds, so remove screenshots the readme no longer shows, and keep them small (crop them, and compress PNGs with a tool such as ImageOptim or TinyPNG).
+```markdown
+# World Clock
+
+## Usage
+…the readme Alfred shows…
+
+<!-- end of Alfred readme -->
+
+---
+
+For how the workflow is built, see the [developer notes](DEVELOPMENT.md).
+```
+
+Alfred gets everything between the title (a first line starting `# `, which Alfred doesn't need, as it shows the workflow's name) and the `<!-- end of Alfred readme -->` line. The rest is for GitHub only, such as download links and the link to `DEVELOPMENT.md`; GitHub hides the marker itself. A `README.md` without the marker isn't treated as a user guide, and `wf` leaves the workflow's readme alone.
+
+Edit `README.md`, then run `bin/wf sync-readme <slug>` and look at the result in Alfred's configuration sheet. Don't edit the readme in Alfred: `sync-readme` refuses to overwrite a readme that matches neither what it last wrote nor the last commit, and shows the difference, so copy any edits made there into `README.md` and run `bin/wf sync-readme --force <slug>`. `wf build` and `wf release` sync first, and `wf release` stops if that changed anything, so the change can be committed before the release is tagged. The pre-commit hook blocks a commit where a workflow's readme differs from its `README.md`.
+
+The part Alfred gets can only use [Alfred's Markdown](https://www.alfredapp.com/help/kb/markdown-syntax/) (no raw HTML apart from `<kbd>`, which GitHub shows too), so no tables, and no links to other files in the repo, which mean nothing inside Alfred; link to web pages, or put such links in the GitHub-only part. Images must be files in the workflow, at paths relative to the workflow folder, which work on GitHub too; keep them in `docs/` and write them as `![Alt text](docs/shot.png)`. Everything in `docs/` ships in builds, so remove screenshots the readme no longer shows, and keep them small (crop them, and compress PNGs with a tool such as ImageOptim or TinyPNG).
 
 ### Shared User Configuration
 
@@ -70,7 +88,7 @@ To give a workflow a shared option, add an item with its variable in Alfred (any
 
 ### App icons
 
-An Alfred UI runs in a helper app with no icon of its own, so a workflow with a window gives it one with `ui.json`'s `iconpath` (see Now Playing's README, [App icon and name](release/now-playing/README.md#app-icon-and-name)). `bin/make-appicon <icon.png> <appicon.png>` builds it from the workflow's icon, laid out on the macOS icon grid with a squircle mask and drop shadow so it matches other apps' icons.
+An Alfred UI runs in a helper app with no icon of its own, so a workflow with a window gives it one with `ui.json`'s `iconpath` (see Now Playing's developer notes, [App icon and name](release/now-playing/DEVELOPMENT.md#app-icon-and-name)). `bin/make-appicon <icon.png> <appicon.png>` builds it from the workflow's icon, laid out on the macOS icon grid with a squircle mask and drop shadow so it matches other apps' icons.
 
 ## Personal settings and secrets
 

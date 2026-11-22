@@ -41,7 +41,7 @@ if [ "$sign" = 1 ]; then
     count="$(printf '%s' "$identities" | grep -c . || true)"
     if [ "$count" = 0 ]; then
       echo "No Developer ID Application certificate in the keychain." >&2
-      echo "Create one (see README.md), or run with SIGN=0 for an unsigned local build." >&2
+      echo "Create one (see DEVELOPMENT.md), or run with SIGN=0 for an unsigned local build." >&2
       exit 1
     elif [ "$count" != 1 ]; then
       echo "Several Developer ID Application certificates; choose one with SIGN_IDENTITY:" >&2
@@ -52,7 +52,7 @@ if [ "$sign" = 1 ]; then
   fi
   if ! xcrun notarytool history --keychain-profile "$notary_profile" >/dev/null 2>&1; then
     echo "notarytool keychain profile '$notary_profile' is missing or its credentials don't work." >&2
-    echo "Create it with: xcrun notarytool store-credentials $notary_profile (see README.md)" >&2
+    echo "Create it with: xcrun notarytool store-credentials $notary_profile (see DEVELOPMENT.md)" >&2
     exit 1
   fi
 fi

@@ -10,6 +10,7 @@ REPO=${0:A:h:h}
 AREAS=(gallery release wip)
 PLIST_TOOL=(python3 -I "$REPO/bin/lib/plisttool.py")
 USERCONFIG_TOOL=(python3 -I "$REPO/bin/lib/userconfig.py")
+README_TOOL=(python3 -I "$REPO/bin/lib/readme.py")
 SHARED_USERCONFIG=$REPO/shared/userconfig
 
 die()  { print -u2 -r -- "wf: $*"; exit 1 }
@@ -40,6 +41,24 @@ wf_path() {
     [[ -f $REPO/$area/$slug/info.plist ]] && { print -r -- $REPO/$area/$slug; return }
   done
   die "no workflow '$slug' in ${(j:/ or :)AREAS}/"
+}
+
+# Sets $reply to the workflow folders: the one with slug $1, or with no
+# argument every workflow in the repo.
+wf_dirs() {
+  local area d
+  reply=()
+  if (( $# )); then
+    d=$(wf_path $1) || return 1
+    reply=($d)
+    return 0
+  fi
+  for area in $AREAS; do
+    for d in $REPO/$area/*(N/); do
+      [[ -f $d/info.plist ]] && reply+=($d)
+    done
+  done
+  return 0
 }
 
 # Sets $reply to the symlinks in Alfred's directory that resolve to $1.
@@ -162,15 +181,15 @@ cmd_promote() {
 }
 
 # Files that ship: everything git tracks or would track in the workflow folder
-# (so .gitignore rules apply), minus the developer-notes README.md and patterns
-# listed in the workflow's .wfignore. A pattern matches a path or anything
+# (so .gitignore rules apply), minus README.md (whose user guide is already in
+# info.plist), DEVELOPMENT.md and patterns listed in the workflow's .wfignore. A pattern matches a path or anything
 # under it; a trailing slash, as in .gitignore, is allowed and dropped.
 ship_files() {
   local d=$1 f pat
   local -a ignore
   [[ -f $d/.wfignore ]] && ignore=(${(f)"$(grep -v -E '^\s*(#|$)' $d/.wfignore)"})
   ignore=(${ignore%/})
-  ignore+=(.wfignore README.md)
+  ignore+=(.wfignore README.md DEVELOPMENT.md)
   git -C $d ls-files -z --cached --others --exclude-standard -- . | while IFS= read -r -d '' f; do
     [[ -e $d/$f ]] || continue
     for pat in $ignore; do
@@ -237,8 +256,9 @@ cmd_build() {
   local allow_unsigned=0
   [[ ${1:-} == --allow-unsigned ]] && { allow_unsigned=1; shift }
   (( $# == 1 )) || die "usage: wf build [--allow-unsigned] <slug>"
-  local slug=$1 d ver stage out f
+  local slug=$1 d ver stage out f changed=0
   d=$(wf_path $slug)
+  sync_workflow $d
   ver=$(plist_get $d/info.plist version)
   [[ -n $ver ]] || die "$slug has no version set (use 'wf release $slug <version>')"
   if (( allow_unsigned )); then
@@ -326,7 +346,7 @@ cmd_release() {
   local allow_unsigned=0
   [[ ${1:-} == --allow-unsigned ]] && { allow_unsigned=1; shift }
   (( $# == 2 )) || die "usage: wf release [--allow-unsigned] <slug> <version>"
-  local slug=$1 ver=$2 d rel tag
+  local slug=$1 ver=$2 d rel tag changed=0
   d=$(wf_path $slug)
   rel=${d#$REPO/}
   [[ $ver =~ '^[0-9]+(\.[0-9]+){1,2}(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$' ]] ||
@@ -335,6 +355,8 @@ cmd_release() {
     die "--allow-unsigned is only for pre-release versions, such as $ver-preview.1"
   tag=$slug/v$ver
   git -C $REPO rev-parse -q --verify refs/tags/$tag >/dev/null && die "tag $tag already exists"
+  sync_workflow $d
+  (( changed )) && die "$rel/info.plist was out of sync; review and commit the update above, then release again"
   [[ -z $(git -C $REPO status --porcelain -- $rel) ]] ||
     die "$rel has uncommitted changes; commit them first so the release matches the repo"
   # Before anything is committed or tagged, so a failure leaves no half-release.
@@ -359,25 +381,86 @@ cmd_release() {
 }
 
 # Copy the shared User Configuration items (shared/userconfig/*.json) over
-# each workflow's item with the same variable, one key path at a time, so the
+# the workflow's item with the same variable, one key path at a time, so the
 # rest of info.plist is left as Alfred wrote it. Removed then inserted, since
-# plutil's -replace on an array index inserts beside the old item.
-cmd_sync-config() {
-  (( $# == 0 )) || die "usage: wf sync-config"
-  local area d i variable item changed=0
-  for area in $AREAS; do
-    for d in $REPO/$area/*(N/); do
-      [[ -f $d/info.plist ]] || continue
-      $USERCONFIG_TOOL diff $SHARED_USERCONFIG < $d/info.plist | while IFS=$'\t' read -r i variable item; do
-        plutil -remove userconfigurationconfig.$i $d/info.plist
-        plutil -insert userconfigurationconfig.$i -json $item $d/info.plist
-        info "Updated ${d#$REPO/}: $variable"
-        changed=1
-      done
-      plutil -lint -s $d/info.plist
-    done
+# plutil's -replace on an array index inserts beside the old item. Sets the
+# caller's $changed to 1 if it changes anything.
+sync_config() {
+  local d=$1 i variable item
+  $USERCONFIG_TOOL diff $SHARED_USERCONFIG < $d/info.plist | while IFS=$'\t' read -r i variable item; do
+    plutil -remove userconfigurationconfig.$i $d/info.plist
+    plutil -insert userconfigurationconfig.$i -json $item $d/info.plist
+    info "Updated ${d#$REPO/}/info.plist: $variable"
+    changed=1
   done
-  (( changed )) || info "Every workflow's shared User Configuration is up to date"
+  plutil -lint -s $d/info.plist
+}
+
+# File in which sync_readme records the readme it last wrote into a
+# workflow's info.plist, so it can tell its own writes from edits made in
+# Alfred's workflow editor. Kept in the git directory: it's per checkout, and
+# never committed or shipped.
+readme_state() {
+  print -r -- "$(git -C $REPO rev-parse --absolute-git-dir)/wf/readme/$1"
+}
+
+# Copy the user guide part of the workflow's README.md into info.plist's
+# readme (see bin/lib/readme.py for which part). A README.md without the end
+# marker isn't a user guide, and is left alone. Unless $2 is 1 (--force), it
+# refuses to replace a readme that matches neither what it last wrote nor the
+# last commit, since that means it was edited in Alfred and the edit would be
+# lost. Sets the caller's $changed to 1 if it changes anything.
+sync_readme() {
+  local d=$1 force=${2:-0} rel=${1#$REPO/} slug=${1:t} rc=0 want have state last committed
+  [[ -f $d/README.md ]] || return 0
+  want=$($README_TOOL text $d/README.md 2>/dev/null) || rc=$?
+  (( rc == 3 )) && return 0
+  (( rc == 0 )) || die "could not read $rel/README.md"
+  have=$($README_TOOL plist < $d/info.plist)
+  state=$(readme_state $slug)
+  mkdir -p ${state:h}
+  if [[ $have != "$want" ]]; then
+    last=$(cat $state 2>/dev/null) || last=
+    committed=$(git -C $REPO show HEAD:$rel/info.plist 2>/dev/null | $README_TOOL plist 2>/dev/null) || committed=
+    if (( ! force )) && [[ $have != "$last" && $have != "$committed" ]]; then
+      print -u2 -r -- "wf: $rel/info.plist's readme has been edited outside README.md (in Alfred?):"
+      diff -u --label README.md --label info.plist <(print -r -- $want) <(print -r -- $have) >&2 || true
+      print -u2 -r -- "wf: copy any edits to keep into README.md, then run: wf sync-readme --force $slug"
+      exit 1
+    fi
+    plutil -replace readme -json "$($README_TOOL json $d/README.md)" $d/info.plist
+    plutil -lint -s $d/info.plist
+    info "Updated $rel/info.plist: readme"
+    changed=1
+  fi
+  print -r -- $want > $state
+}
+
+# Bring the workflow's info.plist up to date with the files it's copied from:
+# the shared User Configuration and its README.md.
+sync_workflow() {
+  sync_config $1
+  sync_readme $1
+}
+
+cmd_sync-config() {
+  (( $# <= 1 )) || die "usage: wf sync-config [<slug>]"
+  local d changed=0
+  local -a dirs
+  wf_dirs "$@"; dirs=($reply)
+  for d in $dirs; do sync_config $d; done
+  (( changed )) || info "Shared User Configuration is up to date"
+}
+
+cmd_sync-readme() {
+  local force=0 d changed=0
+  local -a dirs
+  [[ ${1:-} == --force ]] && { force=1; shift }
+  (( $# <= 1 )) || die "usage: wf sync-readme [--force] [<slug>]"
+  (( force && ! $# )) && die "--force needs a slug, so it can't overwrite every workflow's readme at once"
+  wf_dirs "$@"; dirs=($reply)
+  for d in $dirs; do sync_readme $d $force; done
+  (( changed )) || info "Readmes are up to date"
 }
 
 cmd_setup() {
@@ -395,15 +478,21 @@ Usage: wf <command> [args]
   unlink <slug>               Remove a workflow's symlink from Alfred (repo copy is untouched)
   promote <slug>              Move a workflow up a tier (wip -> release -> gallery) and repoint its link
   build [--allow-unsigned] <slug>
-                              Build dist/<slug>-<version>.alfredworkflow at the current version;
-                              fails if a compiled binary isn't notarised, unless --allow-unsigned
+                              Sync the workflow's info.plist (as sync-config and sync-readme do),
+                              then build dist/<slug>-<version>.alfredworkflow at the current
+                              version; fails if a compiled binary isn't notarised, unless
+                              --allow-unsigned
   release [--allow-unsigned] <slug> <version>
                               Set the version, commit, tag <slug>/v<version>, build, and open a
                               draft GitHub release with the build attached; --allow-unsigned
                               only for pre-release versions (1.2.3-preview.1)
-  sync-config                 Copy the shared User Configuration options (shared/userconfig)
-                              into every workflow that uses them
-  setup                      Enable the repo's git hooks (run once per clone)
+  sync-config [<slug>]        Copy the shared User Configuration options (shared/userconfig)
+                              into every workflow that uses them, or only into <slug>
+  sync-readme [--force] [<slug>]
+                              Copy each workflow's user guide from README.md into its
+                              info.plist readme, or only <slug>'s; --force overwrites a
+                              readme that was edited in Alfred
+  setup                       Enable the repo's git hooks (run once per clone)
 
 Set ALFRED_WORKFLOWS_DIR to point at a different Alfred workflows directory.
 EOF
