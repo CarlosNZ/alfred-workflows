@@ -129,8 +129,9 @@ function loadLib(file) {
 // An Alfred item for a city in the list, from describeCity's values and the
 // city's Clock record. ↩ shows the city's detail view inside Alfred and ⌘↩ in
 // a window of its own, both from the item's variables (see detailVariables),
-// which ⌘ marks with detail_launch. `typed` is the typed time in the time mode
-// (readTypedTime), for the detail view, and null in the list.
+// which ⌘ marks with detail_launch. ⌥↩ opens Clock on its World Clock tab
+// (open-clock.applescript), to edit the list. `typed` is the typed time in the
+// time mode (readTypedTime), for the detail view, and null in the list.
 function cityItem(info, city, typed, now) {
   const details = sunDetails(info);
   const variables = detailVariables(city, info, typed, now);
@@ -149,7 +150,11 @@ function cityItem(info, city, typed, now) {
     ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
     variables,
     text: { largetype: largeTypeText(info) },
-    mods: { cmd: panel, ...(details && { ctrl: { subtitle: details, valid: false } }) },
+    mods: {
+      cmd: panel,
+      alt: { subtitle: "Edit cities in Clock app" },
+      ...(details && { ctrl: { subtitle: details, valid: false } }),
+    },
   };
 }
 

@@ -5,17 +5,17 @@ Developer notes for a workflow that shows the current time in each city from the
 ## To-do
 
 - [ ] **Actions** for a city result (see [More details](#more-details)).
-  - [ ] **Detail view (↩ inside Alfred, ⌘↩ in its own window):** laid out for the now and meeting modes (see [Detail views](#detail-views)), with its look in constants in `lib/panel.js`. Still to do:
-    - [ ] **Tweak the layout's constants** by eye, inside Alfred and in a window.
+  - [x] **Detail view (↩ inside Alfred, ⌘↩ in its own window):** laid out for the now and meeting modes (see [Detail views](#detail-views)), with its look in constants in `lib/panel.js`. Still to do:
+    - [x] **Tweak the layout's constants** by eye, inside Alfred and in a window.
     - [ ] **Window preferences:** transparency, corner radius and window buttons, as Now Playing has, built into the layout when the view opens. It uses Now Playing's defaults for now.
-    - [ ] **Polish:** a proper "Loading…" placeholder.
+    - [x] **Polish:** a proper "Loading…" placeholder.
   - [ ] **City picture in the detail view** (see [City pictures](#city-pictures)):
     - [x] **Fetching:** a cache of pictures filled in the background by a single fetcher, with a User Configuration option to turn it off and a backoff when offline.
     - [x] **Showing it:** a 210×140pt slot at the top left, the picture cropped to fill it, with "Loading…" while it's on its way. Without one, the slot is left out.
     - [ ] **Crediting it** from its `<slug>.json` (artist and licence): most are CC BY or CC BY-SA, which require attribution.
     - [ ] **User-Agent contact:** replace the GitHub repo's URL in `USER_AGENT` (in `fetch-pictures.js`) with the workflow's Alfred forum or gallery URL once there is one. Wikimedia's User-Agent policy asks for a way to get in touch, and its rate limits are stricter for clients that don't give one.
-  - [ ] **Copy** (modifier to be decided; ⌘ is taken by the detail window): probably not worth having. If kept, to decide what it copies in each mode, e.g. "9:00 AM Monday in London is 10:00 PM Monday in Auckland" in the time mode.
-  - [ ] **⌥:** edit the list in the Clock app, on the World Clock tab (see [Opening Clock](#opening-clock) for the ways to get there).
+  - [x] **⌥:** edit the list in the Clock app, on the World Clock tab (see [Opening Clock](#opening-clock)).
+    - [ ] **Check it from Alfred:** tested from a terminal with Accessibility access. From Alfred, check that it uses Alfred's Accessibility access, what the first-run Automation prompt for System Events looks like, and what the debugger logs when either is denied.
   - [ ] **Alternative details:** show other data in the subtitle while a modifier is held, as ⌃ does with the sun details now.
   - [ ] **Configurable modifiers:** which modifier does which action, as User Configuration options.
   - [ ] **Remove Large Type** (`text.largetype`, `largeTypeText` in `lib/format.js`): it isn't very helpful, and the detail panel replaces it.
@@ -39,23 +39,23 @@ Values marked ⏱ depend on a moment in time: the current time, or the time type
 
 A typed time always means its next occurrence (now or later), since the time mode is for planning ahead: at 3:30pm, `wcc 3pm` is 3pm tomorrow in the Mac's zone, while at exactly 3:00pm it's now. `wcc 9am London` is the next 9am in London's zone. Every result in the time mode shows its city's weekday, so each row says which day the time falls on there.
 
-| Property | Source | Derivation |
-|---|---|---|
-| City name | `name` | As stored; already localized for the entry's `languageCode`. |
-| Country | `countryName` | As stored. For a city-state (Singapore), the subtitle leaves the country out, since the title already names it: a city counts as one when `displayNameIncludingCountryUsesOnlyCountry` is true, or when its country has the same name, since Clock doesn't set that flag on every city-state. Shown shortened where `lib/format.js` has a short name (Great Britain → UK, U.S.A. → USA). |
-| Flag | `localeCode` | Kept as the country code; shown by mapping each letter to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters. |
-| Local city | `timeZone` | See [Design](#design). |
-| ⏱ Local time | `timeZone` | The moment, shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time. |
-| ⏱ Day label | `timeZone` | After the time. In the list, "Yesterday" or "Tomorrow" when the city's calendar date differs from the Mac's ("11:33 PM Yesterday"): the list is about now, relative to you. In the time mode, the full weekday, always ("1:33 AM Thursday"), since "Tomorrow" would be ambiguous when the reference is a typed day, and weekends matter for meetings. |
-| ⏱ UTC offset | `timeZone` | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45", after the offset from local in the list's subtitle. |
-| ⏱ Offset from local | `timeZone` | The city's UTC offset minus the Mac's, e.g. "+11 hrs", "−2 hrs", "−7h 15m", "±0 hrs". |
-| ⏱ Upcoming clock change | `timeZone` | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown in the list only when it's within 7 days. In the time mode, the change that matters is the one between now and the typed time (`clockChangeFromNow`, below). |
-| ⏱ Working status | `timeZone`, `localeCode` | The city's local hour against a working day from User Configuration, and its weekday against its country's weekend: e.g. working, evening, asleep, weekend. The main value in the time mode. |
-| ⏱ Daylight state | `latitude`, `longitude` | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown in the ⌃ details. |
-| ⏱ Phase of the day | `latitude`, `longitude` | The sun's elevation and whether it's rising or setting (before or after solar noon), as one of the [phases of the day](#phases-of-the-day): night, dawn, sunrise, morning, afternoon, sunset, dusk. Shown as an icon. |
-| ⏱ Previous and next sun event | `latitude`, `longitude` | The previous sunrise or sunset and the next. The nearer is shown in Large Type with the time since or until it, e.g. "Sunset in 2h" or "Sunset 41m ago". |
-| ⏱ Sunrise and sunset | `latitude`, `longitude` | When the sun's elevation crosses −0.833° (horizon, allowing for refraction and the sun's disc). Today's are shown in the list's subtitle. |
-| ⏱ Day length and change | `latitude`, `longitude` | Sunset minus sunrise; the change is today's length minus yesterday's, e.g. "10h 12m, +2m/day". |
+| Property                      | Source                   | Derivation                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| City name                     | `name`                   | As stored; already localized for the entry's `languageCode`.                                                                                                                                                                                                                                                                                                                                                                              |
+| Country                       | `countryName`            | As stored. For a city-state (Singapore), the subtitle leaves the country out, since the title already names it: a city counts as one when `displayNameIncludingCountryUsesOnlyCountry` is true, or when its country has the same name, since Clock doesn't set that flag on every city-state. Shown shortened where `lib/format.js` has a short name (Great Britain → UK, U.S.A. → USA).                                                  |
+| Flag                          | `localeCode`             | Kept as the country code; shown by mapping each letter to a regional indicator symbol (A–Z → U+1F1E6–U+1F1FF), so `NZ` → 🇳🇿. No flag if the code is missing or isn't two letters.                                                                                                                                                                                                                                                          |
+| Local city                    | `timeZone`               | See [Design](#design).                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ⏱ Local time                  | `timeZone`               | The moment, shown with `NSDateFormatter`, a short time style and the city's `timeZone`, which follows the Mac's date and time settings, including 24-hour time.                                                                                                                                                                                                                                                                           |
+| ⏱ Day label                   | `timeZone`               | After the time. In the list, "Yesterday" or "Tomorrow" when the city's calendar date differs from the Mac's ("11:33 PM Yesterday"): the list is about now, relative to you. In the time mode, the full weekday, always ("1:33 AM Thursday"), since "Tomorrow" would be ambiguous when the reference is a typed day, and weekends matter for meetings.                                                                                     |
+| ⏱ UTC offset                  | `timeZone`               | In minutes, from `NSTimeZone.secondsFromGMTForDate`. Shown as e.g. "UTC+13", "UTC+5:45", after the offset from local in the list's subtitle.                                                                                                                                                                                                                                                                                              |
+| ⏱ Offset from local           | `timeZone`               | The city's UTC offset minus the Mac's, e.g. "+11 hrs", "−2 hrs", "−7h 15m", "±0 hrs".                                                                                                                                                                                                                                                                                                                                                     |
+| ⏱ Upcoming clock change       | `timeZone`               | `NSTimeZone.nextDaylightSavingTimeTransitionAfterDate` for the date, and `secondsFromGMTForDate` on either side of it for the shift (e.g. London 28 Mar 2027, +1h; Tokyo none). Shown in the list only when it's within 7 days. In the time mode, the change that matters is the one between now and the typed time (`clockChangeFromNow`, below).                                                                                        |
+| ⏱ Working status              | `timeZone`, `localeCode` | The city's local hour against a working day from User Configuration, and its weekday against its country's weekend: e.g. working, evening, asleep, weekend. The main value in the time mode.                                                                                                                                                                                                                                              |
+| ⏱ Daylight state              | `latitude`, `longitude`  | The sun's elevation, from the solar position calculation below, in bands that don't overlap, so each city has one state: day (above 6°), golden hour (6° down to sunrise/sunset at −0.833°), civil twilight (to −6°), nautical twilight (to −12°), astronomical twilight (to −18°), night (below −18°). Photographers' golden hour usually runs to −4°, overlapping civil twilight; here the horizon splits them. Shown in the ⌃ details. |
+| ⏱ Phase of the day            | `latitude`, `longitude`  | The sun's elevation and whether it's rising or setting (before or after solar noon), as one of the [phases of the day](#phases-of-the-day): night, dawn, sunrise, morning, afternoon, sunset, dusk. Shown as an icon.                                                                                                                                                                                                                     |
+| ⏱ Previous and next sun event | `latitude`, `longitude`  | The previous sunrise or sunset and the next. The nearer is shown in Large Type with the time since or until it, e.g. "Sunset in 2h" or "Sunset 41m ago".                                                                                                                                                                                                                                                                                  |
+| ⏱ Sunrise and sunset          | `latitude`, `longitude`  | When the sun's elevation crosses −0.833° (horizon, allowing for refraction and the sun's disc). Today's are shown in the list's subtitle.                                                                                                                                                                                                                                                                                                 |
+| ⏱ Day length and change       | `latitude`, `longitude`  | Sunset minus sunrise; the change is today's length minus yesterday's, e.g. "10h 12m, +2m/day".                                                                                                                                                                                                                                                                                                                                            |
 
 Country names come from `Localizable_Countries.loctable` in `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/`: a name for each of 242 country codes, plus 15 per-city overrides keyed by city identifier (London → England, Hong Kong → Hong Kong SAR, China), in each language Clock supports. English has four versions (`en`, `en_GB`, `en_AU`, `en_CA`), which differ only for US (U.S.A./USA), AE (U.A.E./UAE), VI and MO. `resources/clock-countries.csv` lists them all, with a column for the name to show. TO-DO: fill in that column and use it as the short-name map in `lib/format.js`, applied only to entries whose `languageCode` is English (`en` or `en_…`); other languages show the stored name.
 
@@ -117,15 +117,15 @@ At 10:33 PM on a Thursday in Auckland (sun times approximate):
 
 The list's icons. A phase is a range of the sun's elevation, split by whether the sun is rising (before solar noon) or setting (after), so dawn and dusk differ. The hours a phase covers depend on the city's latitude and the season. Morning and afternoon split at solar noon rather than 12:00, since the icon pictures the sky; with daylight saving, solar noon can be near 1:30 PM.
 
-| Phase | Sun elevation | Sun | Word |
-|---|---|---|---|
-| `night` | Below −6° | Either | Night |
-| `dawn` | −6° to −0.833° (the horizon) | Rising | Dawn |
-| `sunrise` | −0.833° to 6° | Rising | Sunrise |
-| `morning` | Above 6° | Rising | Morning |
-| `afternoon` | Above 6° | Setting | Afternoon |
-| `sunset` | 6° to −0.833° | Setting | Sunset |
-| `dusk` | −0.833° to −6° | Setting | Dusk |
+| Phase       | Sun elevation                | Sun     | Word      |
+| ----------- | ---------------------------- | ------- | --------- |
+| `night`     | Below −6°                    | Either  | Night     |
+| `dawn`      | −6° to −0.833° (the horizon) | Rising  | Dawn      |
+| `sunrise`   | −0.833° to 6°                | Rising  | Sunrise   |
+| `morning`   | Above 6°                     | Rising  | Morning   |
+| `afternoon` | Above 6°                     | Setting | Afternoon |
+| `sunset`    | 6° to −0.833°                | Setting | Sunset    |
+| `dusk`      | −0.833° to −6°               | Setting | Dusk      |
 
 The phases are defined in one list, `DAY_PHASES` in `lib/sun.js`: each has its code, word, elevation range and range of hours from solar noon (−12 to 0 rising, 0 to 12 setting), and the first that matches wins. Changing a boundary or adding a phase (a midday within an hour of noon, say, listed before morning and afternoon) only touches that list, plus an icon for a new phase.
 
@@ -137,13 +137,13 @@ Polar day and night have no phases of their own: the polar night's noon sun can 
 
 The time mode's icons. The hours are the city's local time, from `WORKING_DAY` in `lib/time.js` (to move to User Configuration). The colours are a traffic light for scanning which cities a time suits.
 
-| Status | Local hours | Icon | Word | Detail |
-|---|---|---|---|---|
-| `morning` | 7:00–9:00 | Amber, coffee cup | Early morning | Until work starts: "work in 1h" |
-| `working` | 9:00–17:00 | Green, briefcase | Working | Until work ends: "3h left" |
-| `evening` | 17:00–22:00 | Amber, lamp | Evening | Since work ended: "2h after work" |
-| `asleep` | 22:00–7:00 | Red, bed | Asleep | Until work starts: "work in 3h" |
-| `weekend` | The country's weekend days, except the asleep hours | Grey, deckchair | Weekend | Until work starts: "work Mon", or "work in 18h" on the last weekend day |
+| Status    | Local hours                                         | Icon              | Word          | Detail                                                                  |
+| --------- | --------------------------------------------------- | ----------------- | ------------- | ----------------------------------------------------------------------- |
+| `morning` | 7:00–9:00                                           | Amber, coffee cup | Early morning | Until work starts: "work in 1h"                                         |
+| `working` | 9:00–17:00                                          | Green, briefcase  | Working       | Until work ends: "3h left"                                              |
+| `evening` | 17:00–22:00                                         | Amber, lamp       | Evening       | Since work ended: "2h after work"                                       |
+| `asleep`  | 22:00–7:00                                          | Red, bed          | Asleep        | Until work starts: "work in 3h"                                         |
+| `weekend` | The country's weekend days, except the asleep hours | Grey, deckchair   | Weekend       | Until work starts: "work Mon", or "work in 18h" on the last weekend day |
 
 When weekend days come before the next start of work, the detail names the day work starts instead of counting the hours: "work Mon" on a Friday night (asleep) or a Saturday afternoon (weekend), "work Sun" in Israel. Once the next start of work is the following morning, it counts the hours again: "work in 18h" on a Sunday afternoon.
 
@@ -157,7 +157,7 @@ When weekend days come before the next start of work, the detail names the day w
 
 - **⌃ (held):** the subtitle shows the daylight state and sun times, e.g. "Nautical twilight | Sunrise 5:45 AM | Sunset 7:52 PM | Day 14h 6m (+2m/day)". The `day` state reads "Daylight" here, so it isn't confused with the day length.
 - **↩:** shows the city's detail view inside Alfred, and **⌘↩** opens it in a window of its own (see [Detail views](#detail-views)). In the time mode, the view shows the city at the typed time.
-- **⌥:** opens Clock, to edit the list (see [Opening Clock](#opening-clock)).
+- **⌥↩:** opens Clock on its World Clock tab, to edit the list (see [Opening Clock](#opening-clock)). Its subtitle is "Edit cities in Clock app". It's the same for every city, and only on city results: the messages for when the list can't be loaded keep ⌥ inert.
 - **Copy** (if kept): its subtitle shows what it copies.
 - Which modifier does which action is to be configurable.
 - **Large Type (⌘L, `text.largetype`):** every property, one per line. To be removed, since the detail panel replaces it.
@@ -242,6 +242,7 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 - `icons/`: result icons (see [More details](#more-details)).
 - `lib/detail.js`, `lib/panel.js`, `panel.zsh` and `detail.js`: the detail view (see [Detail views](#detail-views)).
 - `lib/pictures.js`, `fetch-pictures.zsh` and `fetch-pictures.js`: the cache of city pictures, and the fetcher that fills it (see [City pictures](#city-pictures)).
+- `open-clock.applescript`: ⌥↩, opening Clock on its World Clock tab (see [Opening Clock](#opening-clock)). AppleScript rather than JXA, because JXA can't press a menu item.
 
 JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries`, which a workflow can't ship in. So `results.js` reads each `lib/` file and runs it with an indirect `eval` (`(0, eval)(source)`), which runs it in the global scope. Each file's top-level functions become globals, available to `results.js` and the other files; its top-level `const` and `let` stay private to it. The catches:
 
@@ -322,15 +323,15 @@ The fetcher as built found a P18 image for all 12 test cities and all 11 in Cloc
 
 **The cache.** `$alfred_workflow_cache/images/`, with each city's files named after its slug (`citySlug` in `lib/cities.js`, Clock's identifier made safe for a file name, which also names its detail view package):
 
-| File | Meaning |
-|---|---|
-| `<slug>.jpg` | The picture: a JPEG 960px wide (`PICTURE_WIDTH`), or the original's width when that's smaller. It's moved into place last, with `mv`, so a reader never sees half a file. |
-| `<slug>.json` | Where it came from: the Wikidata item and its distance from Clock's coordinates, the source (P18 or Wikipedia's page image), the Commons file page, artist and licence (plain text from Commons' `extmetadata`), and when it was fetched. For checking matches now, and crediting the picture later. |
-| `<slug>.none` | No picture found, holding the reason (no item within range, or an item with no image). Not retried. |
-| `<slug>.failed` | A failure particular to the city, such as a reply that isn't JSON or a download `sips` can't convert. Its modification time is when to retry, and it holds the delay in seconds, which doubles with each failure on the same scale as the backoff. |
-| `.backoff` | See [Backoff](#city-pictures). |
-| `.lock` | The fetcher's lock (see [One fetcher at a time](#city-pictures)). |
-| `.tmp-<pid>-*` | A fetch's temporary files: replies, headers and downloads, named with its process ID, since a fetch for a view can run alongside the fetcher. Each fetch deletes its own when it ends, and any older than 10 minutes when it starts (`STALE_TEMPORARY_MINUTES`), which are left over from one that was stopped. |
+| File            | Meaning                                                                                                                                                                                                                                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<slug>.jpg`    | The picture: a JPEG 960px wide (`PICTURE_WIDTH`), or the original's width when that's smaller. It's moved into place last, with `mv`, so a reader never sees half a file.                                                                                                                                       |
+| `<slug>.json`   | Where it came from: the Wikidata item and its distance from Clock's coordinates, the source (P18 or Wikipedia's page image), the Commons file page, artist and licence (plain text from Commons' `extmetadata`), and when it was fetched. For checking matches now, and crediting the picture later.            |
+| `<slug>.none`   | No picture found, holding the reason (no item within range, or an item with no image). Not retried.                                                                                                                                                                                                             |
+| `<slug>.failed` | A failure particular to the city, such as a reply that isn't JSON or a download `sips` can't convert. Its modification time is when to retry, and it holds the delay in seconds, which doubles with each failure on the same scale as the backoff.                                                              |
+| `.backoff`      | See [Backoff](#city-pictures).                                                                                                                                                                                                                                                                                  |
+| `.lock`         | The fetcher's lock (see [One fetcher at a time](#city-pictures)).                                                                                                                                                                                                                                               |
+| `.tmp-<pid>-*`  | A fetch's temporary files: replies, headers and downloads, named with its process ID, since a fetch for a view can run alongside the fetcher. Each fetch deletes its own when it ends, and any older than 10 minutes when it starts (`STALE_TEMPORARY_MINUTES`), which are left over from one that was stopped. |
 
 The fetcher's log is `$alfred_workflow_cache/pictures.log`, next to `images/`: one line per city, with the item it matched, the distance and the file, or why it found nothing or failed. Each fetcher that gets the lock empties it, so it covers the last run; it and fetches for a view append to it, so their lines interleave in time order.
 
@@ -453,18 +454,18 @@ Its entries come from the database Clock picks cities from, `/System/Library/Pri
 
 The cities are chosen for edge cases:
 
-| City | Edge case |
-|---|---|
-| Auckland, Wellington | Southern hemisphere daylight saving; two cities in the same zone (local city tiebreak) |
-| Kolkata | Half-hour offset (+5:30) |
-| Kathmandu | 45-minute offset (+5:45); zone stored as the old alias `Asia/Katmandu` |
-| Singapore | City-state: city and country names are the same |
-| Hong Kong | Country override "Hong Kong SAR, China", but locale code `CN` (so its flag would be China's) |
-| London | Country override "England"; UTC+0 in winter |
-| Vatican City | No locale code or country name in the database: no flag, no country |
-| Longyearbyen | 78°N: midnight sun and polar night |
-| New York | Northern hemisphere daylight saving |
-| Phoenix | No daylight saving, unlike the rest of its region; same country as New York |
+| City                   | Edge case                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| Auckland, Wellington   | Southern hemisphere daylight saving; two cities in the same zone (local city tiebreak)            |
+| Kolkata                | Half-hour offset (+5:30)                                                                          |
+| Kathmandu              | 45-minute offset (+5:45); zone stored as the old alias `Asia/Katmandu`                            |
+| Singapore              | City-state: city and country names are the same                                                   |
+| Hong Kong              | Country override "Hong Kong SAR, China", but locale code `CN` (so its flag would be China's)      |
+| London                 | Country override "England"; UTC+0 in winter                                                       |
+| Vatican City           | No locale code or country name in the database: no flag, no country                               |
+| Longyearbyen           | 78°N: midnight sun and polar night                                                                |
+| New York               | Northern hemisphere daylight saving                                                               |
+| Phoenix                | No daylight saving, unlike the rest of its region; same country as New York                       |
 | Amundsen–Scott Station | The South Pole, −90° exactly; zone `Antarctica/South_Pole` (an alias, following New Zealand time) |
 
 ## No public API
@@ -550,11 +551,25 @@ plutil -extract cities json -o - ~/Library/Containers/com.apple.clock/Data/Libra
 
 ## Opening Clock
 
-Clock reopens on the last-used tab (`LAST_SELECTED_VIEW` in Clock's preferences). Ways to land on the World Clock tab:
+Clock reopens on the last-used tab (`LAST_SELECTED_VIEW` in Clock's preferences). ⌥↩ runs `open-clock.applescript`, which gets to the World Clock tab through Clock's View menu:
 
-- **Shortcuts "Open Clock Tab"** (`OpenTabIntent`), with Destination World Clock. Works. Its `ClockDestination` enum has the cases `worldclock`, `alarm`, `timer` and `stopwatch`. The system delivers the intent to Clock itself, which logs `didSelectTab MTTab(rawValue: 0) with delegate … MTAppIntentsProvider` and then `-[MTAAppController appIntentsProvider:didSelectTab:]: Handling AppIntents action for MTProviderTabClock`. There's no public API for one app to perform another app's App Intent (Shortcuts does it through private system services), so a workflow has to go through a shortcut: ship a one-action `.shortcut` file for the user to import, then run it with `shortcuts run "<name>"`.
+1. `reopen` and `activate` Clock. `reopen` gives a running Clock a window, as clicking its Dock icon does. Closing Clock's last window quits it (⌘W did, in testing), so "running with no window" rarely happens anyway.
+2. Through System Events, wait up to 5 seconds for Clock's window, since the menus aren't set up before it on launch.
+3. Find the menu item whose key is ⌘ alone with `1` (`AXMenuItemCmdChar` "1", `AXMenuItemCmdModifiers` 0), looking through every menu but the Apple menu, and perform its `AXPress` action. On macOS 27.2 that's View › World Clock; Alarms, Stopwatch and Timers are ⌘2 to ⌘4. The key doesn't depend on the language, unlike the item's name, and doesn't depend on Clock's menus staying in the same order, unlike a position.
+
+Tested from a terminal on macOS 27.2, checking which View menu item had the tick (`AXMenuItemMarkChar`) after each run: with Clock running on another tab, in front or behind another app (0.5–0.8s, Clock coming to the front); and with Clock quit on another tab (1s).
+
+What didn't work, or works less well:
+
+- `AXPress` through JXA (`….menuItems[0].actions.byName("AXPress").perform()`, or `.click()` on the item) silently did nothing, while the same press from AppleScript worked. Hence the one AppleScript file in a JXA workflow.
+- A ⌘1 keystroke works, but goes to whichever app is in front, so if the focus moves at the wrong moment it lands in the wrong app. `AXPress` goes to Clock whether it's in front or not.
+
+It needs Accessibility access for Alfred, which Alfred also asks for on first launch (for pasting, among others), and Automation access to System Events, which macOS asks for the first time it runs. Without either, or if Clock has no item on ⌘1, Clock still opens, on its last tab, and the script logs why to the debugger. The menu could change in any macOS update; the fallback is the same.
+
+Other ways to land on the World Clock tab, not used:
+
+- **Shortcuts "Open Clock Tab"** (`OpenTabIntent`), with Destination World Clock. Works. Its `ClockDestination` enum has the cases `worldclock`, `alarm`, `timer` and `stopwatch`. The system delivers the intent to Clock itself, which logs `didSelectTab MTTab(rawValue: 0) with delegate … MTAppIntentsProvider` and then `-[MTAAppController appIntentsProvider:didSelectTab:]: Handling AppIntents action for MTProviderTabClock`. There's no public API for one app to perform another app's App Intent (Shortcuts does it through private system services), so a workflow has to go through a shortcut: ship a one-action `.shortcut` file for the user to import, then run it with `shortcuts run "<name>"`. That means an install step: the file has to be signed to import (`shortcuts sign`), opening it only shows Shortcuts' import sheet, which the user can cancel, and the shortcut can end up with another name. Alfred has no install hook to offer it from, so it would have to be offered on first use or behind a setting. It's the fallback if the menu stops working.
 - **URL schemes don't work.** Clock's `Info.plist` lists `clock-worldclock`, `clock-alarm`, `clock-stopwatch`, `clock-sleep-alarm`, `clock-timer` and `clock-timer-running` under `PrivateURLSchemes`, and Launch Services maps them to Clock (`lsregister -dump` lists them as claimed schemes). Clock receives them (its log shows `MTASceneManager … openURLContexts:` with the URL) but does nothing more: on macOS 27.2, `clock-worldclock://`, `clock-worldclock:`, `clock-worldclock:/`, `clock-worldclock://worldclock`, `clock-worldclock://open`, `clock-stopwatch://`, `clock-timer://` and `clock-alarm://` were each followed by no `didSelectTab` or other Clock log line (and where the window was watched, the tab didn't change). The schemes are undocumented, and the Mac app appears to accept and ignore them.
-- **Clock's View menu**, chosen with System Events after activating Clock. Needs Accessibility access for Alfred, which Alfred also asks for on first launch. Not yet tested.
 - Setting `LAST_SELECTED_VIEW` in the container's `com.apple.clock.plist` before launching Clock. Writing another app's preferences is fragile (`cfprefsd` caches them while Clock runs) and risks corrupting its settings; avoid.
 
 To check what Clock does with an input, watch its own log while trying it:
@@ -564,6 +579,12 @@ To check what Clock does with an input, watch its own log while trying it:
 ```
 
 (Use `/usr/bin/log`: in zsh, `log` is a shell builtin.)
+
+Switching tabs through the menu logs little, and nothing at all for World Clock, so to see which tab Clock is on, read the ticks in its View menu (needs Accessibility access for the terminal); the ticked item shows `✓`:
+
+```zsh
+osascript -e 'tell application "System Events" to tell process "Clock" to get {name, value of attribute "AXMenuItemMarkChar"} of menu items 1 thru 4 of menu 1 of menu bar item "View" of menu bar 1'
+```
 
 ## Ideas
 
