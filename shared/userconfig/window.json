@@ -1,0 +1,41 @@
+[
+  {
+    "variable": "window_buttons",
+    "type": "checkbox",
+    "label": "Window buttons",
+    "description": "Shows the window's \"traffic light\" buttons in the title bar. Without them, you can still use Esc to close the window.",
+    "config": {
+      "default": true,
+      "required": false,
+      "text": "Show window buttons"
+    }
+  },
+  {
+    "variable": "corner_radius",
+    "type": "slider",
+    "label": "Corner radius",
+    "description": "Rounding of the window corners, in points. Only applies when the window buttons are hidden — otherwise it uses standard macOS window rounding.",
+    "config": {
+      "defaultvalue": 16,
+      "markercount": 9,
+      "maxvalue": 32,
+      "minvalue": 0,
+      "onlystoponmarkers": false,
+      "showmarkers": false
+    }
+  },
+  {
+    "variable": "transparency",
+    "type": "slider",
+    "label": "Transparency",
+    "description": "0: solid, 100: blur only",
+    "config": {
+      "defaultvalue": 45,
+      "markercount": 11,
+      "maxvalue": 100,
+      "minvalue": 0,
+      "onlystoponmarkers": false,
+      "showmarkers": false
+    }
+  }
+]

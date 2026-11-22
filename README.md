@@ -16,10 +16,11 @@ release/<slug>/     released with a version and posted on the Alfred forum
 gallery/<slug>/     accepted into the Alfred Gallery
 bin/wf              helper for linking, releasing and building
 bin/make-appicon    builds an Alfred UI's app icon from a workflow's icon
+shared/userconfig/  User Configuration options that several workflows offer, worded the same
 dist/               built .alfredworkflow files (not committed)
 ```
 
-Each `<slug>/` folder is the workflow itself, exactly as Alfred sees it (`info.plist` at the root). Workflows are self-contained and don't share code with each other.
+Each `<slug>/` folder is the workflow itself, exactly as Alfred sees it (`info.plist` at the root). Workflows are self-contained and don't share code with each other. Only the wording of some User Configuration options is shared, and each workflow keeps its own copy; see [Shared User Configuration](#shared-user-configuration).
 
 Each workflow has a `README.md` of developer notes: how it works, how to test it, to-dos. It isn't included in builds. User-facing documentation goes in the workflow's own readme ("About this Workflow" in Alfred, stored in `info.plist`), which is what Alfred and the Gallery display; see [User-facing docs](#user-facing-docs).
 
@@ -39,6 +40,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 | `wf release [--allow-unsigned] <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
 | `wf build [--allow-unsigned] <slug>` | Rebuild `dist/<slug>-<version>.alfredworkflow` at the current version; see [Compiled binaries](#compiled-binaries) |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
+| `wf sync-config` | Copy the shared User Configuration options into every workflow that uses them; see [Shared User Configuration](#shared-user-configuration) |
 
 To start a new workflow, create it in Alfred, then `wf adopt` it.
 
@@ -57,6 +59,14 @@ Any compiled (Mach-O) binary in a build must be signed with a Developer ID certi
 A workflow's readme ("About this Workflow" in Alfred, and its page in the Gallery) is the `readme` string in `info.plist`. Write it in Alfred: in the workflow editor, the [𝒙] sheet's "About this Workflow" tab. The workflow's configuration sheet shows it rendered beside the settings.
 
 The readme can use [Alfred's Markdown](https://www.alfredapp.com/help/kb/markdown-syntax/) (no raw HTML apart from `<kbd>`). Images must be files in the workflow, at paths relative to the workflow folder; keep them in `docs/` and write them as `![Alt text](docs/shot.png)`. Everything in `docs/` ships in builds, so remove screenshots the readme no longer shows, and keep them small (crop them, and compress PNGs with a tool such as ImageOptim or TinyPNG).
+
+### Shared User Configuration
+
+Options that several workflows offer, such as the window buttons, corner radius and transparency of an Alfred UI window, are worded the same in each. Their definitions live in `shared/userconfig/`, one JSON file per group of options (`window.json` for those three). Each file is a list of User Configuration items exactly as they appear in `info.plist`'s `userconfigurationconfig`, in JSON. A workflow uses a shared option by having an item with the same `variable`, and keeps its own copy of it in `info.plist`, so builds stay self-contained. Where the options go in the configuration sheet is up to each workflow.
+
+To change an option's wording or settings, edit the shared file and run `bin/wf sync-config`, which copies each shared item over every workflow's item with that variable, and leaves the rest of `info.plist` alone. An edit to a shared option made in Alfred's workflow editor is undone by the next sync. The pre-commit hook blocks a commit where any workflow's copy differs from the shared one.
+
+To give a workflow a shared option, add an item with its variable in Alfred (anything will do for the rest) and run `bin/wf sync-config`, or append it to `userconfigurationconfig` with `plutil -insert … -append`. The workflow's scripts still read the option and apply their own default, which should match the shared default.
 
 ### App icons
 

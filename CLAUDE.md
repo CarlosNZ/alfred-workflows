@@ -19,6 +19,8 @@ Alfred's workflow editor also writes `info.plist`, so keep edits to it minimal a
 - Script `type`: 0 bash, 5 zsh, 7 JavaScript (JXA), 8 external script (`scriptfile`, relative to the workflow folder, must be executable)
 - `scriptargtype`: 1 passes input as argv (`$1`, `argv[0]`)
 
+User Configuration items whose `variable` is defined in `shared/userconfig/` are shared between workflows: change them in the shared file, then run `bin/wf sync-config`, never in one `info.plist` alone. See "Shared User Configuration" in README.md.
+
 The user-facing readme (the `readme` key in `info.plist`) is written in Alfred, in the workflow editor's [𝒙] sheet ("About this Workflow" tab). Its images live in the workflow's `docs/` folder. See "User-facing docs" in README.md.
 
 ## Script conventions

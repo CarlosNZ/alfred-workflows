@@ -157,6 +157,8 @@ The workflow's User Configuration (defined in `info.plist`; values the user save
 | `transparency`   | slider, 0–100 | `45`                             | `window.sh`: the panel's tint                                                     |
 | `default_app`    | file picker   | `/System/Applications/Music.app` | the app shown and opened when nothing is playing; see [Default app](#default-app) |
 
+`window_buttons`, `corner_radius` and `transparency` are shared with World Clock, so their wording and settings are in the repo's `shared/userconfig/window.json`: change them there and run `bin/wf sync-config`, not in Alfred (see [Shared User Configuration](../../README.md#shared-user-configuration)). The defaults in `window.sh` match the shared ones.
+
 Alfred passes them to the workflow's scripts as environment variables. The Alfred UI itself sees none of them (it would need each listed in `ui.json`'s `variablesconfig`), and doesn't need to: `window.sh` builds them into the window before the UI opens (see [Window](#window)), and saves `default_app` to the cache for the panel's scripts.
 
 The file picker's `filtermode` is 0. Other workflows use 1 for folders only; 0 is presumably files only, which still allows apps, since an app bundle counts as a file in an open panel. The value is the app's full path. The picker has no setting for its starting folder.

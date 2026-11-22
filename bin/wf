@@ -9,6 +9,8 @@ REPO=${0:A:h:h}
 # Tiers, highest first. A workflow moves up one tier at a time with `wf promote`.
 AREAS=(gallery release wip)
 PLIST_TOOL=(python3 -I "$REPO/bin/lib/plisttool.py")
+USERCONFIG_TOOL=(python3 -I "$REPO/bin/lib/userconfig.py")
+SHARED_USERCONFIG=$REPO/shared/userconfig
 
 die()  { print -u2 -r -- "wf: $*"; exit 1 }
 info() { print -r -- "$*" }
@@ -356,6 +358,28 @@ cmd_release() {
   return 0
 }
 
+# Copy the shared User Configuration items (shared/userconfig/*.json) over
+# each workflow's item with the same variable, one key path at a time, so the
+# rest of info.plist is left as Alfred wrote it. Removed then inserted, since
+# plutil's -replace on an array index inserts beside the old item.
+cmd_sync-config() {
+  (( $# == 0 )) || die "usage: wf sync-config"
+  local area d i variable item changed=0
+  for area in $AREAS; do
+    for d in $REPO/$area/*(N/); do
+      [[ -f $d/info.plist ]] || continue
+      $USERCONFIG_TOOL diff $SHARED_USERCONFIG < $d/info.plist | while IFS=$'\t' read -r i variable item; do
+        plutil -remove userconfigurationconfig.$i $d/info.plist
+        plutil -insert userconfigurationconfig.$i -json $item $d/info.plist
+        info "Updated ${d#$REPO/}: $variable"
+        changed=1
+      done
+      plutil -lint -s $d/info.plist
+    done
+  done
+  (( changed )) || info "Every workflow's shared User Configuration is up to date"
+}
+
 cmd_setup() {
   git -C $REPO config core.hooksPath .githooks
   info "Git hooks enabled (core.hooksPath = .githooks)"
@@ -377,7 +401,9 @@ Usage: wf <command> [args]
                               Set the version, commit, tag <slug>/v<version>, build, and open a
                               draft GitHub release with the build attached; --allow-unsigned
                               only for pre-release versions (1.2.3-preview.1)
-  setup                       Enable the repo's git hooks (run once per clone)
+  sync-config                 Copy the shared User Configuration options (shared/userconfig)
+                              into every workflow that uses them
+  setup                      Enable the repo's git hooks (run once per clone)
 
 Set ALFRED_WORKFLOWS_DIR to point at a different Alfred workflows directory.
 EOF
