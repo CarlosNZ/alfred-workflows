@@ -926,7 +926,7 @@ Alfred needs Full Disk Access to read Clock's list of cities, which it asks for 
 				<string>Show window buttons</string>
 			</dict>
 			<key>description</key>
-			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc or ⌘W to close the window.</string>
+			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc to close the window.</string>
 			<key>label</key>
 			<string>Window buttons</string>
 			<key>type</key>

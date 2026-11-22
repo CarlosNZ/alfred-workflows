@@ -3,7 +3,7 @@
     "variable": "window_buttons",
     "type": "checkbox",
     "label": "Window buttons",
-    "description": "Shows the window's \"traffic light\" buttons in the title bar. Without them, you can still use Esc or ⌘W to close the window.",
+    "description": "Shows the window's \"traffic light\" buttons in the title bar. Without them, you can still use Esc to close the window.",
     "config": {
       "default": true,
       "required": false,
