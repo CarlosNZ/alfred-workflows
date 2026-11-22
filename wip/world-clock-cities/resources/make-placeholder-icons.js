@@ -1,9 +1,9 @@
 #!/usr/bin/osascript -l JavaScript
 
-// Draws a placeholder icon for each phase of the day and each working status:
-// a rounded square in a plain colour with the phase's or status's word on it,
-// saved as icons/phase-<phase>.png and icons/status-<status>.png. The phases
-// and words come from DAY_PHASES in lib/sun.js; the statuses are listed below.
+// Draws a placeholder icon for each working status: a rounded square in a
+// plain colour with the status's word on it, saved as
+// icons/status-<status>.png. The phases of the day have designed icons, from
+// make-phase-icons.js.
 //
 // Run from the workflow folder:  resources/make-placeholder-icons.js
 //
@@ -14,18 +14,6 @@ ObjC.import("AppKit");
 
 const SIZE = 256;
 const MARGIN = 16;
-
-// Background and text colours for each phase, as hex RGB.
-const COLOURS = {
-  night: ["#1B2240", "#FFFFFF"],
-  dawn: ["#B79CD9", "#1B2240"],
-  sunrise: ["#F2994A", "#1B2240"],
-  morning: ["#F7D154", "#1B2240"],
-  afternoon: ["#6EC6F0", "#1B2240"],
-  sunset: ["#E0533D", "#FFFFFF"],
-  dusk: ["#5B3F8C", "#FFFFFF"],
-};
-const FALLBACK_COLOURS = ["#888888", "#FFFFFF"];
 
 // The working statuses (workingStatus in lib/time.js), with their words as in
 // WORKING_STATUS_WORDS in lib/format.js, and colours as a traffic light, with
@@ -39,21 +27,15 @@ const WORKING_STATUSES = [
 ];
 
 function run() {
-  const source = $.NSString.stringWithContentsOfFileEncodingError("lib/sun.js", $.NSUTF8StringEncoding, null);
-  if (source.isNil()) throw new Error("Can't load lib/sun.js (run from the workflow folder)");
-  (0, eval)(source.js);
-
   $.NSFileManager.defaultManager.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(
     "icons",
     true,
     $(),
     null,
   );
-  const written = [
-    ...dayPhases().map(({ phase, word }) => ({ path: `icons/phase-${phase}.png`, word, colours: COLOURS[phase] })),
-    ...WORKING_STATUSES.map(({ status, word, colours }) => ({ path: `icons/status-${status}.png`, word, colours })),
-  ].map(({ path, word, colours }) => {
-    drawIcon(path, word, colours || FALLBACK_COLOURS);
+  const written = WORKING_STATUSES.map(({ status, word, colours }) => {
+    const path = `icons/status-${status}.png`;
+    drawIcon(path, word, colours);
     return path;
   });
   return `Wrote ${written.join(", ")}`;

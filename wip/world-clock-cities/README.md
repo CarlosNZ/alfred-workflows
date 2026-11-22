@@ -21,6 +21,8 @@ Developer notes for a workflow that shows the current time in each city from the
   - [ ] **Remove Large Type** (`text.largetype`, `largeTypeText` in `lib/format.js`): it isn't very helpful, and the detail view replaces it. The daylight state (golden hour, the twilights) is only shown there; move it to the detail view, beside the sun's elevation, or let it go.
 - [ ] **Working day in User Configuration:** the hours behind the working status, fixed in `WORKING_DAY` in `lib/time.js` (see [Configuration](#configuration)).
 - [ ] **Icons:** design the 12 icons (7 phases, 5 working statuses) to replace the placeholders (see [Icon states](#icon-states)).
+  - [x] **Phases of the day:** a sky over the sea with the sun along an arc (see [Phases of the day](#phases-of-the-day)).
+  - [ ] **Working statuses:** the same tile and finish as the phases, in the traffic-light colours, with a simple symbol in place of the sky.
 - [ ] **Short country names:** fill in the name-to-show column of `resources/clock-countries.csv` and use it in `lib/format.js` (see [City properties](#city-properties)).
 - [ ] **Other configuration:** 12- or 24-hour time, showing the home city, sorting by time zone (see [Configuration](#configuration)).
 
@@ -65,7 +67,7 @@ The sun values come from the NOAA solar position algorithm (after Meeus): about 
 
 ### Results layout
 
-Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. The list and the time mode are built, with placeholder icons; ⌥ and ⌘ aren't yet.
+Each mode answers one question, and a result's icon and title answer it. The list answers "what's it like there right now?", so its icon shows the sky. The time mode answers "does this time suit them?", so its icon shows the working status. The rest of a city's properties are behind a modifier and Large Type rather than in the subtitle. The list and the time mode are built, the time mode with placeholder icons; ⌥ and ⌘ aren't yet.
 
 #### The list
 
@@ -129,7 +131,7 @@ The list's icons. A phase is a range of the sun's elevation, split by whether th
 
 The phases are defined in one list, `DAY_PHASES` in `lib/sun.js`: each has its code, word, elevation range and range of hours from solar noon (−12 to 0 rising, 0 to 12 setting), and the first that matches wins. Changing a boundary or adding a phase (a midday within an hour of noon, say, listed before morning and afternoon) only touches that list, plus an icon for a new phase.
 
-The icon design is to be decided. One idea: a horizon with the sun's path arcing over it, the sun on the left while rising and on the right while setting, below the line at night, and the sky's colour from the phase; a rooster or a moon could mark sunrise and night.
+Every phase's icon is the same scene, so the set reads as one sequence: a rounded tile of sky over a sea, with the horizon at a fixed height and the sun along an arc. It's on the left while rising and on the right while setting, so the sun's place alone says which, even at 16px. It's high in the morning and afternoon, half sunk at sunrise and sunset, and below the horizon at dawn and dusk, where only its glow shows, on its side. Night has a crescent moon and a few stars instead. The sky is a vertical gradient in the phase's colours, with a radial glow around the sun, and the sun or moon has a soft-edged streak of reflection on the water below it. The finish follows the workflow's icon: a glossy sheen over the top half, and a thin light edge so the dark tiles stand out on a dark theme. Each icon has at most those few elements, so it still reads at Alfred's result size; clouds, a drawn sun path or more stars would turn to noise there.
 
 Polar day and night have no phases of their own: the polar night's noon sun can reach dawn, and the midnight sun can be in sunset around midnight, so the icon follows the sun and the subtitle says "Midnight sun" or "Polar night". The finer elevation bands (golden hour, the three twilights) stay as the daylight state, shown in Large Type.
 
@@ -163,7 +165,11 @@ When weekend days come before the next start of work, the detail names the day w
 - **Large Type (⌘L, `text.largetype`):** every property, one per line. To be removed, since the detail view replaces it.
 - **`rerun`:** the list reruns every second (a run takes about 0.1s), so times and countdowns stay current while Alfred is open.
 
-The icons are image files in `icons/`, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by a JXA script with AppKit (`NSBezierPath` to PNG), so they can be regenerated from code. A phase's icon is `icons/phase-<phase>.png`, and a working status's `icons/status-<status>.png`. TO-DO: design the icons. The ones there are placeholders, a plain colour with the phase's or status's word, from `resources/make-placeholder-icons.js` (run from the workflow folder), which draws one for each phase in `DAY_PHASES` and each working status in its own list; rerun it after adding a phase or status.
+The icons are image files in `icons/`, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by JXA scripts, so they can be regenerated from code. A phase's icon is `icons/phase-<phase>.png`, and a working status's `icons/status-<status>.png`, all 256px (the detail view's tile is 88pt, 176px on Retina).
+
+The phases' icons come from `resources/make-phase-icons.js` (run from the workflow folder), which draws one for each phase in `DAY_PHASES`, with each phase's colours and the sun's place in its `LOOKS`, and refuses to run if a phase has none. It builds each icon as SVG and has `NSImage` draw it to a PNG: CoreSVG renders the gradients, clipping, masks and Gaussian blur the scene needs, which in AppKit alone would mean piecing gradients together stop by stop. CoreSVG's SVG support is partial, so check what it draws rather than a browser: it ignores separate horizontal and vertical blur amounts (logging "Different radii for gaussian blur not supported"; run with `CORESVG_VERBOSE=1` to see its messages), and placed the reflection's radial gradient differently from a browser, so the reflection uses a linear gradient in user space. Given a folder as its argument, the script also writes each icon's SVG there.
+
+TO-DO: design the working statuses' icons. The ones there are placeholders, a plain colour with the status's word, from `resources/make-placeholder-icons.js`; rerun it after adding a status.
 
 ### Time input
 
