@@ -101,12 +101,6 @@ function dayPhase({ elevation, hoursFromNoon }) {
   return match ? match.phase : null;
 }
 
-// The word for a phase of the day, e.g. "Dawn".
-function dayPhaseWord(phase) {
-  const match = DAY_PHASES.find((p) => p.phase === phase);
-  return match ? match.word : "";
-}
-
 // Every phase of the day, as [{ phase, word }] in DAY_PHASES order.
 function dayPhases() {
   return DAY_PHASES.map(({ phase, word }) => ({ phase, word }));

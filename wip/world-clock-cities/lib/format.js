@@ -158,13 +158,13 @@ function formatClockChangeFromNow(info) {
   return `${clockChangeWords(change, change.isPast)} ${when} (${formatSignedDuration(change.shiftMinutes)})`;
 }
 
+// The daylight states worth naming beside the sun's elevation. Day and night
+// are left out: the phase of the day's tile already shows them.
 const DAYLIGHT_STATE_WORDS = {
-  day: "Daylight",
   goldenHour: "Golden hour",
   civilTwilight: "Civil twilight",
   nauticalTwilight: "Nautical twilight",
   astronomicalTwilight: "Astronomical twilight",
-  night: "Night",
 };
 
 const WORKING_STATUS_WORDS = {
@@ -292,31 +292,6 @@ function formatDayLength(info) {
   return `${length} (${change === 0 ? "±0m" : formatSignedDuration(change)}/day)`;
 }
 
-// Everything about a city, one item per line, for Large Type.
-function largeTypeText(info) {
-  const lines = [
-    [info.name, info.countryOnly ? "" : displayCountry(info)].filter(Boolean).join(", "),
-    `${formatTime(info.moment, info.timeZone)} ${formatWithTemplate(info.moment, info.timeZone, "EEEE")}`,
-    `${formatUtcOffset(info.utcOffsetMinutes)}${info.isLocal ? ", local" : ` (${formatOffsetFromLocal(info.offsetFromLocalMinutes)} from local)`}`,
-  ];
-  const change = info.nextClockChange;
-  if (change) {
-    lines.push(
-      `${clockChangeWords(change)} ${formatWithTemplate(change.date, info.timeZone, "EEE d MMM y")} (${formatSignedDuration(change.shiftMinutes)})`,
-    );
-  }
-  lines.push(WORKING_STATUS_WORDS[info.workingStatus]);
-  if (info.daylightState) {
-    const words = [dayPhaseWord(info.dayPhase), DAYLIGHT_STATE_WORDS[info.daylightState]].filter(Boolean);
-    lines.push([...new Set(words)].join(" · "));
-    if (!info.polar) {
-      lines.push(`Sunrise ${formatTime(info.sunrise, info.timeZone)} · Sunset ${formatTime(info.sunset, info.timeZone)}`);
-    }
-    lines.push(formatNearestSunEvent(info), `Day ${formatDayLength(info)}`);
-  }
-  return lines.join("\n");
-}
-
 // The detail view's text (see detailUpdate in lib/detail.js).
 
 // A city's date, e.g. "Sunday 22 November 2026", arranged for the Mac's
@@ -384,12 +359,15 @@ function formatClockChangeSentence(change, now, timeZone) {
   return `${words} on ${formatWithTemplate(change.date, timeZone, "EEEEdMMMM")}`;
 }
 
-// The sun's elevation, e.g. "Sun elevation: 8.2°", "Sun elevation: −12.5°".
-// Empty without sun values.
+// The sun's elevation, with the daylight state when it's golden hour or a
+// twilight, e.g. "Sun elevation: 28.2°", "Sun elevation: −8.5° · Nautical
+// twilight". Empty without sun values.
 function formatSunElevation(info) {
   if (info.sunElevation == null) return "";
   const elevation = Math.round(info.sunElevation * 10) / 10;
-  return `Sun elevation: ${elevation < 0 ? "−" : ""}${Math.abs(elevation).toFixed(1)}°`;
+  const text = `Sun elevation: ${elevation < 0 ? "−" : ""}${Math.abs(elevation).toFixed(1)}°`;
+  const state = DAYLIGHT_STATE_WORDS[info.daylightState];
+  return state ? `${text} · ${state}` : text;
 }
 
 // The day length, e.g. "Day length: 10h 47m (+2m/day)". Empty without sun

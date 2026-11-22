@@ -155,7 +155,6 @@ function cityItem(info, city, typed, now) {
     arg: info.name,
     ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
     variables,
-    text: { largetype: largeTypeText(info) },
     mods: {
       cmd: detailWindow,
       alt: { subtitle: "Edit cities in Clock app" },
