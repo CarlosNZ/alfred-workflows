@@ -98,6 +98,8 @@ An Alfred UI runs in a helper app with no icon of its own, so a workflow with a 
 
 ## Releasing
 
+For a short list of what to check and do, see [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
+
 1. Commit all changes to the workflow.
 2. `bin/wf release <slug> <version>`. This locks the version with a git tag, pushes the tag to `origin`, and writes the `.alfredworkflow` to `dist/`. The branch itself isn't pushed. It then creates a draft GitHub release for the tag, with the build attached and notes listing the workflow's commits since its previous release, and opens the draft's edit page in the browser. A draft isn't public. Versions with a suffix (`1.2.3-beta.1`) are marked as pre-releases, and no release is marked "Latest", since that label is repo-wide. Without `gh`, or if creating it fails, `wf` says so and prints the command to retry.
 3. Edit the notes and publish the draft on GitHub. Its download link, `https://github.com/CarlosNZ/alfred-workflows/releases/download/<slug>/v<version>/<slug>-<version>.alfredworkflow`, stays the same for that version.
