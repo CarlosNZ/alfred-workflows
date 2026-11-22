@@ -13,7 +13,7 @@
 #
 # Each city has a package per launch in the cache, named after them (e.g.
 # panels/20-window.alfredui). It holds a link to detail.js (the pulse
-# script), the city's record in city.json, for the inline view the search it
+# script), a link to appicon.png (the view's app icon), the city's record in city.json, for the inline view the search it
 # was opened from in search.txt, and a link to the view's layout:
 # the variant of lib/panel.js's layout for the launch and whether there's a
 # picture slot and a clock change line, built into panels/layouts/ the first
@@ -81,6 +81,7 @@ if [[ $launch != window ]] || ! pgrep -qf -- $package; then
   ln -sfh $layout $package/ui.json
 fi
 ln -sfh $workflow/detail.js $package/detail.js
+ln -sfh $workflow/appicon.png $package/appicon.png
 # Rewritten every time, so the record follows changes in Clock and the typed
 # time. Written to a temporary file then moved into place, so the pulse never
 # reads half a file.

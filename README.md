@@ -15,6 +15,7 @@ wip/<slug>/         in progress, experiments, may never ship
 release/<slug>/     released with a version and posted on the Alfred forum
 gallery/<slug>/     accepted into the Alfred Gallery
 bin/wf              helper for linking, releasing and building
+bin/make-appicon    builds an Alfred UI's app icon from a workflow's icon
 dist/               built .alfredworkflow files (not committed)
 ```
 
@@ -56,6 +57,10 @@ Any compiled (Mach-O) binary in a build must be signed with a Developer ID certi
 A workflow's readme ("About this Workflow" in Alfred, and its page in the Gallery) is the `readme` string in `info.plist`. Write it in Alfred: in the workflow editor, the [𝒙] sheet's "About this Workflow" tab. The workflow's configuration sheet shows it rendered beside the settings.
 
 The readme can use [Alfred's Markdown](https://www.alfredapp.com/help/kb/markdown-syntax/) (no raw HTML apart from `<kbd>`). Images must be files in the workflow, at paths relative to the workflow folder; keep them in `docs/` and write them as `![Alt text](docs/shot.png)`. Everything in `docs/` ships in builds, so remove screenshots the readme no longer shows, and keep them small (crop them, and compress PNGs with a tool such as ImageOptim or TinyPNG).
+
+### App icons
+
+An Alfred UI runs in a helper app with no icon of its own, so a workflow with a window gives it one with `ui.json`'s `iconpath` (see Now Playing's README, [App icon and name](release/now-playing/README.md#app-icon-and-name)). `bin/make-appicon <icon.png> <appicon.png>` builds it from the workflow's icon, laid out on the macOS icon grid with a squircle mask and drop shadow so it matches other apps' icons.
 
 ## Personal settings and secrets
 

@@ -125,6 +125,10 @@ function panelUi({ launch, picture, clockChange }) {
   ];
   return {
     variablesconfig: { detail_title: { src: "variable" } },
+    // The Alfred UI helper's app icon, for ⌘-Tab, the Dock and window
+    // switchers: the package's link to appicon.png (see panel.zsh). Only the
+    // detail window needs one; the inline view is inside Alfred's window.
+    ...(inWindow && { iconpath: "appicon.png" }),
     pulse: { src: "./detail.js", interval: 1, intervalmode: "delay", now: true },
     window: {
       ...WINDOW_SETTINGS,
