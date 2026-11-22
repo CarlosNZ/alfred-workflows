@@ -37,7 +37,9 @@ function run(argv) {
   // Found in the whole list, so filtering doesn't change which city is local.
   const localCity = findLocalCity(loaded.cities, now);
 
-  let cities = loaded.cities;
+  // Without the home city when the configuration hides it. It's still the
+  // local city, and typed times can still name it.
+  let cities = showHomeCity() ? loaded.cities : loaded.cities.filter((city) => city !== localCity);
   // Text that narrows the list: the whole query in the list mode, and the text
   // after a relative time in the time mode.
   let filter = query;
@@ -58,6 +60,7 @@ function run(argv) {
   // Open detail views follow the results: now in the list mode, the typed
   // time in the time mode.
   saveShownTime(timeQuery ? typed : null, now);
+  if (cities.length === 0) return output([{ ...HOME_CITY_ONLY, valid: false }]);
   if (filter) {
     cities = cities.filter((city) => matchesCity(city, filter));
     if (cities.length === 0) {
@@ -130,6 +133,19 @@ function keyClashItem({ key, action, holder }) {
     valid: false,
   };
 }
+
+// Whether the results show the home city, the local city, from the User
+// Configuration (show_home_city, on unless "0"). It's for keeping your own
+// city in Clock without it in the workflow, where you know its time.
+function showHomeCity() {
+  return environmentValue("show_home_city") !== "0";
+}
+
+// The result when the home city is hidden and it's the only city in Clock.
+const HOME_CITY_ONLY = {
+  title: "No other cities in Clock",
+  subtitle: "Your home city is hidden in the workflow's configuration",
+};
 
 // Writes the cities' computed values to stderr as one JSON array, which Alfred
 // shows in the workflow's debugger, for checking the raw values behind the

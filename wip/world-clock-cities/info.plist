@@ -519,6 +519,25 @@
 				<key>required</key>
 				<false/>
 				<key>text</key>
+				<string>Show home city</string>
+			</dict>
+			<key>description</key>
+			<string>Shows the city in the current time zone (🏠), if it's listed in the Clock app.</string>
+			<key>label</key>
+			<string>Home city</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>show_home_city</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
 				<string>Download city thumbnails</string>
 			</dict>
 			<key>description</key>

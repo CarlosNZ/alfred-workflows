@@ -23,7 +23,7 @@ Developer notes for a workflow that shows the current time in each city from the
   - [x] **Phases of the day:** a sky over the sea with the sun along an arc (see [Phases of the day](#phases-of-the-day)).
   - [x] **Working statuses:** the same tile and finish as the phases, in the traffic-light colours, with a simple symbol in place of the sky (see [Working statuses](#working-statuses)).
 - [ ] **Short country names:** fill in the name-to-show column of `resources/clock-countries.csv` and use it in `lib/format.js` (see [City properties](#city-properties)).
-- [ ] **Other configuration:** showing the home city, sorting by time zone (see [Configuration](#configuration)).
+- [ ] **Other configuration:** sorting by time zone (see [Configuration](#configuration)).
 
 ## Design
 
@@ -234,6 +234,7 @@ Input that doesn't give a moment shows a single result in place of the cities (`
 Options for the workflow's User Configuration (saved to the gitignored `prefs.plist`). So far there are:
 
 - The keyword (`keyword`, default `wcc`).
+- "Show home city" (`show_home_city`, on by default): whether the results include the local city (see [Design](#design)), for keeping your own city in Clock without it in the workflow, where you know its time. When it's off, `results.js` leaves it out everywhere (`showHomeCity`): the list, the time mode and searches for it. It's still the local city, so the offsets and day labels of the others don't change, and a typed time can still be anchored to it (`9am Auckland`), as typed times are read against Clock's whole list. When it's the only city in Clock, the result is "No other cities in Clock". Other cities in the Mac's zone stay (Wellington, when Auckland is the local city): they're cities you added, and only the first is the local one.
 - "Download city thumbnails" (`download_thumbnails`, on by default), which fetches the detail view's city pictures from Wikimedia (see [City pictures](#city-pictures)).
 - The key for each of a city result's actions: show the detail panel (↩), open it in its own window (⌘), edit cities in Clock (⌥) and show the alternative details (⌃ held). See [Action keys](#action-keys).
 - "Time format" (`time_format`): "Mac's setting" (`system`, the default), "12-hour" (`12`) or "24-hour" (`24`), for every time the workflow shows, in the results and the detail views. `formatTime` in `lib/format.js` formats every time, so it's the only place that reads it (`timeFormat`): the Mac's setting is `NSDateFormatter`'s short time style, and the overrides are the localized templates `hmma` ("9:35 PM") and `HHmm` ("21:35", "09:05"). The Mac's locale applies the Mac's 24-hour setting to any format, templates included (tested: with it on, `hmma` gave "20:58"), so the overrides use a locale made from its identifier, which leaves the setting out; the locale still decides the rest (Japanese 24-hour time has no padding, "9:05"). The detail views' pulse doesn't get the workflow's variables, so `results.js` saves the setting in `panels/shown-time.json` with the time its results show, and the pulse sets it from there (`setTimeFormat`); a view follows a change the next time the keyword is used.
@@ -241,7 +242,6 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 
 TO-DO, probably:
 
-- **Show the home city:** whether the local city is in the list. It's a reference for the others, but its time is already in the menu bar.
 - **Sort by time zone:** list the cities by UTC offset instead of in Clock's order (direction to decide).
 - **Working day:** the hours behind the working status, a constant in `lib/time.js` until then (see [City properties](#city-properties)).
 
