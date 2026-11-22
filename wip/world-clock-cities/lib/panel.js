@@ -4,11 +4,13 @@
 // fills in the view's components, by id, on every pulse (detailUpdate in
 // lib/detail.js).
 //
+// The now and meeting modes share the layout, so an open window can switch
+// between them when its city is opened again from the other mode: only the
+// text and the tile differ (see detailUpdate).
+//
 // What's in the layout is fixed when the view opens, because Alfred UI can't
 // add or remove a line later: a hidden component, or a label with no text,
 // still takes its space. So each combination of these has its own variant:
-//   mode         "now" (the city now, ticking) or "meeting" (the city at a
-//                typed time, with a line above saying which)
 //   launch       "inline" (↩, inside Alfred) or "window" (⌘↩), which leaves
 //                room for the window buttons at the top
 //   picture      true for a slot for the city's picture, which shows the
@@ -29,7 +31,7 @@ const PICTURE_PLACEHOLDER_COLOUR = "#FFFFFF1A";
 // Spacing, in points.
 const PANEL_PADDING = 20; // around the content
 const WINDOW_BUTTONS_INSET = 14; // extra space above the content in a window, clear of its buttons
-const SECTION_SPACING = 16; // between the sections, from the top: the meeting line, the city, the time zone, the sun
+const SECTION_SPACING = 16; // between the sections, from the top: the context line, the city, the time zone, the sun
 const LINE_SPACING = 2; // between the lines within a section
 const PICTURE_GAP = 18; // between the picture and the city's name
 const TILE_GAP = 16; // between the tile and the sun times
@@ -45,7 +47,7 @@ const TILE_SIZE = 88; // the phase of the day (now) or working status (meeting) 
 // medium, semibold, bold, heavy, black; monospaced: "digits" keeps a ticking
 // time from shifting.
 const FONTS = {
-  reference: { size: 15 }, // "When it's 9:00 PM Sunday in London, UK…"
+  context: { size: 15 }, // "11 hours ahead of you" (now), "When it's 9:00 PM Sunday in London, UK…" (meeting)
   city: { size: 30, weight: "bold" },
   country: { size: 18 },
   time: { size: 48, weight: "semibold", monospaced: "digits" },
@@ -54,14 +56,14 @@ const FONTS = {
   zone: { size: 15 }, // "New Zealand Daylight Time (NZDT) • UTC+13"
   clockChange: { size: 14 }, // "Clocks go back 1 hour in 3 days, on Sunday"
   sunTimes: { size: 24 },
-  sunDetail: { size: 15 }, // sun elevation and day length (now), working day (meeting)
+  sunDetail: { size: 15 }, // sun elevation and day length (now), working day and nearest sunrise or sunset (meeting)
   pictureLoading: { size: 13 },
 };
 
 // Labels whose text can be too long for their width (a long city name, say),
 // and the smallest size each shrinks to so it fits. Below that, the text is
 // cut off with an ellipsis. See fittedFont.
-const MIN_FONT_SIZES = { city: 18, country: 13, date: 13, reference: 12 };
+const MIN_FONT_SIZES = { city: 18, country: 13, date: 13, context: 12 };
 
 // Kept free beside a label's measured text: a label draws its text a little
 // inside its frame.
@@ -95,15 +97,14 @@ const WINDOW_SETTINGS = {
 };
 
 // The ui.json for a variant of the view (see the top of this file).
-function panelUi({ mode, launch, picture, clockChange }) {
-  const meeting = mode === "meeting";
+function panelUi({ launch, picture, clockChange }) {
   const inWindow = launch === "window";
   const sections = [
-    meeting && panelLabel("reference", FONTS.reference, SECONDARY_TEXT_COLOUR),
+    panelLabel("context", FONTS.context, SECONDARY_TEXT_COLOUR),
     cityHeader(picture),
     zoneSection(clockChange),
-    sunSection(meeting),
-  ].filter(Boolean);
+    sunSection(),
+  ];
   return {
     variablesconfig: { detail_title: { src: "variable" } },
     pulse: { src: "./detail.js", interval: 1, intervalmode: "delay", now: true },
@@ -111,7 +112,7 @@ function panelUi({ mode, launch, picture, clockChange }) {
       ...WINDOW_SETTINGS,
       size: {
         width: WINDOW_WIDTH,
-        height: panelHeight({ meeting, inWindow, picture, clockChange }) + (inWindow ? WINDOW_HEIGHT_ADJUSTMENT : 0),
+        height: panelHeight({ inWindow, picture, clockChange }) + (inWindow ? WINDOW_HEIGHT_ADJUSTMENT : 0),
       },
       root: {
         type: "view",
@@ -208,13 +209,13 @@ function zoneSection(clockChange) {
 }
 
 // The tile (the phase of the day, or the working status in the meeting mode)
-// beside the sunrise and sunset and their details. Ids: tile, suntimes,
-// sundetail1, sundetail2 (now only).
-function sunSection(meeting) {
-  const details = meeting ? ["sundetail1"] : ["sundetail1", "sundetail2"];
+// beside the sunrise and sunset and two lines of details. Ids: tile,
+// suntimes, sundetail1, sundetail2.
+function sunSection() {
   const text = column(LINE_SPACING, [
     panelLabel("suntimes", FONTS.sunTimes),
-    ...details.map((id) => panelLabel(id, FONTS.sunDetail, SECONDARY_TEXT_COLOUR)),
+    panelLabel("sundetail1", FONTS.sunDetail, SECONDARY_TEXT_COLOUR),
+    panelLabel("sundetail2", FONTS.sunDetail, SECONDARY_TEXT_COLOUR),
   ]);
   return {
     type: "view",
@@ -236,7 +237,7 @@ function sunSection(meeting) {
 
 // The view's height for a variant: the content's height worked out from the
 // constants above, plus the padding.
-function panelHeight({ meeting, inWindow, picture, clockChange }) {
+function panelHeight({ inWindow, picture, clockChange }) {
   const lines = (...fonts) => fonts.reduce((sum, font) => sum + lineHeight(font), 0) + LINE_SPACING * (fonts.length - 1);
   const header = Math.max(
     (picture ? PICTURE_SIZE.height : 0) + FLAG_RAISE,
@@ -244,9 +245,8 @@ function panelHeight({ meeting, inWindow, picture, clockChange }) {
     lineHeight(FONTS.flag),
   );
   const zone = clockChange ? lines(FONTS.zone, FONTS.clockChange) : lines(FONTS.zone);
-  const sunDetails = meeting ? [FONTS.sunDetail] : [FONTS.sunDetail, FONTS.sunDetail];
-  const sun = Math.max(TILE_SIZE, lines(FONTS.sunTimes, ...sunDetails));
-  const sections = [meeting && lineHeight(FONTS.reference), header, zone, sun].filter((height) => height !== false);
+  const sun = Math.max(TILE_SIZE, lines(FONTS.sunTimes, FONTS.sunDetail, FONTS.sunDetail));
+  const sections = [lineHeight(FONTS.context), header, zone, sun];
   const content = sections.reduce((sum, height) => sum + height, 0) + SECTION_SPACING * (sections.length - 1);
   return Math.ceil(content + 2 * PANEL_PADDING + (inWindow ? WINDOW_BUTTONS_INSET : 0));
 }
@@ -270,12 +270,12 @@ function fittedFont(id, text, layout) {
   return { ...font, size };
 }
 
-// The width of a label that shrinks to fit: the meeting line spans the
+// The width of a label that shrinks to fit: the context line spans the
 // content; the others are in the city's column, between the picture (if
 // there's a slot) and the flag.
 function labelWidth(id, { picture }) {
   const content = WINDOW_WIDTH - 2 * PANEL_PADDING;
-  if (id === "reference") return content;
+  if (id === "context") return content;
   return content - (picture ? PICTURE_SIZE.width + PICTURE_GAP : 0) - flagWidth() - PICTURE_GAP;
 }
 

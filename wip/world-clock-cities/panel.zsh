@@ -4,26 +4,26 @@
 # its own for ⌘↩.
 #
 # The city comes from the result's variables (see detailVariables in
-# lib/detail.js): $detail_slug names it, $detail_city is its record,
-# $detail_mode is "now" or "meeting" and $detail_clock_change says whether the
-# view has a line for a clock change. $detail_launch is "window" for ⌘↩, set
+# lib/detail.js): $detail_slug names it, $detail_city is its record and
+# $detail_clock_change says whether the view has a line for a clock change. $detail_launch is "window" for ⌘↩, set
 # by the ⌘ modifier, and unset for ↩. Not from $1, which on ↩ is the item's
 # arg, the city's name for copying and Universal Actions. If the city has no
 # picture yet, it starts a fetch for it alone, from $detail_picture_city, so
 # the view gets it within seconds (see fetch-pictures.js).
 #
-# Each city has a package per mode and launch in the cache, named after them
-# (e.g. panels/20-now-window.alfredui). It holds a link to detail.js (the
-# pulse script), the city's record in city.json, and a link to the view's
-# layout: the variant of lib/panel.js's layout for the mode, the launch, and
-# whether there's a picture slot and a clock change line, built into
-# panels/layouts/ the first time it's needed and again whenever lib/panel.js
-# changes. Alfred keeps one window per package path, so each city gets its
-# own window per mode, and opening one that's already open brings its window
-# to the front, keeping the layout it opened with; so an open window's layout
-# link is left alone, since its pulse sizes the window from it (windowResize
-# in detail.js). frameautosave is keyed on the path too, so each window keeps
-# its own position.
+# Each city has a package per launch in the cache, named after them (e.g.
+# panels/20-window.alfredui). It holds a link to detail.js (the pulse
+# script), the city's record in city.json, and a link to the view's layout:
+# the variant of lib/panel.js's layout for the launch and whether there's a
+# picture slot and a clock change line, built into panels/layouts/ the first
+# time it's needed and again whenever lib/panel.js changes. Alfred keeps one
+# window per package path, so each city gets one window, and opening one
+# that's already open brings its window to the front, keeping the layout it
+# opened with; so an open window's layout link is left alone, since its pulse
+# sizes the window from it (windowResize in detail.js). The mode and typed
+# time aren't the package's: every view follows the results' latest, from
+# panels/shown-time.json (saveShownTime in lib/detail.js). frameautosave is
+# keyed on the path too, so each window keeps its own position.
 
 emulate -L zsh
 setopt err_exit no_unset
@@ -32,8 +32,6 @@ zmodload -F zsh/datetime p:EPOCHSECONDS
 
 slug=${detail_slug:-}
 [[ $slug =~ '^[A-Za-z0-9_-]+$' ]] || { print -u2 "panel.zsh: bad city slug '$slug'"; exit 1 }
-mode=${detail_mode:-now}
-[[ $mode == (now|meeting) ]] || mode=now
 launch=${detail_launch:-inline}
 [[ $launch == (inline|window) ]] || launch=inline
 clock_change=${detail_clock_change:-0}
@@ -41,7 +39,7 @@ clock_change=${detail_clock_change:-0}
 
 workflow=${0:A:h}
 cache=${alfred_workflow_cache:-$HOME/Library/Caches/net.smithnz.carl.worldclockcities}
-package=$cache/panels/$slug-$mode-$launch.alfredui
+package=$cache/panels/$slug-$launch.alfredui
 images=$cache/images
 
 # Whether the view has a picture slot, as pictureState in lib/pictures.js
@@ -66,10 +64,10 @@ fi
 # or older than lib/panel.js, so editing the layout's constants takes effect
 # the next time a view opens. Written to a temporary file then moved into
 # place, so Alfred never reads half a file.
-layout=$cache/panels/layouts/$mode-$launch-$picture-$clock_change.json
+layout=$cache/panels/layouts/$launch-$picture-$clock_change.json
 if [[ ! -e $layout || $layout -ot $workflow/lib/panel.js ]]; then
   mkdir -p ${layout:h}
-  $workflow/detail.js ui $mode $launch $picture $clock_change > $layout.tmp.$$
+  $workflow/detail.js ui $launch $picture $clock_change > $layout.tmp.$$
   mv -f $layout.tmp.$$ $layout
 fi
 

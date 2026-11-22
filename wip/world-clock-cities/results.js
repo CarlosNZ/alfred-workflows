@@ -55,6 +55,9 @@ function run(argv) {
     filter = typed.filter;
     moment = typed.moment;
   }
+  // Open detail views follow the results: now in the list mode, the typed
+  // time in the time mode.
+  saveShownTime(timeQuery ? typed : null, now);
   if (filter) {
     cities = cities.filter((city) => matchesCity(city, filter));
     if (cities.length === 0) {

@@ -6,12 +6,13 @@
 // It's run through the link to it in the city's package (see panel.zsh): the
 // package, the folder the link is in, holds the city's record in city.json,
 // and the link resolves to the workflow folder, which holds lib/. The
-// package is in panels/ in the workflow's cache folder, next to images/,
-// which holds the city's picture.
+// package is in panels/ in the workflow's cache folder, with shown-time.json,
+// the time the results last showed (saveShownTime in lib/detail.js), and
+// next to images/, which holds the city's picture.
 //
-// With the arguments `ui <mode> <launch> <picture> <clockChange>`, it prints
-// that variant of the view's ui.json instead (see lib/panel.js), for
-// panel.zsh. <picture> and <clockChange> are 1 or 0.
+// With the arguments `ui <launch> <picture> <clockChange>`, it prints that
+// variant of the view's ui.json instead (see lib/panel.js), for panel.zsh.
+// <picture> and <clockChange> are 1 or 0.
 
 ObjC.import("Foundation");
 ObjC.import("CoreFoundation");
@@ -25,19 +26,21 @@ function run(argv) {
   LIBS.forEach(loadLib);
 
   if (argv[0] === "ui") {
-    const [mode, launch, picture, clockChange] = argv.slice(1);
-    return JSON.stringify(panelUi({ mode, launch, picture: picture === "1", clockChange: clockChange === "1" }), null, 2);
+    const [launch, picture, clockChange] = argv.slice(1);
+    return JSON.stringify(panelUi({ launch, picture: picture === "1", clockChange: clockChange === "1" }), null, 2);
   }
 
   const saved = readJson(`${packageDir}/city.json`);
   if (!saved) return JSON.stringify({});
   const now = currentTime();
-  const moment = detailMoment(saved.typed, now);
+  const shown = readJson(`${packageDir}/../shown-time.json`);
+  const typed = (shown && shown.typed) || null;
+  const moment = detailMoment(typed, now);
   const info = describeCity(saved.city, moment, { isLocal: saved.isLocal, now });
   const imagesDir = $(`${packageDir}/../../images`).stringByStandardizingPath.js;
   const ui = readJson(`${packageDir}/ui.json`);
   const update = detailUpdate(info, {
-    typed: saved.typed,
+    typed,
     now,
     picture: pictureState(imagesDir, citySlug(saved.city)),
     iconsDir: `${workflowDir}/icons`,

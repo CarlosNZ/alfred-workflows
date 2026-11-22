@@ -344,5 +344,6 @@ function workingDayTiming({ weekday, hour, minute }, status, weekend = DEFAULT_W
   let days = first;
   while (weekend.has((weekday + days) % 7) && days < first + 7) days++;
   if (weekend.has((weekday + days) % 7)) return {};
-  return days === first ? { untilStart: minutesFrom(time, day.start * 60) } : { nextWorkday: (weekday + days) % 7 };
+  // At the start of work on a day off, the next start is a whole day away.
+  return days === first ? { untilStart: minutesFrom(time, day.start * 60) || 1440 } : { nextWorkday: (weekday + days) % 7 };
 }

@@ -412,19 +412,30 @@ function formatWorkingDaySentence({ untilStart, untilEnd, sinceEnd, nextWorkday 
   return "";
 }
 
+// The now mode's line above the city: how far its time is from the Mac's,
+// e.g. "11 hours ahead of you", "2 hours 30 minutes behind you", "Same time
+// as you", or "Your time zone" for the local city.
+function formatOffsetFromYou(info) {
+  if (info.isLocal) return "Your time zone";
+  const minutes = info.offsetFromLocalMinutes;
+  if (minutes === 0) return "Same time as you";
+  return `${formatSpokenDuration(Math.abs(minutes))} ${minutes > 0 ? "ahead of" : "behind"} you`;
+}
+
 // The meeting mode's line saying which moment the view shows, from the typed
 // time (see detailVariables in lib/detail.js): "When it's 9:00 PM Sunday in
-// London, UK…", "When it's 9:00 PM Sunday here…" for a time in the Mac's
-// zone, or for a relative time, "In 5 hours, at 5:12 PM Sunday here…" and "3
-// hours ago, at 9:12 AM Sunday here…".
+// London, UK…", "When it's 9:00 PM Sunday for you…" for a time in the Mac's
+// zone, or for a relative time, "In 5 hours, at 5:12 PM Sunday for you…" and
+// "3 hours ago, at 9:12 AM Sunday for you…". "For you" rather than "here",
+// which could be read as the city the view shows.
 function formatTypedReference(typed, moment) {
   const when = `${formatTime(moment, typed.timeZone)} ${formatWithTemplate(moment, typed.timeZone, "EEEE")}`;
   if (typed.kind === "relative") {
-    if (typed.minutes === 0) return `Now, at ${when} here…`;
+    if (typed.minutes === 0) return `Now, at ${when} for you…`;
     const distance = formatSpokenDuration(Math.abs(typed.minutes));
-    return typed.minutes > 0 ? `In ${distance}, at ${when} here…` : `${distance} ago, at ${when} here…`;
+    return typed.minutes > 0 ? `In ${distance}, at ${when} for you…` : `${distance} ago, at ${when} for you…`;
   }
-  const where = typed.anchor ? `in ${formatPlace(typed.anchor, typed.anchorCountry)}` : "here";
+  const where = typed.anchor ? `in ${formatPlace(typed.anchor, typed.anchorCountry)}` : "for you";
   return `When it's ${when} ${where}…`;
 }
 
