@@ -46,7 +46,7 @@ If a link is ever broken, even briefly (for example while moving or renaming the
 
 ### What goes into a build
 
-A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
+A build contains the files git tracks or would track in the workflow folder, minus its `README.md` and anything matched by an optional `.wfignore` in that folder (one glob pattern per line, for repo-only files such as tests or notes; a pattern also matches everything under a folder it names, and may end in a slash, as in `.gitignore`). Values of variables marked "Don't Export" are blanked, as Alfred's own export does.
 
 ### Compiled binaries
 
