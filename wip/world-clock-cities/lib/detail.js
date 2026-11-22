@@ -55,7 +55,10 @@ function shownTimePath() {
 
 // Saves the time the results show, so every open detail view shows the same:
 // { typed: null } for now (the list), or { typed } with the typed time (see
-// savedTypedTime). results.js calls it whenever a query gives a moment, not
+// savedTypedTime). When the testing variables are set, it also saves
+// testNow, WCC_NOW's value, and testTimeZone, the Mac's zone as TZ made it,
+// since the views' pulse runs in Alfred's UI helper, which doesn't get the
+// workflow's variables. results.js calls it whenever a query gives a moment, not
 // while a typed time is incomplete or unreadable, so views keep the last
 // time until the query gives another. Only written when it changes, since the
 // list reruns every second; written to a temporary file and moved into
@@ -63,7 +66,11 @@ function shownTimePath() {
 // thrown: the views never stop the results.
 function saveShownTime(typed, now) {
   try {
-    const text = JSON.stringify({ typed: typed ? savedTypedTime(typed, now) : null });
+    const text = JSON.stringify({
+      typed: typed ? savedTypedTime(typed, now) : null,
+      testNow: environmentValue("WCC_NOW") || undefined,
+      testTimeZone: environmentValue("TZ") ? macTimeZone() : undefined,
+    });
     const path = shownTimePath();
     const current = $.NSString.stringWithContentsOfFileEncodingError(path, $.NSUTF8StringEncoding, null);
     if (!current.isNil() && current.js === text) return;

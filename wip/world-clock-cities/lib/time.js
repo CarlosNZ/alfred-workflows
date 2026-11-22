@@ -186,9 +186,10 @@ function zonedMoments(timeZone, year, month, day, hour, minute) {
 }
 
 // The current time, or for testing, the moment in WCC_NOW: an ISO 8601 date and
-// time such as "2026-09-26T12:00+12:00" or "2026-09-26T00:00Z".
-function currentTime() {
-  const override = environmentValue("WCC_NOW");
+// time such as "2026-09-26T12:00+12:00" or "2026-09-26T00:00Z". `override`
+// stands in for WCC_NOW, for the detail views, which don't see it (see
+// saveShownTime in lib/detail.js).
+function currentTime(override = environmentValue("WCC_NOW")) {
   if (!override) return new Date();
   const date = new Date(override);
   if (isNaN(date)) throw new Error(`WCC_NOW isn't an ISO 8601 date and time: ${override}`);
