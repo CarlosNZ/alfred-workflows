@@ -208,14 +208,16 @@ function listTitle(info) {
 // within a week, otherwise today's sunrise and sunset. E.g. "−2 hrs (UTC+11) |
 // Australia | ☀↑ 5:46 AM  ☀↓ 7:52 PM".
 function listSubtitle(info) {
-  const offset = info.isLocal ? HOME : formatOffsetFromLocal(info.offsetFromLocalMinutes);
-  return [
-    `${offset} (${formatUtcOffset(info.utcOffsetMinutes)})`,
-    formatCountry(info),
-    formatSoonClockChange(info) || formatSunTimes(info),
-  ]
+  return [formatOffsets(info), formatCountry(info), formatSoonClockChange(info) || formatSunTimes(info)]
     .filter(Boolean)
     .join(SUBTITLE_DIVIDER);
+}
+
+// The offset from the local city (🏠 for the local city itself) and the UTC
+// offset, e.g. "−2 hrs (UTC+11)", "🏠 (UTC+13)".
+function formatOffsets(info) {
+  const offset = info.isLocal ? HOME : formatOffsetFromLocal(info.offsetFromLocalMinutes);
+  return `${offset} (${formatUtcOffset(info.utcOffsetMinutes)})`;
 }
 
 // The time mode's title: the time with the full weekday, the city, and the
@@ -271,18 +273,15 @@ function weekdayName(weekday) {
   return weekdayNames[weekday];
 }
 
-// The sun details shown while ⌃ is held, e.g. "Nautical twilight | Sunrise
-// 5:45 AM | Sunset 7:52 PM | Day 14h 6m (+2m/day)". Empty without sun values.
-function sunDetails(info) {
-  if (!info.daylightState) return "";
-  const parts = [DAYLIGHT_STATE_WORDS[info.daylightState]];
-  if (info.polar) {
-    parts.push(POLAR_WORDS[info.polar]);
-  } else {
-    parts.push(`Sunrise ${formatTime(info.sunrise, info.timeZone)}`, `Sunset ${formatTime(info.sunset, info.timeZone)}`);
-  }
-  parts.push(`Day ${formatDayLength(info)}`);
-  return parts.join(SUBTITLE_DIVIDER);
+// The time mode's subtitle while ⌃ is held, for what the list's subtitle
+// answers, at the typed time: the offsets, the country, and the nearest
+// sunrise or sunset, for whether it's dark there. E.g. "−13 hrs (UTC) | UK |
+// Sunset 2h ago", "🏠 (UTC+13) | New Zealand | Sunrise in 40m". The list's ⌃
+// shows the time mode's subtitle (timeSubtitle), for the working status.
+function timeCtrlSubtitle(info) {
+  return [formatOffsets(info), formatCountry(info), formatNearestSunEvent(info)]
+    .filter(Boolean)
+    .join(SUBTITLE_DIVIDER);
 }
 
 // The day length and its change since yesterday, e.g. "14h 6m (+2m/day)".

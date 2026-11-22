@@ -133,10 +133,13 @@ function loadLib(file) {
 // city's Clock record. ↩ shows the city's inline view and ⌘↩ its detail
 // window, both from the item's variables (see detailVariables), which ⌘
 // marks with detail_launch. ⌥↩ opens Clock on its World Clock tab
-// (open-clock.applescript), to edit the list. `typed` is the typed time in the
-// time mode (readTypedTime), for the detail view, and null in the list.
+// (open-clock.applescript), to edit the list. Holding ⌃ shows the subtitle
+// for the other mode's question: in the list, the working status; in the time
+// mode, the offsets and the nearest sunrise or sunset. `typed` is the typed
+// time in the time mode (readTypedTime), for the detail view and ⌃, and null
+// in the list.
 function cityItem(info, city, typed, now) {
-  const details = sunDetails(info);
+  const details = typed ? timeCtrlSubtitle(info) : timeSubtitle(info);
   const variables = detailVariables(city, info, typed, now);
   const detailWindow = {
     subtitle: `Open ${info.name} in its own window`,
