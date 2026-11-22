@@ -368,13 +368,14 @@ function sunTimesRowHeight() {
 }
 
 // The width of a sunrise or sunset time's label: the widest time of day in
-// the Mac's time format, or in 12-hour time if that's wider, so that turning
-// 24-hour time off doesn't cut the times off in a layout built before.
+// whichever time format is widest (allTimeFormats in lib/format.js), so that
+// changing the time format, in the workflow or the Mac's settings, doesn't
+// cut the times off in a layout built before.
 // A time's width is taken as its hour's plus its minutes', so it measures
 // each hour, then each minute of the widest hour, not all 1440 times.
 function sunTimeWidth() {
   const at = (hour, minute) => new Date(Date.UTC(2000, 0, 1, hour, minute));
-  const formats = [(date) => formatTime(date, "UTC"), (date) => formatTwelveHourTime(date, "UTC")];
+  const formats = allTimeFormats().map((name) => (date) => formatTimeAs(name, date, "UTC"));
   const widths = formats.map((format) => {
     const widest = (dates) =>
       dates.map((date) => ({ date, width: textWidth(format(date), FONTS.sunTimes) })).reduce((a, b) => (b.width > a.width ? b : a));

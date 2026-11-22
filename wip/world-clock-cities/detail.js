@@ -50,9 +50,11 @@ function run(argv) {
 
   const saved = readJson(`${packageDir}/city.json`);
   if (!saved) return JSON.stringify({});
-  // The time and the Mac's zone as the results last had them, including the
-  // testing overrides (WCC_NOW and TZ), which this process doesn't see.
+  // The time, the time format and the Mac's zone as the results last had
+  // them, including the testing overrides (WCC_NOW and TZ), which this
+  // process doesn't see.
   const shown = readJson(`${packageDir}/../shown-time.json`) || {};
+  setTimeFormat(shown.timeFormat);
   const now = currentTime(shown.testNow);
   const typed = shown.typed || null;
   const moment = detailMoment(typed, now);

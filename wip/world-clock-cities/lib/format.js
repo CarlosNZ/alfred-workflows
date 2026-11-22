@@ -17,27 +17,67 @@ function displayCountry(info) {
   return info.country && (SHORT_COUNTRY_NAMES[info.country] || info.country);
 }
 
-let timeFormatter;
+// The time formats of the User Configuration's time_format: "system" follows
+// the Mac's 24-hour time setting (System Settings › General › Date & Time),
+// and "12" and "24" override it. Each has its date format template, arranged
+// for the Mac's locale: "5:42 PM", or "17:42" and "09:05", with the hour
+// padded as 24-hour time usually has it.
+const TIME_FORMAT_TEMPLATES = { system: null, 12: "hmma", 24: "HHmm" };
 
-// A moment's time in a time zone, e.g. "5:42 PM" or "17:42". Uses the Mac's
-// locale and its date and time settings, including 24-hour time. The narrow
-// no-break space the formatter puts before AM/PM (U+202F) becomes an ordinary
-// space, since Alfred's font draws it too narrow to see.
-function formatTime(moment, timeZone) {
-  if (!timeFormatter) {
-    timeFormatter = $.NSDateFormatter.alloc.init;
-    timeFormatter.dateStyle = $.NSDateFormatterNoStyle;
-    timeFormatter.timeStyle = $.NSDateFormatterShortStyle;
-  }
-  timeFormatter.timeZone = nsTimeZone(timeZone);
-  return timeFormatter.stringFromDate(nsDate(moment)).js.replace(/ /g, " ");
+// The time formats, for code outside this file, which can't see its constants.
+function allTimeFormats() {
+  return Object.keys(TIME_FORMAT_TEMPLATES);
 }
 
-// A moment's time in 12-hour time in the Mac's locale, whatever its 24-hour
-// time setting, e.g. "5:42 PM", with an ordinary space as in formatTime. For
-// sizing a label that shows formatTime's text (sunTimeWidth in lib/panel.js).
-function formatTwelveHourTime(moment, timeZone) {
-  return formatWithTemplate(moment, timeZone, "hmma").replace(/\u202F/g, " ");
+let chosenTimeFormat;
+
+// The time format formatTime uses: the one set with setTimeFormat, or else
+// the User Configuration's time_format.
+function timeFormat() {
+  if (chosenTimeFormat === undefined) setTimeFormat(environmentValue("time_format"));
+  return chosenTimeFormat;
+}
+
+// Sets the time format formatTime uses, for the detail views' pulse, which
+// doesn't get the workflow's variables (see saveShownTime in lib/detail.js).
+// An unset or unknown value is "system".
+function setTimeFormat(format) {
+  chosenTimeFormat = allTimeFormats().includes(format) ? format : "system";
+}
+
+// A moment's time in a time zone, in the chosen time format (timeFormat),
+// e.g. "5:42 PM" or "17:42".
+function formatTime(moment, timeZone) {
+  return formatTimeAs(timeFormat(), moment, timeZone);
+}
+
+const timeFormatters = {};
+
+// A moment's time in a time zone in one of allTimeFormats(), in the Mac's
+// locale. The narrow no-break space the formatter puts before AM/PM (U+202F)
+// becomes an ordinary space, since Alfred's font draws it too narrow to see.
+//
+// The 12- and 24-hour formats use a locale made from the Mac's locale's
+// identifier rather than the current locale itself, which carries the Mac's
+// 24-hour time setting and applies it to any format: with it on, "hmma" gives
+// "20:58" (tested). The new locale arranges the time the same way but leaves
+// the setting out.
+function formatTimeAs(format, moment, timeZone) {
+  if (!timeFormatters[format]) {
+    const formatter = $.NSDateFormatter.alloc.init;
+    const template = TIME_FORMAT_TEMPLATES[format];
+    if (template) {
+      formatter.locale = $.NSLocale.localeWithLocaleIdentifier($.NSLocale.currentLocale.localeIdentifier);
+      formatter.setLocalizedDateFormatFromTemplate(template);
+    } else {
+      formatter.dateStyle = $.NSDateFormatterNoStyle;
+      formatter.timeStyle = $.NSDateFormatterShortStyle;
+    }
+    timeFormatters[format] = formatter;
+  }
+  const formatter = timeFormatters[format];
+  formatter.timeZone = nsTimeZone(timeZone);
+  return formatter.stringFromDate(nsDate(moment)).js.replace(/\u202F/g, " ");
 }
 
 const templateFormatters = {};

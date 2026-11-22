@@ -485,6 +485,36 @@
 			<key>config</key>
 			<dict>
 				<key>default</key>
+				<string>system</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Mac’s setting</string>
+						<string>system</string>
+					</array>
+					<array>
+						<string>12-hour (9:35 PM)</string>
+						<string>12</string>
+					</array>
+					<array>
+						<string>24-hour (21:35)</string>
+						<string>24</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>How times are shown. “Mac’s setting” follows System Settings › General › Date &amp; Time.</string>
+			<key>label</key>
+			<string>Time format</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>time_format</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
 				<true/>
 				<key>required</key>
 				<false/>

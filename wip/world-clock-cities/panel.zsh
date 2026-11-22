@@ -20,10 +20,10 @@
 # (window buttons, corner radius and transparency), and for the inline view
 # the key that opens the detail window ($detail_window_key), built into
 # panels/layouts/ the first time it's needed and again whenever lib/panel.js
-# changes. A changed preference takes effect in a detail window the next time
-# it opens. Alfred keeps one
-# window per package path, so each city gets one detail window, and opening
-# one that's already open brings its window to the front, keeping the layout
+# or lib/format.js changes. A changed preference takes effect in a detail
+# window the next time it opens. Alfred keeps one window per package path,
+# so each city gets one detail window, and opening one that's already open
+# brings its window to the front, keeping the layout
 # it opened with; so an open detail window's layout link is left alone, since
 # its pulse sizes the window from it (windowResize in detail.js). The mode and
 # typed time aren't the package's: every view follows the results' latest,
@@ -96,11 +96,12 @@ elif [[ $launch == window ]]; then
 fi
 
 # The layout, built by detail.js (which runs lib/panel.js) when it's missing
-# or older than lib/panel.js, so editing the layout's constants takes effect
+# or older than lib/panel.js or lib/format.js, so editing the layout's
+# constants, or the time formats its time labels are sized for, takes effect
 # the next time a view opens. Written to a temporary file then moved into
 # place, so Alfred never reads half a file.
 layout=$cache/panels/layouts/$variant.json
-if [[ ! -e $layout || $layout -ot $workflow/lib/panel.js ]]; then
+if [[ ! -e $layout || $layout -ot $workflow/lib/panel.js || $layout -ot $workflow/lib/format.js ]]; then
   mkdir -p ${layout:h}
   $workflow/detail.js ui $launch $picture $clock_change "${variant_args[@]}" > $layout.tmp.$$
   mv -f $layout.tmp.$$ $layout
