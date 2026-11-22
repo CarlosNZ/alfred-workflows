@@ -77,12 +77,58 @@ function run(argv) {
   // their uids would otherwise allow, so they stay in Clock's order.
   const rerun = !timeQuery || typed.kind === "relative";
   // The search that shows these results, for ⌫ in a city's inline view to go
-  // back to (see panel.zsh). On each item's own variables, beside the city's.
+  // back to (see panel.zsh). On each item's variables, beside the city's.
   const search = `${environmentValue("keyword") || "wcc"} ${query}`;
-  const items = infos
-    .map((info, i) => (timeQuery ? timeCityItem(info, cities[i], typed, now) : cityItem(info, cities[i], null, now)))
-    .map((item) => ({ ...item, variables: { ...item.variables, detail_search: search } }));
-  return output(items, { ...(rerun && { rerun: 1 }), skipknowledge: true });
+  const { keys, clashes } = cityActionKeys();
+  const context = { keys, search };
+  const items = infos.map((info, i) =>
+    timeQuery ? timeCityItem(info, cities[i], typed, now, context) : cityItem(info, cities[i], null, now, context),
+  );
+  return output([...clashes.map(keyClashItem), ...items], { ...(rerun && { rerun: 1 }), skipknowledge: true });
+}
+
+// The keys a city result's actions can be set to in the User Configuration:
+// Alfred's names for the modifiers, and "none" for ↩ alone.
+const ACTION_KEYS = ["none", "cmd", "alt", "ctrl"];
+const KEY_NAMES = { none: "↩ with no modifier", cmd: "⌘", alt: "⌥", ctrl: "⌃" };
+
+// A city result's actions, each with the User Configuration variable that sets
+// its key, the keys it can take and its default, and its label there. Keys are
+// given out in this order, so when two actions are set to the same key, the
+// earlier one has it and the later one has none (see keyClashItem).
+// otherDetails isn't an action but a subtitle shown while its modifier is
+// held, so it can't be ↩ alone.
+const CITY_ACTIONS = [
+  { id: "detail", variable: "key_detail", keys: ACTION_KEYS, default: "none", label: "Show detail panel" },
+  { id: "window", variable: "key_detail_window", keys: ACTION_KEYS, default: "cmd", label: "Open detail panel in its own window" },
+  { id: "clock", variable: "key_edit_cities", keys: ACTION_KEYS, default: "alt", label: "Edit cities in Clock app" },
+  { id: "otherDetails", variable: "key_other_details", keys: ["cmd", "alt", "ctrl"], default: "ctrl", label: "Show alternative result detail" },
+];
+
+// Which action each key has, from the User Configuration, as { keys: { none:
+// "detail", cmd: "window", … }, clashes }, where clashes lists each action
+// left without a key ({ key, action, holder }). An unset or unknown value
+// counts as the action's default.
+function cityActionKeys() {
+  const keys = {};
+  const clashes = [];
+  for (const action of CITY_ACTIONS) {
+    const chosen = environmentValue(action.variable);
+    const key = action.keys.includes(chosen) ? chosen : action.default;
+    if (keys[key]) clashes.push({ key, action, holder: CITY_ACTIONS.find((other) => other.id === keys[key]) });
+    else keys[key] = action.id;
+  }
+  return { keys, clashes };
+}
+
+// A result above the cities saying that two actions are set to the same key,
+// so one of them can't be used until the configuration is changed.
+function keyClashItem({ key, action, holder }) {
+  return {
+    title: `Two actions are set to ${KEY_NAMES[key]}`,
+    subtitle: `“${holder.label}” has it, so “${action.label}” is off. Change one in the workflow's configuration`,
+    valid: false,
+  };
 }
 
 // Writes the cities' computed values to stderr as one JSON array, which Alfred
@@ -130,22 +176,33 @@ function loadLib(file) {
 }
 
 // An Alfred item for a city in the list, from describeCity's values and the
-// city's Clock record. ↩ shows the city's inline view and ⌘↩ its detail
-// window, both from the item's variables (see detailVariables), which ⌘
-// marks with detail_launch. ⌥↩ opens Clock on its World Clock tab
-// (open-clock.applescript), to edit the list. Holding ⌃ shows the subtitle
-// for the other mode's question: in the list, the working status; in the time
-// mode, the offsets and the nearest sunrise or sunset. `typed` is the typed
-// time in the time mode (readTypedTime), for the detail view and ⌃, and null
-// in the list.
-function cityItem(info, city, typed, now) {
+// city's Clock record. Its actions are on the keys `context.keys` gives them
+// (see cityActionKeys); by default ↩ shows the city's inline view, ⌘↩ opens
+// its detail window, ⌥↩ opens Clock on its World Clock tab
+// (open-clock.applescript), to edit the list, and holding ⌃ shows the
+// subtitle for the other mode's question: in the list, the working status; in
+// the time mode, the offsets and the nearest sunrise or sunset.
+//
+// Each key's variables name its action as city_action, which the Conditional
+// after the Script Filter routes on, since Alfred's connections have fixed
+// modifiers. A modifier's variables replace the item's, so each repeats the
+// city's (see detailVariables) and the search. detail_window_key is the
+// detail window's key, for the inline view's shortcut that opens it (see
+// panel.zsh). `typed` is the typed time in the time mode (readTypedTime), for
+// the detail view and the other details, and null in the list.
+function cityItem(info, city, typed, now, { keys, search }) {
   const details = typed ? timeCtrlSubtitle(info) : timeSubtitle(info);
-  const variables = detailVariables(city, info, typed, now);
-  const detailWindow = {
-    subtitle: `Open ${info.name} in its own window`,
-    arg: variables.detail_slug,
-    variables: { ...variables, detail_launch: "window" },
+  const windowKey = ACTION_KEYS.find((key) => keys[key] === "window") || "";
+  const variables = { ...detailVariables(city, info, typed, now), detail_search: search, detail_window_key: windowKey };
+  const action = (id, subtitle, extra = {}) => ({ subtitle, valid: true, variables: { ...variables, ...extra, city_action: id } });
+  const actions = {
+    detail: action("detail", `Show ${info.name} in Alfred`),
+    window: action("window", `Open ${info.name} in its own window`, { detail_launch: "window" }),
+    clock: action("clock", "Edit cities in Clock app"),
+    otherDetails: details && { subtitle: details, valid: false },
   };
+  const plain = actions[keys.none];
+  const mods = Object.fromEntries(MODIFIERS.filter((key) => actions[keys[key]]).map((key) => [key, actions[keys[key]]]));
   return {
     // On a rerun, Alfred keeps the selection on the item with the selected
     // item's uid; without uids it jumps back to the first item.
@@ -154,20 +211,18 @@ function cityItem(info, city, typed, now) {
     subtitle: listSubtitle(info),
     arg: info.name,
     ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
-    variables,
-    mods: {
-      cmd: detailWindow,
-      alt: { subtitle: "Edit cities in Clock app" },
-      ...(details && { ctrl: { subtitle: details, valid: false } }),
-    },
+    variables: plain ? plain.variables : variables,
+    // With no action on ↩ alone, ↩ does nothing rather than closing Alfred.
+    ...(!plain && { valid: false }),
+    mods,
   };
 }
 
 // An Alfred item for a city in the time mode, from describeCity's values at the
 // typed time. Its icon is the working status.
-function timeCityItem(info, city, typed, now) {
+function timeCityItem(info, city, typed, now, context) {
   return {
-    ...cityItem(info, city, typed, now),
+    ...cityItem(info, city, typed, now, context),
     title: timeTitle(info),
     subtitle: timeSubtitle(info),
     icon: { path: `icons/status-${info.workingStatus}.png` },

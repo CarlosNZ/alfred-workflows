@@ -12,7 +12,7 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>D5C16EFE-115C-4460-AE71-C46F5A173AAE</string>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -22,7 +22,7 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
 				<key>modifiers</key>
 				<integer>1048576</integer>
 				<key>modifiersubtext</key>
@@ -32,11 +32,60 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>065CC617-27CE-4D07-A331-249902CF8816</string>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
 				<key>modifiers</key>
 				<integer>524288</integer>
 				<key>modifiersubtext</key>
 				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
+				<key>modifiers</key>
+				<integer>262144</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>789B1AAC-380F-49CF-AE33-775660633C67</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>D5C16EFE-115C-4460-AE71-C46F5A173AAE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>3C38891A-1A46-49E9-BB77-1104821C1D3A</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>3E0FB9CD-E019-42C2-969C-5C8D9E5174CD</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>065CC617-27CE-4D07-A331-249902CF8816</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>E19DB1A9-52D5-4CF3-909A-AE9676428B11</string>
 				<key>vitoclose</key>
 				<false/>
 			</dict>
@@ -178,6 +227,46 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>launchmode</key>
+				<integer>1</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>panel.zsh</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>alfredfiltersresults</key>
 				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
@@ -227,42 +316,62 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>launchmode</key>
-				<integer>1</integer>
-				<key>path</key>
-				<string>{query}</string>
-				<key>stackview</key>
-				<false/>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:city_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>detail</string>
+						<key>outputlabel</key>
+						<string>Detail panel</string>
+						<key>uid</key>
+						<string>3C38891A-1A46-49E9-BB77-1104821C1D3A</string>
+					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:city_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>window</string>
+						<key>outputlabel</key>
+						<string>Own window</string>
+						<key>uid</key>
+						<string>3E0FB9CD-E019-42C2-969C-5C8D9E5174CD</string>
+					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:city_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>clock</string>
+						<key>outputlabel</key>
+						<string>Edit cities</string>
+						<key>uid</key>
+						<string>E19DB1A9-52D5-4CF3-909A-AE9676428B11</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>else</string>
+				<key>hideelse</key>
+				<true/>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
+			<string>alfred.workflow.utility.conditional</string>
 			<key>uid</key>
-			<string>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</string>
+			<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
 			<key>version</key>
 			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string></string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string>panel.zsh</string>
-				<key>type</key>
-				<integer>8</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
-			<key>version</key>
-			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -295,28 +404,35 @@
 		<key>065CC617-27CE-4D07-A331-249902CF8816</key>
 		<dict>
 			<key>xpos</key>
-			<real>445</real>
+			<real>570</real>
 			<key>ypos</key>
-			<real>365</real>
+			<real>330</real>
 		</dict>
 		<key>2708C946-AF32-4037-BDA4-3EBEE9654D1D</key>
 		<dict>
 			<key>xpos</key>
-			<real>190</real>
+			<real>185</real>
 			<key>ypos</key>
-			<real>125</real>
+			<real>205</real>
 		</dict>
 		<key>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</key>
 		<dict>
 			<key>xpos</key>
-			<real>645</real>
+			<real>750</real>
 			<key>ypos</key>
 			<real>205</real>
+		</dict>
+		<key>789B1AAC-380F-49CF-AE33-775660633C67</key>
+		<dict>
+			<key>xpos</key>
+			<real>355</real>
+			<key>ypos</key>
+			<real>210</real>
 		</dict>
 		<key>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</key>
 		<dict>
 			<key>xpos</key>
-			<real>445</real>
+			<real>565</real>
 			<key>ypos</key>
 			<real>205</real>
 		</dict>
@@ -325,19 +441,19 @@
 			<key>xpos</key>
 			<real>30</real>
 			<key>ypos</key>
-			<real>125</real>
+			<real>205</real>
 		</dict>
 		<key>AC30014C-8E82-48F3-BAD2-00D8A93307A1</key>
 		<dict>
 			<key>xpos</key>
-			<real>645</real>
+			<real>750</real>
 			<key>ypos</key>
 			<real>45</real>
 		</dict>
 		<key>D5C16EFE-115C-4460-AE71-C46F5A173AAE</key>
 		<dict>
 			<key>xpos</key>
-			<real>445</real>
+			<real>550</real>
 			<key>ypos</key>
 			<real>45</real>
 		</dict>
@@ -376,13 +492,145 @@
 				<string>Download city thumbnails</string>
 			</dict>
 			<key>description</key>
-			<string>Downloads a picture of each city from Wikimedia Commons for its detail view, and keeps them in the workflow's cache. When off, no requests are made and cached pictures are deleted.</string>
+			<string>Downloads a picture of each city from Wikimedia Commons for its detail view. When off, no requests are made and cached pictures are deleted.</string>
 			<key>label</key>
 			<string>City pictures</string>
 			<key>type</key>
 			<string>checkbox</string>
 			<key>variable</key>
 			<string>download_thumbnails</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>none</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>No modifier (just ↩)</string>
+						<string>none</string>
+					</array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Shows the city's details in Alfred.</string>
+			<key>label</key>
+			<string>Show detail panel</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_detail</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>cmd</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>No modifier (just ↩)</string>
+						<string>none</string>
+					</array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Opens the city's details in a window of its own, which stays open.</string>
+			<key>label</key>
+			<string>Open detail panel in its own window</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_detail_window</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>alt</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>No modifier (just ↩)</string>
+						<string>none</string>
+					</array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Opens the Clock app on its World Clock tab.</string>
+			<key>label</key>
+			<string>Edit cities in Clock app</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_edit_cities</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>ctrl</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>While the modifier is held, the subtitle shows alternative details</string>
+			<key>label</key>
+			<string>Show alternative result detail</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_other_details</string>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -395,7 +643,7 @@
 				<string>Show window buttons</string>
 			</dict>
 			<key>description</key>
-			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc to close the window.</string>
+			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc or ⌘W to close the window.</string>
 			<key>label</key>
 			<string>Window buttons</string>
 			<key>type</key>

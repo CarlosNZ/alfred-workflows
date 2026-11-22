@@ -17,7 +17,7 @@ Developer notes for a workflow that shows the current time in each city from the
   - [x] **⌥:** edit the list in the Clock app, on the World Clock tab (see [Opening Clock](#opening-clock)).
     - [ ] **Check it from Alfred:** tested from a terminal with Accessibility access. From Alfred, check that it uses Alfred's Accessibility access, what the first-run Automation prompt for System Events looks like, and what the debugger logs when either is denied.
   - [x] **Alternative details:** show other data in the subtitle while a modifier is held, as ⌃ does with the other mode's subtitle.
-  - [ ] **Configurable modifiers:** which modifier does which action, as User Configuration options.
+  - [x] **Configurable modifiers:** which modifier does which action, as User Configuration options (see [Action keys](#action-keys)). TO-DO: test each key in Alfred, including the inline view's ⌥↩ and ⌃↩.
 - [ ] **Working day in User Configuration:** the hours behind the working status, fixed in `WORKING_DAY` in `lib/time.js` (see [Configuration](#configuration)).
 - [x] **Icons:** design the 12 icons (7 phases, 5 working statuses) to replace the placeholders (see [Icon states](#icon-states)).
   - [x] **Phases of the day:** a sky over the sea with the sun along an arc (see [Phases of the day](#phases-of-the-day)).
@@ -162,7 +162,7 @@ Every status's icon is the phases' tile, with the same glossy sheen and thin lig
 - **↩:** shows the city's inline view, its detail view inside Alfred, and **⌘↩** opens its detail window, "Open Auckland in its own window" (see [Detail views](#detail-views)). In the inline view, ⌫ goes back to the results and ↩ or ⌘↩ opens the detail window (see [Keys](#keys)). In the time mode, the view shows the city at the typed time.
 - **⌥↩:** opens Clock on its World Clock tab, to edit the list (see [Opening Clock](#opening-clock)). Its subtitle is "Edit cities in Clock app". It's the same for every city, and only on city results: the messages for when the list can't be loaded keep ⌥ inert.
 - **Copy** (if kept): its subtitle shows what it copies.
-- Which modifier does which action is to be configurable.
+- **Configurable keys:** these are the defaults; each action's key is set in the configuration (see [Action keys](#action-keys)).
 - **`rerun`:** the list reruns every second (a run takes about 0.1s), so times and countdowns stay current while Alfred is open.
 
 The icons are image files in `icons/`, since Alfred's item icons are paths: 12 PNGs (7 phases, 5 working statuses), drawn by JXA scripts, so they can be regenerated from code. A phase's icon is `icons/phase-<phase>.png`, and a working status's `icons/status-<status>.png`, all 256px (the detail view's tile is 88pt, 176px on Retina).
@@ -235,6 +235,7 @@ Options for the workflow's User Configuration (saved to the gitignored `prefs.pl
 
 - The keyword (`keyword`, default `wcc`).
 - "Download city thumbnails" (`download_thumbnails`, on by default), which fetches the detail view's city pictures from Wikimedia (see [City pictures](#city-pictures)).
+- The key for each of a city result's actions: show the detail panel (↩), open it in its own window (⌘), edit cities in Clock (⌥) and show the alternative details (⌃ held). See [Action keys](#action-keys).
 - The detail window's look, the same options as Now Playing's: window buttons (`window_buttons`, on by default: the buttons over a transparent title bar; off: a borderless window), corner radius (`corner_radius`, 0–32, default 16, for the borderless window only) and transparency (`transparency`, 0–100, default 45, how much the panel's tint lets the window's blur through). `panel.zsh` builds them into the window's layout when it opens (see [The layout](#the-layout)), so a change takes effect in a detail window the next time it opens. The inline view takes none of them: it's inside Alfred's window, and keeps the default tint. Their wording and settings are shared with Now Playing, in the repo's `shared/userconfig/window.json`: change them there and run `bin/wf sync-config`, not in Alfred (see [Shared User Configuration](../../README.md#shared-user-configuration)). The defaults in `panel.zsh` match the shared ones.
 
 TO-DO, probably:
@@ -269,25 +270,25 @@ JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries
 
 A city's detail view is an Alfred UI built from `lib/panel.js`, in two versions, opened by two Alfred UI objects that differ only in their launch mode, which is a setting of the object, not of `ui.json`. "Detail view" covers both; the code names the launches `inline` and `window` (`detail_launch`, and the package and layout names).
 
-- **The inline view (↩):** "Open within Alfred" (`launchmode` 0), stacked (`stackview`), though that doesn't take Esc back to the results; ⌫ does that, and ↩ or ⌘↩ opens the city's detail window (see [Keys](#keys)). Most of the window settings in `ui.json` (title, `frameautosave`) don't apply here: the view takes the theme's width, and exactly the height in `size` (tested), with the content centred in it, so each variant's height is worked out to fit it (`panelHeight`).
+- **The inline view (↩):** "Open within Alfred" (`launchmode` 0), stacked (`stackview`), though that doesn't take Esc back to the results; ⌫ does that, and ↩ or ⌘↩ (the detail window's key) opens the city's detail window (see [Keys](#keys)). Most of the window settings in `ui.json` (title, `frameautosave`) don't apply here: the view takes the theme's width, and exactly the height in `size` (tested), with the content centred in it, so each variant's height is worked out to fit it (`panelHeight`).
 - **The detail window (⌘↩):** "Launch externally" (`launchmode` 1): a window of its own, titled with the city's name, which stays open until closed (Esc or the close button). Each detail window is a separate `Alfred UI` process.
 
-Each object comes after its own Run Script running `panel.zsh` (modifiers on connections only exist from the Script Filter, so the two routes can't share one Run Script), and opens the path it prints (`{query}`). The ⌘ modifier repeats the item's variables, since a modifier with its own `arg` needs them too, and adds `detail_launch: window`. `panel.zsh` takes the city from the variables (`detail_slug`, `detail_city`, `detail_clock_change`, `detail_launch`; see `detailVariables` in `lib/detail.js`), not its argument: on ↩ that's the item's `arg`, the city's name, kept for ⌘C and Universal Actions.
+Each object comes after its own Run Script running `panel.zsh`, and opens the path it prints (`{query}`). The Script Filter reaches them through the Conditional that routes its actions (see [Action keys](#action-keys)), and the inline view's object reaches the detail window's Run Script when it finishes (see [Keys](#keys)). The detail window's key adds `detail_launch: window` to the city's variables. `panel.zsh` takes the city from the variables (`detail_slug`, `detail_city`, `detail_clock_change`, `detail_launch`, `detail_window_key`; see `detailVariables` in `lib/detail.js` and `cityItem` in `results.js`), not its argument: that's the item's `arg`, the city's name, kept for ⌘C and Universal Actions.
 
 #### Keys
 
 The root view's `shortcuts` differ by version (`panelShortcuts` in `lib/panel.js`):
 
 - **Detail window:** ⎋ runs a `finish` action, which closes it.
-- **Inline view:** ⌫ goes back to the results, ↩ and ⌘↩ open the city's detail window, and ⎋ hides Alfred, as Alfred handles it before the view sees it.
+- **Inline view:** ⌫ goes back to the results, ↩ and the detail window's key with ↩ (⌘↩ by default) open the city's detail window, and ⎋ hides Alfred, as Alfred handles it before the view sees it.
 
 **⌫, back to the results.** ⌫ runs `detail.js back` (a `script` action, `async`), which shows the results again by searching Alfred for what the view was opened from. `results.js` puts that search, the keyword and query, on each item as `detail_search`, and `panel.zsh` saves it in the inline package as `search.txt`. The selection goes back to the first city, as with any new search. Alfred waits for a script action to end, so `back` starts the search in an `osascript` process of its own and doesn't wait for it: asking Alfred to search from the script itself deadlocked, hanging Alfred until the script was killed (tested).
 
 **⎋ can't go back.** Alfred's stacking (`stackview`) doesn't take ⎋ back to the results, because the view replaces them rather than opening over them: on ⎋, Alfred hides (tested). That's so even with the view opened straight from the Script Filter, with no Run Script between them (tested: ⎋ did nothing). And a `⎋` shortcut on the inline view never runs, since Alfred takes the key first (tested: the action's script wasn't started), so it can't be made to go back either. See [Alfred requests](../../Alfred%20requests.md).
 
-**↩ and ⌘↩, the detail window.** The same `finish` action on both, with the variable `detail_launch: window`. The inline view's Alfred UI object is connected to the detail window's Run Script, so finishing opens the city's detail window. The city's other variables are still in the stream from its result, as `finish` merges its variables into them.
+**↩ and ⌘↩, the detail window.** The same `finish` action on both, with the variable `detail_launch: window`. The inline view's Alfred UI object is connected to the detail window's Run Script, so finishing opens the city's detail window. The city's other variables are still in the stream from its result, as `finish` merges its variables into them. The second shortcut is the detail window's key from the results with ↩: `results.js` puts that key on each item as `detail_window_key` (empty when no key opens the window, or `none` when ↩ alone does), and `panel.zsh` builds it into the inline view's variant (`inline-1-0-cmd.json`), so ⌥↩ or ⌃↩ when the key is ⌥ or ⌃, and nothing beyond ↩ when there's no modifier.
 
-⌫, ⌘↩ and ⎋ are tested in Alfred. TO-DO: test ↩ in Alfred. TO-DO: check on a Mac that hasn't run it whether ⌫'s search asks for an Automation permission (System Settings › Privacy & Security › Automation).
+⌫, ⌘↩ and ⎋ are tested in Alfred. TO-DO: test ↩, ⌥↩ and ⌃↩ in Alfred. TO-DO: check on a Mac that hasn't run it whether ⌫'s search asks for an Automation permission (System Settings › Privacy & Security › Automation).
 
 #### What it shows
 
@@ -425,6 +426,23 @@ Requests carry a User-Agent naming the workflow, its version and a URL to get in
 `results.js` reads the cities (see [Reading it](#reading-it)), keeps them in Clock's order, and filters them in the script: every word typed must start a word of the city's name or country, ignoring case and accents. Alfred's own filtering is off, because it would hide every city when a time is typed. Each item's `uid` is Clock's `identifier` for the city: on a rerun, Alfred keeps the selection on the item with the selected item's `uid`, where without one it jumps back to the first item. `skipknowledge: true` in the output stops Alfred reordering the items by usage, which `uid`s would otherwise allow, so they stay in Clock's order.
 
 Every result defines ⌘, ⌥ and ⌃ modifiers (`withInertMods` in `results.js`); those without an action of their own are inert (`valid: false`, with the result's own subtitle). Without them Alfred applies its own modifiers, ⌥ "Search in Finder" and ⌃ "Search with default fallback", which the `strictmods` flag in the JSON doesn't stop. ⇧ is left alone for Quick Look.
+
+#### Action keys
+
+Each of a city result's actions has a User Configuration popup that sets its key: no modifier (↩ alone), ⌘, ⌥ or ⌃. They're defined in `CITY_ACTIONS` in `results.js`, with their defaults:
+
+| Variable            | Action                              | Default     | Keys         |
+| ------------------- | ----------------------------------- | ----------- | ------------ |
+| `key_detail`        | Show detail panel (the inline view) | no modifier | any          |
+| `key_detail_window` | Open detail panel in its own window | ⌘           | any          |
+| `key_edit_cities`   | Edit cities in Clock app            | ⌥           | any          |
+| `key_other_details` | Show alternative result detail      | ⌃           | ⌘, ⌥ or ⌃    |
+
+The last isn't an action but the subtitle shown while its modifier is held (`valid: false`), so it can't be ↩ alone. ⇧ is left out, as it's Alfred's Quick Look key, and so is fn, which some keyboards don't have and which turns ↩ into the keypad's Enter on some Macs. Alfred's JSON takes modifier combinations too (`"cmd+alt"`), but each one offered needs its own connection (see below), and four actions fit four keys.
+
+`cityActionKeys` gives out the keys in the table's order, so when two actions are set to the same key, the earlier one has it and the later one has none, and a result above the cities says so (`keyClashItem`): "Two actions are set to ⌘", "“Show detail panel” has it, so “Open detail panel in its own window” is off". An unset or unknown value counts as the default. With no action on ↩ alone, the city result is `valid: false`, so ↩ does nothing rather than closing Alfred; its modifiers still work.
+
+Alfred's connections have fixed modifiers, set in the workflow editor, so the keys can't choose the connection. Instead the Script Filter has four connections, ↩ alone, ⌘, ⌥ and ⌃, all to one Conditional utility, and each key's variables name its action as `city_action` (`detail`, `window` or `clock`). The Conditional routes on it, to the inline view's Run Script, the detail window's or `open-clock.applescript`; its else branch is hidden and goes nowhere. A modifier's variables replace the item's, so each key's repeat the city's (`cityItem`).
 
 The Script Filter runs 0.2s after typing pauses (Run Behaviour › Custom delay; in `info.plist`, `queuedelaymode` 2 and `queuedelaycustom` 2, in tenths of a second), and immediately for the first character. That skips most partly typed times without slowing down filtering, which "Automatic after last character typed" (`queuedelaymode` 1) did.
 

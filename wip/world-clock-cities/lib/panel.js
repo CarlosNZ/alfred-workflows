@@ -25,6 +25,10 @@
 //                window with `cornerRadius` (0-32) corners; and `transparency`
 //                (0-100), how much the panel's tint lets the blur through. The
 //                inline view takes none of them.
+//   windowKey    the inline view's: the key that opens the city's detail
+//                window from the results ("none", "cmd", "alt" or "ctrl", or
+//                "" when it has none), which opens it from the view too (see
+//                panelShortcuts)
 
 // Colours: hex RGB or RGBA, or rgb(r, g, b, alpha). Explicit colours rather
 // than the system's label colours, since the inline view takes the theme's
@@ -127,25 +131,31 @@ const WINDOW_SETTINGS = {
   frameautosave: true,
 };
 
+// The modifier symbols for the keys results.js gives the actions (see
+// cityActionKeys there), as Alfred UI's shortcuts spell them.
+const MODIFIER_SYMBOLS = { cmd: "⌘", alt: "⌥", ctrl: "⌃" };
+
 // The root view's shortcuts. In the detail window, ⎋ closes it. In the inline
 // view, Alfred takes ⎋ before the view sees it, and hides; ⌫ goes back to the
 // results the view was opened from (`detail.js back`), since Alfred's stacking
-// can't: the results are gone by the time the view opens. ↩ and ⌘↩ open the
-// city's detail window: finishing hands detail_launch to the inline view's
-// Alfred UI object, which connects to the detail window's Run Script, with the
-// city's other variables still in the stream from its result.
-function panelShortcuts(inWindow) {
+// can't: the results are gone by the time the view opens. ↩ opens the city's
+// detail window, and so does the key that opens it from the results
+// (`windowKey`) with ↩, so ⌘↩ by default: finishing hands detail_launch to the
+// inline view's Alfred UI object, which connects to the detail window's Run
+// Script, with the city's other variables still in the stream from its result.
+function panelShortcuts(inWindow, windowKey) {
   if (inWindow) return [{ shortcut: "⎋", action: { type: "json", src: { finish: {} } } }];
   const openWindow = { type: "json", src: { finish: { variables: { detail_launch: "window" } } } };
+  const modifier = MODIFIER_SYMBOLS[windowKey];
   return [
     { shortcut: "⌫", action: { type: "script", src: "./detail.js", args: ["back"], async: true } },
     { shortcut: "↩", action: openWindow },
-    { shortcut: "⌘↩", action: openWindow },
-  ];
+    modifier && { shortcut: `${modifier}↩`, action: openWindow },
+  ].filter(Boolean);
 }
 
 // The ui.json for a variant of the view (see the top of this file).
-function panelUi({ launch, picture, clockChange, windowPrefs }) {
+function panelUi({ launch, picture, clockChange, windowPrefs, windowKey }) {
   const inWindow = launch === "window";
   const buttons = inWindow && windowPrefs.buttons;
   const borderless = inWindow && !windowPrefs.buttons;
@@ -175,7 +185,7 @@ function panelUi({ launch, picture, clockChange, windowPrefs }) {
         direction: "vertical",
         padding: PANEL_PADDING,
         background: panelTint(inWindow ? windowPrefs.transparency : INLINE_TRANSPARENCY),
-        shortcuts: panelShortcuts(inWindow),
+        shortcuts: panelShortcuts(inWindow, windowKey),
         // The sections are in a column of their own, so the space for the
         // window buttons above them isn't followed by a section's spacing.
         components: [

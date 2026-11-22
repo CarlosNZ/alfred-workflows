@@ -16,8 +16,9 @@
 # script), a link to appicon.png (the view's app icon), the city's record in city.json, for the inline view the search it
 # was opened from in search.txt, and a link to the view's layout:
 # the variant of lib/panel.js's layout for the launch, whether there's a
-# picture slot and a clock change line, and for a detail window its
-# preferences (window buttons, corner radius and transparency), built into
+# picture slot and a clock change line, for a detail window its preferences
+# (window buttons, corner radius and transparency), and for the inline view
+# the key that opens the detail window ($detail_window_key), built into
 # panels/layouts/ the first time it's needed and again whenever lib/panel.js
 # changes. A changed preference takes effect in a detail window the next time
 # it opens. Alfred keeps one
@@ -69,17 +70,27 @@ number() {
   if [[ $1 == <-> ]] && (( $1 <= $3 )); then print -r -- $(( $1 )); else print -r -- $2; fi
 }
 
-# A detail window's preferences, from the workflow's User Configuration, with
-# its defaults (see shared/userconfig/window.json in the repo). They're part
-# of the variant's name: the radius only matters without window buttons.
+# What else goes into the variant, for detail.js's arguments and the variant's
+# name.
 variant=$launch-$picture-$clock_change
-window_prefs=()
-if [[ $launch == window ]]; then
+variant_args=()
+if [[ $launch == inline ]]; then
+  # The key that opens the detail window from the results, which opens it
+  # from the inline view too ($detail_window_key, from results.js; see
+  # cityActionKeys there). Empty when no key opens it.
+  window_key=${detail_window_key-cmd}
+  [[ $window_key == (none|cmd|alt|ctrl|) ]] || window_key=cmd
+  variant_args=("$window_key")
+  variant+=-${window_key:-nokey}
+elif [[ $launch == window ]]; then
+  # A detail window's preferences, from the workflow's User Configuration,
+  # with their defaults (see shared/userconfig/window.json in the repo). The
+  # radius only matters without window buttons.
   buttons=1
   [[ ${window_buttons:-1} == 0 ]] && buttons=0
   radius=$(number "${corner_radius:-}" 16 32)
   transparency=$(number "${transparency:-}" 45 100)
-  window_prefs=($buttons $radius $transparency)
+  variant_args=($buttons $radius $transparency)
   if (( buttons )); then variant+=-buttons; else variant+=-r$radius; fi
   variant+=-t$transparency
 fi
@@ -91,7 +102,7 @@ fi
 layout=$cache/panels/layouts/$variant.json
 if [[ ! -e $layout || $layout -ot $workflow/lib/panel.js ]]; then
   mkdir -p ${layout:h}
-  $workflow/detail.js ui $launch $picture $clock_change $window_prefs > $layout.tmp.$$
+  $workflow/detail.js ui $launch $picture $clock_change "${variant_args[@]}" > $layout.tmp.$$
   mv -f $layout.tmp.$$ $layout
 fi
 

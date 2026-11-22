@@ -10,11 +10,12 @@
 // the time the results last showed (saveShownTime in lib/detail.js), and
 // next to images/, which holds the city's picture.
 //
-// With the arguments `ui <launch> <picture> <clockChange>`, and for the
-// window launch `<buttons> <cornerRadius> <transparency>` after them, it
-// prints that variant of the view's ui.json instead (see lib/panel.js), for
-// panel.zsh. <picture>, <clockChange> and <buttons> are 1 or 0, and the
-// others whole numbers, which panel.zsh checks.
+// With the arguments `ui <launch> <picture> <clockChange>`, then for the
+// window launch `<buttons> <cornerRadius> <transparency>`, or for the inline
+// launch `<windowKey>`, it prints that variant of the view's ui.json instead
+// (see lib/panel.js), for panel.zsh. <picture>, <clockChange> and <buttons>
+// are 1 or 0, <cornerRadius> and <transparency> whole numbers, and
+// <windowKey> none, cmd, alt, ctrl or empty, which panel.zsh checks.
 //
 // With the argument `back`, run by ⌫ in the inline view, it shows Alfred's
 // results again, by searching for what the view was opened from (search.txt
@@ -42,7 +43,8 @@ function run(argv) {
     if (windowPrefs && [windowPrefs.cornerRadius, windowPrefs.transparency].some(isNaN)) {
       throw new Error("ui window needs <buttons> <cornerRadius> <transparency>");
     }
-    const variant = { launch, picture: picture === "1", clockChange: clockChange === "1", windowPrefs };
+    const windowKey = launch === "window" ? "" : argv[4] || "";
+    const variant = { launch, picture: picture === "1", clockChange: clockChange === "1", windowPrefs, windowKey };
     return JSON.stringify(panelUi(variant), null, 2);
   }
 
