@@ -17,7 +17,7 @@ Developer notes for a workflow that shows the current time in each city from the
   - [x] **⌥:** edit the list in the Clock app, on the World Clock tab (see [Opening Clock](#opening-clock)).
     - [ ] **Check it from Alfred:** tested from a terminal with Accessibility access. From Alfred, check that it uses Alfred's Accessibility access, what the first-run Automation prompt for System Events looks like, and what the debugger logs when either is denied.
   - [x] **Alternative details:** show other data in the subtitle while a modifier is held, as ⌃ does with the other mode's subtitle.
-  - [x] **Configurable modifiers:** which modifier does which action, as User Configuration options (see [Action keys](#action-keys)). TO-DO: test each key in Alfred, including the inline view's ⌥↩ and ⌃↩.
+  - [x] **Configurable modifiers:** which modifier does which action, as User Configuration options (see [Action keys](#action-keys)). Tested in Alfred, including the inline view's ⌥↩ and ⌃↩.
 - [ ] **Working day in User Configuration:** the hours behind the working status, fixed in `WORKING_DAY` in `lib/time.js` (see [Configuration](#configuration)).
 - [x] **Icons:** design the 12 icons (7 phases, 5 working statuses) to replace the placeholders (see [Icon states](#icon-states)).
   - [x] **Phases of the day:** a sky over the sea with the sun along an arc (see [Phases of the day](#phases-of-the-day)).
@@ -271,7 +271,7 @@ JXA has no `import`, and `Library()` only loads from `~/Library/Script Libraries
 A city's detail view is an Alfred UI built from `lib/panel.js`, in two versions, opened by two Alfred UI objects that differ only in their launch mode, which is a setting of the object, not of `ui.json`. "Detail view" covers both; the code names the launches `inline` and `window` (`detail_launch`, and the package and layout names).
 
 - **The inline view (↩):** "Open within Alfred" (`launchmode` 0), stacked (`stackview`), though that doesn't take Esc back to the results; ⌫ does that, and ↩ or ⌘↩ (the detail window's key) opens the city's detail window (see [Keys](#keys)). Most of the window settings in `ui.json` (title, `frameautosave`) don't apply here: the view takes the theme's width, and exactly the height in `size` (tested), with the content centred in it, so each variant's height is worked out to fit it (`panelHeight`).
-- **The detail window (⌘↩):** "Launch externally" (`launchmode` 1): a window of its own, titled with the city's name, which stays open until closed (Esc or the close button). Each detail window is a separate `Alfred UI` process.
+- **The detail window (⌘↩):** "Launch externally" (`launchmode` 1): a window of its own, titled with the city's name, which stays open until closed (Esc, ⌘W or the close button). Each detail window is a separate `Alfred UI` process.
 
 Each object comes after its own Run Script running `panel.zsh`, and opens the path it prints (`{query}`). The Script Filter reaches them through the Conditional that routes its actions (see [Action keys](#action-keys)), and the inline view's object reaches the detail window's Run Script when it finishes (see [Keys](#keys)). The detail window's key adds `detail_launch: window` to the city's variables. `panel.zsh` takes the city from the variables (`detail_slug`, `detail_city`, `detail_clock_change`, `detail_launch`, `detail_window_key`; see `detailVariables` in `lib/detail.js` and `cityItem` in `results.js`), not its argument: that's the item's `arg`, the city's name, kept for ⌘C and Universal Actions.
 
@@ -279,7 +279,7 @@ Each object comes after its own Run Script running `panel.zsh`, and opens the pa
 
 The root view's `shortcuts` differ by version (`panelShortcuts` in `lib/panel.js`):
 
-- **Detail window:** ⎋ runs a `finish` action, which closes it.
+- **Detail window:** ⎋ runs a `finish` action, which closes it. ⌘W closes it too: it's File › Close in the Alfred UI helper's menu bar, not one of the view's shortcuts.
 - **Inline view:** ⌫ goes back to the results, ↩ and the detail window's key with ↩ (⌘↩ by default) open the city's detail window, and ⎋ hides Alfred, as Alfred handles it before the view sees it.
 
 **⌫, back to the results.** ⌫ runs `detail.js back` (a `script` action, `async`), which shows the results again by searching Alfred for what the view was opened from. `results.js` puts that search, the keyword and query, on each item as `detail_search`, and `panel.zsh` saves it in the inline package as `search.txt`. The selection goes back to the first city, as with any new search. Alfred waits for a script action to end, so `back` starts the search in an `osascript` process of its own and doesn't wait for it: asking Alfred to search from the script itself deadlocked, hanging Alfred until the script was killed (tested).
@@ -288,7 +288,7 @@ The root view's `shortcuts` differ by version (`panelShortcuts` in `lib/panel.js
 
 **↩ and ⌘↩, the detail window.** The same `finish` action on both, with the variable `detail_launch: window`. The inline view's Alfred UI object is connected to the detail window's Run Script, so finishing opens the city's detail window. The city's other variables are still in the stream from its result, as `finish` merges its variables into them. The second shortcut is the detail window's key from the results with ↩: `results.js` puts that key on each item as `detail_window_key` (empty when no key opens the window, or `none` when ↩ alone does), and `panel.zsh` builds it into the inline view's variant (`inline-1-0-cmd.json`), so ⌥↩ or ⌃↩ when the key is ⌥ or ⌃, and nothing beyond ↩ when there's no modifier.
 
-⌫, ⌘↩ and ⎋ are tested in Alfred. TO-DO: test ↩, ⌥↩ and ⌃↩ in Alfred. TO-DO: check on a Mac that hasn't run it whether ⌫'s search asks for an Automation permission (System Settings › Privacy & Security › Automation).
+⌫, ↩, ⌘↩, ⌥↩, ⌃↩ and ⎋ are tested in Alfred. TO-DO: check on a Mac that hasn't run it whether ⌫'s search asks for an Automation permission (System Settings › Privacy & Security › Automation).
 
 #### What it shows
 
