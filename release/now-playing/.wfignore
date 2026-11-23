@@ -1,5 +1,5 @@
 # Development-only files, kept out of builds.
 icon-candidates
-nowplaying.alfredui/vendor.sh
+nowplaying.alfredui/vendor*.sh
 nowplaying.alfredui/vendor/MediaRemoteAdapterTestClient
 docs/unused

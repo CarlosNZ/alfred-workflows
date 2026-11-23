@@ -2,7 +2,12 @@
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR="$ROOT/vendor"
-export PATH="/usr/bin:/bin:$PATH"
+# The vendored jq comes first, so every macOS runs the same jq (/usr/bin/jq
+# only ships from macOS 15, and its version follows the OS).
+export PATH="$VENDOR/jq/bin:/usr/bin:/bin:$PATH"
+
+# The workflow's icon, in the workflow folder (the bundle's parent).
+WORKFLOW_ICON="$(dirname "$ROOT")/icon.png"
 
 # The panel and the Script Filter both run with the workflow's cache folder,
 # so they share artwork and app lookups.
@@ -27,12 +32,27 @@ current_layout() {
 # resizeable from there. Its minimum size (`minsize` in window.json) is shared
 # by both layouts, because a `window` JSON Action can resize the open window
 # but ignores `minsize`, so the minimum set when the window opens stays in
-# force after a layout switch.
+# force after a layout switch. Landscape's height makes the artwork's cell
+# square, so it's taller by the inset that clears the window buttons.
 layout_size() {
   case "$1" in
-    landscape) echo '{"width": 620, "height": 348}' ;;
+    landscape) echo "{\"width\": 620, \"height\": $((316 + $(landscape_inset)))}" ;;
     *) echo '{"width": 340, "height": 540}' ;;
   esac
+}
+
+# Succeed when the window has window buttons (the `window_buttons`
+# preference, on by default), rather than being borderless. The panel's
+# scripts don't see the workflow's preferences, so window.sh saves it to
+# $CACHE/window-buttons.
+has_window_buttons() {
+  [ "$(cat "$CACHE/window-buttons" 2>/dev/null)" != false ]
+}
+
+# Print how far the landscape content is inset from the top: LANDSCAPE_INSET
+# to clear the window buttons, or 0 for a borderless window, which has none.
+landscape_inset() {
+  has_window_buttons && echo "$LANDSCAPE_INSET" || echo 0
 }
 
 # Print the window's maximum size for layout $1, as JSON, which also limits
@@ -67,9 +87,10 @@ layout_maxsize() {
 # controls than within either.
 #
 # Landscape puts the artwork and a details column side by side in two equal
-# grid cells, inset LANDSCAPE_INSET from the top and bottom so the artwork
-# clears the window buttons at the top left, and is still centred between
-# the window's top and bottom edges, unaffected by the top row. The details
+# grid cells, inset LANDSCAPE_INSET from the top so the artwork clears the
+# window buttons at the top left (not at all when the window is borderless;
+# see landscape_inset), and otherwise unaffected by the top row.
+# The bottom has only the panel's padding, like the sides. The details
 # column is inset the rest of the way to LANDSCAPE_GAP below the top row: a
 # border layout with the controls in its bottom region and the text
 # vertically centred in the space above. When the artwork fills its cell's height (a square image in a cell
@@ -79,12 +100,19 @@ layout_maxsize() {
 # Either way the artwork view fills its space and `resize: fit` scales the
 # image to fit it, keeping its aspect ratio and centring it.
 #
-# The workflow's icon (icon.png in the workflow folder), shown in place of
-# the artwork when nothing is playing (`idleart`; see idle_update), is put in its image view here, at
-# IDLE_ART_SIZE, rather than by an update, so the view is laid out at that
+# parts/art.json has no images: they're put in here, all of them the
+# workflow's icon. The workflow's icon, shown in place of the artwork when
+# nothing is playing (`idleart`; see idle_update), is put in its image view
+# at IDLE_ART_SIZE rather than by an update, so the view is laid out at that
 # size from the start. Alfred doesn't always lay the window out again when
 # an update changes an image's size, so an image sent later could stay at
-# the size of the one it replaced until the window was resized.
+# the size of the one it replaced until the window was resized. For the
+# same reason the view for the playing app's icon, shown in place of missing
+# artwork (`appart`; see app_art), gets the workflow's icon at APP_ART_SIZE,
+# the size of every image the pulse puts there, so an update changes only
+# the image, not its size. The artwork view starts hidden, so its image
+# doesn't show until the first pulse, which runs as the panel opens, has
+# chosen which of the three views to show.
 TOPROW_HEIGHT=28
 PORTRAIT_GAP=6
 LANDSCAPE_GAP=14
@@ -93,19 +121,25 @@ IDLE_LIFT_PORTRAIT=40
 IDLE_LIFT_LANDSCAPE=18
 content_view() {
   jq -n --arg layout "$1" --argjson row "$TOPROW_HEIGHT" --argjson pgap "$PORTRAIT_GAP" \
-     --argjson lgap "$LANDSCAPE_GAP" --argjson inset "$LANDSCAPE_INSET" --slurpfile art "$ROOT/parts/art.json" \
+     --argjson lgap "$LANDSCAPE_GAP" --argjson inset "$(landscape_inset)" --slurpfile art "$ROOT/parts/art.json" \
      --argjson text "$(text_view "${2:-track}")" --slurpfile controls "$ROOT/parts/controls.json" \
      --arg kind "${2:-track}" --argjson plift "$IDLE_LIFT_PORTRAIT" --argjson llift "$IDLE_LIFT_LANDSCAPE" \
-     --arg icon "$(dirname "$ROOT")/icon.png" --argjson iconsize "$IDLE_ART_SIZE" '
-    ($art[0] | (.components[] | select(.id == "idleart") | .components[]
-                | select(.id == "idleartimage") | .image)
-                 = {type: "file", src: $icon, size: {width: $iconsize, height: $iconsize}}) as $art
+     --arg icon "$WORKFLOW_ICON" --argjson iconsize "$IDLE_ART_SIZE" \
+     --argjson appsize "$APP_ART_SIZE" '
+    ($art[0]
+     | (.components[] | select(.id == "art") | .image) = {type: "file", src: $icon}
+     | (.components[] | select(.id == "idleart") | .components[]
+        | select(.id == "idleartimage") | .image)
+         = {type: "file", src: $icon, size: {width: $iconsize, height: $iconsize}}
+     | (.components[] | select(.id == "appart") | .components[]
+        | select(.id == "appartimage") | .image)
+         = {type: "file", src: $icon, size: {width: $appsize, height: $appsize}}) as $art
     | ($kind == "idle") as $idle
     | (if $idle then [] else $controls end) as $controls
     | {id: "content", type: "view"}
     + if $layout == "landscape" then {
         layout: "grid", rows: 1, cols: 2, spacing: 20,
-        constraints: {insets: {top: $inset, bottom: $inset}},
+        constraints: {insets: {top: $inset}},
         components: [$art, {
           type: "view", layout: "border", spacing: 14,
           constraints: {insets: {top: ($row + $lgap - $inset)}},
@@ -290,13 +324,14 @@ default_app() {
   [ -n "$app" ] && [ -e "$app" ] && printf '%s' "$app"
 }
 
-# Print an update that shows a status message instead of a track, with image
-# $3 (JSON, default the music.note symbol) as the artwork. Pass it through
-# with_content track and with_toprow "".
+# Print an update that shows a status message instead of a track: title $1,
+# subtitle $2 and image $3 (JSON, e.g. from symbol_image) as the artwork.
+# Pass it through with_content track and with_toprow "".
 show_message() {
-  jq -nc --arg t "$1" --arg s "${2:-}" --argjson img "${3:-$(symbol_image music.note)}" '{update: {ids: {
+  jq -nc --arg t "$1" --arg s "$2" --argjson img "$3" '{update: {ids: {
     art:       {image: $img, hidden: false},
     idleart:   {hidden: true},
+    appart:    {hidden: true},
     title:     {text: $t},
     artist:    {text: $s},
     album:     {text: ""},
@@ -320,7 +355,29 @@ show_message() {
 # it.
 IDLE_ART_SIZE=512
 idle_update() {
-  jq -nc '{update: {ids: {art: {hidden: true}, idleart: {hidden: false}}}}'
+  jq -nc '{update: {ids: {art: {hidden: true}, idleart: {hidden: false}, appart: {hidden: true}}}}'
+}
+
+# Print the update ids that show the track's artwork, as JSON: the artwork
+# file $1, else the icon of the playing app $2, else the workflow's icon.
+#
+# Either icon is APP_ART_SIZE points at most, unlike artwork, which fills
+# the space, as an icon scaled up to fill the space looks oversized. Like the
+# workflow's icon when nothing is playing (see idle_update), it's in its own
+# image view, `appart` in parts/art.json, centred without stretching, so it
+# shrinks only when the space is smaller. content_view gives it an image at
+# this size.
+APP_ART_SIZE=256
+app_art() {
+  jq -nc --arg art "$1" --arg app "$2" --arg icon "$WORKFLOW_ICON" --argjson size "$APP_ART_SIZE" '
+    {idleart: {hidden: true}}
+    + if $art != "" then
+        {art: {image: {type: "file", src: $art}, hidden: false}, appart: {hidden: true}}
+      else
+        {art: {hidden: true}, appart: {hidden: false},
+         appartimage: {image: (if $app != "" then {type: "fileicon", src: $app} else {type: "file", src: $icon} end)
+                              + {size: {width: $size, height: $size}}}}
+      end'
 }
 
 # Pulse intervals in seconds: fast while playing (the elapsed time ticks),

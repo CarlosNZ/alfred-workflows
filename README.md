@@ -16,6 +16,7 @@ release/<slug>/     released with a version and posted on the Alfred forum
 gallery/<slug>/     accepted into the Alfred Gallery
 bin/wf              helper for linking, releasing and building
 bin/make-appicon    builds an Alfred UI's app icon from a workflow's icon
+bin/dehaze          removes the faint background haze from AI-generated icons
 shared/userconfig/  User Configuration options that several workflows offer, worded the same
 dist/               built .alfredworkflow files (not committed)
 ```
