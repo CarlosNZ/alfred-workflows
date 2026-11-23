@@ -24,7 +24,18 @@ const LOAD_ERRORS = {
   empty: { title: "No cities in Clock", subtitle: "Add cities in the Clock app's World Clock tab" },
 };
 
+// The Clock app, and with it the World Clock list, first shipped in macOS 13
+// Ventura. Alfred 6 runs on macOS 12, which has no Clock app.
+const MINIMUM_MACOS = 13;
+
+const MACOS_TOO_OLD = {
+  title: "World Clock Cities needs macOS 13 Ventura or later",
+  subtitle: "It reads its cities from the Clock app, which macOS 12 doesn't have",
+};
+
 function run(argv) {
+  // Checked before the libraries load, so nothing else runs on an older macOS.
+  if (macOSMajorVersion() < MINIMUM_MACOS) return output([{ ...MACOS_TOO_OLD, valid: false }]);
   LIBS.forEach(loadLib);
 
   const query = (argv[0] || "").trim();
@@ -202,6 +213,12 @@ function typedTimeMessage(typed, query) {
 function logTypedTime(typed) {
   const shown = typed.moment && formatWithTemplate(typed.moment, typed.timeZone, "EEE d MMM y jj:mm z");
   console.log(`Typed time: ${JSON.stringify({ ...typed, ...(shown && { shown }) })}`);
+}
+
+// The running macOS's major version, e.g. 13 for Ventura. JXA bridges the
+// NSOperatingSystemVersion struct's fields as strings.
+function macOSMajorVersion() {
+  return Number($.NSProcessInfo.processInfo.operatingSystemVersion.majorVersion);
 }
 
 // Runs a file from lib/ in the global scope, so its top-level functions are

@@ -452,7 +452,7 @@ zsystem flock -t 0 $lock 2>/dev/null || exit 0
 
 `zsystem flock` is built into the zsh that ships with macOS. It needs the lock file to exist (`: >>` creates it, leaving it alone if it does), and it prints an error when it's refused, hence the `2>/dev/null`. The lock belongs to the process, so the kernel releases it when the fetcher exits or crashes and a stale lock can't be left behind, as it can with a PID file or a `mkdir` lock (tested: a second fetcher is refused while the first holds the lock, and gets it once the first exits). So the trigger needn't know whether a fetcher is running: starting a second one costs a zsh startup that exits straight away. The log is only opened once the lock is held, so a refused fetcher leaves the running one's log alone. A fetch for a view is the one exception to the lock (see above). If the cache is deleted (the setting turned off) and made again while a fetcher runs, the new `.lock` is a different file, which another fetcher could hold; so the fetcher checks before each city that `.lock` is still the file it locked (by inode number), and stops if not.
 
-**Scripts.** Everything has to ship with macOS 12, Alfred 6's minimum, which rules out `jq` (macOS 15 on), and zsh can't parse JSON. So the fetcher is two scripts: `fetch-pictures.zsh` takes the lock and runs `fetch-pictures.js` as a child, so the lock is held for as long as the JXA script runs; the JXA script does everything else, running `curl`, `sips` and `mv` through `NSTask` with argument arrays, and reading the replies with `JSON.parse`. Apart from starting a fetch for a view, the zsh script exists only for the lock: JXA can't call `flock` or `open` with `O_EXLOCK` (`$.flock` and `$.open` are undefined, whichever header is imported), and Foundation's only lock, `NSDistributedLock`, is a file that can be left behind. `curl` and `sips` ship with macOS 12.
+**Scripts.** Everything has to ship with macOS 13, the workflow's minimum (see [macOS version](#macos-version)), which rules out `jq` (macOS 15 on), and zsh can't parse JSON. So the fetcher is two scripts: `fetch-pictures.zsh` takes the lock and runs `fetch-pictures.js` as a child, so the lock is held for as long as the JXA script runs; the JXA script does everything else, running `curl`, `sips` and `mv` through `NSTask` with argument arrays, and reading the replies with `JSON.parse`. Apart from starting a fetch for a view, the zsh script exists only for the lock: JXA can't call `flock` or `open` with `O_EXLOCK` (`$.flock` and `$.open` are undefined, whichever header is imported), and Foundation's only lock, `NSDistributedLock`, is a file that can be left behind. `curl` and `sips` ship with macOS 13.
 
 **Fetching.** `fetch-pictures.js`, one city at a time, to go easy on Wikimedia (for a view, the one city):
 
@@ -468,7 +468,7 @@ Requests carry a User-Agent naming the workflow, its version and a URL to get in
 **To check:**
 
 - `PICTURE_WIDTH`: 960px is more than twice the slot's width (420px at 2x), with room for cropping; a smaller width would save space in the cache.
-- That `zsystem flock -t 0` refuses at once, without waiting, on macOS 12's zsh 5.8. Tested only on zsh 5.9.
+- That `zsystem flock -t 0` refuses at once, without waiting, on macOS 13's zsh 5.8.1. Tested only on zsh 5.9.
 
 ### Behaviour
 
@@ -500,6 +500,10 @@ Each result is laid out as in [Clock mode](#clock-mode), and the output asks Alf
 A query starting with a digit, `+`, `-` or `−` is a time (see [Time input](#time-input)). One that gives a moment lists the cities at that moment, laid out as in [Meeting mode](#meeting-mode), or as in [Clock mode](#clock-mode) with the mode switch (see [Switching modes](#switching-modes)), and in the same order as now, including with an anchor city (`9am London` doesn't move London to the top); the text after a relative time narrows the list. One that doesn't give a moment shows a single message. What the query was read as goes to stderr first, on one line starting "Typed time:" (`logTypedTime`), with the moment also shown in the zone it was read in. Only now and relative times rerun every second: a clock time is a fixed moment, while a relative time moves with the clock.
 
 When the list can't be loaded, the script returns a single explanatory result: the file is missing, the file exists but can't be read (no Full Disk Access), or Clock's list is empty.
+
+#### macOS version
+
+The workflow needs macOS 13 Ventura or later, the first macOS with the Clock app (macOS 11 and 12 have a World Clock widget but no app or city list behind it). Alfred 6 runs on macOS 12, so `results.js` checks first: on an older macOS (`macOSMajorVersion` below `MINIMUM_MACOS`) it returns a single result saying so, before loading `lib/`, so none of the rest runs. Without it, macOS 12 would get the "Can't find Clock's city list" result, which tells the user to open an app they don't have. Every other entry point (the inline view, the detail window, opening Clock) is reached through a city result, so the Script Filter is the only place it's needed. `NSProcessInfo`'s `operatingSystemVersion` comes through JXA as an object of strings (`{ majorVersion: "13", … }`), hence the `Number`. Tested by running the script with `MINIMUM_MACOS` raised above the running version; not yet tested on a real macOS 12.
 
 ### Testing
 
