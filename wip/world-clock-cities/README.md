@@ -6,6 +6,8 @@ View the current time around the world with the `wcc` keyword, or set a Hotkey f
 
 Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow.
 
+**Clock mode** shows each city's time _now_, with its offset from you and its sunrise and sunset:
+
 ![World Clock Cities now](docs/wcc_results_now.png)
 
 Type a city or country to narrow the list: `wcc new` matches both **New York, USA** and **Auckland, New Zealand**.
@@ -15,30 +17,33 @@ Your "Home" (🏠️) city is determined by the first city in the Clock app that
 - <kbd>↩</kbd> Show a detail view for the city
 - <kbd>⌘</kbd><kbd>↩</kbd> Open the city's detail window, which stays open
 - <kbd>⌥</kbd><kbd>↩</kbd> Edit your cities list in the Clock app
-- <kbd>⌃</kbd> _(held)_ See the city's "Working day" status (the default view when entering a specific time)
+- <kbd>⌃</kbd> _(held)_ Peek at the city's working day, as meeting mode shows it
 
 ![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
 From the detail view, <kbd>↩</kbd> or <kbd>⌘</kbd><kbd>↩</kbd> open its detail window; <kbd>⎋</kbd> closes it, and <kbd>⌫</kbd> returns to Alfred's results.
 
-## Convert a time
+## Meeting mode
 
-Enter a time after the `wcc` keyword to see who's asleep, who's in the office, or when they're likely to get there — handy for finding a meeting time that suits everyone.
+Enter a time after the `wcc` keyword to switch to **meeting mode** and see who's asleep, who's in the office, or when they're likely to get there — handy for finding a meeting time that suits everyone.
 
 - `wcc 3pm` or `wcc 15:00`: the next 3pm in your time zone
 - `wcc 9am mon`: the next Monday 9am
 - `wcc 9am London`: 9am in London (assuming London is in your Clock list)
 - `wcc +5`, `wcc +90m` or `wcc -3`: five hours from now, 90 minutes from now, three hours ago
+- `wcc +`: meeting mode for right now
 
 ![World Clock Cities at a time](docs/wcc_results_time.png)
 
-Hold <kbd>⌃</kbd> to show the time zone offset and daylight status in the subtitle instead.
+Hold <kbd>⌃</kbd> to peek at the city's time zone offset and daylight, as clock mode shows them.
 
 The detail view also reflects the entered time:
 
 ![New York time detail view](docs/wcc_detail_new_york_time.png)
 
-**Note**: Daylight saving changes are reflected in the projected times, and if any city has a clock change in the next week, the workflow displays this. Weekends follow each country's conventions (e.g. Friday-Saturday in Israel), but public holidays are not currently taken into account.
+To switch modes _without_ changing the time, add a `-` to the end of the query: e.g. `wcc 3pm London -` shows clock mode at 3pm in London.
+
+**Note**: Daylight saving changes are reflected in the projected times, and the workflow tells you about a clock change coming up in the next week, or before the entered time. Weekends follow each country's conventions (e.g. Friday-Saturday in Israel), but public holidays are not currently taken into account.
 
 ## Offline first
 
