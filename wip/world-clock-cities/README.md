@@ -2,7 +2,7 @@
 
 ## Usage
 
-View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset to plan for meetings.
+View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset (e.g. "+6") to plan for meetings.
 
 Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow.
 
@@ -59,6 +59,7 @@ The following preferences can be tailored to your needs in the workflow's config
 - **Sort by time zone**: Clock's order, or by UTC offset
 - **Working day start time** and **end time**: the times determining each city's "at work" status
 - **City pictures**: download city image thumbnails from Wikipedia for the detail views
+- **Custom pictures**: your own choice of picture for any city, one per line as `City: URL`. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
 - **Action keys**: which modifier key does each action
 - **Window buttons**, **Corner radius** and **Transparency**: the look of the detail window
 

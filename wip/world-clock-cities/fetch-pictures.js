@@ -17,7 +17,14 @@
 //   the second just replaces the first. It doesn't run while .backoff is
 //   waiting.
 //
-// For each city:
+// A city with a custom picture (the record's `override`, from the "Custom
+// pictures" setting; see parsePictureSource in lib/pictures.js) gets that
+// picture: a Commons file through Commons' API, any other URL downloaded as it
+// is, or a local file. If the picture can't be had (no such file or page, or
+// not an image), the city gets one found as below; a failure that might pass
+// (no connection, or the server busy or failing) is retried later.
+//
+// For each other city:
 // 1. Match it to its English Wikipedia article, with one search: of the
 //    results whose coordinates are within MATCH_RADIUS_KM of Clock's, the
 //    first titled with its name (as "Phoenix, Arizona" is), or failing that
@@ -65,6 +72,8 @@ const STALE_TEMPORARY_MINUTES = 10;
 const RATE_LIMIT_MOST_WAIT_SECONDS = 60;
 const RATE_LIMIT_RETRIES = 2;
 const JPEG_QUALITY = 80;
+// The largest custom picture downloaded from a URL other than Commons'.
+const CUSTOM_PICTURE_MOST_BYTES = 25 * 1024 * 1024;
 
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
@@ -82,6 +91,9 @@ class NetworkError extends Error {
 
 // Fails this city alone, which gets a .failed marker.
 class CityError extends Error {}
+
+// A custom picture that can't be had, so the city gets one found for it.
+class CustomPictureError extends Error {}
 
 function run(argv) {
   const workflowDir = $.NSURL.fileURLWithPath(scriptPath()).URLByResolvingSymlinksInPath.URLByDeletingLastPathComponent.path.js;
@@ -133,6 +145,17 @@ function fetchPictures(cities, dir, lock) {
 
 function fetchCityPicture(city, dir) {
   const label = `${city.slug} ${city.name}`;
+  if (city.override) {
+    const given = city.override.commons || city.override.url || city.override.path;
+    try {
+      if (fetchCustomPicture(city, dir)) log(`${label}: custom picture ${given}`);
+      return;
+    } catch (error) {
+      if (!(error instanceof CustomPictureError)) throw error;
+      log(`${label}: custom picture ${given} not used (${error.message}); finding one`);
+    }
+  }
+
   const article = matchWikipediaArticle(city);
   if (!article.title) return recordNone(dir, city, article.reason);
 
@@ -152,38 +175,91 @@ function fetchCityPicture(city, dir) {
     return recordNone(dir, city, `“${article.title}” has no page image to use, and ${item} no P18 image on Commons${passedOver}`);
   }
 
+  const details = {
+    wikipedia: `https://en.wikipedia.org/wiki/${encodeURIComponent(article.title.replace(/ /g, "_"))}`,
+    wikidata: article.wikidataId ? `https://www.wikidata.org/wiki/${article.wikidataId}` : null,
+    distanceKm: Math.round(article.distanceKm * 10) / 10,
+    source,
+    ...commonsCredit(info),
+  };
+  if (!savePicture(city, dir, commonsThumbnail(info), details, CityError)) return;
+  log(`${label}: “${article.title}” (${article.wikidataId}, ${article.distanceKm.toFixed(1)} km), ${source}: ${file}${passedOver}`);
+}
+
+// Fetches a city's custom picture into the cache. Returns whether it was
+// saved; throws CustomPictureError when it can't be had.
+function fetchCustomPicture(city, dir) {
+  const { commons, url, path } = city.override;
+  if (commons) {
+    const info = commonsImageInfo(commons);
+    if (!info) throw new CustomPictureError("not a file on Wikimedia Commons");
+    return savePicture(city, dir, commonsThumbnail(info), { source: "Custom picture (Wikimedia Commons)", ...commonsCredit(info) }, CityError);
+  }
+  if (url) return savePicture(city, dir, { url, external: true }, { source: "Custom picture", url }, CustomPictureError);
+  if (!$.NSFileManager.defaultManager.isReadableFileAtPath(path)) throw new CustomPictureError("no such file");
+  return savePicture(city, dir, { path }, { source: "Custom picture (file)", path }, CustomPictureError);
+}
+
+// A Commons file's thumbnail to download, from its imageinfo.
+function commonsThumbnail(info) {
+  return { url: info.thumburl || info.url, width: info.thumbwidth || info.width };
+}
+
+// A Commons file's page, artist and licence, from its imageinfo.
+function commonsCredit(info) {
+  const meta = info.extmetadata || {};
+  return {
+    file: info.descriptionurl,
+    artist: plainText(meta.Artist && meta.Artist.value),
+    licence: plainText(meta.LicenseShortName && meta.LicenseShortName.value),
+    licenceUrl: (meta.LicenseUrl && meta.LicenseUrl.value) || null,
+  };
+}
+
+// Saves a city's picture and its <slug>.json (`details`, with the city's name
+// and country and the time added). `from` is { url, width, external } to
+// download (width if it's known; external for a URL that isn't Wikimedia's,
+// see request), or { path } of a local file. The picture is converted to a
+// JPEG no wider than PICTURE_WIDTH, and a picture that won't convert throws
+// `ErrorType`. Returns false, saving nothing, if the city's custom picture
+// changed while it was fetched (see overrideIsCurrent).
+function savePicture(city, dir, from, details, ErrorType) {
   const download = `${dir}/${temporaryName(city.slug)}`;
   const converted = `${download}.jpg`;
-  request(info.thumburl || info.url, download);
-  const resample = (info.thumbwidth || info.width) > PICTURE_WIDTH ? ["--resampleWidth", String(PICTURE_WIDTH)] : [];
-  const sips = runTask("/usr/bin/sips", ["-s", "format", "jpeg", "-s", "formatOptions", String(JPEG_QUALITY), ...resample, download, "--out", converted]);
-  if (sips.status !== 0) throw new CityError(`sips: ${sips.error.trim()}`);
-
-  const meta = info.extmetadata || {};
-  writeText(
-    `${dir}/${city.slug}.json`,
-    JSON.stringify(
-      {
-        city: city.name,
-        country: city.country,
-        wikipedia: `https://en.wikipedia.org/wiki/${encodeURIComponent(article.title.replace(/ /g, "_"))}`,
-        wikidata: article.wikidataId ? `https://www.wikidata.org/wiki/${article.wikidataId}` : null,
-        distanceKm: Math.round(article.distanceKm * 10) / 10,
-        source,
-        file: info.descriptionurl,
-        artist: plainText(meta.Artist && meta.Artist.value),
-        licence: plainText(meta.LicenseShortName && meta.LicenseShortName.value),
-        licenceUrl: (meta.LicenseUrl && meta.LicenseUrl.value) || null,
-        fetched: new Date().toISOString(),
-      },
-      null,
-      2
-    )
-  );
-  moveFile(converted, `${dir}/${city.slug}.jpg`);
+  if (from.url) request(from.url, download, { external: from.external });
+  const input = from.path || download;
+  const width = from.width || imageWidth(input);
+  if (!width) throw new ErrorType("not an image");
+  const resample = width > PICTURE_WIDTH ? ["--resampleWidth", String(PICTURE_WIDTH)] : [];
+  const sips = runTask("/usr/bin/sips", ["-s", "format", "jpeg", "-s", "formatOptions", String(JPEG_QUALITY), ...resample, input, "--out", converted]);
+  if (sips.status !== 0) throw new ErrorType(`sips: ${sips.error.trim()}`);
   removeFile(download);
+
+  if (!overrideIsCurrent(dir, city)) {
+    removeFile(converted);
+    log(`${city.slug} ${city.name}: its custom picture changed while fetching; not saved`);
+    return false;
+  }
+  const record = { city: city.name, country: city.country, ...details, fetched: new Date().toISOString() };
+  writeText(`${dir}/${city.slug}.json`, JSON.stringify(record, null, 2));
+  moveFile(converted, `${dir}/${city.slug}.jpg`);
   removeFile(`${dir}/${city.slug}.failed`);
-  log(`${label}: “${article.title}” (${article.wikidataId}, ${article.distanceKm.toFixed(1)} km), ${source}: ${file}${passedOver}`);
+  return true;
+}
+
+// An image's width in pixels, from sips, or null if sips can't read it.
+function imageWidth(path) {
+  const sips = runTask("/usr/bin/sips", ["-g", "pixelWidth", path]);
+  const match = sips.status === 0 && sips.output.match(/pixelWidth:\s*(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+// Whether the city's custom picture (or having none) is still the one the
+// cache is kept for, in .overrides.json: results.js deletes a city's files
+// when its custom picture changes, which a fetch that started before must not
+// put back.
+function overrideIsCurrent(dir, city) {
+  return JSON.stringify(recordedOverrides(dir)[city.slug] || null) === JSON.stringify(city.override || null);
 }
 
 // Whether a page image looks like a single photograph rather than a flag, coat
@@ -285,7 +361,7 @@ function wikidataImage(id) {
 function commonsImageInfo(file) {
   const pages = requestJson(COMMONS_API, {
     action: "query",
-    titles: `File:${file}`,
+    titles: `File:${file.replace(/^file:/i, "")}`,
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
     iiurlwidth: PICTURE_WIDTH,
@@ -312,10 +388,15 @@ function requestJson(api, params) {
 // RATE_LIMIT_RETRIES times. Throws NetworkError when it can't reach Wikimedia or Wikimedia
 // is busy or failing, and CityError for any other reply but 200. The first
 // request that succeeds clears .backoff.
-function request(url, out) {
+// With `external`, for a custom picture's URL on another server, that server's
+// trouble is the city's alone: it throws CityError when it can't reach the
+// server or the server is busy or failing (worth a retry), CustomPictureError
+// for any other reply but 200 or a file over CUSTOM_PICTURE_MOST_BYTES, and
+// leaves .backoff alone.
+function request(url, out, { external = false } = {}) {
   for (let retries = 0; ; retries++) {
     try {
-      return requestOnce(url, out);
+      return requestOnce(url, out, external);
     } catch (error) {
       const wait = error.retryAfter || 10;
       if (!(error instanceof NetworkError) || error.status !== 429 || retries >= RATE_LIMIT_RETRIES || wait > RATE_LIMIT_MOST_WAIT_SECONDS) {
@@ -334,7 +415,7 @@ let requestInterval = REQUEST_INTERVAL_SECONDS;
 // One request, spaced requestInterval seconds after the one before to the same
 // host. Wikimedia's rate limits are per service, so a request to another host
 // (Wikidata, Wikipedia, Commons, the thumbnail server) goes straight away.
-function requestOnce(url, out) {
+function requestOnce(url, out, external) {
   const host = (url.match(/^https?:\/\/([^/?#]+)/i) || [null, ""])[1].toLowerCase();
   const wait = (lastRequestTimes[host] || 0) + requestInterval * 1000 - Date.now();
   if (wait > 0) delay(wait / 1000);
@@ -356,13 +437,22 @@ function requestOnce(url, out) {
     body,
     "-w",
     "%{http_code}",
+    ...(external ? ["--max-filesize", String(CUSTOM_PICTURE_MOST_BYTES)] : []),
     url,
   ]);
-  if (curl.status !== 0) throw new NetworkError(curl.error.trim() || `curl exit ${curl.status}`);
+  if (curl.status !== 0) {
+    const message = curl.error.trim() || `curl exit ${curl.status}`;
+    // 63: the file is larger than --max-filesize.
+    if (external) throw curl.status === 63 ? new CustomPictureError("too large") : new CityError(message);
+    throw new NetworkError(message);
+  }
   const code = Number(curl.output);
-  if (code === 429 || code >= 500) throw new NetworkError(`HTTP ${code}`, retryAfterSeconds(readText(headers)), code);
-  removeFile(`${dir}/.backoff`);
-  if (code !== 200) throw new CityError(`HTTP ${code} for ${url}`);
+  if (code === 429 || code >= 500) {
+    if (external) throw new CityError(`HTTP ${code} for ${url}`);
+    throw new NetworkError(`HTTP ${code}`, retryAfterSeconds(readText(headers)), code);
+  }
+  if (!external) removeFile(`${dir}/.backoff`);
+  if (code !== 200) throw new (external ? CustomPictureError : CityError)(`HTTP ${code} for ${url}`);
   if (out) return null;
   const text = readText(body);
   removeFile(body);
@@ -394,6 +484,7 @@ function recordRetry(path, retryAfter = 0) {
 }
 
 function recordNone(dir, city, reason) {
+  if (!overrideIsCurrent(dir, city)) return log(`${city.slug} ${city.name}: its custom picture changed while fetching; not saved`);
   writeText(`${dir}/${city.slug}.none`, reason);
   removeFile(`${dir}/${city.slug}.failed`);
   log(`${city.slug} ${city.name}: none (${reason})`);
