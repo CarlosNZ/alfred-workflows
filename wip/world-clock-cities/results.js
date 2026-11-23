@@ -4,8 +4,9 @@
 // app's World Clock, in Clock's order.
 //
 // argv[0] is the text typed after the keyword. Text starting with a digit is a
-// time to convert (e.g. "3pm"); anything else narrows the list by city or
-// country name.
+// time to convert (e.g. "3pm"), shown in the time mode; anything else narrows
+// the list by city or country name. A "-" at the end switches to the other
+// mode for the same moment (see readViewSwitch).
 //
 // The logic lives in lib/; this file turns it into Alfred results.
 
@@ -27,6 +28,8 @@ function run(argv) {
   LIBS.forEach(loadLib);
 
   const query = (argv[0] || "").trim();
+  // The query without the view switch, and whether it had one.
+  const { query: text, switched } = readViewSwitch(query);
   const loaded = loadCities();
   if (loaded.error) return output([{ ...LOAD_ERRORS[loaded.error], valid: false }]);
   // Every run, whatever the query, with the whole list, so the cache follows
@@ -40,26 +43,30 @@ function run(argv) {
   // Without the home city when the configuration hides it. It's still the
   // local city, and typed times can still name it.
   let cities = showHomeCity() ? loaded.cities : loaded.cities.filter((city) => city !== localCity);
-  // Text that narrows the list: the whole query in the list mode, and the text
-  // after a relative time in the time mode.
-  let filter = query;
-  // The moment the cities are shown at: now, or the typed time.
-  let moment = now;
-  const timeQuery = isTimeQuery(query);
-  let typed;
+  // Text that narrows the list: the whole query (without the view switch)
+  // when there's no time, and the text after a relative time.
+  let filter = text;
+  // The typed time, or null for now.
+  let typed = null;
+  const timeQuery = isTimeQuery(text);
   if (timeQuery) {
-    typed = readTypedTime(query, loaded.cities, now);
+    typed = readTypedTime(text, loaded.cities, now);
     logTypedTime(typed);
     // A query that gives no moment shows a single message in place of the
     // cities, since the cities at any other time would mislead.
-    const message = typedTimeMessage(typed, query);
+    const message = typedTimeMessage(typed, text);
     if (message) return output([{ ...message, valid: false }]);
     filter = typed.filter;
-    moment = typed.moment;
   }
-  // Open detail views follow the results: now in the list mode, the typed
-  // time in the time mode.
-  saveShownTime(timeQuery ? typed : null, now);
+  // The time mode for a typed time and the list for now, unless the view
+  // switch swaps them. The time mode for now shows it as a relative time of
+  // 0 minutes, as "+" does, so it reads the same.
+  const meeting = timeQuery !== switched;
+  if (meeting && !typed) typed = relativeTypedTime(0, filter, now);
+  // The moment the cities are shown at: now, or the typed time.
+  const moment = typed ? typed.moment : now;
+  // Open detail views follow the results: their moment and mode.
+  saveShownTime(typed, meeting, now);
   if (cities.length === 0) return output([{ ...HOME_CITY_ONLY, valid: false }]);
   if (filter) {
     cities = cities.filter((city) => matchesCity(city, filter));
@@ -77,18 +84,17 @@ function run(argv) {
 
   // Rerunning every second keeps the times and countdowns current while
   // Alfred is open; a run takes about a tenth of a second. A typed clock time
-  // is a fixed moment, so it doesn't rerun, but a relative time moves with the
-  // clock. skipknowledge stops Alfred reordering the items by usage, which
-  // their uids would otherwise allow, so they stay in the order given.
-  const rerun = !timeQuery || typed.kind === "relative";
+  // is a fixed moment, so it doesn't rerun, in either mode, but a relative
+  // time moves with the clock. skipknowledge stops Alfred reordering the items
+  // by usage, which their uids would otherwise allow, so they stay in the
+  // order given.
+  const rerun = !typed || typed.kind === "relative";
   // The search that shows these results, for ⌫ in a city's inline view to go
   // back to (see panel.zsh). On each item's variables, beside the city's.
   const search = `${environmentValue("keyword") || "wcc"} ${query}`;
   const { keys, clashes } = cityActionKeys();
-  const context = { keys, search };
-  const items = rows.map(({ city, info }) =>
-    timeQuery ? timeCityItem(info, city, typed, now, context) : cityItem(info, city, null, now, context),
-  );
+  const context = { keys, search, typed, meeting, now };
+  const items = rows.map(({ city, info }) => (meeting ? timeCityItem : cityItem)(info, city, context));
   return output([...clashes.map(keyClashItem), ...items], { ...(rerun && { rerun: 1 }), skipknowledge: true });
 }
 
@@ -216,15 +222,19 @@ function loadLib(file) {
 // subtitle for the other mode's question: in the list, the working status; in
 // the time mode, the offsets and the nearest sunrise or sunset.
 //
+// At a typed time, the list's title has the full weekday, as in the time mode
+// (timeTitle): "Yesterday" or "Tomorrow" would be from the Mac's date at
+// that time, which reads as from today.
+//
 // Each key's variables name its action as city_action, which the Conditional
 // after the Script Filter routes on, since Alfred's connections have fixed
 // modifiers. A modifier's variables replace the item's, so each repeats the
 // city's (see detailVariables) and the search. detail_window_key is the
 // detail window's key, for the inline view's shortcut that opens it (see
-// panel.zsh). `typed` is the typed time in the time mode (readTypedTime), for
-// the detail view and the other details, and null in the list.
-function cityItem(info, city, typed, now, { keys, search }) {
-  const details = typed ? timeCtrlSubtitle(info) : timeSubtitle(info);
+// panel.zsh). In `context`, `typed` is the typed time (readTypedTime), or
+// null for now, and `meeting` is true in the time mode.
+function cityItem(info, city, { keys, search, typed, meeting, now }) {
+  const details = meeting ? timeCtrlSubtitle(info) : timeSubtitle(info);
   const windowKey = ACTION_KEYS.find((key) => keys[key] === "window") || "";
   const variables = { ...detailVariables(city, info, typed, now), detail_search: search, detail_window_key: windowKey };
   const action = (id, subtitle, extra = {}) => ({ subtitle, valid: true, variables: { ...variables, ...extra, city_action: id } });
@@ -240,8 +250,8 @@ function cityItem(info, city, typed, now, { keys, search }) {
     // On a rerun, Alfred keeps the selection on the item with the selected
     // item's uid; without uids it jumps back to the first item.
     uid: info.id,
-    title: listTitle(info),
-    subtitle: listSubtitle(info),
+    title: typed ? timeTitle(info) : listTitle(info),
+    subtitle: listSubtitle(info, Boolean(typed)),
     arg: info.name,
     ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
     variables: plain ? plain.variables : variables,
@@ -253,9 +263,9 @@ function cityItem(info, city, typed, now, { keys, search }) {
 
 // An Alfred item for a city in the time mode, from describeCity's values at the
 // typed time. Its icon is the working status.
-function timeCityItem(info, city, typed, now, context) {
+function timeCityItem(info, city, context) {
   return {
-    ...cityItem(info, city, typed, now, context),
+    ...cityItem(info, city, context),
     title: timeTitle(info),
     subtitle: timeSubtitle(info),
     icon: { path: `icons/status-${info.workingStatus}.png` },

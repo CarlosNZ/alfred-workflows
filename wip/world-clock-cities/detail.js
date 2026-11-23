@@ -64,6 +64,7 @@ function run(argv) {
   const ui = readJson(`${packageDir}/ui.json`);
   const update = detailUpdate(info, {
     typed,
+    meeting: Boolean(shown.meeting),
     now,
     picture: pictureState(imagesDir, citySlug(saved.city)),
     iconsDir: `${workflowDir}/icons`,

@@ -81,7 +81,7 @@ const SUN_TIMES_DROP = 3;
 // medium, semibold, bold, heavy, black; monospaced: "digits" keeps a ticking
 // time from shifting.
 const FONTS = {
-  context: { size: 15 }, // "11 hours ahead of you" (now), "When it's 9:00 PM Sunday in London, UK…" (meeting)
+  context: { size: 15 }, // "11 hours ahead of you" (now), "When it's 9:00 PM Sunday in London, UK…" (a typed time)
   city: { size: 30, weight: "bold" },
   country: { size: 18 },
   time: { size: 48, weight: "semibold", monospaced: "digits" },

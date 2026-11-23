@@ -59,6 +59,17 @@ function isTimeQuery(query) {
   return /^[\d+\-−]/.test(query);
 }
 
+// Splits off the view switch, a "-" (or "−") at the end of the query as a word
+// of its own, which shows the other view of the same moment: the list at a
+// typed time, or the time mode for now. Returns { query, switched }, the query
+// without it. A query that's just "-" is a relative time (now), not a switch,
+// which comes to the same thing: the time mode for now. As a word of its own,
+// so a hyphen in a city name ("port-au-prince") isn't one.
+function readViewSwitch(query) {
+  const match = query.match(/^(.*\S)\s+[-−]$/);
+  return match ? { query: match[1], switched: true } : { query, switched: false };
+}
+
 // Day names for typed days, indexed by weekday (0 Sunday – 6 Saturday).
 const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const DAY_ALIASES = { weds: 3 };
@@ -75,16 +86,7 @@ const DAY_ALIASES = { weds: 3 };
 //   for a relative time, the text after it, which narrows the list.
 function readTypedTime(query, cities, now, macZone = macTimeZone()) {
   const typed = parseTimeInput(query);
-  if (typed.kind === "relative") {
-    return {
-      kind: "relative",
-      moment: new Date(now.getTime() + typed.minutes * 60000),
-      timeZone: macZone,
-      anchor: null,
-      anchorCountry: null,
-      filter: typed.filter,
-    };
-  }
+  if (typed.kind === "relative") return relativeTypedTime(typed.minutes, typed.filter, now, macZone);
   if (typed.kind !== "clock") return typed;
 
   let timeZone = macZone;
@@ -101,6 +103,20 @@ function readTypedTime(query, cities, now, macZone = macTimeZone()) {
   return { kind: "clock", moment: nextOccurrence(typed, timeZone, now), timeZone, anchor, anchorCountry, filter: "" };
 }
 
+// A typed time `minutes` from now (negative for the past), as readTypedTime
+// gives it, with `filter`, the text that narrows the list. With 0 minutes,
+// it's now, which is how the time mode shows the current time.
+function relativeTypedTime(minutes, filter, now, macZone = macTimeZone()) {
+  return {
+    kind: "relative",
+    moment: new Date(now.getTime() + minutes * 60000),
+    timeZone: macZone,
+    anchor: null,
+    anchorCountry: null,
+    filter,
+  };
+}
+
 // The syntax of a time query, without working out a moment. Returns
 // { kind: "incomplete" }, { kind: "invalid" },
 // { kind: "clock", hour (0–23), minute, weekday (0–6, or null), place } where
@@ -111,9 +127,10 @@ function parseTimeInput(query) {
   return relative ? parseRelativeTime(...relative.slice(1)) : parseClockTime(query);
 }
 
-// A time relative to now: "+5", "+5h", "+90m", "+1:30", "-3".
+// A time relative to now: "+5", "+5h", "+90m", "+1:30", "-3". A sign alone
+// is now ("+", "+ lon").
 function parseRelativeTime(sign, amount, rest) {
-  if (!amount) return { kind: rest ? "invalid" : "incomplete" };
+  if (!amount) return { kind: "relative", minutes: 0, filter: rest };
   const match = amount.match(/^(\d+)(?:([hm])|:(\d*))?$/i);
   if (!match) return { kind: "invalid" };
 

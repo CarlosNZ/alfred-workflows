@@ -249,10 +249,14 @@ function listTitle(info) {
 
 // The list's subtitle: offset from the local city (🏠 for the local city
 // itself) and the UTC offset, country, and the clock change when one is
-// within a week, otherwise today's sunrise and sunset. E.g. "−2 hrs (UTC+11) |
-// Australia | ☀↑ 5:46 AM  ☀↓ 7:52 PM".
-function listSubtitle(info) {
-  return [formatOffsets(info), formatCountry(info), formatSoonClockChange(info) || formatSunTimes(info)]
+// within a week, otherwise the day's sunrise and sunset. E.g. "−2 hrs
+// (UTC+11) | Australia | ☀↑ 5:46 AM  ☀↓ 7:52 PM". At a typed time
+// (`atTypedTime`), the clock change is the one between now and then, named
+// from now, as in the time mode: it's why the offsets differ from today's, and
+// a change named from the typed time ("tomorrow") would read as from today.
+function listSubtitle(info, atTypedTime = false) {
+  const clockChange = atTypedTime ? formatClockChangeFromNow(info) : formatSoonClockChange(info);
+  return [formatOffsets(info), formatCountry(info), clockChange || formatSunTimes(info)]
     .filter(Boolean)
     .join(SUBTITLE_DIVIDER);
 }
