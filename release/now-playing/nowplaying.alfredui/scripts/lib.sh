@@ -2,7 +2,9 @@
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR="$ROOT/vendor"
-export PATH="/usr/bin:/bin:$PATH"
+# The vendored jq comes first, so every macOS runs the same jq (/usr/bin/jq
+# only ships from macOS 15, and its version follows the OS).
+export PATH="$VENDOR/jq/bin:/usr/bin:/bin:$PATH"
 
 # The panel and the Script Filter both run with the workflow's cache folder,
 # so they share artwork and app lookups.
