@@ -4,9 +4,8 @@ Carl's workflows for [Alfred](https://www.alfredapp.com).
 
 ## Published workflows
 
-Workflows in the [Alfred Gallery](https://alfred.app) come first, then those released on the Alfred forum.
-
-- [Now Playing](release/now-playing/README.md): see the status of currently playing media, and launch a mini player panel.
+- [Now Playing](release/now-playing): see the status of currently playing media, and launch a mini player panel.
+- [World Clock Cities](release/world-clock-cities): see the status of currently playing media, and launch a mini player panel.
 
 ## Layout
 
@@ -14,9 +13,7 @@ Workflows in the [Alfred Gallery](https://alfred.app) come first, then those rel
 wip/<slug>/         in progress, experiments, may never ship
 release/<slug>/     released with a version and posted on the Alfred forum
 gallery/<slug>/     accepted into the Alfred Gallery
-bin/wf              helper for linking, releasing and building
-bin/make-appicon    builds an Alfred UI's app icon from a workflow's icon
-bin/dehaze          removes the faint background haze from AI-generated icons
+bin/                developer scripts: wf (linking, releasing and building) and icon tools
 shared/userconfig/  User Configuration options that several workflows offer, worded the same
 dist/               built .alfredworkflow files (not committed)
 ```
@@ -33,16 +30,16 @@ Workflows are symlinked from Alfred's workflows directory into this repo, so cha
 
 After cloning, run `bin/wf setup` once to enable the git hooks.
 
-| Command | What it does |
-|---|---|
-| `wf status` | List workflows, their versions and whether Alfred has them linked |
-| `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
-| `wf link <slug>` / `wf unlink [--clean] <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched). `--clean` also moves the workflow's data and cache folders to the Trash; see [Testing a fresh install](#testing-a-fresh-install) |
-| `wf release [--allow-unsigned] <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
-| `wf build [--allow-unsigned] <slug>` | Sync the workflow's `info.plist` (as `sync-config` and `sync-readme` do), then build `dist/<slug>-<version>.alfredworkflow` at the current version, or `dist/<slug>-unversioned.alfredworkflow` before the first release, to try a build before releasing it. It warns when the build isn't exactly a tagged release; see [Compiled binaries](#compiled-binaries) |
-| `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
-| `wf sync-config [<slug>]` | Copy the shared User Configuration options into every workflow that uses them, or only into one; see [Shared User Configuration](#shared-user-configuration) |
-| `wf sync-readme [--force] [<slug>]` | Copy each workflow's user guide from `README.md` into its `info.plist`, or only one's; see [User-facing docs](#user-facing-docs) |
+| Command                                          | What it does                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wf status`                                      | List workflows, their versions and whether Alfred has them linked                                                                                                                                                                                                                                                                                                 |
+| `wf adopt <name> <slug>`                         | Move a workflow made in Alfred into `wip/<slug>` and link it back                                                                                                                                                                                                                                                                                                 |
+| `wf link <slug>` / `wf unlink [--clean] <slug>`  | Add a repo workflow to Alfred, or remove it (the repo copy is untouched). `--clean` also moves the workflow's data and cache folders to the Trash; see [Testing a fresh install](#testing-a-fresh-install)                                                                                                                                                        |
+| `wf release [--allow-unsigned] <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached                                                                                                                                                                                         |
+| `wf build [--allow-unsigned] <slug>`             | Sync the workflow's `info.plist` (as `sync-config` and `sync-readme` do), then build `dist/<slug>-<version>.alfredworkflow` at the current version, or `dist/<slug>-unversioned.alfredworkflow` before the first release, to try a build before releasing it. It warns when the build isn't exactly a tagged release; see [Compiled binaries](#compiled-binaries) |
+| `wf promote <slug>`                              | Move a workflow up a tier: `wip/` → `release/` → `gallery/`                                                                                                                                                                                                                                                                                                       |
+| `wf sync-config [<slug>]`                        | Copy the shared User Configuration options into every workflow that uses them, or only into one; see [Shared User Configuration](#shared-user-configuration)                                                                                                                                                                                                      |
+| `wf sync-readme [--force] [<slug>]`              | Copy each workflow's user guide from `README.md` into its `info.plist`, or only one's; see [User-facing docs](#user-facing-docs)                                                                                                                                                                                                                                  |
 
 To start a new workflow, create it in Alfred, then `wf adopt` it.
 
