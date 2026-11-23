@@ -1,0 +1,1066 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>net.smithnz.carl.worldclockcities</string>
+	<key>category</key>
+	<string>My Workflows</string>
+	<key>connections</key>
+	<dict>
+		<key>2708C946-AF32-4037-BDA4-3EBEE9654D1D</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
+				<key>modifiers</key>
+				<integer>262144</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>789B1AAC-380F-49CF-AE33-775660633C67</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>D5C16EFE-115C-4460-AE71-C46F5A173AAE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>3C38891A-1A46-49E9-BB77-1104821C1D3A</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>3E0FB9CD-E019-42C2-969C-5C8D9E5174CD</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>065CC617-27CE-4D07-A331-249902CF8816</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>E19DB1A9-52D5-4CF3-909A-AE9676428B11</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>95658810-9A7C-478C-BD30-2AD0748E50B8</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>2708C946-AF32-4037-BDA4-3EBEE9654D1D</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>AC30014C-8E82-48F3-BAD2-00D8A93307A1</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>D5C16EFE-115C-4460-AE71-C46F5A173AAE</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>AC30014C-8E82-48F3-BAD2-00D8A93307A1</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Carl Smith (@CarlosNZ)</string>
+	<key>description</key>
+	<string>World city times from the Clock app, with meeting planner</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>World Clock Cities</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>panel.zsh</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>D5C16EFE-115C-4460-AE71-C46F5A173AAE</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>launchmode</key>
+				<integer>0</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>AC30014C-8E82-48F3-BAD2-00D8A93307A1</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>hotkey</key>
+				<integer>13</integer>
+				<key>hotmod</key>
+				<integer>393216</integer>
+				<key>hotstring</key>
+				<string>W</string>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>95658810-9A7C-478C-BD30-2AD0748E50B8</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>launchmode</key>
+				<integer>1</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>panel.zsh</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>{var:keyword}</string>
+				<key>queuedelaycustom</key>
+				<integer>2</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>2</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string></string>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>results.js</string>
+				<key>subtext</key>
+				<string>Current time in your Clock app cities</string>
+				<key>title</key>
+				<string>World Clock</string>
+				<key>type</key>
+				<integer>8</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>2708C946-AF32-4037-BDA4-3EBEE9654D1D</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:city_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>detail</string>
+						<key>outputlabel</key>
+						<string>Detail panel</string>
+						<key>uid</key>
+						<string>3C38891A-1A46-49E9-BB77-1104821C1D3A</string>
+					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:city_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>window</string>
+						<key>outputlabel</key>
+						<string>Own window</string>
+						<key>uid</key>
+						<string>3E0FB9CD-E019-42C2-969C-5C8D9E5174CD</string>
+					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:city_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>clock</string>
+						<key>outputlabel</key>
+						<string>Edit cities</string>
+						<key>uid</key>
+						<string>E19DB1A9-52D5-4CF3-909A-AE9676428B11</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>else</string>
+				<key>hideelse</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>789B1AAC-380F-49CF-AE33-775660633C67</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>open-clock.applescript</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>065CC617-27CE-4D07-A331-249902CF8816</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>## Usage
+
+View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset (e.g. "+6") to plan for meetings.
+
+Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow. Requires **macOS 13** or later — Clock app is not available on earlier versions.
+
+**Clock mode** shows each city's time _now_, with its offset from you and its sunrise and sunset:
+
+![World Clock Cities now](docs/wcc_results_now.png)
+
+Type a city or country to narrow the list: `wcc new` matches both **New York, USA** and **Auckland, New Zealand**.
+
+Your "Home" (🏠️) city is determined by the first city in the Clock app that matches your current time zone.
+
+- &lt;kbd&gt;↩&lt;/kbd&gt; Show a detail view for the city
+- &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Open the city's detail window, which stays open
+- &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Edit your cities list in the Clock app
+- &lt;kbd&gt;⌃&lt;/kbd&gt; _(held)_ Peek at the city's working day, as meeting mode shows it
+
+![Auckland detail view](docs/wcc_detail_auckland_now.png)
+
+From the detail view, &lt;kbd&gt;↩&lt;/kbd&gt; or &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; open its detail window; &lt;kbd&gt;⎋&lt;/kbd&gt; closes it, and &lt;kbd&gt;⌫&lt;/kbd&gt; returns to Alfred's results.
+
+## Meeting mode
+
+Enter a time after the `wcc` keyword to switch to **meeting mode** and see who's asleep, who's in the office, or when they're likely to get there — handy for finding a meeting time that suits everyone.
+
+- `wcc 3pm` or `wcc 15:00`: the next 3pm in your time zone
+- `wcc 9am mon`: the next Monday 9am
+- `wcc 9am London`: 9am in London (assuming London is in your Clock list)
+- `wcc +5`, `wcc +90m` or `wcc -3`: five hours from now, 90 minutes from now, three hours ago
+- `wcc +`: meeting mode for right now
+
+![World Clock Cities at a time](docs/wcc_results_time.png)
+
+Hold &lt;kbd&gt;⌃&lt;/kbd&gt; to peek at the city's time zone offset and daylight, as clock mode shows them.
+
+The detail view also reflects the entered time:
+
+![New York time detail view](docs/wcc_detail_new_york_time.png)
+
+To switch modes _without_ changing the time, add a `-` to the end of the query: e.g. `wcc 3pm London -` shows clock mode at 3pm in London.
+
+**Note**: Daylight saving changes are reflected in the projected times, and the workflow tells you about a clock change coming up in the next week, or before the entered time. Weekends follow each country's conventions (e.g. Friday-Saturday in Israel), but public holidays are not currently taken into account.
+
+## Offline first
+
+All the time zone math is fully offline — location, time zone, weekend and daylight savings data come from your Mac, and the workflow uses this to calculate the solar information. The only thing that requires a network connection is the city thumbnails in the detail view, and these do a one-time lookup to Wikipedia the first time the workflow is invoked, then cache the results for future reference.
+
+## Configuration
+
+The following preferences can be tailored to your needs in the workflow's configuration panel:
+
+- **Keyword** and **Hotkey**
+- **Time format**: follow your Mac's setting, or always 12- or 24-hour time
+- **Home city**: Show or hide your own city (🏠️) in the results (while still seeing it in the Clock app)
+- **Sort by time zone**: Clock's order, or by UTC offset
+- **Working day start time** and **end time**: the times determining each city's "at work" status
+- **City pictures**: download city image thumbnails from Wikipedia for the detail views
+- **Custom pictures**: your own choice of picture for any city, one per line as `City: URL`. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`) or just its file name (`San Francisco: File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
+- **Action keys**: which modifier key does each action
+- **Window buttons**, **Corner radius** and **Transparency**: the look of the detail window
+
+## Permissions
+
+Alfred should have asked for these permissions when you first set it up, but the workflow requires:
+
+- **Full Disk Access** to read Clock's list of cities (macOS 15 and later)
+- **Accessibility access** and **Automation access to System Events** to open the Clock app to its World Clock tab
+
+If missing, grant them in System Settings &gt; Privacy &amp; Security.
+
+## Credits
+
+Workflow created with the assistance of [Claude Code](https://claude.com/product/claude-code).
+
+City pictures come from Wikipedia and Wikimedia Commons, and remain their photographers' work under their own licences. Pictures in the screenshots above, cropped:
+
+- Auckland: [Auckland skyline](https://commons.wikimedia.org/wiki/File:Auckland_skyline_-_May_2024_(2).jpg) by elpinto007, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/)
+- New York: [View of Empire State Building from Rockefeller Center](https://commons.wikimedia.org/wiki/File:View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_(cropped).jpg) by Dllu, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)</string>
+	<key>uidata</key>
+	<dict>
+		<key>065CC617-27CE-4D07-A331-249902CF8816</key>
+		<dict>
+			<key>xpos</key>
+			<real>555</real>
+			<key>ypos</key>
+			<real>360</real>
+		</dict>
+		<key>2708C946-AF32-4037-BDA4-3EBEE9654D1D</key>
+		<dict>
+			<key>xpos</key>
+			<real>185</real>
+			<key>ypos</key>
+			<real>205</real>
+		</dict>
+		<key>3AEB871A-2F8B-48EA-BC8C-A1D659E3FF39</key>
+		<dict>
+			<key>xpos</key>
+			<real>750</real>
+			<key>ypos</key>
+			<real>205</real>
+		</dict>
+		<key>789B1AAC-380F-49CF-AE33-775660633C67</key>
+		<dict>
+			<key>xpos</key>
+			<real>355</real>
+			<key>ypos</key>
+			<real>210</real>
+		</dict>
+		<key>7CB28A0E-5746-43F9-8FD9-C8A7729DC5B1</key>
+		<dict>
+			<key>xpos</key>
+			<real>550</real>
+			<key>ypos</key>
+			<real>205</real>
+		</dict>
+		<key>95658810-9A7C-478C-BD30-2AD0748E50B8</key>
+		<dict>
+			<key>xpos</key>
+			<real>30</real>
+			<key>ypos</key>
+			<real>205</real>
+		</dict>
+		<key>AC30014C-8E82-48F3-BAD2-00D8A93307A1</key>
+		<dict>
+			<key>xpos</key>
+			<real>750</real>
+			<key>ypos</key>
+			<real>45</real>
+		</dict>
+		<key>D5C16EFE-115C-4460-AE71-C46F5A173AAE</key>
+		<dict>
+			<key>xpos</key>
+			<real>550</real>
+			<key>ypos</key>
+			<real>45</real>
+		</dict>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>wcc</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Lists your Clock app cities. Type a city or country to narrow the list, or a time (e.g. 3pm) to convert it.</string>
+			<key>label</key>
+			<string>Keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>keyword</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>system</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>System</string>
+						<string>system</string>
+					</array>
+					<array>
+						<string>12-hour (9:35 PM)</string>
+						<string>12</string>
+					</array>
+					<array>
+						<string>24-hour (21:35)</string>
+						<string>24</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>How times are shown. “System” follows System Settings › General › Date &amp; Time.</string>
+			<key>label</key>
+			<string>Time format</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>time_format</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Show home city</string>
+			</dict>
+			<key>description</key>
+			<string>Shows the city in the current time zone (🏠), if it's listed in the Clock app.</string>
+			<key>label</key>
+			<string>Home city</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>show_home_city</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>off</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Off</string>
+						<string>off</string>
+					</array>
+					<array>
+						<string>Ascending</string>
+						<string>ascending</string>
+					</array>
+					<array>
+						<string>Descending</string>
+						<string>descending</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Lists the cities by UTC offset, either ascending or descending. 'Off' follows the Clock app’s order.</string>
+			<key>label</key>
+			<string>Sort by time zone</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>sort_by_time_zone</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>09:00</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>5:30 AM</string>
+						<string>05:30</string>
+					</array>
+					<array>
+						<string>6:00 AM</string>
+						<string>06:00</string>
+					</array>
+					<array>
+						<string>6:30 AM</string>
+						<string>06:30</string>
+					</array>
+					<array>
+						<string>7:00 AM</string>
+						<string>07:00</string>
+					</array>
+					<array>
+						<string>7:30 AM</string>
+						<string>07:30</string>
+					</array>
+					<array>
+						<string>8:00 AM</string>
+						<string>08:00</string>
+					</array>
+					<array>
+						<string>8:30 AM</string>
+						<string>08:30</string>
+					</array>
+					<array>
+						<string>9:00 AM</string>
+						<string>09:00</string>
+					</array>
+					<array>
+						<string>9:30 AM</string>
+						<string>09:30</string>
+					</array>
+					<array>
+						<string>10:00 AM</string>
+						<string>10:00</string>
+					</array>
+					<array>
+						<string>10:30 AM</string>
+						<string>10:30</string>
+					</array>
+					<array>
+						<string>11:00 AM</string>
+						<string>11:00</string>
+					</array>
+					<array>
+						<string>11:30 AM</string>
+						<string>11:30</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Used for the working status shown for a specific time.</string>
+			<key>label</key>
+			<string>Working day start time</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>work_start</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>17:00</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>12:30 PM</string>
+						<string>12:30</string>
+					</array>
+					<array>
+						<string>1:00 PM</string>
+						<string>13:00</string>
+					</array>
+					<array>
+						<string>1:30 PM</string>
+						<string>13:30</string>
+					</array>
+					<array>
+						<string>2:00 PM</string>
+						<string>14:00</string>
+					</array>
+					<array>
+						<string>2:30 PM</string>
+						<string>14:30</string>
+					</array>
+					<array>
+						<string>3:00 PM</string>
+						<string>15:00</string>
+					</array>
+					<array>
+						<string>3:30 PM</string>
+						<string>15:30</string>
+					</array>
+					<array>
+						<string>4:00 PM</string>
+						<string>16:00</string>
+					</array>
+					<array>
+						<string>4:30 PM</string>
+						<string>16:30</string>
+					</array>
+					<array>
+						<string>5:00 PM</string>
+						<string>17:00</string>
+					</array>
+					<array>
+						<string>5:30 PM</string>
+						<string>17:30</string>
+					</array>
+					<array>
+						<string>6:00 PM</string>
+						<string>18:00</string>
+					</array>
+					<array>
+						<string>6:30 PM</string>
+						<string>18:30</string>
+					</array>
+					<array>
+						<string>7:00 PM</string>
+						<string>19:00</string>
+					</array>
+					<array>
+						<string>7:30 PM</string>
+						<string>19:30</string>
+					</array>
+					<array>
+						<string>8:00 PM</string>
+						<string>20:00</string>
+					</array>
+					<array>
+						<string>8:30 PM</string>
+						<string>20:30</string>
+					</array>
+					<array>
+						<string>9:00 PM</string>
+						<string>21:00</string>
+					</array>
+					<array>
+						<string>9:30 PM</string>
+						<string>21:30</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>⠀</string>
+			<key>label</key>
+			<string>Working day end time</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>work_end</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Download city thumbnails</string>
+			</dict>
+			<key>description</key>
+			<string>Downloads city images from Wikipedia for the detail views. When off, no requests are made and cached pictures are deleted.</string>
+			<key>label</key>
+			<string>City pictures</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>download_thumbnails</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>San Francisco: File:GoldenGateBridge-001.jpg
+Canary Islands: File:Roque_Cinchado_und_Teide.jpg</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+				<key>verticalsize</key>
+				<integer>6</integer>
+			</dict>
+			<key>description</key>
+			<string>A picture of your choosing for a city, one per line, as City: URL. The URL can be a Wikimedia Commons file page (or just its File: name), any image URL, or a file:/// URL for a picture of your own. Lines starting with # are ignored.</string>
+			<key>label</key>
+			<string>Custom pictures</string>
+			<key>type</key>
+			<string>textarea</string>
+			<key>variable</key>
+			<string>picture_overrides</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>none</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>No modifier (just ↩)</string>
+						<string>none</string>
+					</array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Shows the city's details in Alfred.</string>
+			<key>label</key>
+			<string>Show detail view</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_detail</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>cmd</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>No modifier (just ↩)</string>
+						<string>none</string>
+					</array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Opens the city's details in a window of its own, which stays open.</string>
+			<key>label</key>
+			<string>Open detail window</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_detail_window</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>alt</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>No modifier (just ↩)</string>
+						<string>none</string>
+					</array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Opens the Clock app on its World Clock tab.</string>
+			<key>label</key>
+			<string>Edit cities in Clock app</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_edit_cities</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>ctrl</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>⌘ Cmd</string>
+						<string>cmd</string>
+					</array>
+					<array>
+						<string>⌥ Option</string>
+						<string>alt</string>
+					</array>
+					<array>
+						<string>⌃ Ctrl</string>
+						<string>ctrl</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>While the modifier is held, the subtitle shows alternative details</string>
+			<key>label</key>
+			<string>Show alternative result detail</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>key_other_details</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Show window buttons</string>
+			</dict>
+			<key>description</key>
+			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc to close the window.</string>
+			<key>label</key>
+			<string>Window buttons</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>window_buttons</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>defaultvalue</key>
+				<integer>16</integer>
+				<key>markercount</key>
+				<integer>9</integer>
+				<key>maxvalue</key>
+				<integer>32</integer>
+				<key>minvalue</key>
+				<integer>0</integer>
+				<key>onlystoponmarkers</key>
+				<false/>
+				<key>showmarkers</key>
+				<false/>
+			</dict>
+			<key>description</key>
+			<string>Rounding of the window corners, in points. Only applies when the window buttons are hidden — otherwise it uses standard macOS window rounding.</string>
+			<key>label</key>
+			<string>Corner radius</string>
+			<key>type</key>
+			<string>slider</string>
+			<key>variable</key>
+			<string>corner_radius</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>defaultvalue</key>
+				<integer>45</integer>
+				<key>markercount</key>
+				<integer>11</integer>
+				<key>maxvalue</key>
+				<integer>100</integer>
+				<key>minvalue</key>
+				<integer>0</integer>
+				<key>onlystoponmarkers</key>
+				<false/>
+				<key>showmarkers</key>
+				<false/>
+			</dict>
+			<key>description</key>
+			<string>0: solid, 100: blur only</string>
+			<key>label</key>
+			<string>Transparency</string>
+			<key>type</key>
+			<string>slider</string>
+			<key>variable</key>
+			<string>transparency</string>
+		</dict>
+	</array>
+	<key>variables</key>
+	<dict>
+		<key>TZ</key>
+		<string></string>
+		<key>WCC_NOW</key>
+		<string></string>
+	</dict>
+	<key>variablesdontexport</key>
+	<array>
+		<string>WCC_NOW</string>
+		<string>TZ</string>
+	</array>
+	<key>version</key>
+	<string>0.9.0</string>
+	<key>webaddress</key>
+	<string>https://bit.ly/world-clock-cities</string>
+</dict>
+</plist>

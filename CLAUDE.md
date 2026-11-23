@@ -4,7 +4,7 @@ Alfred 6 workflows. See README.md for the layout, the `bin/wf` commands and the 
 
 ## Working on a workflow
 
-Each workflow folder has a `README.md` of developer notes: what the workflow does, how it's built, and anything non-obvious. When asked to work on a workflow (by name, e.g. "Now Playing"; `bin/wf status` maps names to folders), read its README first. When a change makes the README inaccurate or adds something worth knowing, update it in the same change.
+Each workflow folder has a `DEVELOPMENT.md` of developer notes: what the workflow does, how it's built, and anything non-obvious. When asked to work on a workflow (by name, e.g. "Now Playing"; `bin/wf status` maps names to folders), read its `DEVELOPMENT.md` first. When a change makes it inaccurate or adds something worth knowing, update it in the same change; likewise the user guide in `README.md` when a change affects what users see or configure. A workflow whose `README.md` is still developer notes (no `<!-- end of Alfred readme -->` line) hasn't been moved to this layout yet.
 
 ## Edits are live
 
@@ -19,7 +19,9 @@ Alfred's workflow editor also writes `info.plist`, so keep edits to it minimal a
 - Script `type`: 0 bash, 5 zsh, 7 JavaScript (JXA), 8 external script (`scriptfile`, relative to the workflow folder, must be executable)
 - `scriptargtype`: 1 passes input as argv (`$1`, `argv[0]`)
 
-The user-facing readme (the `readme` key in `info.plist`) is written in Alfred, in the workflow editor's [𝒙] sheet ("About this Workflow" tab). Its images live in the workflow's `docs/` folder. See "User-facing docs" in README.md.
+User Configuration items whose `variable` is defined in `shared/userconfig/` are shared between workflows: change them in the shared file, then run `bin/wf sync-config`, never in one `info.plist` alone. See "Shared User Configuration" in README.md.
+
+The user-facing readme (the `readme` key in `info.plist`) is copied from the workflow's `README.md`: edit `README.md`, then run `bin/wf sync-readme <slug>`, never the `readme` key or Alfred's "About this Workflow" tab. The part above `<!-- end of Alfred readme -->` must stay within Alfred's Markdown. Its images live in the workflow's `docs/` folder. See "User-facing docs" in README.md.
 
 ## Script conventions
 

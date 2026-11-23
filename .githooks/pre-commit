@@ -2,26 +2,73 @@
 # Blocks commits that would publish personal workflow settings:
 #  - any prefs.plist (Alfred's saved User Configuration values)
 #  - info.plist files where a "Don't Export" variable has a value
+# and commits where a workflow's info.plist is out of step with what it's
+# copied from: a shared User Configuration item (shared/userconfig) that
+# differs from the shared one, or a readme that differs from the user guide in
+# the workflow's README.md.
 
 emulate -L zsh
 setopt pipe_fail
 
 repo=$(git rev-parse --show-toplevel)
-failed=0
+secrets=0
+config=0
+readme=0
+check_config=0
+check_readme=0
+tmp=$(mktemp -d)
+trap "rm -rf ${(q)tmp}" EXIT
 
-git diff --cached --name-only --diff-filter=ACMR -z | while IFS= read -r -d '' f; do
+git diff --cached --name-only --diff-filter=ACMRD -z | while IFS= read -r -d '' f; do
+  [[ $f == shared/userconfig/* ]] && check_config=1
+  [[ $f == (wip|release|gallery)/*/(README.md|info.plist) ]] && check_readme=1
+  # A deletion: nothing of it is committed.
+  git cat-file -e ":$f" 2>/dev/null || continue
   case ${f:t} in
     prefs.plist)
       print -u2 -r -- "$f: prefs.plist holds personal settings and must not be committed"
-      failed=1
+      secrets=1
       ;;
     info.plist)
-      git show ":$f" | python3 -I "$repo/bin/lib/plisttool.py" check "$f" >&2 || failed=1
+      check_config=1
+      git show ":$f" | python3 -I "$repo/bin/lib/plisttool.py" check "$f" >&2 || secrets=1
       ;;
   esac
 done
 
-if (( failed )); then
-  print -u2 -- "\nCommit blocked. Move secrets into the workflow's User Configuration, or clear the values."
-  exit 1
+# Every workflow's staged info.plist against the staged shared items, since a
+# change to either side can put them out of step.
+if (( check_config )); then
+  shared=$tmp/userconfig
+  mkdir $shared
+  git ls-files -z -- ':(glob)shared/userconfig/*.json' | while IFS= read -r -d '' f; do
+    git show ":$f" > $shared/${f:t}
+  done
+  git ls-files -z -- ':(glob)wip/*/info.plist' ':(glob)release/*/info.plist' ':(glob)gallery/*/info.plist' |
+    while IFS= read -r -d '' f; do
+      git show ":$f" | python3 -I "$repo/bin/lib/userconfig.py" check $shared "$f" >&2 || config=1
+    done
 fi
+
+# Every workflow's staged README.md against its staged info.plist. A README.md
+# without the end marker isn't a user guide, and passes.
+if (( check_readme )); then
+  git ls-files -z -- ':(glob)wip/*/README.md' ':(glob)release/*/README.md' ':(glob)gallery/*/README.md' |
+    while IFS= read -r -d '' f; do
+      git cat-file -e ":${f:h}/info.plist" 2>/dev/null || continue
+      git show ":$f" > $tmp/README.md
+      git show ":${f:h}/info.plist" | python3 -I "$repo/bin/lib/readme.py" check "${f:h}" $tmp/README.md >&2 || readme=1
+    done
+fi
+
+if (( secrets )); then
+  print -u2 -- "\nCommit blocked. Move secrets into the workflow's User Configuration, or clear the values."
+fi
+if (( config )); then
+  print -u2 -- "\nCommit blocked. Change shared User Configuration wording in shared/userconfig, then run 'bin/wf sync-config' and stage the result."
+fi
+if (( readme )); then
+  print -u2 -- "\nCommit blocked. Write the user guide in README.md, then run 'bin/wf sync-readme' and stage the result."
+fi
+(( secrets || config || readme )) && exit 1
+exit 0

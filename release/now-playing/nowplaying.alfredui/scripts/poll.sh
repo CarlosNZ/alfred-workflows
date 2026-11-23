@@ -22,14 +22,11 @@ esac
 
 if [ "$(jq -r '.playing' <<<"$info")" = "true" ]; then interval="$PULSE_PLAYING"; else interval="$PULSE_IDLE"; fi
 
-jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" "$JQ_TIME"'
+jq -nc --argjson i "$info" --argjson artids "$(app_art "$art" "$app")" "$JQ_TIME"'
   ($i.duration // 0) as $dur
   | ($i | position) as $pos
   | ($dur <= 0) as $notime
-  | {update: {ids: {
-      art: {image: (if $art == "" then {type: "symbol", src: "music.note", size: {width: 96}}
-                    else {type: "file", src: $art} end), hidden: false},
-      idleart:   {hidden: true},
+  | {update: {ids: ($artids + {
       title:     {text: $i.title},
       artist:    {text: ($i.artist // "")},
       album:     {text: ($i.album // "")},
@@ -37,4 +34,4 @@ jq -nc --argjson i "$info" --arg art "$art" --arg app "$app" "$JQ_TIME"'
       elapsed:   {text: (if $notime then "" else $pos | clock end), hidden: $notime},
       duration:  {text: (if $notime then "" else $dur | clock end), hidden: $notime},
       playpause: {image: {type: "symbol", src: (if $i.playing then "pause.fill" else "play.fill" end)}}
-    }}}' | with_content track | with_toprow "$app" | with_pulse "$interval"
+    })}}' | with_content track | with_toprow "$app" | with_pulse "$interval"
