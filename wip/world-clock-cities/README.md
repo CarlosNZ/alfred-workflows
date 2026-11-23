@@ -4,7 +4,7 @@
 
 View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset (e.g. "+6") to plan for meetings.
 
-Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow.
+Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow. Requires **macOS 13** or later — Clock app is not available on earlier versions.
 
 **Clock mode** shows each city's time _now_, with its offset from you and its sunrise and sunset:
 
@@ -67,7 +67,7 @@ The following preferences can be tailored to your needs in the workflow's config
 
 Alfred should have asked for these permissions when you first set it up, but the workflow requires:
 
-- **Full Disk Access** to read Clock's list of cities
+- **Full Disk Access** to read Clock's list of cities (macOS 15 and later)
 - **Accessibility access** and **Automation access to System Events** to open the Clock app to its World Clock tab
 
 If missing, grant them in System Settings > Privacy & Security.

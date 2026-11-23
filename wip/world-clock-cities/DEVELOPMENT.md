@@ -599,13 +599,15 @@ The Clock app (`/System/Applications/Clock.app`, bundle ID `com.apple.clock`) ha
 
 ## Where the cities are stored
 
-The current list is in the Clock app's sandbox container:
+From macOS 15 the list is in the Clock app's sandbox container:
 
 ```
 ~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist
 ```
 
-under the key `cities`. Each entry looks like this (from an older copy of the same domain; the live file has the same shape):
+On macOS 13 and 14, Clock isn't sandboxed and keeps it in the user's own preferences, `~/Library/Preferences/com.apple.mobiletimer.plist`, which isn't protected (see [Access](#access)). The container on this Mac was created on 18 September 2024, two days after macOS 15.0 shipped, and the copy in `~/Library/Preferences` was last written by macOS 14.5, so the move came with macOS 15. A Mac upgraded from 14 keeps the old copy (see below), so `citiesSource` (in `lib/cities.js`) reads the container's file when it exists and the one in `~/Library/Preferences` only when it doesn't. Checking that a file exists doesn't need Full Disk Access, so a Mac on macOS 15 or later without it gets the "can't read" result rather than the old copy. Confirmed on macOS 13: the workflow reads the list from `~/Library/Preferences`. There, the first run showed the cities' times with no names; after a city was added in Clock, they had them. That looks like entries without a localized `name` until Clock rewrote the list, so `withNames` fills `name` and `countryName` from `unlocalizedName` and `unlocalizedCountryName` when they're missing. The entries weren't seen before the rewrite, so that's a likely explanation, not a confirmed one.
+
+It's under the key `cities`. Each entry looks like this (from an older copy of the same domain; the live file has the same shape):
 
 ```
 {
@@ -633,18 +635,20 @@ The file isn't always current. Adding or removing a city writes it straight away
 
 Things that look like the answer but aren't:
 
-- `~/Library/Preferences/com.apple.mobiletimer.plist`, which is what `defaults read com.apple.mobiletimer` and `NSUserDefaults` (suite `com.apple.mobiletimer`) read, holds a stale copy last written by macOS 14.5 (`citiesLastModified` 2024-07-15). Clock no longer updates it.
+- On macOS 15 and later, `~/Library/Preferences/com.apple.mobiletimer.plist`, which is what `defaults read com.apple.mobiletimer` and `NSUserDefaults` (suite `com.apple.mobiletimer`) read. On a Mac upgraded from macOS 14 it holds the list as it was before the upgrade (here, `citiesLastModified` 2024-07-15 and `LatestUpdateVersion` "Version 14.5"), and Clock doesn't update it.
 - `~/Library/Group Containers/group.com.apple.mobiletimerd/` holds Core Data stores (`local.sqlite`, `analytics.sqlite`). The alarms moved there (`MTAlarmStorageMigratedToCoreData = 1` in `com.apple.mobiletimerd` preferences); the cities aren't needed from it.
 
 ### Access
 
-Both containers are covered by macOS app data protection: reading them fails with "Operation not permitted" unless the reading process has Full Disk Access. Alfred asks for Full Disk Access on first launch, so scripts run by Alfred can normally read the file. A process without it (including a terminal or Claude Code session that hasn't been granted it) can't, which matters when testing scripts outside Alfred.
+Both containers (macOS 15 and later) are covered by macOS app data protection: reading them fails with "Operation not permitted" unless the reading process has Full Disk Access. Alfred asks for Full Disk Access on first launch, so scripts run by Alfred can normally read the file. A process without it (including a terminal or Claude Code session that hasn't been granted it) can't, which matters when testing scripts outside Alfred.
+
+On macOS 13 and 14 the list is in `~/Library/Preferences`, which any process can read, so Full Disk Access isn't needed there.
 
 The workflow should still handle the file being unreadable or missing (Full Disk Access not granted, or a future macOS moving it) with a single explanatory result rather than an empty list or a script error.
 
 ### Reading it
 
-Read it through cfprefsd with the container file's full path, without `.plist`, as the domain. Not by the domain name `com.apple.mobiletimer` (`NSUserDefaults` suite, or `defaults read com.apple.mobiletimer`), which gets the stale copy in `~/Library/Preferences`. In JXA:
+Read it through cfprefsd with the file's full path, without `.plist`, as the domain. On macOS 13 and 14 that's the path in `~/Library/Preferences`, which cfprefsd reads the same way (checked against the old copy here). Not by the domain name `com.apple.mobiletimer` (`NSUserDefaults` suite, or `defaults read com.apple.mobiletimer`), which gets the stale copy in `~/Library/Preferences`. In JXA:
 
 ```js
 ObjC.import("Foundation");
@@ -737,4 +741,4 @@ An initial brainstorm of what the workflow should do. Decisions so far are in [D
 
 ## Caveats
 
-The file location and format are undocumented and private to Apple. They have already changed once (the move into the sandbox container left the old copy behind), and could change again in any macOS update without notice.
+The file location and format are undocumented and private to Apple. They have already changed once (the move into the sandbox container in macOS 15 left the old copy behind; the workflow reads either, see [Where the cities are stored](#where-the-cities-are-stored)), and could change again in any macOS update without notice.

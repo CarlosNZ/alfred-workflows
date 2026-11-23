@@ -1,18 +1,32 @@
 // Reading and filtering the cities in the Clock app's World Clock list.
 // Loaded by results.js; needs Foundation and CoreFoundation imported.
 
+// Where Clock keeps its city list. From macOS 15 Clock is sandboxed and keeps
+// it in its container; macOS 13 and 14 keep it in the user's own preferences,
+// and a Mac upgraded from them keeps that copy, no longer updated, beside the
+// container's.
 const CITIES_PLIST = "~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist";
+const UNSANDBOXED_CITIES_PLIST = "~/Library/Preferences/com.apple.mobiletimer.plist";
 
-// Where to read Clock's city list: { path, viaPreferences }. WCC_CITIES_PLIST
-// names a file to read instead, for testing without Full Disk Access; it's read
-// directly, since cfprefsd caches a file it has read and would miss later
-// edits to it.
+// Where to read Clock's city list: { path, viaPreferences }. The container's
+// file when there is one, otherwise the one in the user's preferences. Whether
+// a file exists can be checked without Full Disk Access, so a Mac with a
+// container but no access still gets the "unreadable" result, never the
+// older copy. WCC_CITIES_PLIST names a file to read instead, for testing
+// without Full Disk Access; it's read directly, since cfprefsd caches a file
+// it has read and would miss later edits to it.
 function citiesSource() {
   const override = environmentValue("WCC_CITIES_PLIST");
-  return {
-    path: $(override || CITIES_PLIST).stringByExpandingTildeInPath.js,
-    viaPreferences: !override,
-  };
+  if (override) return { path: expandPath(override), viaPreferences: false };
+  const container = expandPath(CITIES_PLIST);
+  const path = $.NSFileManager.defaultManager.fileExistsAtPath(container)
+    ? container
+    : expandPath(UNSANDBOXED_CITIES_PLIST);
+  return { path, viaPreferences: true };
+}
+
+function expandPath(path) {
+  return $(path).stringByExpandingTildeInPath.js;
 }
 
 // User Configuration values given with useSavedSettings, by variable name.
@@ -40,15 +54,30 @@ function environmentValue(name) {
 function loadCities({ path, viaPreferences } = citiesSource()) {
   if (!$.NSFileManager.defaultManager.fileExistsAtPath(path)) return { error: "missing" };
 
-  // The file is in Clock's sandbox container, which macOS protects: reading it
-  // fails unless the process (Alfred) has Full Disk Access.
+  // From macOS 15 the file is in Clock's sandbox container, which macOS
+  // protects: reading it fails unless the process (Alfred) has Full Disk
+  // Access.
   const prefs = ObjC.deepUnwrap($.NSDictionary.dictionaryWithContentsOfFile(path));
   if (!prefs) return { error: "unreadable" };
 
   const entries = (viaPreferences && citiesFromPreferences(path)) || prefs.cities || [];
-  const cities = entries.map((entry) => entry.city).filter((city) => city && city.timeZone);
+  const cities = entries
+    .map((entry) => entry.city)
+    .filter((city) => city && city.timeZone)
+    .map(withNames);
   if (cities.length === 0) return { error: "empty" };
   return { cities };
+}
+
+// The city with its localized name and country filled from the unlocalized
+// ones where it lacks them. Seen on macOS 13, where a list read before Clock
+// had rewritten it showed cities with no name.
+function withNames(city) {
+  return {
+    ...city,
+    name: city.name || city.unlocalizedName,
+    countryName: city.countryName || city.unlocalizedCountryName,
+  };
 }
 
 // The `cities` value from cfprefsd, the service that holds preferences for
