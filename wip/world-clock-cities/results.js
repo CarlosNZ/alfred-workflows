@@ -104,8 +104,8 @@ const KEY_NAMES = { none: "↩ with no modifier", cmd: "⌘", alt: "⌥", ctrl: 
 // otherDetails isn't an action but a subtitle shown while its modifier is
 // held, so it can't be ↩ alone.
 const CITY_ACTIONS = [
-  { id: "detail", variable: "key_detail", keys: ACTION_KEYS, default: "none", label: "Show detail panel" },
-  { id: "window", variable: "key_detail_window", keys: ACTION_KEYS, default: "cmd", label: "Open detail panel in its own window" },
+  { id: "detail", variable: "key_detail", keys: ACTION_KEYS, default: "none", label: "Show detail view" },
+  { id: "window", variable: "key_detail_window", keys: ACTION_KEYS, default: "cmd", label: "Open detail window" },
   { id: "clock", variable: "key_edit_cities", keys: ACTION_KEYS, default: "alt", label: "Edit cities in Clock app" },
   { id: "otherDetails", variable: "key_other_details", keys: ["cmd", "alt", "ctrl"], default: "ctrl", label: "Show alternative result detail" },
 ];

@@ -11,15 +11,15 @@ Cities come from your Mac's built-in **Clock** app — anything you add to its W
 Type a city or country to narrow the list: `wcc new` matches both **New York, USA** and **Auckland, New Zealand**.
 
 - <kbd>↩</kbd> Show a detail view for the city
-- <kbd>⌘</kbd><kbd>↩</kbd> Open the city's details in a separate window, which stays open
+- <kbd>⌘</kbd><kbd>↩</kbd> Open the city's detail window, which stays open
 - <kbd>⌥</kbd><kbd>↩</kbd> Edit your cities list in the Clock app
 - <kbd>⌃</kbd> _(held)_ See the city's "Working day" status (the default view when entering a specific time)
 
 ![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
-Your "Home" (🏠️) city is determined by the first city in Clock app that matches your current timezone.
+Your "Home" (🏠️) city is determined by the first city in Clock app that matches your current time zone.
 
-From the detail view, <kbd>↩</kbd> or <kbd>⌘</kbd><kbd>↩</kbd> launch it in a separate window; <kbd>Esc</kbd> closes it, and <kbd>Backspace</kbd> returns to Alfred's results.
+From the detail view, <kbd>↩</kbd> or <kbd>⌘</kbd><kbd>↩</kbd> open its detail window; <kbd>Esc</kbd> closes it, and <kbd>Backspace</kbd> returns to Alfred's results.
 
 ## Convert a time
 
@@ -32,9 +32,9 @@ Enter a time after the `wcc` keyword to see who's asleep, who's in the office, o
 
 ![World Clock Cities at a time](docs/wcc_results_time.png)
 
-Hold <kbd>⌃</kbd> to show the timezone offset and daylight status in the subtitle instead.
+Hold <kbd>⌃</kbd> to show the time zone offset and daylight status in the subtitle instead.
 
-The details view also reflects the entered time:
+The detail view also reflects the entered time:
 
 ![New York time detail view](docs/wcc_detail_new_york_time.png)
 
@@ -42,7 +42,7 @@ The details view also reflects the entered time:
 
 ## Offline first
 
-All the timezone math is fully offline — location, timezone, weekend and daylight savings data come from your Mac, and the workflow uses this to calculate the solar information. The only thing that requires a network connection is the city thumbnails in the detail view, and these do a one-time lookup to Wikipedia the first time the workflow is invoked, then cache the results for future reference.
+All the time zone math is fully offline — location, time zone, weekend and daylight savings data come from your Mac, and the workflow uses this to calculate the solar information. The only thing that requires a network connection is the city thumbnails in the detail view, and these do a one-time lookup to Wikipedia the first time the workflow is invoked, then cache the results for future reference.
 
 ## Configuration
 
@@ -55,7 +55,7 @@ The following preferences can be tailored to your needs in the workflow's config
 - **Working day start time** and **end time**: the times determining each city's "at work" status
 - **City pictures**: download city image thumbnails from Wikipedia for the detail views
 - **Action keys**: which modifier key does each action
-- **Window buttons**, **Corner radius** and **Transparency**: the look of the details window
+- **Window buttons**, **Corner radius** and **Transparency**: the look of the detail window
 
 ## Permissions
 
@@ -68,7 +68,14 @@ If missing, grant them in System Settings > Privacy & Security.
 ## Acknowledgements
 
 Workflow created with the assistance of [Claude Code](https://claude.com/product/claude-code).
-  
+
+## Credits
+
+City pictures come from Wikipedia and Wikimedia Commons, and remain their photographers' work under their own licences. Pictures in the screenshots above, cropped:
+
+- Auckland: [Auckland skyline](https://commons.wikimedia.org/wiki/File:Auckland_skyline_-_May_2024_(2).jpg) by elpinto007, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/)
+- New York: [View of Empire State Building from Rockefeller Center](https://commons.wikimedia.org/wiki/File:View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_(cropped).jpg) by Dllu, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 <!-- end of Alfred readme -->
 
 ---
