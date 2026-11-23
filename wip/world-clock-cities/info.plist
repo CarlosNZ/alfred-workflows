@@ -457,7 +457,7 @@ The following preferences can be tailored to your needs in the workflow's config
 - **Sort by time zone**: Clock's order, or by UTC offset
 - **Working day start time** and **end time**: the times determining each city's "at work" status
 - **City pictures**: download city image thumbnails from Wikipedia for the detail views
-- **Custom pictures**: your own choice of picture for any city, one per line as `City: URL`. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
+- **Custom pictures**: your own choice of picture for any city, one per line as `City: URL`. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`) or just its file name (`San Francisco: File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
 - **Action keys**: which modifier key does each action
 - **Window buttons**, **Corner radius** and **Transparency**: the look of the detail window
 
@@ -826,17 +826,17 @@ City pictures come from Wikipedia and Wikimedia Commons, and remain their photog
 			<key>config</key>
 			<dict>
 				<key>default</key>
-				<string>San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg
-Canary Islands: https://commons.wikimedia.org/wiki/File:Roque_Cinchado_und_Teide.jpg</string>
+				<string>San Francisco: File:GoldenGateBridge-001.jpg
+Canary Islands: File:Roque_Cinchado_und_Teide.jpg</string>
 				<key>required</key>
 				<false/>
 				<key>trim</key>
 				<true/>
 				<key>verticalsize</key>
-				<integer>4</integer>
+				<integer>6</integer>
 			</dict>
 			<key>description</key>
-			<string>A picture of your choosing for a city, one per line, as City: URL. The URL can be a Wikimedia Commons file page, any image URL, or a file:// URL for a picture of your own. Lines starting with # are ignored.</string>
+			<string>A picture of your choosing for a city, one per line, as City: URL. The URL can be a Wikimedia Commons file page (or just its File: name), any image URL, or a file:/// URL for a picture of your own. Lines starting with # are ignored.</string>
 			<key>label</key>
 			<string>Custom pictures</string>
 			<key>type</key>
