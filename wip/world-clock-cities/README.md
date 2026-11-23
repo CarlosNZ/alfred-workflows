@@ -4,11 +4,13 @@
 
 View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset to plan for meetings.
 
-Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow:
+Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow.
 
 ![World Clock Cities now](docs/wcc_results_now.png)
 
 Type a city or country to narrow the list: `wcc new` matches both **New York, USA** and **Auckland, New Zealand**.
+
+Your "Home" (🏠️) city is determined by the first city in the Clock app that matches your current time zone.
 
 - <kbd>↩</kbd> Show a detail view for the city
 - <kbd>⌘</kbd><kbd>↩</kbd> Open the city's detail window, which stays open
@@ -17,9 +19,7 @@ Type a city or country to narrow the list: `wcc new` matches both **New York, US
 
 ![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
-Your "Home" (🏠️) city is determined by the first city in Clock app that matches your current time zone.
-
-From the detail view, <kbd>↩</kbd> or <kbd>⌘</kbd><kbd>↩</kbd> open its detail window; <kbd>Esc</kbd> closes it, and <kbd>Backspace</kbd> returns to Alfred's results.
+From the detail view, <kbd>↩</kbd> or <kbd>⌘</kbd><kbd>↩</kbd> open its detail window; <kbd>⎋</kbd> closes it, and <kbd>⌫</kbd> returns to Alfred's results.
 
 ## Convert a time
 
@@ -50,7 +50,7 @@ The following preferences can be tailored to your needs in the workflow's config
 
 - **Keyword** and **Hotkey**
 - **Time format**: follow your Mac's setting, or always 12- or 24-hour time
-- **Home city**: Show or hide your own city (🏠️) from the results (while still seeing it in the Clock app)
+- **Home city**: Show or hide your own city (🏠️) in the results (while still seeing it in the Clock app)
 - **Sort by time zone**: Clock's order, or by UTC offset
 - **Working day start time** and **end time**: the times determining each city's "at work" status
 - **City pictures**: download city image thumbnails from Wikipedia for the detail views
@@ -60,16 +60,15 @@ The following preferences can be tailored to your needs in the workflow's config
 ## Permissions
 
 Alfred should have asked for these permissions when you first set it up, but the workflow requires:
+
 - **Full Disk Access** to read Clock's list of cities
 - **Accessibility access** and **Automation access to System Events** to open the Clock app to its World Clock tab
 
 If missing, grant them in System Settings > Privacy & Security.
 
-## Acknowledgements
+## Credits
 
 Workflow created with the assistance of [Claude Code](https://claude.com/product/claude-code).
-
-## Credits
 
 City pictures come from Wikipedia and Wikimedia Commons, and remain their photographers' work under their own licences. Pictures in the screenshots above, cropped:
 
