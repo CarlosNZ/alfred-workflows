@@ -63,6 +63,10 @@ A workflow's user guide is its `README.md`, which GitHub shows when someone open
 ```markdown
 # World Clock
 
+**[Download v1.2.0](https://github.com/CarlosNZ/alfred-workflows/releases/download/world-clock/v1.2.0/world-clock-1.2.0.alfredworkflow)**
+
+<!-- start of Alfred readme -->
+
 ## Usage
 …the readme Alfred shows…
 
@@ -73,9 +77,11 @@ A workflow's user guide is its `README.md`, which GitHub shows when someone open
 For how the workflow is built, see the [developer notes](DEVELOPMENT.md).
 ```
 
-Alfred gets everything between the title (a first line starting `# `, which Alfred doesn't need, as it shows the workflow's name) and the `<!-- end of Alfred readme -->` line. The rest is for GitHub only, such as download links and the link to `DEVELOPMENT.md`; GitHub hides the marker itself. A `README.md` without the marker isn't treated as a user guide, and `wf` leaves the workflow's readme alone.
+Alfred gets everything between the `<!-- start of Alfred readme -->` line and the `<!-- end of Alfred readme -->` line. Without a start line, it gets everything after the title (a first line starting `# `, which Alfred doesn't need, as it shows the workflow's name). The rest is for GitHub only, such as the download link and the link to `DEVELOPMENT.md`; GitHub hides the markers themselves. A `README.md` without the marker isn't treated as a user guide, and `wf` leaves the workflow's readme alone.
 
 Edit `README.md`, then run `bin/wf sync-readme <slug>` and look at the result in Alfred's configuration sheet. Don't edit the readme in Alfred: `sync-readme` refuses to overwrite a readme that matches neither what it last wrote nor the last commit, and shows the difference, so copy any edits made there into `README.md` and run `bin/wf sync-readme --force <slug>`. `wf build` and `wf release` sync first, and `wf release` stops if that changed anything, so the change can be committed before the release is tagged. The pre-commit hook blocks a commit where a workflow's readme differs from its `README.md`.
+
+Once a workflow has a published GitHub release that isn't a pre-release, its `README.md` must link to the `.alfredworkflow` of the latest one (by version number) in its GitHub-only part, conventionally as a bold "Download" line under the title, above the start marker, as in the example. The pre-commit hook fetches the releases with `gh` on every commit, and blocks the commit while any workflow's `README.md` is missing the link to its latest release, printing the line to add. The tag's slash in the URL may be written as `/` or `%2F`. Without `gh` or a network connection, the hook warns and skips the check.
 
 The part Alfred gets can only use [Alfred's Markdown](https://www.alfredapp.com/help/kb/markdown-syntax/) (no raw HTML apart from `<kbd>`, which GitHub shows too), so no tables, and no links to other files in the repo, which mean nothing inside Alfred; link to web pages, or put such links in the GitHub-only part. Images must be files in the workflow, at paths relative to the workflow folder, which work on GitHub too; keep them in `docs/` and write them as `![Alt text](docs/shot.png)`. Everything in `docs/` ships in builds, so remove screenshots the readme no longer shows, and keep them small (crop them, and compress PNGs with a tool such as ImageOptim or TinyPNG).
 
@@ -103,7 +109,7 @@ For a short list of what to check and do, see [RELEASE-CHECKLIST.md](RELEASE-CHE
 
 1. Commit all changes to the workflow.
 2. `bin/wf release <slug> <version>`. This locks the version with a git tag, pushes the tag to `origin`, and writes the `.alfredworkflow` to `dist/`. The branch itself isn't pushed. It then creates a draft GitHub release for the tag, with the build attached and notes listing the workflow's commits since its previous release, and opens the draft's edit page in the browser. A draft isn't public. Versions with a suffix (`1.2.3-beta.1`) are marked as pre-releases, and no release is marked "Latest", since that label is repo-wide. Without `gh`, or if creating it fails, `wf` says so and prints the command to retry.
-3. Edit the notes and publish the draft on GitHub. Its download link, `https://github.com/CarlosNZ/alfred-workflows/releases/download/<slug>/v<version>/<slug>-<version>.alfredworkflow`, stays the same for that version.
+3. Edit the notes and publish the draft on GitHub. Its download link, `https://github.com/CarlosNZ/alfred-workflows/releases/download/<slug>/v<version>/<slug>-<version>.alfredworkflow`, stays the same for that version. Unless it's a pre-release, update the download link at the top of the workflow's `README.md` to it and commit that; the pre-commit hook blocks commits until it's done (see [User-facing docs](#user-facing-docs)).
 4. Post it on the Alfred forum. For a first release, then run `bin/wf promote <slug>` to move it from `wip/` to `release/`, and add it to [Published workflows](#published-workflows), after any Gallery workflows.
 5. Submit it to the Gallery. Once it's accepted, run `bin/wf promote <slug>` to move it to `gallery/`, and move it up in [Published workflows](#published-workflows), linking to its new folder.
 
