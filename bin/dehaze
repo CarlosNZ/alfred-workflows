@@ -1,6 +1,6 @@
 #!/usr/bin/osascript -l JavaScript
 // Removes the faint background haze from AI-generated icons, in place.
-// Usage: dehaze.js <png>…
+// Usage: bin/dehaze <png>…
 //
 // The image tool exports its tiles over a light grey background at about 3% opacity
 // (alpha 6–12 of 255) rather than a fully transparent one, which shows as a lighter
@@ -57,7 +57,7 @@ function dehaze(path) {
 }
 
 function run(argv) {
-  if (!argv.length) throw new Error('Usage: dehaze.js <png>…');
+  if (!argv.length) throw new Error('Usage: dehaze <png>…');
   const cwd = $.NSFileManager.defaultManager.currentDirectoryPath;
   return argv.map(a => dehaze(a.startsWith('/') ? a : cwd.stringByAppendingPathComponent(a).js)).join('\n');
 }

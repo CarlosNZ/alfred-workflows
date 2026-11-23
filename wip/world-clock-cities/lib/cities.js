@@ -1,0 +1,171 @@
+// Reading and filtering the cities in the Clock app's World Clock list.
+// Loaded by results.js; needs Foundation and CoreFoundation imported.
+
+// Where Clock keeps its city list. From macOS 15 Clock is sandboxed and keeps
+// it in its container; macOS 13 and 14 keep it in the user's own preferences,
+// and a Mac upgraded from them keeps that copy, no longer updated, beside the
+// container's.
+const CITIES_PLIST = "~/Library/Containers/com.apple.clock/Data/Library/Preferences/com.apple.mobiletimer.plist";
+const UNSANDBOXED_CITIES_PLIST = "~/Library/Preferences/com.apple.mobiletimer.plist";
+
+// Where to read Clock's city list: { path, viaPreferences }. The container's
+// file when there is one, otherwise the one in the user's preferences. Whether
+// a file exists can be checked without Full Disk Access, so a Mac with a
+// container but no access still gets the "unreadable" result, never the
+// older copy. WCC_CITIES_PLIST names a file to read instead, for testing
+// without Full Disk Access; it's read directly, since cfprefsd caches a file
+// it has read and would miss later edits to it.
+function citiesSource() {
+  const override = environmentValue("WCC_CITIES_PLIST");
+  if (override) return { path: expandPath(override), viaPreferences: false };
+  const container = expandPath(CITIES_PLIST);
+  const path = $.NSFileManager.defaultManager.fileExistsAtPath(container)
+    ? container
+    : expandPath(UNSANDBOXED_CITIES_PLIST);
+  return { path, viaPreferences: true };
+}
+
+function expandPath(path) {
+  return $(path).stringByExpandingTildeInPath.js;
+}
+
+// User Configuration values given with useSavedSettings, by variable name.
+let savedSettings = {};
+
+// Makes environmentValue give these User Configuration values ({ name: value
+// or null }), for the detail views' pulse, which doesn't get the workflow's
+// variables (see saveShownTime in lib/detail.js).
+function useSavedSettings(settings) {
+  savedSettings = settings || {};
+}
+
+// The value of an environment variable, or null when it's unset or empty, or
+// the value given with useSavedSettings. The testing variables
+// (WCC_CITIES_PLIST, WCC_NOW) can be workflow variables left empty in Alfred,
+// which counts as unset.
+function environmentValue(name) {
+  if (Object.prototype.hasOwnProperty.call(savedSettings, name)) return savedSettings[name] || null;
+  const value = $.NSProcessInfo.processInfo.environment.objectForKey(name);
+  return value.isNil() || value.js === "" ? null : value.js;
+}
+
+// Reads Clock's city list, in Clock's order. Returns { cities } on success, or
+// { error } with "missing", "unreadable" or "empty".
+function loadCities({ path, viaPreferences } = citiesSource()) {
+  if (!$.NSFileManager.defaultManager.fileExistsAtPath(path)) return { error: "missing" };
+
+  // From macOS 15 the file is in Clock's sandbox container, which macOS
+  // protects: reading it fails unless the process (Alfred) has Full Disk
+  // Access.
+  const prefs = ObjC.deepUnwrap($.NSDictionary.dictionaryWithContentsOfFile(path));
+  if (!prefs) return { error: "unreadable" };
+
+  const entries = (viaPreferences && citiesFromPreferences(path)) || prefs.cities || [];
+  const cities = entries
+    .map((entry) => entry.city)
+    .filter((city) => city && city.timeZone)
+    .map(withNames);
+  if (cities.length === 0) return { error: "empty" };
+  return { cities };
+}
+
+// The city with its localized name and country filled from the unlocalized
+// ones where it lacks them. Seen on macOS 13, where a list read before Clock
+// had rewritten it showed cities with no name.
+function withNames(city) {
+  return {
+    ...city,
+    name: city.name || city.unlocalizedName,
+    countryName: city.countryName || city.unlocalizedCountryName,
+  };
+}
+
+// The `cities` value from cfprefsd, the service that holds preferences for
+// apps and writes them to their files. Clock reorders its list in cfprefsd when
+// it quits, but the file only gets the new order when Clock next launches, so
+// cfprefsd is the more current. The domain is the file's path without
+// ".plist". Undefined if cfprefsd has no value.
+function citiesFromPreferences(path) {
+  const domain = path.replace(/\.plist$/, "");
+  const ref = $.CFPreferencesCopyAppValue($("cities"), $(domain));
+  return ref ? ObjC.deepUnwrap(ObjC.castRefToObject(ref)) : undefined;
+}
+
+// True when every word of the query starts a word of the city's name or
+// country, ignoring case and accents ("san f" matches San Francisco).
+function matchesCity(city, query) {
+  const words = cityWords([city.name, city.unlocalizedName, city.countryName, city.unlocalizedCountryName].join(" "));
+  return cityWords(query).every((term) => words.some((word) => word.startsWith(term)));
+}
+
+// The city a query names, for reading a typed time in its zone: the first city
+// in Clock's order that matches it (as in matchesCity), as { city }. Several
+// matches are fine when they keep the same time at the moment (Auckland and
+// Wellington, for "new zealand"). Otherwise { error: "noCity" } or
+// { error: "severalZones" }.
+function findAnchorCity(cities, query, moment) {
+  const matches = cities.filter((city) => matchesCity(city, query));
+  if (matches.length === 0) return { error: "noCity" };
+  const key = clockKey(matches[0].timeZone, moment);
+  if (matches.some((city) => clockKey(city.timeZone, moment) !== key)) return { error: "severalZones" };
+  return { city: matches[0] };
+}
+
+// Splits text into words on spaces and punctuation, so "U.S.A." is three words
+// and typing "u.s" matches it.
+function cityWords(text) {
+  return foldText(text)
+    .split(/[\s,.\-'’()]+/)
+    .filter(Boolean);
+}
+
+function foldText(text) {
+  return (text || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+// Clock's identifier for the city, stable across runs and languages, as a
+// string; the name and time zone for an entry without one.
+function cityId(city) {
+  return city.identifier != null ? String(city.identifier) : `${city.name}|${city.timeZone}`;
+}
+
+// The city's id made safe for a file name, keying its files in the cache: its
+// detail view package (see panel.zsh) and its picture (see lib/pictures.js).
+function citySlug(city) {
+  return cityId(city).replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
+// Everything the workflow knows about a city at a moment, as one object of raw
+// values; lib/format.js turns them into text. Times are Dates (instants, shown
+// in the city's timeZone); offsets, durations and day lengths are in minutes;
+// states are codes such as "goldenHour". `now` is the current time, when the
+// moment is a typed time, for the clock change between the two.
+function describeCity(city, moment, { isLocal = false, macZone = macTimeZone(), now = moment } = {}) {
+  const local = zonedParts(city.timeZone, moment);
+  const latitude = Number(city.latitude);
+  const longitude = Number(city.longitude);
+  const hasCoordinates = city.latitude != null && city.longitude != null && isFinite(latitude) && isFinite(longitude);
+  const offset = utcOffsetMinutes(city.timeZone, moment);
+  const weekend = weekendDays(city.localeCode);
+  const status = workingStatus(local, weekend);
+
+  return {
+    id: cityId(city),
+    name: city.name,
+    country: city.countryName || null,
+    countryCode: city.localeCode || null,
+    countryOnly: Boolean(city.displayNameIncludingCountryUsesOnlyCountry),
+    timeZone: city.timeZone,
+    isLocal,
+    moment,
+    dayOffset: dayOffset(city.timeZone, macZone, moment),
+    utcOffsetMinutes: offset,
+    offsetFromLocalMinutes: offset - utcOffsetMinutes(macZone, moment),
+    nextClockChange: nextClockChange(city.timeZone, moment),
+    clockChangeFromNow: clockChangeFromNow(city.timeZone, now, moment),
+    workingStatus: status,
+    workingDayTiming: workingDayTiming(local, status, weekend),
+    // Without coordinates there's nothing to say about the sun.
+    ...(hasCoordinates ? sunInfo(latitude, longitude, city.timeZone, calendarDay(local), moment) : {}),
+  };
+}

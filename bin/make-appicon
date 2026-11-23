@@ -1,19 +1,23 @@
 #!/usr/bin/osascript -l JavaScript
-// Builds nowplaying.alfredui/appicon.png, the panel's app icon (see README, "App icon and name").
+// Usage: bin/make-appicon <icon.png> <appicon.png>
 //
-// icon.png is a tile that fills its canvas, with its own corner rounding. macOS app
-// icons sit on the icon grid instead: an 824px tile on a 1024px canvas, cut to a
-// squircle (continuous corners), with a soft drop shadow in the transparent margin.
-// This finds the tile's edges in icon.png, scales the tile to cover the squircle
-// with a little overscan (so icon.png's own corners and edge shading are cut away),
-// masks it to the squircle and adds the shadow. The canvas is sized so the tile
-// keeps icon.png's resolution.
+// Builds an Alfred UI's app icon (ui.json's `iconpath`) from a workflow's icon,
+// so the helper app shows it in ⌘-Tab, the Dock and window switchers.
+//
+// A workflow's icon is a tile that fills its canvas, with its own corner rounding.
+// macOS app icons sit on the icon grid instead: an 824px tile on a 1024px canvas,
+// cut to a squircle (continuous corners), with a soft drop shadow in the
+// transparent margin. This finds the tile's edges in the icon, scales the tile to
+// cover the squircle with a little overscan (so the icon's own corners and edge
+// shading are cut away), masks it to the squircle and adds the shadow. The canvas
+// is sized so the tile keeps the icon's resolution, up to MAX_SIZE.
 
 ObjC.import('AppKit');
 
 const TILE = 824 / 1024; // tile's side as a fraction of the canvas
 const EXPONENT = 5;      // superellipse exponent, close to Apple's continuous-corner squircle
 const OVERSCAN = 1.03;   // how far the artwork extends past the squircle's edge
+const MAX_SIZE = 512;    // largest canvas, plenty for the Dock and ⌘-Tab on a Retina screen
 const OPAQUE = 0.5;      // alpha at which a pixel counts as part of the tile
 // Drop shadow, as fractions of the canvas, and its opacity.
 const SHADOW_Y = 12 / 1024, SHADOW_BLUR = 12 / 1024, SHADOW_ALPHA = 0.28;
@@ -30,15 +34,13 @@ function squircle(cx, cy, a, dx = 0) {
   return path;
 }
 
-function run() {
-  const arg = ObjC.unwrap($.NSProcessInfo.processInfo.arguments).map(ObjC.unwrap)
-    .find(a => a.endsWith('make-appicon.js'));
-  const script = arg.startsWith('/') ? $(arg)
-    : $.NSFileManager.defaultManager.currentDirectoryPath.stringByAppendingPathComponent(arg);
-  const wf = script.stringByStandardizingPath.stringByDeletingLastPathComponent
-    .stringByDeletingLastPathComponent.js;
-  const src = `${wf}/icon.png`;
-  const out = `${wf}/nowplaying.alfredui/appicon.png`;
+function run(argv) {
+  if (argv.length !== 2) throw new Error('Usage: make-appicon <icon.png> <appicon.png>');
+  const cwd = $.NSFileManager.defaultManager.currentDirectoryPath;
+  const [src, out] = argv.map(a => {
+    const path = $(a).stringByExpandingTildeInPath;
+    return (path.isAbsolutePath ? path : cwd.stringByAppendingPathComponent(path)).stringByStandardizingPath.js;
+  });
 
   const rep = $.NSBitmapImageRep.imageRepWithContentsOfFile(src);
   if (!rep.js) throw new Error(`Can't read ${src}`);
@@ -49,7 +51,7 @@ function run() {
   const scan = (from, to, at) => {
     const step = from < to ? 1 : -1;
     for (let i = from; i !== to; i += step) if (at(i)) return i;
-    throw new Error('No opaque tile found in icon.png');
+    throw new Error(`No opaque tile found in ${src}`);
   };
   const left = scan(0, w, x => opaque(x, h >> 1));
   const right = scan(w - 1, -1, x => opaque(x, h >> 1));
@@ -58,7 +60,7 @@ function run() {
   const sw = right - left + 1, sh = bottom - top + 1;
 
   // The squircle is square, so the artwork covers it: its shorter side spans the tile.
-  const size = Math.round(Math.min(sw, sh) / TILE);
+  const size = Math.min(Math.round(Math.min(sw, sh) / TILE), MAX_SIZE);
   const tile = size * TILE, c = size / 2;
   const k = tile * OVERSCAN / Math.min(sw, sh);
   const dw = sw * k, dh = sh * k;

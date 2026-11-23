@@ -376,7 +376,7 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 				<string>Show window buttons</string>
 			</dict>
 			<key>description</key>
-			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc to close the panel.</string>
+			<string>Shows the window's "traffic light" buttons in the title bar. Without them, you can still use Esc to close the window.</string>
 			<key>label</key>
 			<string>Window buttons</string>
 			<key>type</key>
@@ -401,7 +401,7 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>Rounding of the panel corners, in points. Only applies when the window buttons are hidden — otherwise it uses standard macOS window rounding.</string>
+			<string>Rounding of the window corners, in points. Only applies when the window buttons are hidden — otherwise it uses standard macOS window rounding.</string>
 			<key>label</key>
 			<string>Corner radius</string>
 			<key>type</key>
@@ -457,7 +457,7 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 		</dict>
 	</array>
 	<key>version</key>
-	<string>0.9.2</string>
+	<string>0.9.3</string>
 	<key>webaddress</key>
 	<string>https://bit.ly/carlosnz-now-playing</string>
 </dict>
