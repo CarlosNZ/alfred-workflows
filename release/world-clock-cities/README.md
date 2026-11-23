@@ -1,5 +1,7 @@
 # World Clock Cities
 
+**[Download v1.0.0](https://github.com/CarlosNZ/alfred-workflows/releases/download/world-clock-cities%2Fv1.0.0/world-clock-cities-1.0.0.alfredworkflow)**
+
 <!-- start of Alfred readme -->
 
 ## Usage
