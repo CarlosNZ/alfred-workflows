@@ -1,0 +1,63 @@
+#!/usr/bin/osascript -l JavaScript
+// Removes the faint background haze from AI-generated icons, in place.
+// Usage: dehaze.js <png>…
+//
+// The image tool exports its tiles over a light grey background at about 3% opacity
+// (alpha 6–12 of 255) rather than a fully transparent one, which shows as a lighter
+// square around the tile on a dark background. This measures the haze's alpha in the
+// image's four corners (outside the tile's rounded corners) and remaps alpha so the
+// haze becomes fully transparent: a' = (a − h) / (1 − h), clamped at 0. That stretches
+// the tile's anti-aliased edges to match rather than cutting them off. Colour is left
+// alone, and colour management is turned off so pixel values pass through unchanged.
+
+ObjC.import('AppKit');
+ObjC.import('CoreImage');
+
+const CORNER = 24 / 1024; // side of each corner square sampled, as a fraction of the image
+const CLEAN = 4 / 255;    // haze at or below this is left alone
+
+function hazeAlpha(rep) {
+  const w = rep.pixelsWide, h = rep.pixelsHigh, n = Math.max(1, Math.round(w * CORNER));
+  let max = 0;
+  for (const [ox, oy] of [[0, 0], [w - n, 0], [0, h - n], [w - n, h - n]])
+    for (let y = oy; y < oy + n; y++)
+      for (let x = ox; x < ox + n; x++) max = Math.max(max, rep.colorAtXY(x, y).alphaComponent);
+  return max;
+}
+
+function dehaze(path) {
+  const rep = $.NSBitmapImageRep.imageRepWithContentsOfFile(path);
+  if (!rep.js) throw new Error(`Can't read ${path}`);
+  const haze = hazeAlpha(rep);
+  const name = $(path).lastPathComponent.js;
+  if (haze <= CLEAN) return `${name}: no haze (corner alpha ≤ ${Math.round(haze * 255)}), left as is`;
+
+  const k = 1 / (1 - haze);
+  const none = $.NSNull.null;
+  const image = $.CIImage.imageWithContentsOfURLOptions($.NSURL.fileURLWithPath(path),
+    $.NSDictionary.dictionaryWithObjectForKey(none, $.kCIImageColorSpace));
+  const matrix = $.CIFilter.filterWithName('CIColorMatrix');
+  matrix.setValueForKey(image, 'inputImage');
+  matrix.setValueForKey($.CIVector.vectorWithXYZW(0, 0, 0, k), 'inputAVector');
+  matrix.setValueForKey($.CIVector.vectorWithXYZW(0, 0, 0, -haze * k), 'inputBiasVector');
+  const clamp = $.CIFilter.filterWithName('CIColorClamp');
+  clamp.setValueForKey(matrix.outputImage, 'inputImage');
+
+  const context = $.CIContext.contextWithOptions($.NSDictionary.dictionaryWithObjectsForKeys(
+    $([none, none]), $([$.kCIContextWorkingColorSpace, $.kCIContextOutputColorSpace])));
+  const source = $.CGImageSourceCreateWithURL($.NSURL.fileURLWithPath(path), null);
+  const space = $.CGImageGetColorSpace($.CGImageSourceCreateImageAtIndex(source, 0, null));
+  const cg = context.createCGImageFromRectFormatColorSpace(clamp.outputImage, image.extent, $.kCIFormatRGBA8, space);
+  const out = $.NSBitmapImageRep.alloc.initWithCGImage(cg);
+  out.size = rep.size; // keep the PNG's DPI
+
+  const png = out.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
+  if (!png.writeToFileAtomically(path, true)) throw new Error(`Can't write ${path}`);
+  return `${name}: removed haze at alpha ${Math.round(haze * 255)}`;
+}
+
+function run(argv) {
+  if (!argv.length) throw new Error('Usage: dehaze.js <png>…');
+  const cwd = $.NSFileManager.defaultManager.currentDirectoryPath;
+  return argv.map(a => dehaze(a.startsWith('/') ? a : cwd.stringByAppendingPathComponent(a).js)).join('\n');
+}
