@@ -194,7 +194,7 @@
 			<key>city</key>
 			<dict>
 				<key>countryName</key>
-				<string>England</string>
+				<string>Great Britain</string>
 				<key>displayNameIncludingCountryUsesOnlyCountry</key>
 				<false/>
 				<key>identifier</key>
@@ -210,7 +210,7 @@
 				<key>timeZone</key>
 				<string>Europe/London</string>
 				<key>unlocalizedCountryName</key>
-				<string>England</string>
+				<string>Great Britain</string>
 				<key>unlocalizedName</key>
 				<string>London</string>
 				<key>yahooCode</key>
@@ -281,7 +281,7 @@
 			<key>city</key>
 			<dict>
 				<key>countryName</key>
-				<string>U.S.A.</string>
+				<string>USA</string>
 				<key>displayNameIncludingCountryUsesOnlyCountry</key>
 				<false/>
 				<key>identifier</key>
@@ -312,7 +312,7 @@
 			<key>city</key>
 			<dict>
 				<key>countryName</key>
-				<string>U.S.A.</string>
+				<string>USA</string>
 				<key>displayNameIncludingCountryUsesOnlyCountry</key>
 				<false/>
 				<key>identifier</key>

@@ -570,7 +570,7 @@ A city that isn't in the list (like slug 999 above) is deleted from the cache by
 
 #### The test city list
 
-Its entries come from the database Clock picks cities from, `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/CityInfo.db` (SQLite; tables `cities` and `locales`), so the identifiers, coordinates and time zones are real. A city's `countryName` is its `country_override` if it has one, otherwise its locale's `country_name`; that matches every entry in the stale copy. `displayNameIncludingCountryUsesOnlyCountry` is set where the city and country names are the same, which is a guess at Clock's rule. Clock's live list doesn't always use the database's country names: it has shown London's country as "Great Britain" and US cities' as "USA", where the database has "England" and "U.S.A.".
+Its entries come from the database Clock picks cities from, `/System/Library/PrivateFrameworks/AppSupport.framework/Versions/A/Resources/CityInfo.db` (SQLite; tables `cities` and `locales`), so the identifiers, coordinates and time zones are real. A city's `countryName` is its `country_override` if it has one, otherwise its locale's `country_name`; that matches every entry in the stale copy. `displayNameIncludingCountryUsesOnlyCountry` is set where the city and country names are the same, which is a guess at Clock's rule. Clock's live list doesn't always use the database's country names, and where it differs the test list follows Clock: London's `countryName` and `unlocalizedCountryName` are "Great Britain", where the database has "England", and US cities' `countryName` is "USA", with `unlocalizedCountryName` the database's "U.S.A.".
 
 The cities are chosen for edge cases:
 
@@ -581,7 +581,7 @@ The cities are chosen for edge cases:
 | Kathmandu              | 45-minute offset (+5:45); zone stored as the old alias `Asia/Katmandu`                            |
 | Singapore              | City-state: city and country names are the same                                                   |
 | Hong Kong              | Country override "Hong Kong SAR, China", but locale code `CN` (so its flag would be China's)      |
-| London                 | Country override "England"; UTC+0 in winter                                                       |
+| London                 | Country override "England" in the database, "Great Britain" in Clock's list; UTC+0 in winter      |
 | Vatican City           | No locale code or country name in the database: no flag, no country                               |
 | Longyearbyen           | 78°N: midnight sun and polar night                                                                |
 | New York               | Northern hemisphere daylight saving                                                               |
