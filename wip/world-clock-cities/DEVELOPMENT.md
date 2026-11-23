@@ -254,7 +254,15 @@ The detail views' pulse doesn't get the workflow's variables, so `results.js` sa
 - `lib/sun.js`: the sun's position, sunrise and sunset, the daylight state, and the phases of the day.
 - `lib/format.js`: turning those values into text: times, offsets, durations, flags, short country names, and each city result's title, subtitle and ⌃ subtitle, and the detail view's text.
 - `icons/`: result icons (see [More details](#more-details)).
-- `icon.png`: the workflow's icon. `resources/icon.png` is its 4096px original, and `appicon.png` the detail view's app icon made from it (see [The layout](#the-layout)).
+- `icon.png`: the workflow's icon. `resources/icon.png` is its 4096px original, and `appicon.png` the detail view's app icon made from it (see [The layout](#the-layout)). The original came from an AI image tool, which exports tiles over a faint grey haze (alpha about 11 of 255) that shows as a lighter square around the icon on a dark background; the repo's `bin/dehaze` removes it in place (see [Now Playing's developer notes](../../release/now-playing/DEVELOPMENT.md#app-icon-and-name)), and the original has been through it. `icon.png` is the original scaled down and set to 72 DPI, so it shows at 512pt. Both icons are compressed, but not with TinyPNG: it reduces an image to a 256-colour palette without dithering, which leaves visible banding in this icon's gradients. `icon.png` is compressed losslessly with `oxipng` (about 280 KB). `appicon.png` is reduced to 256 colours with `pngquant`, whose default dithering keeps the gradients smooth (about 60 KB), as it's only seen small in ⌘-Tab and the Dock. Both tools are in Homebrew (`brew install oxipng pngquant`) and only needed when the icon changes. After changing the original, from the workflow folder:
+
+  ```zsh
+  ../../bin/dehaze resources/icon.png
+  sips -Z 512 -s dpiWidth 72 -s dpiHeight 72 resources/icon.png --out icon.png
+  oxipng -o max -Z --strip safe icon.png
+  ../../bin/make-appicon resources/icon.png appicon.png
+  pngquant --speed 1 --force --ext .png appicon.png
+  ```
 - `lib/detail.js`, `lib/panel.js`, `panel.zsh` and `detail.js`: the detail view (see [Detail views](#detail-views)).
 - `lib/pictures.js`, `fetch-pictures.zsh` and `fetch-pictures.js`: the cache of city pictures, and the fetcher that fills it (see [City pictures](#city-pictures)).
 - `open-clock.applescript`: ⌥↩, opening Clock on its World Clock tab (see [Opening Clock](#opening-clock)). AppleScript rather than JXA, because JXA can't press a menu item.
