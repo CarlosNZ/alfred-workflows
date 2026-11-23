@@ -1061,6 +1061,6 @@ Canary Islands: File:Roque_Cinchado_und_Teide.jpg</string>
 	<key>version</key>
 	<string>0.9.0</string>
 	<key>webaddress</key>
-	<string>https://bit.ly/world-clock-cities</string>
+	<string>https://github.com/CarlosNZ/alfred-workflows/tree/main/release/world-clock-cities</string>
 </dict>
 </plist>
