@@ -227,6 +227,28 @@ function pictureState(dir, slug) {
   return { state: waiting ? "none" : "loading" };
 }
 
+// A city's <slug>.json in `dir`, where its picture came from (see
+// fetch-pictures.js), or null if there's none.
+function pictureDetails(dir, slug) {
+  const text = $.NSString.stringWithContentsOfFileEncodingError(`${dir}/${slug}.json`, $.NSUTF8StringEncoding, null);
+  if (text.isNil()) return null;
+  try {
+    return JSON.parse(text.js);
+  } catch (error) {
+    return null;
+  }
+}
+
+// What clicking a city's picture does, from its <slug>.json: { url } to open
+// the Commons file's page, which credits the picture in full, or a custom
+// picture's URL; { reveal } to show a custom picture's file in Finder. Null
+// when there's nothing to do.
+function pictureClick(details) {
+  if (!details) return null;
+  if (details.file || details.url) return { url: details.file || details.url };
+  return details.path ? { reveal: details.path } : null;
+}
+
 // The slug a cache file belongs to: its name up to the first dot.
 function slugOfFile(name) {
   return name.split(".")[0];

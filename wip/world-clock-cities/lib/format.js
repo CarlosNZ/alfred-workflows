@@ -480,6 +480,32 @@ function formatSpokenRoughDuration(minutes) {
   return minutes < 59.5 ? plural(Math.max(1, Math.round(minutes)), "minute") : plural(Math.round(minutes / 60), "hour");
 }
 
+// The longest artist credit shown in a picture's tooltip: Commons' Artist
+// field is sometimes a paragraph, which the file's page shows in full.
+const PICTURE_ARTIST_MOST_CHARACTERS = 80;
+
+// The tooltip over a city's picture in the detail view, from its <slug>.json
+// (see fetch-pictures.js): who took it and its licence, e.g. "Photo by Gerd
+// Eichmann, CC BY-SA 4.0", then what clicking it does (pictureClick in
+// lib/pictures.js). Null when there's nothing to say.
+function formatPictureCredit(details) {
+  if (!details) return null;
+  if (details.file) {
+    let artist = details.artist;
+    if (artist && artist.length > PICTURE_ARTIST_MOST_CHARACTERS) {
+      artist = `${artist.slice(0, PICTURE_ARTIST_MOST_CHARACTERS - 1).trim()}…`;
+    }
+    const credit = [artist && `Photo by ${artist}`, details.licence].filter(Boolean).join(", ");
+    return [credit, "Click to open on Wikimedia Commons"].filter(Boolean).join("\n");
+  }
+  if (details.url) {
+    const host = details.url.match(/^[a-z]+:\/\/([^/?#]+)/i);
+    return `Image from ${host ? host[1] : details.url}\nClick to open`;
+  }
+  if (details.path) return `${details.path.split("/").pop()}\nClick to show in Finder`;
+  return null;
+}
+
 function plural(count, word) {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }

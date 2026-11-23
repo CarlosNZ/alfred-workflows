@@ -238,6 +238,13 @@ function cityHeader(picture) {
 // arrives by update: the picture, cropped to fill it, stacked over a
 // placeholder shown while it's loading. Both start hidden; the first pulse
 // shows one.
+//
+// Over the picture, a borderless button with no text or image (id:
+// picturelink), shown with the picture, whose tooltip credits it and whose
+// click opens its page (`detail.js open-picture`). The click can't be on the
+// image view: a `clicked` event on an image view never fires (as Now Playing
+// found), presumably because the window takes the mouse-down to move
+// (`movablebybackground`).
 function pictureSlot() {
   return {
     type: "view",
@@ -266,6 +273,17 @@ function pictureSlot() {
         hidden: true,
         image: { type: "symbol", src: "photo" },
         constraints: { stretch: "both" },
+      },
+      {
+        id: "picturelink",
+        type: "button",
+        text: "",
+        bordered: false,
+        hidden: true,
+        constraints: { stretch: "both" },
+        events: [
+          { triggers: "actioned", action: { type: "script", src: "./detail.js", args: ["open-picture"], async: true } },
+        ],
       },
     ],
   };

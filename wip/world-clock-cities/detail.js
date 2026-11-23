@@ -20,6 +20,11 @@
 // With the argument `back`, run by ⌫ in the inline view, it shows Alfred's
 // results again, by searching for what the view was opened from (search.txt
 // in the package, see panel.zsh), or finishes the view if there's none.
+//
+// With the argument `open-picture`, run by a click on the city's picture, it
+// opens the picture's page: its Commons file page or a custom picture's URL,
+// or shows a custom picture's file in Finder (pictureClick in
+// lib/pictures.js).
 
 ObjC.import("Foundation");
 ObjC.import("CoreFoundation");
@@ -48,6 +53,8 @@ function run(argv) {
     return JSON.stringify(panelUi(variant), null, 2);
   }
 
+  if (argv[0] === "open-picture") return openPicture(packageDir);
+
   const saved = readJson(`${packageDir}/city.json`);
   if (!saved) return JSON.stringify({});
   // The time, the settings the text depends on and the Mac's zone as the
@@ -60,17 +67,42 @@ function run(argv) {
   const moment = detailMoment(typed, now);
   const macZone = shown.testTimeZone || macTimeZone();
   const info = describeCity(saved.city, moment, { isLocal: saved.isLocal, now, macZone });
-  const imagesDir = $(`${packageDir}/../../images`).stringByStandardizingPath.js;
+  const imagesDir = imagesDirOf(packageDir);
+  const slug = citySlug(saved.city);
+  const picture = pictureState(imagesDir, slug);
+  if (picture.state === "shown") picture.details = pictureDetails(imagesDir, slug);
   const ui = readJson(`${packageDir}/ui.json`);
   const update = detailUpdate(info, {
     typed,
     meeting: Boolean(shown.meeting),
     now,
-    picture: pictureState(imagesDir, citySlug(saved.city)),
+    picture,
     iconsDir: `${workflowDir}/icons`,
     layout: { picture: layoutHasComponent(ui, "picture") },
   });
   return JSON.stringify({ ...update, ...windowResize(packageDir, ui) });
+}
+
+// Opens the city's picture's page, or shows its file in Finder (see
+// pictureClick in lib/pictures.js), and prints no JSON Action, so the view
+// stays as it is.
+function openPicture(packageDir) {
+  const saved = readJson(`${packageDir}/city.json`);
+  const click = saved && pictureClick(pictureDetails(imagesDirOf(packageDir), citySlug(saved.city)));
+  const workspace = $.NSWorkspace.sharedWorkspace;
+  if (click && click.reveal) {
+    workspace.activateFileViewerSelectingURLs($([$.NSURL.fileURLWithPath(click.reveal)]));
+    return JSON.stringify({});
+  }
+  const url = click && $.NSURL.URLWithString(click.url);
+  if (url && !url.isNil()) workspace.openURL(url);
+  else console.log(`No page to open for the picture: ${click && click.url}`);
+  return JSON.stringify({});
+}
+
+// The picture cache, next to the panels/ folder that holds the package.
+function imagesDirOf(packageDir) {
+  return $(`${packageDir}/../../images`).stringByStandardizingPath.js;
 }
 
 // For a detail window (a package named …-window.alfredui, see panel.zsh), a
