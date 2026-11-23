@@ -173,6 +173,6 @@ function detailUpdate(info, { typed, now, picture, iconsDir, layout }) {
     picture: picture.state === "shown" ? { image: { type: "file", src: picture.path }, hidden: false } : { hidden: true },
     pictureloading: { hidden: picture.state !== "loading" },
   };
-  for (const id of ["city", "country", "date", "context"]) ids[id].font = fittedFont(id, ids[id].text, layout);
+  for (const id of ["city", "country", "date", "context", "zone"]) ids[id].font = fittedFont(id, ids[id].text, layout);
   return { update: { ids } };
 }

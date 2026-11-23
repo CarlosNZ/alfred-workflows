@@ -344,8 +344,10 @@ function formatLongDate(moment, timeZone) {
   return formatWithTemplate(moment, timeZone, "EEEEdMMMMy");
 }
 
-// The time zone's name, its abbreviation when it has one, and its UTC offset,
-// e.g. "New Zealand Daylight Time (NZDT) • UTC+13".
+// The time zone's identifier (with spaces for its underscores, as in
+// "America/New York"), its name, its abbreviation when it has one, and its
+// UTC offset, e.g. "Pacific/Auckland • New Zealand Daylight Time (NZDT) •
+// UTC+13".
 //
 // The names are in the Mac's language, as used in the city's country: the
 // formatter only gives the abbreviations common in its locale's region, so
@@ -362,7 +364,7 @@ function formatZoneLine(info) {
   const name = formatZoneName(info.moment, zone, "zzzz", locale);
   const abbreviation = formatZoneName(info.moment, zone, "zzz", locale);
   const named = isOffset(name) ? "" : isOffset(abbreviation) ? name : `${name} (${abbreviation})`;
-  return [named, formatUtcOffset(info.utcOffsetMinutes)].filter(Boolean).join(TITLE_DIVIDER);
+  return [info.timeZone.replace(/_/g, " "), named, formatUtcOffset(info.utcOffsetMinutes)].filter(Boolean).join(TITLE_DIVIDER);
 }
 
 const zoneNameFormatters = {};
@@ -435,9 +437,9 @@ function formatWorkingDaySentence({ untilStart, untilEnd, sinceEnd, nextWorkday 
 
 // The now mode's line above the city: how far its time is from the Mac's,
 // e.g. "11 hours ahead of you", "2 hours 30 minutes behind you", "Same time
-// as you", or "Your time zone" for the local city.
+// as you", or "🏠 Your time zone" for the local city.
 function formatOffsetFromYou(info) {
-  if (info.isLocal) return "Your time zone";
+  if (info.isLocal) return `${HOME} Your time zone`;
   const minutes = info.offsetFromLocalMinutes;
   if (minutes === 0) return "Same time as you";
   return `${formatSpokenDuration(Math.abs(minutes))} ${minutes > 0 ? "ahead of" : "behind"} you`;

@@ -47,8 +47,9 @@ const SUN_ARROW_COLOUR = "#FFFFFF";
 
 // Spacing, in points.
 const PANEL_PADDING = 20; // around the content
-const WINDOW_BUTTONS_INSET = 14; // extra space above the content in a detail window with buttons, clear of them
-const SECTION_SPACING = 16; // between the sections, from the top: the context line, the city, the time zone, the sun
+const WINDOW_BUTTONS_INSET = 10; // extra space above the content in a detail window with buttons, clear of them
+const SECTION_SPACING = 16; // between the sections, from the top: the context line with the city, the time zone, the sun
+const CONTEXT_SPACING = 2; // between the context line and the city, which it heads
 const LINE_SPACING = 2; // between the lines within a section
 const PICTURE_GAP = 18; // between the picture and the city's name
 const TILE_GAP = 16; // between the tile and the sun times
@@ -96,7 +97,7 @@ const FONTS = {
 // Labels whose text can be too long for their width (a long city name, say),
 // and the smallest size each shrinks to so it fits. Below that, the text is
 // cut off with an ellipsis. See fittedFont.
-const MIN_FONT_SIZES = { city: 18, country: 13, date: 13, context: 12 };
+const MIN_FONT_SIZES = { city: 18, country: 13, date: 13, context: 12, zone: 12 };
 
 // Kept free beside a label's measured text: a label draws its text a little
 // inside its frame.
@@ -160,8 +161,10 @@ function panelUi({ launch, picture, clockChange, windowPrefs, windowKey }) {
   const buttons = inWindow && windowPrefs.buttons;
   const borderless = inWindow && !windowPrefs.buttons;
   const sections = [
-    panelLabel("context", FONTS.context, SECONDARY_TEXT_COLOUR),
-    cityHeader(picture),
+    {
+      ...column(CONTEXT_SPACING, [panelLabel("context", FONTS.context, SECONDARY_TEXT_COLOUR), cityHeader(picture)]),
+      constraints: { stretch: "horizontal" },
+    },
     zoneSection(clockChange),
     sunSection(),
   ];
@@ -249,7 +252,10 @@ function pictureSlot() {
         cornerradius: PICTURE_CORNER_RADIUS,
         constraints: { stretch: "both" },
         components: [
-          { ...panelLabel(null, FONTS.pictureLoading, SECONDARY_TEXT_COLOUR, "Loading…"), constraints: { position: "centre" } },
+          {
+            ...panelLabel(null, FONTS.pictureLoading, SECONDARY_TEXT_COLOUR, "Loading…"),
+            constraints: { position: "centre" },
+          },
         ],
       },
       {
@@ -332,7 +338,10 @@ function sunTimesRow() {
         type: "imageview",
         constraints: { size: SUN_SYMBOL_SIZE, insets: { bottom: sunTimesRowHeight() - SUN_SYMBOL_SIZE.height } },
       },
-      { ...panelLabel(`${event}time`, FONTS.sunTimes), constraints: { size: { width: timeWidth }, insets: { top: SUN_TIMES_DROP } } },
+      {
+        ...panelLabel(`${event}time`, FONTS.sunTimes),
+        constraints: { size: { width: timeWidth }, insets: { top: SUN_TIMES_DROP } },
+      },
     ],
   });
   const leftAligned = (component, spacing = 0, rest = []) => ({
@@ -378,7 +387,9 @@ function sunTimeWidth() {
   const formats = allTimeFormats().map((name) => (date) => formatTimeAs(name, date, "UTC"));
   const widths = formats.map((format) => {
     const widest = (dates) =>
-      dates.map((date) => ({ date, width: textWidth(format(date), FONTS.sunTimes) })).reduce((a, b) => (b.width > a.width ? b : a));
+      dates
+        .map((date) => ({ date, width: textWidth(format(date), FONTS.sunTimes) }))
+        .reduce((a, b) => (b.width > a.width ? b : a));
     const hour = widest(Array.from({ length: 24 }, (_, h) => at(h, 0))).date.getUTCHours();
     return widest(Array.from({ length: 60 }, (_, m) => at(hour, m))).width;
   });
@@ -395,7 +406,8 @@ function panelTint(transparency) {
 // constants above, plus the padding, and the space for the window buttons if
 // it has them.
 function panelHeight({ buttons, picture, clockChange }) {
-  const lines = (...fonts) => fonts.reduce((sum, font) => sum + lineHeight(font), 0) + LINE_SPACING * (fonts.length - 1);
+  const lines = (...fonts) =>
+    fonts.reduce((sum, font) => sum + lineHeight(font), 0) + LINE_SPACING * (fonts.length - 1);
   const header = Math.max(
     (picture ? PICTURE_SIZE.height : 0) + FLAG_RAISE,
     lines(FONTS.city, FONTS.country, FONTS.time, FONTS.date) + FLAG_RAISE,
@@ -403,7 +415,7 @@ function panelHeight({ buttons, picture, clockChange }) {
   );
   const zone = clockChange ? lines(FONTS.zone, FONTS.clockChange) : lines(FONTS.zone);
   const sun = Math.max(TILE_SIZE, sunTimesRowHeight() + LINE_SPACING + lines(FONTS.sunDetail, FONTS.sunDetail));
-  const sections = [lineHeight(FONTS.context), header, zone, sun];
+  const sections = [lineHeight(FONTS.context) + CONTEXT_SPACING + header, zone, sun];
   const content = sections.reduce((sum, height) => sum + height, 0) + SECTION_SPACING * (sections.length - 1);
   return Math.ceil(content + 2 * PANEL_PADDING + (buttons ? WINDOW_BUTTONS_INSET : 0));
 }
@@ -427,12 +439,12 @@ function fittedFont(id, text, layout) {
   return { ...font, size };
 }
 
-// The width of a label that shrinks to fit: the context line spans the
-// content; the others are in the city's column, between the picture (if
+// The width of a label that shrinks to fit: the context and zone lines span
+// the content; the others are in the city's column, between the picture (if
 // there's a slot) and the flag.
 function labelWidth(id, { picture }) {
   const content = WINDOW_WIDTH - 2 * PANEL_PADDING;
-  if (id === "context") return content;
+  if (id === "context" || id === "zone") return content;
   return content - (picture ? PICTURE_SIZE.width + PICTURE_GAP : 0) - flagWidth() - PICTURE_GAP;
 }
 

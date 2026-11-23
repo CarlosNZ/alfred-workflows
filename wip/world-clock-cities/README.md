@@ -1,49 +1,76 @@
-# World Clock
+# World Clock Cities
 
 ## Usage
 
-See the current time in each city from the macOS **Clock** app's World Clock list with the `wcc` keyword, or set a Hotkey for it.
+View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset to plan for meetings.
 
-Each city shows its time, how far ahead or behind you it is, and today's sunrise and sunset. A clock change in the coming week is shown too. Type a city or country to narrow the list: `wcc new` matches New York and New Zealand.
+Cities come from your Mac's built-in **Clock** app — anything you add to its World Clock list automatically appears in the workflow:
 
-- <kbd>↩</kbd> Show the city's details
-- <kbd>⌘</kbd><kbd>↩</kbd> Open the city's details in a window of its own, which stays open
-- <kbd>⌥</kbd><kbd>↩</kbd> Edit your cities in the Clock app
-- <kbd>⌃</kbd> (held) See whether each city is in its working day, and how long it has left
+![World Clock Cities now](docs/wcc_results_now.png)
 
-The cities are the ones in Clock's World Clock list, in the same order, so add, remove and reorder them in Clock.
+Type a city or country to narrow the list: `wcc new` matches both **New York, USA** and **Auckland, New Zealand**.
 
+- <kbd>↩</kbd> Show a detail view for the city
+- <kbd>⌘</kbd><kbd>↩</kbd> Open the city's details in a separate window, which stays open
+- <kbd>⌥</kbd><kbd>↩</kbd> Edit your cities list in the Clock app
+- <kbd>⌃</kbd> _(held)_ See the city's "Working day" status (the default view when entering a specific time)
 
-## Converting a time
+![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
-Type a time to see it in every city, with whether people there are working, and how far into or out of their working day it falls. Handy for finding a meeting time that suits everyone.
+Your "Home" (🏠️) city is determined by the first city in Clock app that matches your current timezone.
 
-- `wcc 3pm` or `wcc 15:30`: the next 3pm in your time zone
-- `wcc 9am mon`: 9am next Monday
-- `wcc 9am London`: 9am in London
+From the detail view, <kbd>↩</kbd> or <kbd>⌘</kbd><kbd>↩</kbd> launch it in a separate window; <kbd>Esc</kbd> closes it, and <kbd>Backspace</kbd> returns to Alfred's results.
+
+## Convert a time
+
+Enter a time after the `wcc` keyword to see who's asleep, who's in the office, or when they're likely to get there — handy for finding a meeting time that suits everyone.
+
+- `wcc 3pm` or `wcc 15:00`: the next 3pm in your time zone
+- `wcc 9am mon`: the next Monday 9am
+- `wcc 9am London`: 9am in London (assuming London is in your Clock list)
 - `wcc +5`, `wcc +90m` or `wcc -3`: five hours from now, 90 minutes from now, three hours ago
 
-Hold <kbd>⌃</kbd> to see each city's offset instead, and whether it's light or dark there at that time.
+![World Clock Cities at a time](docs/wcc_results_time.png)
 
+Hold <kbd>⌃</kbd> to show the timezone offset and daylight status in the subtitle instead.
+
+The details view also reflects the entered time:
+
+![New York time detail view](docs/wcc_detail_new_york_time.png)
+
+**Note**: Daylight saving changes are reflected in the projected times, and if any city has a clock change in the next week, the workflow displays this. Weekends follow each country's conventions (e.g. Friday-Saturday in Israel), but public holidays are not currently taken into account.
+
+## Offline first
+
+All the timezone math is fully offline — location, timezone, weekend and daylight savings data come from your Mac, and the workflow uses this to calculate the solar information. The only thing that requires a network connection is the city thumbnails in the detail view, and these do a one-time lookup to Wikipedia the first time the workflow is invoked, then cache the results for future reference.
 
 ## Configuration
 
+The following preferences can be tailored to your needs in the workflow's configuration panel:
+
 - **Keyword** and **Hotkey**
 - **Time format**: follow your Mac's setting, or always 12- or 24-hour time
-- **Home city**: include the city in your Mac's time zone
+- **Home city**: Show or hide your own city (🏠️) from the results (while still seeing it in the Clock app)
 - **Sort by time zone**: Clock's order, or by UTC offset
-- **Working day start time** and **end time**: the working day behind each city's working status
-- **City pictures**: download city images from Wikimedia Commons for the details
+- **Working day start time** and **end time**: the times determining each city's "at work" status
+- **City pictures**: download city image thumbnails from Wikipedia for the detail views
 - **Action keys**: which modifier key does each action
 - **Window buttons**, **Corner radius** and **Transparency**: the look of the details window
 
-
 ## Permissions
 
-Alfred needs Full Disk Access to read Clock's list of cities, which it asks for when you first set it up. Editing your cities in Clock (<kbd>⌥</kbd><kbd>↩</kbd>) uses Alfred's Accessibility access to switch Clock to its World Clock tab.
+Alfred should have asked for these permissions when you first set it up, but the workflow requires:
+- **Full Disk Access** to read Clock's list of cities
+- **Accessibility access** and **Automation access to System Events** to open the Clock app to its World Clock tab
 
+If missing, grant them in System Settings > Privacy & Security.
+
+## Acknowledgements
+
+Workflow created with the assistance of [Claude Code](https://claude.com/product/claude-code).
+  
 <!-- end of Alfred readme -->
 
 ---
 
-For how the workflow is built, see the [developer notes](DEVELOPMENT.md).
+For more detail on how the workflow works, see the [developer notes](DEVELOPMENT.md).
