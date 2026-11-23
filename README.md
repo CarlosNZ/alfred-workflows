@@ -37,7 +37,7 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 |---|---|
 | `wf status` | List workflows, their versions and whether Alfred has them linked |
 | `wf adopt <name> <slug>` | Move a workflow made in Alfred into `wip/<slug>` and link it back |
-| `wf link <slug>` / `wf unlink <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched) |
+| `wf link <slug>` / `wf unlink [--clean] <slug>` | Add a repo workflow to Alfred, or remove it (the repo copy is untouched). `--clean` also moves the workflow's data and cache folders to the Trash; see [Testing a fresh install](#testing-a-fresh-install) |
 | `wf release [--allow-unsigned] <slug> <version>` | Mark a workflow ready for release: set its version, commit, tag `<slug>/v<version>` (and push the tag), build it, and open a draft GitHub release with the build attached |
 | `wf build [--allow-unsigned] <slug>` | Sync the workflow's `info.plist` (as `sync-config` and `sync-readme` do), then build `dist/<slug>-<version>.alfredworkflow` at the current version, or `dist/<slug>-unversioned.alfredworkflow` before the first release, to try a build before releasing it. It warns when the build isn't exactly a tagged release; see [Compiled binaries](#compiled-binaries) |
 | `wf promote <slug>` | Move a workflow up a tier: `wip/` → `release/` → `gallery/` |
@@ -47,6 +47,14 @@ After cloning, run `bin/wf setup` once to enable the git hooks.
 To start a new workflow, create it in Alfred, then `wf adopt` it.
 
 If a link is ever broken, even briefly (for example while moving or renaming the repo), Alfred Preferences drops the workflow and doesn't notice when the link works again. Quit and reopen Alfred Preferences, and Alfred itself if the workflow's keywords are missing.
+
+### Testing a fresh install
+
+Never delete a linked workflow in Alfred, and never install its bundle while it's linked: Alfred follows the link, so deleting removes the repo folder and installing ("Update") overwrites it. To try a build as a new user would:
+
+1. `wf unlink --clean <slug>` removes the link and moves the workflow's data and cache folders to the Trash.
+2. `wf build <slug>`, then open the bundle in `dist/`. It installs as an ordinary folder without your `prefs.plist` (which is gitignored, so never built), so Alfred asks for User Configuration as on a first install.
+3. When done, delete the installed copy in Alfred (safe, as it isn't a link; this also removes its data and cache), then `wf link <slug>`. Your settings come back with the repo's `prefs.plist`. `wf link` refuses while the installed copy is still there.
 
 ### What goes into a build
 
