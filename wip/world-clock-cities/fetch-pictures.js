@@ -54,8 +54,8 @@ const PICTURE_WIDTH = 960;
 // each failure up to the most.
 const RETRY_DELAY_FIRST = 5 * 60;
 const RETRY_DELAY_MOST = 24 * 60 * 60;
-// Wikimedia's User-Agent policy asks for a way to get in touch. TO-DO: use the
-// workflow's Alfred forum or gallery URL in place of the repo once it has one.
+// Wikimedia's User-Agent policy asks for a way to get in touch: the repo,
+// where issues can be opened.
 const USER_AGENT = "WorldClockCities/%VERSION% (Alfred workflow; https://github.com/CarlosNZ/alfred-workflows)";
 
 const MATCH_RADIUS_KM = 50;
