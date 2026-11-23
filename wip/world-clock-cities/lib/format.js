@@ -321,17 +321,6 @@ function weekdayName(weekday) {
   return weekdayNames[weekday];
 }
 
-// Meeting mode's subtitle while ⌃ is held, for what clock mode's subtitle
-// answers, at the moment shown: the offsets, the country, and the nearest
-// sunrise or sunset, for whether it's dark there. E.g. "−13 hrs (UTC) | UK |
-// Sunset 2h ago", "🏠 (UTC+13) | New Zealand | Sunrise in 40m". Clock mode's ⌃
-// shows meeting mode's subtitle (meetingSubtitle), for the working status.
-function meetingCtrlSubtitle(info) {
-  return [formatOffsets(info), formatCountry(info), formatNearestSunEvent(info)]
-    .filter(Boolean)
-    .join(SUBTITLE_DIVIDER);
-}
-
 // The day length and its change since yesterday, e.g. "14h 6m (+2m/day)".
 function formatDayLength(info) {
   const length = formatDuration(info.dayLengthMinutes);
@@ -351,7 +340,7 @@ function formatLongDate(moment, timeZone) {
 // The time zone's identifier (with spaces for its underscores, as in
 // "America/New York"), its name, its abbreviation when it has one, and its
 // UTC offset, e.g. "Pacific/Auckland • New Zealand Daylight Time (NZDT) •
-// UTC+13".
+// UTC+13". Also a city result's alternative subtitle (⌃ held, by default).
 //
 // The names are in the Mac's language, as used in the city's country: the
 // formatter only gives the abbreviations common in its locale's region, so

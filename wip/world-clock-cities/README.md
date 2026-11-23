@@ -1,5 +1,7 @@
 # World Clock Cities
 
+<!-- start of Alfred readme -->
+
 ## Usage
 
 View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset (e.g. "+6") to plan for meetings.
@@ -17,7 +19,7 @@ Your "Home" (🏠️) city is determined by the first city in the Clock app that
 - <kbd>↩</kbd> Show a detail view for the city
 - <kbd>⌘</kbd><kbd>↩</kbd> Open the city's detail window, which stays open
 - <kbd>⌥</kbd><kbd>↩</kbd> Edit your cities list in the Clock app
-- <kbd>⌃</kbd> _(held)_ Peek at the city's working day, as meeting mode shows it
+- <kbd>⌃</kbd> _(held)_ Show the city's full time zone info, e.g. "Pacific/Auckland • New Zealand Daylight Time (NZDT) • UTC+13"
 
 ![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
@@ -35,7 +37,7 @@ Enter a time after the `wcc` keyword to switch to **meeting mode** and see who's
 
 ![World Clock Cities at a time](docs/wcc_results_time.png)
 
-Hold <kbd>⌃</kbd> to peek at the city's time zone offset and daylight, as clock mode shows them.
+As in clock mode, hold <kbd>⌃</kbd> to show the city's full time zone info for the entered time.
 
 The detail view also reflects the entered time:
 

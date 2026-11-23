@@ -104,7 +104,7 @@ function run(argv) {
   // back to (see panel.zsh). On each item's variables, beside the city's.
   const search = `${environmentValue("keyword") || "wcc"} ${query}`;
   const { keys, clashes } = cityActionKeys();
-  const context = { keys, search, typed, meeting, now };
+  const context = { keys, search, typed, now };
   const cityItem = meeting ? meetingCityItem : clockCityItem;
   const items = rows.map(({ city, info }) => cityItem(info, city, context));
   return output([...clashes.map(keyClashItem), ...items], { ...(rerun && { rerun: 1 }), skipknowledge: true });
@@ -237,8 +237,7 @@ function loadLib(file) {
 // (see cityActionKeys); by default ↩ shows the city's inline view, ⌘↩ opens
 // its detail window, ⌥↩ opens Clock on its World Clock tab
 // (open-clock.applescript), to edit the list, and holding ⌃ shows the
-// subtitle for the other mode's question: in clock mode, the working status;
-// in meeting mode, the offsets and the nearest sunrise or sunset.
+// city's time zone in full, as on the detail view's zone line, in both modes.
 //
 // At a typed time, clock mode's title has the full weekday, as in meeting mode
 // (meetingTitle): "Yesterday" or "Tomorrow" would be from the Mac's date at
@@ -250,9 +249,8 @@ function loadLib(file) {
 // city's (see detailVariables) and the search. detail_window_key is the
 // detail window's key, for the inline view's shortcut that opens it (see
 // panel.zsh). In `context`, `typed` is the typed time (readTypedTime), or
-// null for now, and `meeting` is true in meeting mode.
-function clockCityItem(info, city, { keys, search, typed, meeting, now }) {
-  const details = meeting ? meetingCtrlSubtitle(info) : meetingSubtitle(info);
+// null for now.
+function clockCityItem(info, city, { keys, search, typed, now }) {
   const windowKey = ACTION_KEYS.find((key) => keys[key] === "window") || "";
   const variables = { ...detailVariables(city, info, typed, now), detail_search: search, detail_window_key: windowKey };
   const action = (id, subtitle, extra = {}) => ({ subtitle, valid: true, variables: { ...variables, ...extra, city_action: id } });
@@ -260,7 +258,7 @@ function clockCityItem(info, city, { keys, search, typed, meeting, now }) {
     detail: action("detail", `Show ${info.name} in Alfred`),
     window: action("window", `Open ${info.name} in its own window`, { detail_launch: "window" }),
     clock: action("clock", "Edit cities in Clock app"),
-    otherDetails: details && { subtitle: details, valid: false },
+    otherDetails: { subtitle: formatZoneLine(info), valid: false },
   };
   const plain = actions[keys.none];
   const mods = Object.fromEntries(MODIFIERS.filter((key) => actions[keys[key]]).map((key) => [key, actions[keys[key]]]));

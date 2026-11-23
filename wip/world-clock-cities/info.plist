@@ -415,7 +415,7 @@ Your "Home" (🏠️) city is determined by the first city in the Clock app that
 - &lt;kbd&gt;↩&lt;/kbd&gt; Show a detail view for the city
 - &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Open the city's detail window, which stays open
 - &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Edit your cities list in the Clock app
-- &lt;kbd&gt;⌃&lt;/kbd&gt; _(held)_ Peek at the city's working day, as meeting mode shows it
+- &lt;kbd&gt;⌃&lt;/kbd&gt; _(held)_ Show the city's full time zone info, e.g. "Pacific/Auckland • New Zealand Daylight Time (NZDT) • UTC+13"
 
 ![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
@@ -433,7 +433,7 @@ Enter a time after the `wcc` keyword to switch to **meeting mode** and see who's
 
 ![World Clock Cities at a time](docs/wcc_results_time.png)
 
-Hold &lt;kbd&gt;⌃&lt;/kbd&gt; to peek at the city's time zone offset and daylight, as clock mode shows them.
+As in clock mode, hold &lt;kbd&gt;⌃&lt;/kbd&gt; to show the city's full time zone info for the entered time.
 
 The detail view also reflects the entered time:
 
