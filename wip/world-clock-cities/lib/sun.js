@@ -18,7 +18,7 @@ const DAYLIGHT_BANDS = [
   [-18, "astronomicalTwilight"],
 ];
 
-// The phases of the day, which the list's icons show. A phase is a range of the
+// The phases of the day, which clock mode's icons show. A phase is a range of the
 // sun's elevation, in degrees, and of the time from solar noon, in hours:
 // negative before noon, while the sun rises, and positive after, while it sets.
 // Ranges include their lower end and exclude their upper end; a phase without

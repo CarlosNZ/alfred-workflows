@@ -4,9 +4,9 @@
 // app's World Clock, in Clock's order.
 //
 // argv[0] is the text typed after the keyword. Text starting with a digit is a
-// time to convert (e.g. "3pm"), shown in the time mode; anything else narrows
-// the list by city or country name. A "-" at the end switches to the other
-// mode for the same moment (see readViewSwitch).
+// time to convert (e.g. "3pm"), shown in meeting mode; anything else narrows
+// the list by city or country name, shown in clock mode, now. A "-" at the
+// end switches to the other mode for the same moment (see readModeSwitch).
 //
 // The logic lives in lib/; this file turns it into Alfred results.
 
@@ -28,8 +28,8 @@ function run(argv) {
   LIBS.forEach(loadLib);
 
   const query = (argv[0] || "").trim();
-  // The query without the view switch, and whether it had one.
-  const { query: text, switched } = readViewSwitch(query);
+  // The query without the mode switch, and whether it had one.
+  const { query: text, switched } = readModeSwitch(query);
   const loaded = loadCities();
   if (loaded.error) return output([{ ...LOAD_ERRORS[loaded.error], valid: false }]);
   // Every run, whatever the query, with the whole list, so the cache follows
@@ -43,7 +43,7 @@ function run(argv) {
   // Without the home city when the configuration hides it. It's still the
   // local city, and typed times can still name it.
   let cities = showHomeCity() ? loaded.cities : loaded.cities.filter((city) => city !== localCity);
-  // Text that narrows the list: the whole query (without the view switch)
+  // Text that narrows the list: the whole query (without the mode switch)
   // when there's no time, and the text after a relative time.
   let filter = text;
   // The typed time, or null for now.
@@ -58,9 +58,9 @@ function run(argv) {
     if (message) return output([{ ...message, valid: false }]);
     filter = typed.filter;
   }
-  // The time mode for a typed time and the list for now, unless the view
-  // switch swaps them. The time mode for now shows it as a relative time of
-  // 0 minutes, as "+" does, so it reads the same.
+  // Meeting mode for a typed time and clock mode for now, unless the mode
+  // switch swaps them. Meeting mode now shows it as a relative time of 0
+  // minutes, as "+" does, so it reads the same.
   const meeting = timeQuery !== switched;
   if (meeting && !typed) typed = relativeTypedTime(0, filter, now);
   // The moment the cities are shown at: now, or the typed time.
@@ -94,7 +94,8 @@ function run(argv) {
   const search = `${environmentValue("keyword") || "wcc"} ${query}`;
   const { keys, clashes } = cityActionKeys();
   const context = { keys, search, typed, meeting, now };
-  const items = rows.map(({ city, info }) => (meeting ? timeCityItem : cityItem)(info, city, context));
+  const cityItem = meeting ? meetingCityItem : clockCityItem;
+  const items = rows.map(({ city, info }) => cityItem(info, city, context));
   return output([...clashes.map(keyClashItem), ...items], { ...(rerun && { rerun: 1 }), skipknowledge: true });
 }
 
@@ -214,16 +215,16 @@ function loadLib(file) {
   (0, eval)(source.js);
 }
 
-// An Alfred item for a city in the list, from describeCity's values and the
+// An Alfred item for a city in clock mode, from describeCity's values and the
 // city's Clock record. Its actions are on the keys `context.keys` gives them
 // (see cityActionKeys); by default ↩ shows the city's inline view, ⌘↩ opens
 // its detail window, ⌥↩ opens Clock on its World Clock tab
 // (open-clock.applescript), to edit the list, and holding ⌃ shows the
-// subtitle for the other mode's question: in the list, the working status; in
-// the time mode, the offsets and the nearest sunrise or sunset.
+// subtitle for the other mode's question: in clock mode, the working status;
+// in meeting mode, the offsets and the nearest sunrise or sunset.
 //
-// At a typed time, the list's title has the full weekday, as in the time mode
-// (timeTitle): "Yesterday" or "Tomorrow" would be from the Mac's date at
+// At a typed time, clock mode's title has the full weekday, as in meeting mode
+// (meetingTitle): "Yesterday" or "Tomorrow" would be from the Mac's date at
 // that time, which reads as from today.
 //
 // Each key's variables name its action as city_action, which the Conditional
@@ -232,9 +233,9 @@ function loadLib(file) {
 // city's (see detailVariables) and the search. detail_window_key is the
 // detail window's key, for the inline view's shortcut that opens it (see
 // panel.zsh). In `context`, `typed` is the typed time (readTypedTime), or
-// null for now, and `meeting` is true in the time mode.
-function cityItem(info, city, { keys, search, typed, meeting, now }) {
-  const details = meeting ? timeCtrlSubtitle(info) : timeSubtitle(info);
+// null for now, and `meeting` is true in meeting mode.
+function clockCityItem(info, city, { keys, search, typed, meeting, now }) {
+  const details = meeting ? meetingCtrlSubtitle(info) : meetingSubtitle(info);
   const windowKey = ACTION_KEYS.find((key) => keys[key] === "window") || "";
   const variables = { ...detailVariables(city, info, typed, now), detail_search: search, detail_window_key: windowKey };
   const action = (id, subtitle, extra = {}) => ({ subtitle, valid: true, variables: { ...variables, ...extra, city_action: id } });
@@ -250,8 +251,8 @@ function cityItem(info, city, { keys, search, typed, meeting, now }) {
     // On a rerun, Alfred keeps the selection on the item with the selected
     // item's uid; without uids it jumps back to the first item.
     uid: info.id,
-    title: typed ? timeTitle(info) : listTitle(info),
-    subtitle: listSubtitle(info, Boolean(typed)),
+    title: typed ? meetingTitle(info) : clockTitle(info),
+    subtitle: clockSubtitle(info, Boolean(typed)),
     arg: info.name,
     ...(info.dayPhase && { icon: { path: `icons/phase-${info.dayPhase}.png` } }),
     variables: plain ? plain.variables : variables,
@@ -261,13 +262,13 @@ function cityItem(info, city, { keys, search, typed, meeting, now }) {
   };
 }
 
-// An Alfred item for a city in the time mode, from describeCity's values at the
-// typed time. Its icon is the working status.
-function timeCityItem(info, city, context) {
+// An Alfred item for a city in meeting mode, from describeCity's values at the
+// moment shown. Its icon is the working status.
+function meetingCityItem(info, city, context) {
   return {
-    ...cityItem(info, city, context),
-    title: timeTitle(info),
-    subtitle: timeSubtitle(info),
+    ...clockCityItem(info, city, context),
+    title: meetingTitle(info),
+    subtitle: meetingSubtitle(info),
     icon: { path: `icons/status-${info.workingStatus}.png` },
   };
 }

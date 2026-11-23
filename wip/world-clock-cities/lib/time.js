@@ -1,8 +1,8 @@
 // Time zone calculations, and reading times typed after the keyword.
 // Loaded by results.js; needs Foundation imported.
 //
-// Functions that depend on a moment take it as a Date, so the city list (now)
-// and the time mode (a typed time) share them. They return values, not text;
+// Functions that depend on a moment take it as a Date, so now and a typed
+// time, in either mode, share them. They return values, not text;
 // lib/format.js turns values into text.
 
 // The working day by default, as hours of the day in each city's local time:
@@ -59,13 +59,13 @@ function isTimeQuery(query) {
   return /^[\d+\-−]/.test(query);
 }
 
-// Splits off the view switch, a "-" (or "−") at the end of the query as a word
-// of its own, which shows the other view of the same moment: the list at a
-// typed time, or the time mode for now. Returns { query, switched }, the query
+// Splits off the mode switch, a "-" (or "−") at the end of the query as a word
+// of its own, which shows the other mode for the same moment: clock mode at a
+// typed time, or meeting mode now. Returns { query, switched }, the query
 // without it. A query that's just "-" is a relative time (now), not a switch,
-// which comes to the same thing: the time mode for now. As a word of its own,
+// which comes to the same thing: meeting mode now. As a word of its own,
 // so a hyphen in a city name ("port-au-prince") isn't one.
-function readViewSwitch(query) {
+function readModeSwitch(query) {
   const match = query.match(/^(.*\S)\s+[-−]$/);
   return match ? { query: match[1], switched: true } : { query, switched: false };
 }
@@ -105,7 +105,7 @@ function readTypedTime(query, cities, now, macZone = macTimeZone()) {
 
 // A typed time `minutes` from now (negative for the past), as readTypedTime
 // gives it, with `filter`, the text that narrows the list. With 0 minutes,
-// it's now, which is how the time mode shows the current time.
+// it's now, which is how meeting mode shows the current time.
 function relativeTypedTime(minutes, filter, now, macZone = macTimeZone()) {
   return {
     kind: "relative",

@@ -4,7 +4,7 @@
 // fills in the view's components, by id, on every pulse (detailUpdate in
 // lib/detail.js).
 //
-// The now and meeting modes share the layout, so an open detail window can
+// Clock and meeting modes share the layout, so an open detail window can
 // switch between them when its city is opened again from the other mode: only
 // the text and the tile differ (see detailUpdate).
 //
@@ -61,7 +61,7 @@ const FLAG_RAISE = 4; // lifts the flag (by lowering the rest of its row) so its
 const WINDOW_WIDTH = 600;
 const PICTURE_SIZE = { width: 210, height: 140 };
 const PICTURE_CORNER_RADIUS = 8;
-const TILE_SIZE = 88; // the phase of the day (now) or working status (meeting) icon
+const TILE_SIZE = 88; // the phase of the day (clock mode) or working status (meeting mode) icon
 // The Clock app's sunrise and sunset symbols, sunrise.fill and sunset.fill, as
 // AppKit sizes them at 24pt, the times' size, so they match the digits as
 // they would inline in text: their alignment rect is the font's cap height.
@@ -90,7 +90,7 @@ const FONTS = {
   zone: { size: 15 }, // "New Zealand Daylight Time (NZDT) • UTC+13"
   clockChange: { size: 14 }, // "Clocks go back 1 hour in 3 days, on Sunday"
   sunTimes: { size: 24 },
-  sunDetail: { size: 15 }, // sun elevation and day length (now), working day and nearest sunrise or sunset (meeting)
+  sunDetail: { size: 15 }, // sun elevation and day length (clock mode), working day and nearest sunrise or sunset (meeting mode)
   pictureLoading: { size: 13 },
 };
 
@@ -280,7 +280,7 @@ function zoneSection(clockChange) {
   ]);
 }
 
-// The tile (the phase of the day, or the working status in the meeting mode)
+// The tile (the phase of the day, or the working status in meeting mode)
 // beside the sunrise and sunset and two lines of details. Ids: tile,
 // sundetail1, sundetail2, and those in sunTimesRow.
 function sunSection() {

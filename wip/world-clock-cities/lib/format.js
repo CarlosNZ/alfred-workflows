@@ -161,7 +161,7 @@ function formatNearestSunEvent(info) {
 // emoji.
 const SUN = "☀︎";
 
-// The city's sunrise and sunset today, for the list's subtitle, e.g. "☀↑ 7:28
+// The city's sunrise and sunset today, for clock mode's subtitle, e.g. "☀↑ 7:28
 // AM  ☀↓ 4:03 PM". During polar day or night, "Midnight sun" or "Polar
 // night". Empty without sun values.
 function formatSunTimes(info) {
@@ -236,25 +236,25 @@ const SUBTITLE_DIVIDER = " | ";
 
 const DAY_OFFSET_WORDS = { "-1": "Yesterday", 1: "Tomorrow" };
 
-// The list's title: the time, "Yesterday" or "Tomorrow" when the city's date
+// Clock mode's title: the time, "Yesterday" or "Tomorrow" when the city's date
 // differs from the Mac's, the city, and the country's flag. E.g. "11:33 PM
 // Yesterday • Los Angeles • 🇺🇸". The flag is in the title rather than the
 // subtitle so that it's shown at a readable size.
-function listTitle(info) {
+function clockTitle(info) {
   const day = DAY_OFFSET_WORDS[info.dayOffset] ? ` ${DAY_OFFSET_WORDS[info.dayOffset]}` : "";
   return [`${formatTime(info.moment, info.timeZone)}${day}`, info.name, flagEmoji(info.countryCode)]
     .filter(Boolean)
     .join(TITLE_DIVIDER);
 }
 
-// The list's subtitle: offset from the local city (🏠 for the local city
+// Clock mode's subtitle: offset from the local city (🏠 for the local city
 // itself) and the UTC offset, country, and the clock change when one is
 // within a week, otherwise the day's sunrise and sunset. E.g. "−2 hrs
 // (UTC+11) | Australia | ☀↑ 5:46 AM  ☀↓ 7:52 PM". At a typed time
 // (`atTypedTime`), the clock change is the one between now and then, named
-// from now, as in the time mode: it's why the offsets differ from today's, and
+// from now, as in meeting mode: it's why the offsets differ from today's, and
 // a change named from the typed time ("tomorrow") would read as from today.
-function listSubtitle(info, atTypedTime = false) {
+function clockSubtitle(info, atTypedTime = false) {
   const clockChange = atTypedTime ? formatClockChangeFromNow(info) : formatSoonClockChange(info);
   return [formatOffsets(info), formatCountry(info), clockChange || formatSunTimes(info)]
     .filter(Boolean)
@@ -268,20 +268,20 @@ function formatOffsets(info) {
   return `${offset} (${formatUtcOffset(info.utcOffsetMinutes)})`;
 }
 
-// The time mode's title: the time with the full weekday, the city, and the
+// Meeting mode's title: the time with the full weekday, the city, and the
 // country's flag, e.g. "2:00 PM Thursday • New York • 🇺🇸". Always the weekday,
 // since crossing into another day is the main risk when planning a meeting.
-function timeTitle(info) {
+function meetingTitle(info) {
   const time = `${formatTime(info.moment, info.timeZone)} ${formatWithTemplate(info.moment, info.timeZone, "EEEE")}`;
   return [time, info.name, flagEmoji(info.countryCode)].filter(Boolean).join(TITLE_DIVIDER);
 }
 
-// The time mode's subtitle: 🏠 for the local city, country, working status, and
+// Meeting mode's subtitle: 🏠 for the local city, country, working status, and
 // how far into or out of the working day, e.g. "USA | Working | 3h left", or in
-// place of that, a clock change between now and the typed time, which explains
+// place of that, a clock change between now and the moment shown, which explains
 // why the time differs from what today's offset suggests. No offset, since the
 // converted times already show it.
-function timeSubtitle(info) {
+function meetingSubtitle(info) {
   return [
     info.isLocal ? HOME : "",
     formatCountry(info),
@@ -321,12 +321,12 @@ function weekdayName(weekday) {
   return weekdayNames[weekday];
 }
 
-// The time mode's subtitle while ⌃ is held, for what the list's subtitle
-// answers, at the typed time: the offsets, the country, and the nearest
+// Meeting mode's subtitle while ⌃ is held, for what clock mode's subtitle
+// answers, at the moment shown: the offsets, the country, and the nearest
 // sunrise or sunset, for whether it's dark there. E.g. "−13 hrs (UTC) | UK |
-// Sunset 2h ago", "🏠 (UTC+13) | New Zealand | Sunrise in 40m". The list's ⌃
-// shows the time mode's subtitle (timeSubtitle), for the working status.
-function timeCtrlSubtitle(info) {
+// Sunset 2h ago", "🏠 (UTC+13) | New Zealand | Sunrise in 40m". Clock mode's ⌃
+// shows meeting mode's subtitle (meetingSubtitle), for the working status.
+function meetingCtrlSubtitle(info) {
   return [formatOffsets(info), formatCountry(info), formatNearestSunEvent(info)]
     .filter(Boolean)
     .join(SUBTITLE_DIVIDER);
@@ -439,9 +439,10 @@ function formatWorkingDaySentence({ untilStart, untilEnd, sinceEnd, nextWorkday 
   return "";
 }
 
-// The now mode's line above the city: how far its time is from the Mac's,
-// e.g. "11 hours ahead of you", "2 hours 30 minutes behind you", "Same time
-// as you", or "🏠 Your time zone" for the local city.
+// The detail view's line above the city in clock mode, now: how far
+// its time is from the Mac's, e.g. "11 hours ahead of you", "2 hours 30
+// minutes behind you", "Same time as you", or "🏠 Your time zone" for the
+// local city.
 function formatOffsetFromYou(info) {
   if (info.isLocal) return `${HOME} Your time zone`;
   const minutes = info.offsetFromLocalMinutes;
@@ -449,8 +450,8 @@ function formatOffsetFromYou(info) {
   return `${formatSpokenDuration(Math.abs(minutes))} ${minutes > 0 ? "ahead of" : "behind"} you`;
 }
 
-// The meeting mode's line saying which moment the view shows, from the typed
-// time (see detailVariables in lib/detail.js): "When it's 9:00 PM Sunday in
+// The detail view's line above the city at a typed time, in either mode,
+// saying which moment it shows (see detailUpdate in lib/detail.js): "When it's 9:00 PM Sunday in
 // London, UK…", "When it's 9:00 PM Sunday for you…" for a time in the Mac's
 // zone, or for a relative time, "In 5 hours, at 5:12 PM Sunday for you…" and
 // "3 hours ago, at 9:12 AM Sunday for you…". "For you" rather than "here",

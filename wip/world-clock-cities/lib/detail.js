@@ -31,7 +31,7 @@ const DETAIL_CLOCK_CHANGE_DAYS = 7;
 // list every second, which also needs Full Disk Access that the view's own
 // process may not have. detail_picture_city is the city's record for the
 // picture fetcher (pictureFetchRecord), which panel.zsh starts for this city
-// alone if it has no picture yet. ⌘ adds detail_launch (see cityItem in
+// alone if it has no picture yet. ⌘ adds detail_launch (see clockCityItem in
 // results.js). The mode and typed time aren't in the record: every view
 // follows the results' latest (see saveShownTime). `typed` is the typed time
 // (readTypedTime), or null for now.
@@ -48,7 +48,7 @@ function detailVariables(city, info, typed, now) {
 
 // The User Configuration variables the detail views' text depends on, saved
 // for the pulse with the time the results show (saveShownTime): the time
-// format, and the working day behind the meeting mode's working status.
+// format, and the working day behind meeting mode's working status.
 const VIEW_SETTINGS = ["time_format", "work_start", "work_end"];
 
 // Where results.js saves the time its results show, for the detail views:
@@ -59,10 +59,9 @@ function shownTimePath() {
 
 // Saves the time the results show, and their mode, so every open detail view
 // shows the same: typed is null for now, or the typed time (see
-// savedTypedTime); meeting is true for the time mode, whose view is the
-// meeting mode, and false for the list, whose view is the now mode. The time
-// mode for now has a typed time (a relative one of 0 minutes), and the list
-// can be at a typed time (see readViewSwitch). Saved with the values of the
+// savedTypedTime); meeting is true in meeting mode and false in clock mode.
+// Meeting mode now has a typed time (a relative one of 0 minutes), and clock
+// mode can be at a typed time (see readModeSwitch). Saved with the values of the
 // User Configuration variables the views use (VIEW_SETTINGS) as settings. When the testing variables are set,
 // it also saves testNow, WCC_NOW's value, and testTimeZone, the Mac's
 // zone as TZ made it. They're saved because the views' pulse runs in Alfred's
@@ -134,7 +133,7 @@ function detailClockChange(info, typed, now) {
 
 // The pulse's output for a city: a JSON update of the view's components, by
 // id (see lib/panel.js). `typed` is the saved typed time (see
-// savedTypedTime), or null for now; `meeting` is true in the meeting mode; `picture` is the city's picture state (pictureState);
+// savedTypedTime), or null for now; `meeting` is true in meeting mode; `picture` is the city's picture state (pictureState);
 // `iconsDir` holds the tiles' icons and the sunrise and sunset symbols; `layout` says whether the view has a
 // picture slot ({ picture }), which sets how wide the city's text can be.
 // Ids the view's layout doesn't have (the clock change line, say) are
