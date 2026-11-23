@@ -26,7 +26,11 @@
 # Preferences (from the workflow's User Configuration, as environment
 # variables):
 #   window_buttons  "1" shows the window buttons in a transparent title bar,
-#                   "0" makes the window borderless
+#                   "0" makes the window borderless. It's also saved to
+#                   $CACHE/window-buttons, as the landscape layout leaves
+#                   room for the buttons only when they're there
+#                   (landscape_inset in lib.sh), and layout.sh, which
+#                   doesn't get the preferences, builds that layout too.
 #   corner_radius   0-32, the corner radius of the borderless window (a window
 #                   with buttons has the system's standard rounding)
 #   transparency    0-100, how much the dark tint over the window's blur lets
@@ -74,6 +78,7 @@ transparency=$(number "${transparency:-}" 45 100)
 layout=$(current_layout)
 rm -f "$CACHE/toprow-app"
 printf '%s' "${default_app:-}" > "$CACHE/default-app"
+printf '%s' "$buttons" > "$CACHE/window-buttons"
 kind=$(content_kind)
 
 # Write to a temporary file and move it into place, so Alfred never reads a
