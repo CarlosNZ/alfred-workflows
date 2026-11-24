@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>net.smithnz.carl.airdrop</string>
+	<key>connections</key>
+	<dict>
+		<key>442B7D43-622E-4413-8901-EE1E3F1AEE42</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>31154210-B967-4F54-A2B3-9719BB973FAC</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>65BEB21D-BCCE-446A-AA88-4CFBF7AE5358</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>442B7D43-622E-4413-8901-EE1E3F1AEE42</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Carl Smith (@CarlosNZ)</string>
+	<key>description</key>
+	<string>Send files, URLs or text with AirDrop</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>AirDrop</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<true/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>airdrop.js</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>442B7D43-622E-4413-8901-EE1E3F1AEE42</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<true/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>AirDrop</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>31154210-B967-4F54-A2B3-9719BB973FAC</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<true/>
+				<key>acceptsmulti</key>
+				<integer>1</integer>
+				<key>acceptstext</key>
+				<true/>
+				<key>acceptsurls</key>
+				<true/>
+				<key>name</key>
+				<string>AirDrop</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>65BEB21D-BCCE-446A-AA88-4CFBF7AE5358</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>## Usage
+
+Send files, URLs or text from Alfred with AirDrop.
+
+Select one or more files, a URL or some text in Alfred, open Universal Actions (&lt;kbd&gt;→&lt;/kbd&gt; on a result, or your Universal Actions hotkey for a selection in another app) and choose **AirDrop**. Apple's AirDrop panel opens with the items already loaded: pick the device to send them to.
+
+- **Files and folders** are sent as they are.
+- **URLs** are sent as links, which open on the receiving device.
+- **Text** is sent as a `.txt` file, named after its first line.
+
+Once you've picked a device, you can press **Done** straight away: the transfer carries on in the background until it finishes.
+
+The panel opens on whichever display macOS chooses, which may not be the one you're looking at.
+
+## Acknowledgements
+
+Workflow created with the assistance of [Claude Code](https://claude.com/product/claude-code).</string>
+	<key>uidata</key>
+	<dict>
+		<key>31154210-B967-4F54-A2B3-9719BB973FAC</key>
+		<dict>
+			<key>xpos</key>
+			<integer>420</integer>
+			<key>ypos</key>
+			<integer>75</integer>
+		</dict>
+		<key>442B7D43-622E-4413-8901-EE1E3F1AEE42</key>
+		<dict>
+			<key>xpos</key>
+			<integer>230</integer>
+			<key>ypos</key>
+			<integer>75</integer>
+		</dict>
+		<key>65BEB21D-BCCE-446A-AA88-4CFBF7AE5358</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>75</real>
+		</dict>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
+	<key>webaddress</key>
+	<string></string>
+</dict>
+</plist>
