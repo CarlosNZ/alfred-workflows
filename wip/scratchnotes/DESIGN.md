@@ -103,6 +103,15 @@ Alfred UI's menus aren't documented. Found in its framework (`AUIMenu`, `AUIActi
 - The menu takes the appearance of the view it opens from: light in a pinned note (its root view has `appearance: "light"`), Alfred's theme in the quick view.
 - In the quick view, a menu opens and its items' actions run without Alfred closing. Esc with a menu open closes only the menu; a second Esc closes Alfred. ⌘1 and a ⌘K shortcut that opens the menu both worked inside Alfred, though Alfred uses ⌘1–⌘9 for its results.
 
+### Note icons
+
+TO-DO: let each note have an icon, chosen from about 20, shown on its result in the note's colour in place of the colour dot. Not decided, and not in any step yet. Found so far (25 Nov 2026, with a prototype outside the workflow):
+
+- The icons would come from [Lucide](https://lucide.dev) (ISC licence: ship its `LICENSE` with them): 2,416 outline SVGs on a 24-point grid, drawn with `stroke="currentColor"`. All of these exist: `sticky-note` (the default), `shopping-cart`, `lightbulb`, `list-todo`, `book-open`, `briefcase`, `calendar`, `phone`, `house`, `heart`, `star`, `flag`, `bookmark`, `code`, `music`, `plane`, `utensils`, `dollar-sign`, `key-round`, `gift`. Tabler and Phosphor (MIT) are alternatives. SF Symbols aren't: a Script Filter's `icon` only takes a file's path, a file's icon or a file type's, and Apple's licence doesn't allow shipping symbols as images.
+- Colouring them is simple. NSImage reads an SVG in JXA once its `currentColor` is replaced with a hex colour, and draws it into a bitmap as `dev/make-icons.js` does. The prototype drew all 120 (20 icons × 6 colours, at 128 px) in about 0.2 s. As the palette is fixed, `dev/make-icons.js` can draw them all and the workflow can ship them (under 1 MB), so nothing is drawn at run time and nothing depends on which macOS versions read SVG.
+- Style: a badge, the icon in dark text colour (`#1D1D1F`) on a rounded square of the tint, ringed in the control colour. It reads well on light and dark Alfred themes, and looks like a small sticky note. The icon alone in the control colour is faint on a light theme in yellow and grey.
+- Choosing an icon: menu items take no image (see [Colour control](#colour-control)), so a menu could only list names, say in an Icon submenu. Alfred UI's framework has an `imageview` component, and its strings include `filetypeicon`, `symbol`, `fill` and `stretch` together, which look like an image's source and scaling. If a button or image view can show a PNG, a grid of icons in the window would work, and the top row's colour dot could show the note's icon. Untested: try that first.
+
 ## Alfred results list
 
 A Script Filter on a keyword (`scratch` by default, configurable), run by `scripts/list.js`. **Decided** throughout, except where marked:
@@ -136,7 +145,29 @@ A Script Filter on a keyword (`scratch` by default, configurable), run by `scrip
 - View mode is a `markdownarea`, which renders with Alfred's own Markdown renderer (headings, lists, code blocks, tables, block quotes, images, links). It's display-only. Tables, inline code, bold and italic render; raw HTML (e.g. `<b>Hello</b>`) doesn't, and neither do task boxes: `- [ ]` and `- [x]` show their brackets as text (tested in step 3). **Decided**
   - Its default spacing is very loose, with a wide gap between the wrapped lines of a paragraph. It has four spacing keys, not in Alfred's docs (found in its framework, and tested): `linespacing`, `paragraphspacing`, `listspacing` and `lineheightmultiple`. The viewer uses `linespacing: 0`, `paragraphspacing: 6` and `listspacing: 2`. `lineheightmultiple` below 1 misplaces list bullets. Heading sizes and bullet style can't be changed.
 - The toggle swaps one for the other with a `replace` of the view that holds them, as Now Playing does: a hidden component still takes up space (Alfred's docs say so), so they can't be stacked with one hidden. The text goes through the save file: switching to View saves the editor's text and renders it, and switching back puts the saved text in a new `textarea`. The top row is replaced too, for the toggle button's new symbol. Tested, in both forms. **Decided**
-- `webkitview` was considered for rendering (full CommonMark via a vendored JS library) and for a richer editor, but Alfred documents no way for a page's JavaScript to call back to the workflow, so it couldn't save. Not used unless that changes.
+- A `webkitview` could render View mode instead, with full CommonMark from a vendored library and task boxes that can be ticked. Alfred documents no way for a page's JavaScript to call back to the workflow, but a page can change its own URL, which the web view reports to an action (tested). See [View mode in a web view](#view-mode-in-a-web-view). Editing stays in the `textarea`.
+
+### View mode in a web view
+
+TO-DO: render View mode in a `webkitview`, so that Markdown renders fully (task lists included) and ticking a task's box in View mode ticks it in the note. Not decided, and not in any step yet. It has to work as people expect from other Markdown apps, so the cheaper routes were rejected: swapping `- [ ]` for ☐ in the `markdownarea` (display only); a `checkbox` component per task among `markdownarea` blocks (plain-text labels, selection stops at each block, unknown scrolling); and custom-scheme links in the `markdownarea` (it sends no click events, and its `urischemes` key only sets which link schemes are clickable, so a click goes to macOS and the window can't be told to change).
+
+The renderer would be [markdown-it](https://github.com/markdown-it/markdown-it) (MIT): CommonMark, with tables and strikethrough built in, raw HTML escaped by default (so a note can't run script in the page), and one file to vendor (`dist/browser/markdown-it.umd.min.js`, 100 KB, the global `markdownit`). It records each block's source lines (`token.map`), so a task's box can carry the line it came from. Task lists need a core rule of our own (about 15 lines, after `inline`): a list item whose paragraph starts with `[ ] ` or `[x] ` gets an `<input type="checkbox" data-line="N">`. The `markdown-it-task-lists` plugin (ISC) is unmaintained since 2022 and doesn't record lines. marked has task lists built in but no source positions; micromark / remark have positions but are many ES modules to bundle.
+
+Smoke-tested on 25 Nov 2026 in a standalone window (the Alfred UI helper opened directly on a bundle in a scratch folder), with a page rendering a sample note through markdown-it, real posted clicks and keys:
+
+- The `webkitview`'s keys, from its framework (`AUIWebKitView`): `src` and `openlinksexternally` (a boolean, or a regular expression for the links to open in the browser). A `src` that names an existing file in the bundle (`"src": "view.html"`) loads as a `file://` URL, and the page can load a script beside it (`<script src="markdown-it.umd.min.js">`). Any other `src` without a scheme gets `https://` put in front.
+- Its value is `{value:<id>.src}`, the page's current URL. It sends `changed` whenever that URL changes, including a change of only the fragment, from `location.hash` or `history.replaceState`. It also sends `preload` and `launched` as the page loads (with a `changed`). So the page tells the workflow about a click by changing its fragment, e.g. `#t-<line>-<x|o>-<counter>` (the counter makes each change distinct), and the `changed` action's script reads it from `{value:web.src}`. Real clicks on four boxes each sent one `changed` with the right line and state.
+- A script's `update` of the `src` reloads the page (it then sent its own `changed` as before), for when the note changes or the view must be rebuilt. It must be an absolute `file://` URL: a relative `view.html?v=2` became `https://view.html/?v=2`, which failed to load, and the web view went back to the previous URL and sent `changed` again, so a script that answers every `changed` with an `update` loops.
+- The root view's shortcuts (⌘E, ↩, ⌘1) all ran on the first press while the page had keyboard focus, after a click in it, unlike the `markdownarea`, where the first ↩ after a click only moves the focus (see [Layout and controls](#layout-and-controls)).
+- The page draws its own background: its `body` needs the note's tint (or none in the quick view, to take Alfred's theme), and its own CSS for lists, tables, code and spacing.
+
+To do before deciding:
+
+- Try it in the quick view, inside Alfred's window, and with a dark Alfred theme.
+- Selecting and copying text, scrolling a long note, and links opening in the browser (`openlinksexternally`).
+- Whether the page shows blank, or flashes, while it loads, in a quick view built before Alfred opens it.
+- How the script that ticks a task checks that the note hasn't changed under it: the line still holds a task with the same text, or the note's modification time matches the one the page was built from.
+- How the note's text reaches the page: written into the bundle (as `view.html` or a `note.js` beside it) when the bundle is built or the mode is switched, and how that fits the quick bundles' fingerprints (see [Seamless quick views](#seamless-quick-views)).
 
 ### Layout and controls
 
