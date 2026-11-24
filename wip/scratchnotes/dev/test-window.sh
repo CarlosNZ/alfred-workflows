@@ -59,6 +59,7 @@ expect "quick: the viewer has the note's text" "$(json $ui 'd.window.root.compon
 expect "quick: the title is the note's" "$(json $ui 'd.window.title')" "Team meeting"
 expect "quick: ⌘E and ⌘P, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘P"
 expect "quick: the quick size" "$(json $ui 'd.window.size.width + "x" + d.window.size.height')" "640x400"
+expect "quick: no tint or appearance, so it takes Alfred's theme" "$(json $ui '"background" in d.window.root || "appearance" in d.window.root')" "false"
 expect "actions run window.js by its absolute path" "$(json $ui 'd.window.root.events[0].action.src')" "$scripts/window.js"
 expect "launched's args are strings" "$(json $ui 'd.window.root.events[0].action.args.join(" ")')" "launched meeting quick view"
 expect "no template directives are left" "$(grep -c '"@' $ui || true)" "0"
@@ -68,6 +69,7 @@ expect "context: notes folder, font size, tint" "$(json $bundle/context.json 'd.
 bundle=$(open_note font_size=17 open_mode=edit pin meeting)
 ui=$bundle/ui.json
 expect "pinned: open_mode edit gives Edit, without Pin" "$(json $ui $ids)" "note:view toprow:view toggle:button content:view editor:textarea"
+expect "pinned: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FFF3B0 light"
 expect "pinned: ⎋ closes, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⎋"
 expect "pinned: the font size is a number" "$(json $ui 'typeof d.window.root.components[1].components[0].font.size + " " + d.window.root.components[1].components[0].font.size')" "number 17"
 expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 pin meeting)/context.json" 'd.fontSize')" "20"

@@ -15,7 +15,7 @@ Every item is marked with its status:
 - An Alfred results list of the notes, with a preview and when each was last edited; actioning one opens it in its own window. **Decided**
 - One window per note, so several notes can be open at once, arranged around the desktop like sticky notes. **Decided** (feasibility tested, see [Multiple windows](#multiple-windows))
 - Notes are edited as Markdown, with a toggle between editing the source and viewing it rendered. **Decided**
-- Each note has its own colour, shown in its window and in the results list. **Decided**
+- Each note has its own colour, shown in its pinned window and in the results list. **Decided**
 - New notes from a keyword, from the results list, and from a Universal Action on text. **Decided**
 
 ## Storage
@@ -67,8 +67,9 @@ Every item is marked with its status:
   - The workflow ships one pre-made dot icon per colour for the results list.
   - A missing or unknown colour name gets the default colour (see [Configuration](#configuration)).
   - Free choice (hex) was rejected: Alfred UI has no colour well component, so it would need `opendialog`-style workarounds or a `webkitview` (unproven), icons generated on demand, and tints derived from arbitrary hex values to stay readable.
-- The colour tints the whole window, text area included, like a sticky note: the root view's `background` is the tint, and the `textarea` and `markdownarea` have `background: null`, so it shows through them. Tested inside Alfred and in a pinned window, with solid (`#FFF3B0`), translucent (`#FFCC0033`, `#FFCC0066`) and macOS (`systemYellowColor`, `yellowColor`) colours, all readable in light appearance. **Decided**
-- A note looks the same in light and dark appearance, like Apple's Stickies: its pale tint stays, and its text is always dark, set with `colour` on the `textarea` and `markdownarea`. The default text colour follows the appearance, so without this, dark mode gives white text on the pale tint, which is unreadable (tested). **Decided**
+- The colour tints the whole of a pinned window, text area included, like a sticky note: the root view's `background` is the tint, and the `textarea` and `markdownarea` have `background: null`, so it shows through them. Tested inside Alfred and in a pinned window, with solid (`#FFF3B0`), translucent (`#FFCC0033`, `#FFCC0066`) and macOS (`systemYellowColor`, `yellowColor`) colours, all readable in light appearance. **Decided**
+- The quick view isn't tinted: its root view has no `background` or `appearance` (they're `@pinned` in `ui/window.json`), so it takes Alfred's theme, text and buttons included, and looks like the rest of Alfred's window (checked with a dark theme). **Decided**. An accent of the note's colour in the quick view is **Open**.
+- A pinned note looks the same in light and dark appearance, like Apple's Stickies: its pale tint stays, and its text is always dark, set with `colour` on the `textarea` and `markdownarea`. The default text colour follows the appearance, so without this, dark mode gives white text on the pale tint, which is unreadable (tested). **Decided**
   - Only macOS's named colours adapt to the appearance by themselves; hex, `rgb()`, `hsv()` and `ui.json`'s `colours` constants are fixed. Adaptive notes would need either a light and a dark tint per colour, chosen by the script that opens the window (so an open window keeps its tint until reopened), or a translucent tint that suits both.
   - TO-DO: dark-appearance variants of the palette, in a later version.
   - Tested in dark appearance with a pale tint and `colour: "#1D1D1F"` on both: the editor and the rendered view stayed dark and readable across seven pale hues (`#FFF3B0`, `#FFD6E0`, `#D6E9FF`, `#D9F2D0`, `#E8DDF7`, `#FFE2C2`, `#E6E6E6`). The top row's buttons still switched to their dark style.
@@ -199,6 +200,20 @@ Then tested by hand with a test bundle (a top row of buttons over a `textarea`, 
 - **Esc in a pinned window** (a `⎋` shortcut running a script, then `finish`) runs the shortcut and then fires `quit` with the text.
 - **`{value:editor.text}` is empty when the `textarea` isn't in the window.** After the Edit / View toggle has replaced the `textarea` with the `markdownarea`, `quit` (and any other action) gets an empty string for it. A save on `quit` must only use it in Edit mode, or it would blank the note (and the empty-note rule would then delete it); see [Saving](#saving).
 - **Pinning a note that's already pinned** once opened a second window (above) and once opened none, so the behaviour isn't reliable either way; the guard is still needed.
+
+The gap between the results and the quick view, tested with screen recordings at 60 fps (24 Nov 2026), with temporary keywords whose Script Filter gave one result for a prebuilt bundle:
+
+- **Only a direct connection is seamless.** With the Script Filter connected straight to the Alfred UI object, the results were replaced by the view from one frame to the next: no blank, no fade. Likewise with `stackview`, and with the real note bundle, whose `launched` script (`window.js`) didn't hold the view back.
+- **Anything in between makes Alfred hide and fade.** With a Run Script between them, even one that only echoed its input, or a Conditional, Alfred hid its whole window on ↩, search field included, showed nothing for a few frames, and faded the view in over about 170 ms. ScratchNotes' route (Run Script `open.js`, Conditional, Alfred UI) showed nothing for 170–200 ms before the fade; World Clock's inline view (Conditional, Run Script, Alfred UI) for 50–90 ms. `open.js` takes about 50 ms run directly.
+- **Filling the view as it opens pops in.** A fixed bundle with an empty content view, filled by a `replace` from its `launched` script, swapped in at once but empty, and its text appeared about 100 ms later.
+- So a seamless quick view needs its bundle written, with the note's text, before ↩: by `list.js`. Building and writing a bundle takes about 2–2.5 ms (300 notes: 600–800 ms), so `list.js` could only afford to rewrite the ones that have changed.
+
+**Proposed**, for a seamless quick view:
+
+- The Script Filter's ↩ connects straight to the quick view's Alfred UI object, and each result's `arg` is its note's quick bundle, which `list.js` writes (or rewrites) for the results it returns when the note, its sidecar, the settings or the templates have changed since it was written. ⌘↩ (pin) keeps its Run Script, where a fade doesn't matter.
+- The view's `launched` script checks the bundle against the note, and if the note has changed since (an edit elsewhere between the list and ↩), replaces the content with the current text, so a stale bundle can never be saved back over the note.
+- A note that's already pinned gets a bundle whose `launched` brings its window to the front and finishes, closing Alfred.
+- New note: `list.js` picks the new note's ID and writes its bundle, with the query as its text. Bundles of new notes that were never opened are swept up later.
 
 ### Per-window state
 

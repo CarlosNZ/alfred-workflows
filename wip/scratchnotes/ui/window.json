@@ -16,8 +16,7 @@
       "id": "note",
       "type": "view",
       "layout": "border",
-      "appearance": "light",
-      "background": "@tint",
+      "@pinned": { "appearance": "light", "background": "@tint" },
       "spacing": 6,
       "shortcuts": [
         { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "{value:editor.text}"] } },
