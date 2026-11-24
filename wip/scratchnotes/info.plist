@@ -189,6 +189,19 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>path</key>
+				<string>{query}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.revealfile</string>
+			<key>uid</key>
+			<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>alfredfiltersresults</key>
 				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
@@ -234,19 +247,6 @@
 			<string>3FDC54A5-ACE6-4C18-8675-482F2052F2DE</string>
 			<key>version</key>
 			<integer>3</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>path</key>
-				<string>{query}</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.revealfile</string>
-			<key>uid</key>
-			<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
-			<key>version</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -414,9 +414,9 @@
 		<key>3FDC54A5-ACE6-4C18-8675-482F2052F2DE</key>
 		<dict>
 			<key>xpos</key>
-			<real>30</real>
+			<real>40</real>
 			<key>ypos</key>
-			<real>150</real>
+			<real>315</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</key>
 		<dict>
@@ -449,16 +449,16 @@
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D07</key>
 		<dict>
 			<key>xpos</key>
-			<real>470</real>
+			<real>485</real>
 			<key>ypos</key>
-			<real>420</real>
+			<real>430</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</key>
 		<dict>
 			<key>xpos</key>
-			<real>470</real>
+			<real>490</real>
 			<key>ypos</key>
-			<real>580</real>
+			<real>590</real>
 		</dict>
 		<key>CEC2F155-08CF-4B0A-8AC9-268E023173CA</key>
 		<dict>
