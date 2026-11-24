@@ -300,11 +300,19 @@ function noteStore(folder = notesFolder()) {
   // and returns the path it has in the Trash ("" if Finder doesn't say), or
   // null if the note doesn't exist. Its sidecar stays, so a note that's put
   // back keeps its metadata. Needs permission to control Finder: macOS asks
-  // the first time.
+  // the first time, and once it's refused, the error says where to allow it.
   function trash(id) {
     const path = notePath(id);
     if (!fm.fileExistsAtPath(path)) return null;
-    const item = Application("Finder").delete(Path(path));
+    let item;
+    try {
+      item = Application("Finder").delete(Path(path));
+    } catch (e) {
+      // -1743 is errAEEventNotPermitted, for which JXA's message is only "An
+      // error occurred."
+      if (e.errorNumber === -1743) throw new Error("Alfred isn't allowed to control Finder. Allow it in System Settings › Privacy & Security › Automation.");
+      throw e;
+    }
     if (fm.fileExistsAtPath(path)) throw new Error(`Finder didn't move ${path} to the Trash`);
     try {
       return $.NSURL.URLWithString(item.url()).path.js;
