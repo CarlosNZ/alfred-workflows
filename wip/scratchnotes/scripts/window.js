@@ -53,7 +53,9 @@ function run(argv) {
 // The window has opened. Records its state, except in a quick view of a note
 // that's already pinned: that view finishes as Pin does, carrying on to the
 // pin route, which brings the pinned window to the front, so a note is never
-// open in two windows. And if a quick view's note has changed since list.js
+// open in two windows. (↩ on a pinned note doesn't open a quick view at all,
+// so this only catches a note pinned after the results were listed; see
+// noteItem in list.js.) And if a quick view's note has changed since list.js
 // wrote its bundle (an edit elsewhere just before ↩), it shows the note as it
 // is now, so a stale text can't be saved over it.
 function launched(store, workflowFolder, context, id, form, mode) {

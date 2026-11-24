@@ -61,6 +61,16 @@
 				<key>vitoclose</key>
 				<false/>
 			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
 		</array>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</key>
 		<array>
@@ -99,6 +109,21 @@
 				<string></string>
 				<key>sourceoutputuid</key>
 				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0A</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
 				<key>vitoclose</key>
 				<false/>
 			</dict>
@@ -284,6 +309,38 @@
 				<array>
 					<dict>
 						<key>inputstring</key>
+						<string>{var:pinned}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>1</string>
+						<key>outputlabel</key>
+						<string>Pinned</string>
+						<key>uid</key>
+						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>else</string>
+				<key>hideelse</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
 						<string>{var:open_window}</string>
 						<key>matchcasesensitive</key>
 						<false/>
@@ -340,7 +397,7 @@
 			<key>xpos</key>
 			<real>600</real>
 			<key>ypos</key>
-			<real>400</real>
+			<real>315</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D02</key>
 		<dict>
@@ -360,6 +417,13 @@
 		<dict>
 			<key>xpos</key>
 			<real>490</real>
+			<key>ypos</key>
+			<real>590</real>
+		</dict>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</key>
+		<dict>
+			<key>xpos</key>
+			<real>180</real>
 			<key>ypos</key>
 			<real>590</real>
 		</dict>

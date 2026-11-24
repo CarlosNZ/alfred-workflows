@@ -11,7 +11,8 @@
 // Each result's arg is its quick view's bundle, which ↩ opens inside Alfred
 // with nothing in between, so the view replaces the results seamlessly. The
 // bundles are written here, before the results are shown, and only rebuilt
-// when out of date (see quickWindows in lib.js). ⌘↩ pins the note (open.js;
+// when out of date (see quickWindows in lib.js). ↩ on a note that's pinned
+// brings its pinned window to the front instead (see noteItem). ⌘↩ pins the note (open.js;
 // that modifier's arg is the note's ID), ⌥↩ moves it to the Trash (trash.js),
 // ⌃↩ reveals it in Finder (its path is that modifier's arg), and Quick Look
 // shows the file.
@@ -33,7 +34,8 @@ function run(argv) {
   const words = searchWords(query);
   const matches = notes.filter((note) => words.every((word) => searchText(note).includes(word)));
   const now = new Date();
-  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note))));
+  const pinned = attempt(pinnedNoteIds) || new Set();
+  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), pinned.has(note.id)));
   if (!query) items.unshift(newNoteItem("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
   else if (items.length === 0) items.push(newNoteItem(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
   if (quick) attempt(() => quick.finish(notes));
@@ -52,12 +54,18 @@ function attempt(fn) {
   }
 }
 
-function noteItem(note, now, bundle) {
+// A note that's pinned gets no arg, so ↩ shows no quick view, and the variable
+// `pinned`, which takes ↩ down the pin route instead (with `pin_note` naming
+// the note, as Pin in a quick view does), where open.js brings the pinned
+// window to the front.
+function noteItem(note, now, bundle, pinned) {
   const edited = `Edited ${formatEditedTime(note.modified, now)}`;
+  const subtitle = note.preview ? `${edited} · ${note.preview}` : edited;
   return {
     title: note.title,
-    subtitle: note.preview ? `${edited} · ${note.preview}` : edited,
-    arg: bundle,
+    subtitle: pinned ? `Pinned · ${subtitle}` : subtitle,
+    arg: pinned ? "" : bundle,
+    variables: pinned ? { pinned: "1", pin_note: escapeForAlfredUi(note.id) } : undefined,
     quicklookurl: note.path,
     action: { file: note.path },
     text: { copy: note.text, largetype: note.text },

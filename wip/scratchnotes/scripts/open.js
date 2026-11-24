@@ -3,8 +3,9 @@
 // Opens a note in a window: argv[0] is the form, "quick" (inside Alfred's
 // window) or "pin" (its own window on the desktop), and argv[1] the note's ID,
 // or, with the variable `new` set to "1" (the New note result), the text a new
-// note starts with. After Pin in a quick view, the variable `pin_note` names
-// the note instead (escaped as in its window; see escapeForAlfredUi).
+// note starts with. After Pin in a quick view, or ↩ on a pinned note in the
+// results, the variable `pin_note` names the note instead (escaped as in its
+// window; see escapeForAlfredUi).
 //
 // It writes the note's window bundle (see "Note windows" in lib.js) and
 // prints it as the arg, for the Alfred UI object that follows, with the
@@ -12,10 +13,10 @@
 // that window to the front instead and leaves `open_window` empty, so the
 // Conditional after it stops, and a note is never open in two windows at once.
 //
-// The workflow runs it for pinning (⌘↩, and Pin in a quick view). ↩ in the
-// results opens a quick bundle that list.js has already written (see
-// quickWindows in lib.js); `open.js quick` writes one the same way, for
-// testing.
+// The workflow runs it for pinning (⌘↩, and Pin in a quick view) and for ↩
+// on a pinned note. ↩ on any other note opens a quick bundle that list.js has
+// already written (see quickWindows in lib.js); `open.js quick` writes one the
+// same way, for testing.
 //
 // A new note gets its ID now, before it's saved, so its window can save to it;
 // newId skips IDs that open, unsaved notes already use (isNoteIdInUse).

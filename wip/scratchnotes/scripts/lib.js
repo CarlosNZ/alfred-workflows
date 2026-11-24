@@ -630,11 +630,15 @@ function textHash(text) {
 // leaves its state behind, so a pinned note counts as open only while its
 // process is alive (pinnedNotePid).
 
-function noteStatePath(id, variable = workflowVariable) {
-  if (!isNoteId(id)) throw new Error(`Not a note ID: ${JSON.stringify(id)}`);
+function noteStateFolder(variable = workflowVariable) {
   const cache = variable("alfred_workflow_cache");
   if (!cache) throw new Error("alfred_workflow_cache isn't set");
-  return `${expandPath(cache)}/state/${id}.json`;
+  return `${expandPath(cache)}/state`;
+}
+
+function noteStatePath(id, variable = workflowVariable) {
+  if (!isNoteId(id)) throw new Error(`Not a note ID: ${JSON.stringify(id)}`);
+  return `${noteStateFolder(variable)}/${id}.json`;
 }
 
 function readNoteState(id, variable = workflowVariable) {
@@ -662,6 +666,14 @@ function pinnedNotePid(id, variable = workflowVariable) {
   if (!app || app.isTerminated) return null;
   const executable = app.executableURL.isNil() ? "" : app.executableURL.path.js;
   return executable.endsWith("/Alfred UI") ? state.pid : null;
+}
+
+// The IDs of the notes that have a pinned window (see pinnedNotePid), from
+// the state folder, listed once.
+function pinnedNoteIds(variable = workflowVariable) {
+  const names = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(noteStateFolder(variable), null)) || [];
+  const ids = names.filter((name) => name.endsWith(".json")).map((name) => name.slice(0, -".json".length));
+  return new Set(ids.filter((id) => isNoteId(id) && pinnedNotePid(id, variable) !== null));
 }
 
 // Brings the window of the Alfred UI process `pid` to the front.

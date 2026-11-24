@@ -95,6 +95,12 @@ expect "the index drops gone notes" "$(grep -c recent $quick/.index.json || true
 new1=$(items "$notes" | head -1 | cut -d'|' -f3 | xargs basename)
 expect "a New note bundle has a new ID and opens in Edit" "$new1 $(grep -c '"textarea"' $quick/$new1/ui.json)" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9].alfredui 1"
 
+# A pinned note's result (no arg, `pinned` set) needs a live Alfred UI helper,
+# so it's checked in Alfred; a pinned state whose process isn't one is ignored.
+print -r -- '{"form":"pinned","pid":'$$',"mode":"edit"}' > "$cache/state/shopping.json"
+expect "a pinned state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago · milk, eggs | $quick/shopping.alfredui "
+rm "$cache/state/shopping.json"
+
 expect "unusable notes folder: an error result" "$(items "$tmp/missing/notes" | cut -d'|' -f1-2)" "Can't open the notes folder | Can't create *"
 
 print
