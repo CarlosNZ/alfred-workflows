@@ -412,10 +412,10 @@ Type a city or country to narrow the list: `wcc new` matches both **New York, US
 
 Your "Home" (🏠️) city is determined by the first city in the Clock app that matches your current time zone.
 
-- &lt;kbd&gt;↩&lt;/kbd&gt; Show a detail view for the city
-- &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Open the city's detail window, which stays open
+- &lt;kbd&gt;↩&lt;/kbd&gt; Show a detail view for the city in Alfred
+- &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Open the detail view in a separate window
 - &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Edit your cities list in the Clock app
-- &lt;kbd&gt;⌃&lt;/kbd&gt; _(held)_ Show the city's full time zone info, e.g. "Pacific/Auckland • New Zealand Daylight Time (NZDT) • UTC+13"
+- &lt;kbd&gt;⌃&lt;/kbd&gt; _(held)_ Show the city's full time zone info, e.g. "Pacific/Auckland • New Zealand Standard Time (NZST) • UTC+12"
 
 ![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
@@ -457,7 +457,7 @@ The following preferences can be tailored to your needs in the workflow's config
 - **Sort by time zone**: Clock's order, or by UTC offset
 - **Working day start time** and **end time**: the times determining each city's "at work" status
 - **City pictures**: download city image thumbnails from Wikipedia for the detail views
-- **Custom pictures**: your own choice of picture for any city, one per line as `City: URL`. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`) or just its file name (`San Francisco: File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
+- **Custom pictures**: replace the automatic thumbnail for any city `City: URL`, one per line. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`) or just its file name (`San Francisco: File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
 - **Action keys**: which modifier key does each action
 - **Window buttons**, **Corner radius** and **Transparency**: the look of the detail window
 
