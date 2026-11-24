@@ -3,6 +3,7 @@
   "type": "view",
   "layout": "stack",
   "constraints": { "region": "centre", "stretch": "both", "insets": { "left": 14, "right": 10, "bottom": 10 } },
+  "shortcuts": [{ "shortcut": "↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["edit", "@note", "@form", ""] } }],
   "components": [
     {
       "id": "viewer",
@@ -14,15 +15,6 @@
       "listspacing": 2,
       "background": null,
       "constraints": { "stretch": "both" }
-    },
-    {
-      "id": "doubleclick",
-      "type": "view",
-      "constraints": { "stretch": "both" },
-      "events": [
-        { "triggers": "mousedown", "action": { "type": "json", "src": {} } },
-        { "triggers": "doubleclicked", "action": { "type": "script", "src": "scripts/window.js", "args": ["edit", "@note", "@form", ""] } }
-      ]
     }
   ]
 }

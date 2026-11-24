@@ -54,9 +54,10 @@ print -rn -- $'Vars: {var:x} and {const:y}\n' > "$notes/vars.md"
 bundle=$(open_note quick meeting)
 expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" "$cache/quick/meeting.alfredui"
 ui=$bundle/ui.json
-expect "quick: View mode, with the top row" "$(json $ui $ids)" "note:view toprow:view toggle:button pin:button content:view viewer:markdownarea doubleclick:view"
+expect "quick: View mode, with the top row" "$(json $ui $ids)" "note:view toprow:view toggle:button pin:button content:view viewer:markdownarea"
 expect "quick: the viewer has the note's text" "$(json $ui 'd.window.root.components[1].components[0].text')" $'# Team meeting\n- Ship it'
 expect "quick: the title is the note's" "$(json $ui 'd.window.title')" "Team meeting"
+expect "quick: View's content has ↩ (to Edit)" "$(json $ui 'd.window.root.components[1].shortcuts.map(s => s.shortcut + " " + s.action.args[0]).join(" ")')" "↩ edit"
 expect "quick: ⌘E, ⌘↩ and ⌘P, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P"
 expect "quick: the quick size" "$(json $ui 'd.window.size.width + "x" + d.window.size.height')" "640x400"
 expect "quick: no tint or appearance, so it takes Alfred's theme" "$(json $ui '"background" in d.window.root || "appearance" in d.window.root')" "false"
@@ -114,6 +115,7 @@ expect "save with no state: blank text isn't saved" "$(cat $notes/$id1.md)" "Buy
 open_note pin "$id1" >/dev/null
 replace=$(window_js launched "$id1" pinned view; window_js toggle "$id1" pinned "")
 expect "toggle to Edit: an editor with the file's text" "$(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text')" "textarea Buy oat milk"
+expect "toggle to Edit: no ↩ shortcut, so ↩ types a new line" "$(print -r -- $replace | json - 'String(d.replace.ids.content.shortcuts)')" "undefined"
 expect "toggle in a pinned window: no Pin button" "$(print -r -- $replace | json - 'd.replace.ids.toprow.components[0].components.length')" "1"
 expect "edit in Edit: nothing" "$(window_js edit "$id1" pinned "")" ""
 replace=$(window_js view "$id1" pinned "Buy oat milk!")

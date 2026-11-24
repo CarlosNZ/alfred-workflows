@@ -5,7 +5,7 @@
 //   window.js launched <id> <form> <mode>   the window opened: records its state
 //   window.js save <id> <form> <text>       typing stopped: saves the text
 //   window.js toggle <id> <form> <text>     ⌘E or the Edit / View button
-//   window.js edit <id> <form> <text>       double-click in View: to Edit
+//   window.js edit <id> <form> <text>       ↩ in View: to Edit
 //   window.js view <id> <form> <text>       ⌘↩ in Edit: saves, to View
 //   window.js quit <id> <form> <text>       the window closed: saves, and
 //                                           deletes the note if it's empty
