@@ -115,12 +115,42 @@ cmd_link() {
 }
 
 cmd_unlink() {
-  (( $# == 1 )) || die "usage: wf unlink <slug>"
+  local clean=0
+  [[ ${1:-} == --clean ]] && { clean=1; shift }
+  (( $# == 1 )) || die "usage: wf unlink [--clean] <slug>"
   local d l
   d=$(wf_path $1)
+  (( clean )) && clean_workflow_state $d
   links_to $d
-  (( $#reply )) || { info "$1 is not linked"; return }
-  for l in $reply; do rm $l; info "Removed link ${l:t}"; done
+  if (( $#reply )); then
+    for l in $reply; do rm $l; info "Removed link ${l:t}"; done
+  else
+    info "$1 is not linked"
+  fi
+}
+
+# Move the Workflow Data and cache folders for $1's bundle ID to the Trash, so
+# the next install starts as a user's first install would. Refuses while Alfred
+# has an installed (unlinked) copy with that bundle ID, since the folders are
+# that copy's state.
+clean_workflow_state() {
+  local d=$1 bid ad other f n=0
+  bid=$(plist_get $d/info.plist bundleid)
+  [[ -n $bid ]] || die "${d:t} has no bundle ID, so it has no data or cache folders"
+  ad=$(alfred_dir)
+  for other in $ad/*(N/); do
+    [[ $(plist_get $other/info.plist bundleid) == $bid ]] &&
+      die "Alfred has an installed copy of $bid (${other:t}); delete it in Alfred, which also removes its data and cache"
+  done
+  [[ -x /usr/bin/trash ]] || die "--clean needs /usr/bin/trash (macOS 15 or later)"
+  for f in "$HOME/Library/Application Support/Alfred/Workflow Data/$bid" \
+           "$HOME/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/$bid"; do
+    [[ -e $f ]] || continue
+    /usr/bin/trash $f
+    info "Moved to Trash: ${f/#$HOME/~}"
+    (( ++n ))
+  done
+  (( n )) || info "No data or cache folders for $bid"
 }
 
 # Move a workflow out of Alfred's directory into wip/<slug>, leaving a symlink
@@ -478,7 +508,9 @@ Usage: wf <command> [args]
   status                      List workflows, versions and whether Alfred has them linked
   adopt <name|folder> <slug>  Move a workflow made in Alfred into wip/<slug> and link it back
   link <slug>                 Symlink a repo workflow into Alfred
-  unlink <slug>               Remove a workflow's symlink from Alfred (repo copy is untouched)
+  unlink [--clean] <slug>     Remove a workflow's symlink from Alfred (repo copy is untouched);
+                              --clean also moves its Workflow Data and cache folders to the
+                              Trash, ready to test a fresh install of the built bundle
   promote <slug>              Move a workflow up a tier (wip -> release -> gallery) and repoint its link
   build [--allow-unsigned] <slug>
                               Sync the workflow's info.plist (as sync-config and sync-readme do),

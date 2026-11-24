@@ -1,5 +1,9 @@
 # Now Playing
 
+**[Download v0.9.3](https://github.com/CarlosNZ/alfred-workflows/releases/download/now-playing%2Fv0.9.3/now-playing-0.9.3.alfredworkflow)**
+
+<!-- start of Alfred readme -->
+
 ## Usage
 
 See the status of currently playing **music** or **video** via the `nowplaying` (or `np`) keyword, and launch a mini player panel.

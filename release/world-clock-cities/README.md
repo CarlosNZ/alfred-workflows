@@ -1,5 +1,9 @@
 # World Clock Cities
 
+**[Download v1.0.0](https://github.com/CarlosNZ/alfred-workflows/releases/download/world-clock-cities%2Fv1.0.0/world-clock-cities-1.0.0.alfredworkflow)**
+
+<!-- start of Alfred readme -->
+
 ## Usage
 
 View the current time around the world with the `wcc` keyword, or set a Hotkey for it. Type in a specific time or offset (e.g. "+6") to plan for meetings.
@@ -14,10 +18,10 @@ Type a city or country to narrow the list: `wcc new` matches both **New York, US
 
 Your "Home" (🏠️) city is determined by the first city in the Clock app that matches your current time zone.
 
-- <kbd>↩</kbd> Show a detail view for the city
-- <kbd>⌘</kbd><kbd>↩</kbd> Open the city's detail window, which stays open
+- <kbd>↩</kbd> Show a detail view for the city in Alfred
+- <kbd>⌘</kbd><kbd>↩</kbd> Open the detail view in a separate window
 - <kbd>⌥</kbd><kbd>↩</kbd> Edit your cities list in the Clock app
-- <kbd>⌃</kbd> _(held)_ Peek at the city's working day, as meeting mode shows it
+- <kbd>⌃</kbd> _(held)_ Show the city's full time zone info, e.g. "Pacific/Auckland • New Zealand Standard Time (NZST) • UTC+12"
 
 ![Auckland detail view](docs/wcc_detail_auckland_now.png)
 
@@ -35,7 +39,7 @@ Enter a time after the `wcc` keyword to switch to **meeting mode** and see who's
 
 ![World Clock Cities at a time](docs/wcc_results_time.png)
 
-Hold <kbd>⌃</kbd> to peek at the city's time zone offset and daylight, as clock mode shows them.
+As in clock mode, hold <kbd>⌃</kbd> to show the city's full time zone info for the entered time.
 
 The detail view also reflects the entered time:
 
@@ -59,7 +63,7 @@ The following preferences can be tailored to your needs in the workflow's config
 - **Sort by time zone**: Clock's order, or by UTC offset
 - **Working day start time** and **end time**: the times determining each city's "at work" status
 - **City pictures**: download city image thumbnails from Wikipedia for the detail views
-- **Custom pictures**: your own choice of picture for any city, one per line as `City: URL`. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`) or just its file name (`San Francisco: File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
+- **Custom pictures**: replace the automatic thumbnail for any city `City: URL`, one per line. The URL can be a Wikimedia Commons file page (e.g. `San Francisco: https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg`) or just its file name (`San Francisco: File:GoldenGateBridge-001.jpg`), any image URL, or a `file://` URL for a photo of your own (with three slashes, e.g. `Home: file:///Users/me/Pictures/home.jpg`). Lines starting with `#` are ignored. If a picture can't be loaded, the city gets its default one.
 - **Action keys**: which modifier key does each action
 - **Window buttons**, **Corner radius** and **Transparency**: the look of the detail window
 
@@ -76,7 +80,9 @@ If missing, grant them in System Settings > Privacy & Security.
 
 Workflow created with the assistance of [Claude Code](https://claude.com/product/claude-code).
 
-City pictures come from Wikipedia and Wikimedia Commons, and remain their photographers' work under their own licences. Pictures in the screenshots above, cropped:
+City pictures come from Wikipedia and Wikimedia Commons, and remain their photographers' work under their own licences. Hover over a city's picture in the detail view to see its credit, and click it to open it on Wikimedia Commons.
+
+Pictures in the screenshots above:
 
 - Auckland: [Auckland skyline](https://commons.wikimedia.org/wiki/File:Auckland_skyline_-_May_2024_(2).jpg) by elpinto007, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/)
 - New York: [View of Empire State Building from Rockefeller Center](https://commons.wikimedia.org/wiki/File:View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_(cropped).jpg) by Dllu, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)

@@ -321,17 +321,6 @@ function weekdayName(weekday) {
   return weekdayNames[weekday];
 }
 
-// Meeting mode's subtitle while ⌃ is held, for what clock mode's subtitle
-// answers, at the moment shown: the offsets, the country, and the nearest
-// sunrise or sunset, for whether it's dark there. E.g. "−13 hrs (UTC) | UK |
-// Sunset 2h ago", "🏠 (UTC+13) | New Zealand | Sunrise in 40m". Clock mode's ⌃
-// shows meeting mode's subtitle (meetingSubtitle), for the working status.
-function meetingCtrlSubtitle(info) {
-  return [formatOffsets(info), formatCountry(info), formatNearestSunEvent(info)]
-    .filter(Boolean)
-    .join(SUBTITLE_DIVIDER);
-}
-
 // The day length and its change since yesterday, e.g. "14h 6m (+2m/day)".
 function formatDayLength(info) {
   const length = formatDuration(info.dayLengthMinutes);
@@ -351,7 +340,7 @@ function formatLongDate(moment, timeZone) {
 // The time zone's identifier (with spaces for its underscores, as in
 // "America/New York"), its name, its abbreviation when it has one, and its
 // UTC offset, e.g. "Pacific/Auckland • New Zealand Daylight Time (NZDT) •
-// UTC+13".
+// UTC+13". Also a city result's alternative subtitle (⌃ held, by default).
 //
 // The names are in the Mac's language, as used in the city's country: the
 // formatter only gives the abbreviations common in its locale's region, so
@@ -489,6 +478,32 @@ function formatSpokenDuration(minutes) {
 // one.
 function formatSpokenRoughDuration(minutes) {
   return minutes < 59.5 ? plural(Math.max(1, Math.round(minutes)), "minute") : plural(Math.round(minutes / 60), "hour");
+}
+
+// The longest artist credit shown in a picture's tooltip: Commons' Artist
+// field is sometimes a paragraph, which the file's page shows in full.
+const PICTURE_ARTIST_MOST_CHARACTERS = 80;
+
+// The tooltip over a city's picture in the detail view, from its <slug>.json
+// (see fetch-pictures.js): who took it and its licence, e.g. "Photo by Gerd
+// Eichmann, CC BY-SA 4.0", then what clicking it does (pictureClick in
+// lib/pictures.js). Null when there's nothing to say.
+function formatPictureCredit(details) {
+  if (!details) return null;
+  if (details.file) {
+    let artist = details.artist;
+    if (artist && artist.length > PICTURE_ARTIST_MOST_CHARACTERS) {
+      artist = `${artist.slice(0, PICTURE_ARTIST_MOST_CHARACTERS - 1).trim()}…`;
+    }
+    const credit = [artist && `Photo by ${artist}`, details.licence].filter(Boolean).join(", ");
+    return [credit, "Click to open on Wikimedia Commons"].filter(Boolean).join("\n");
+  }
+  if (details.url) {
+    const host = details.url.match(/^[a-z]+:\/\/([^/?#]+)/i);
+    return `Image from ${host ? host[1] : details.url}\nClick to open`;
+  }
+  if (details.path) return `${details.path.split("/").pop()}\nClick to show in Finder`;
+  return null;
 }
 
 function plural(count, word) {

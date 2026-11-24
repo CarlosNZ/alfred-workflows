@@ -133,7 +133,8 @@ function detailClockChange(info, typed, now) {
 
 // The pulse's output for a city: a JSON update of the view's components, by
 // id (see lib/panel.js). `typed` is the saved typed time (see
-// savedTypedTime), or null for now; `meeting` is true in meeting mode; `picture` is the city's picture state (pictureState);
+// savedTypedTime), or null for now; `meeting` is true in meeting mode; `picture` is the city's picture state (pictureState),
+// with `details`, its <slug>.json (pictureDetails), when it's shown;
 // `iconsDir` holds the tiles' icons and the sunrise and sunset symbols; `layout` says whether the view has a
 // picture slot ({ picture }), which sets how wide the city's text can be.
 // Ids the view's layout doesn't have (the clock change line, say) are
@@ -174,7 +175,17 @@ function detailUpdate(info, { typed, meeting, now, picture, iconsDir, layout }) 
     sundetail2: { text: details[1] || " " },
     picture: picture.state === "shown" ? { image: { type: "file", src: picture.path }, hidden: false } : { hidden: true },
     pictureloading: { hidden: picture.state !== "loading" },
+    picturelink: pictureLinkUpdate(picture),
   };
   for (const id of ["city", "country", "date", "context", "zone"]) ids[id].font = fittedFont(id, ids[id].text, layout);
   return { update: { ids } };
+}
+
+// The button over the picture (see pictureSlot in lib/panel.js): shown with a
+// picture that has a page to open, with its credit as the tooltip and the
+// accessibility label.
+function pictureLinkUpdate(picture) {
+  const credit = picture.state === "shown" && pictureClick(picture.details) && formatPictureCredit(picture.details);
+  if (!credit) return { hidden: true };
+  return { hidden: false, tooltip: credit, accessibility: { label: credit.replace(/\n/g, ". ") } };
 }

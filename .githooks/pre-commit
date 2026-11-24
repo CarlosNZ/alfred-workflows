@@ -5,7 +5,8 @@
 # and commits where a workflow's info.plist is out of step with what it's
 # copied from: a shared User Configuration item (shared/userconfig) that
 # differs from the shared one, or a readme that differs from the user guide in
-# the workflow's README.md.
+# the workflow's README.md; and commits where a workflow's README.md doesn't
+# link to its latest release on GitHub.
 
 emulate -L zsh
 setopt pipe_fail
@@ -14,6 +15,7 @@ repo=$(git rev-parse --show-toplevel)
 secrets=0
 config=0
 readme=0
+download=0
 check_config=0
 check_readme=0
 tmp=$(mktemp -d)
@@ -61,6 +63,24 @@ if (( check_readme )); then
     done
 fi
 
+# Every workflow's staged README.md against its latest published release on
+# GitHub (see bin/lib/readme.py for which one). Checked on every commit, as
+# publishing a release changes nothing in the repo. Without gh or a network
+# connection it warns and lets the commit through.
+releases=$tmp/releases
+if ! command -v gh >/dev/null; then
+  print -u2 -- "Warning: gh isn't installed, so README.md download links weren't checked"
+elif ! (cd $repo && gh api --paginate 'repos/{owner}/{repo}/releases' \
+    --jq '.[] | {tag_name, draft, prerelease, assets: [.assets[].browser_download_url]}') > $releases 2> $tmp/gh-error; then
+  print -u2 -r -- "Warning: couldn't fetch the GitHub releases, so README.md download links weren't checked: $(< $tmp/gh-error)"
+else
+  git ls-files -z -- ':(glob)wip/*/README.md' ':(glob)release/*/README.md' ':(glob)gallery/*/README.md' |
+    while IFS= read -r -d '' f; do
+      git show ":$f" > $tmp/README.md
+      python3 -I "$repo/bin/lib/readme.py" download "${f:h}" $tmp/README.md $releases >&2 || download=1
+    done
+fi
+
 if (( secrets )); then
   print -u2 -- "\nCommit blocked. Move secrets into the workflow's User Configuration, or clear the values."
 fi
@@ -70,5 +90,8 @@ fi
 if (( readme )); then
   print -u2 -- "\nCommit blocked. Write the user guide in README.md, then run 'bin/wf sync-readme' and stage the result."
 fi
-(( secrets || config || readme )) && exit 1
+if (( download )); then
+  print -u2 -- "\nCommit blocked. Link each workflow's README.md to its latest release, as above, and stage the result."
+fi
+(( secrets || config || readme || download )) && exit 1
 exit 0

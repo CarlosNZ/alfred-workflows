@@ -47,15 +47,16 @@ ObjC.import("Foundation");
 
 const LIBS = ["lib/cities.js", "lib/pictures.js"];
 
-// The pictures' width in pixels. TO-DO: set it from the picture's size in the
-// detail view, once that's designed.
+// The pictures' width in pixels: twice the detail view's slot at 2x (210pt,
+// PICTURE_SIZE in lib/panel.js), leaving room to crop a wide picture to fill
+// it, and one of the standard thumbnail widths Wikimedia serves.
 const PICTURE_WIDTH = 960;
 // Retry delays, in seconds, for .backoff and .failed: the first, doubling with
 // each failure up to the most.
 const RETRY_DELAY_FIRST = 5 * 60;
 const RETRY_DELAY_MOST = 24 * 60 * 60;
-// Wikimedia's User-Agent policy asks for a way to get in touch. TO-DO: use the
-// workflow's Alfred forum or gallery URL in place of the repo once it has one.
+// Wikimedia's User-Agent policy asks for a way to get in touch: the repo,
+// where issues can be opened.
 const USER_AGENT = "WorldClockCities/%VERSION% (Alfred workflow; https://github.com/CarlosNZ/alfred-workflows)";
 
 const MATCH_RADIUS_KM = 50;
