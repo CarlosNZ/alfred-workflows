@@ -343,7 +343,9 @@ function noteStore(folder = notesFolder()) {
 //                                 properties merged into the object in that
 //                                 form or mode
 //   "@note", "@text", …           a whole string that's a token is replaced by
-//                                 its value (see noteWindowTokens)
+//                                 its value (see noteWindowTokens); an array
+//                                 element whose token's value is an array is
+//                                 replaced by its elements
 //   "src": "scripts/…"            an action's script, made absolute, since the
 //                                 bundle isn't in the workflow folder
 //
@@ -352,14 +354,46 @@ function noteStore(folder = notesFolder()) {
 // {data:…} in action arguments, so text from a note is escaped before it goes
 // in (escapeForAlfredUi) and unescaped when it comes back.
 
-const NOTE_TINT = "#FFF3B0";
 const FONT_SIZE = { min: 11, max: 20, default: 13 };
 const WORD_JOINER = "⁠";
 
-// The window tint for a note with metadata `meta`.
-// TO-DO: the note's colour from the palette (step 4).
-function noteTint(meta) {
-  return NOTE_TINT;
+// The palette: Stickies' colours, from its asset catalogue. Each colour has a
+// pale `tint` for a pinned note's background (always with dark text), a
+// stronger `spine` (Stickies' menu swatches) and a `control` colour, for the
+// colour button's dot; the results list's icons use the spine and control
+// colours (dev/make-icons.js). In menu order, which is also ⌘1 to ⌘6. A note
+// stores its colour's name, so the colours can be re-tuned without rewriting
+// notes.
+const NOTE_PALETTE = [
+  { name: "yellow", label: "Yellow", heart: "💛", tint: "#FEF49C", spine: "#FEEA3D", control: "#DBC503" },
+  { name: "blue", label: "Blue", heart: "🩵", tint: "#ADF4FF", spine: "#89F0FF", control: "#24D0E9" },
+  { name: "green", label: "Green", heart: "💚", tint: "#B2FFA1", spine: "#83FE83", control: "#51BB51" },
+  { name: "pink", label: "Pink", heart: "🩷", tint: "#FFC7C7", spine: "#FFB2B2", control: "#F87F7F" },
+  { name: "purple", label: "Purple", heart: "💜", tint: "#B6CAFF", spine: "#9BB6FE", control: "#7D9BEB" },
+  { name: "grey", label: "Grey", heart: "🩶", tint: "#EEEEEE", spine: "#DADADA", control: "#A8A8A8" },
+];
+const DEFAULT_COLOUR = "yellow";
+
+// The palette, as copies of its colours: { name, label, heart, tint, spine,
+// control }.
+function notePalette() {
+  return NOTE_PALETTE.map((colour) => Object.assign({}, colour));
+}
+
+// The palette's colour named `name`, or null if there's none.
+function notePaletteColour(name) {
+  const colour = NOTE_PALETTE.find((c) => c.name === name);
+  return colour ? Object.assign({}, colour) : null;
+}
+
+// The colour of a note with metadata `meta`: its own, or, if it has none or
+// one that isn't in the palette, the `default_colour` setting's, or yellow.
+function noteColour(meta, variable = workflowVariable) {
+  return notePaletteColour(meta && meta.colour) || noteDefaultColour(variable);
+}
+
+function noteDefaultColour(variable = workflowVariable) {
+  return notePaletteColour(variable("default_colour")) || notePaletteColour(DEFAULT_COLOUR);
 }
 
 // The text with a word joiner after the "{" of each {var:, {const:, {value:
@@ -404,31 +438,66 @@ function readNoteTemplate(workflowFolder, name) {
 }
 
 // The values of the templates' tokens for a window, given:
-//   workflowFolder, id, form, mode, text, fontSize, tint
-function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize = FONT_SIZE.default, tint = NOTE_TINT }) {
+//   workflowFolder, id, form, mode, text, fontSize, colour (a palette name)
+function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize = FONT_SIZE.default, colour = DEFAULT_COLOUR }) {
+  const current = notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR);
+  const note = escapeForAlfredUi(id);
   return {
-    "@note": escapeForAlfredUi(id),
+    "@note": note,
     "@form": form,
     "@mode": mode,
     "@text": escapeForAlfredUi(text),
     "@title": escapeForAlfredUi(noteSummary(text).title),
-    "@tint": tint,
+    "@tint": current.tint,
+    "@colourDot": current.control,
+    "@colourMenu": NOTE_PALETTE.map((c) => ({
+      text: noteColourMenuText(c),
+      state: c.name === current.name ? "on" : "off",
+      action: noteColourAction({ workflowFolder, note, form, colour: c }),
+    })),
+    "@colourShortcuts": NOTE_PALETTE.map((c, i) => ({
+      shortcut: `⌘${i + 1}`,
+      action: noteColourAction({ workflowFolder, note, form, colour: c }),
+    })),
     "@fontSize": fontSize,
     "@iconPath": `${workflowFolder}/ui/appicon.png`,
   };
 }
 
+// The action that gives a window's note colour `colour` (a palette colour),
+// for its menu item and shortcut: window.js colour, which records it and
+// updates the top row. A pinned window's tint is updated first, so it changes
+// at once rather than after the script. `note` is the escaped ID.
+function noteColourAction({ workflowFolder, note, form, colour }) {
+  const script = { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["colour", note, form, colour.name] };
+  if (form !== "pinned") return script;
+  return [{ type: "json", src: { update: { ids: { note: { background: colour.tint } } } } }, script];
+}
+
+// A colour's menu item text: its heart and name. Three of the hearts are
+// Emoji 15, which macOS has from 13.3; before that, just the name.
+let hasEmoji15 = null;
+function noteColourMenuText(colour) {
+  if (hasEmoji15 === null) {
+    const version = $.NSProcessInfo.processInfo.operatingSystemVersion;
+    const [major, minor] = [Number(version.majorVersion), Number(version.minorVersion)];
+    hasEmoji15 = major > 13 || (major === 13 && minor >= 3);
+  }
+  return hasEmoji15 ? `${colour.heart} ${colour.label}` : colour.label;
+}
+
 // A template with its directives resolved for a form and mode (see above).
 function resolveNoteTemplate(template, { form, mode, tokens, workflowFolder }) {
+  const isToken = (value) => typeof value === "string" && Object.prototype.hasOwnProperty.call(tokens, value);
   function resolve(value, inArgs) {
     if (typeof value === "string") {
-      if (Object.prototype.hasOwnProperty.call(tokens, value)) return inArgs ? String(tokens[value]) : tokens[value];
+      if (isToken(value)) return inArgs ? String(tokens[value]) : tokens[value];
       return value;
     }
     if (Array.isArray(value)) {
       return value
         .filter((item) => !(item && typeof item === "object" && ((item["@form"] && item["@form"] !== form) || (item["@mode"] && item["@mode"] !== mode))))
-        .map((item) => resolve(item, inArgs));
+        .flatMap((item) => (isToken(item) && Array.isArray(tokens[item]) ? tokens[item] : [resolve(item, inArgs)]));
     }
     if (value === null || typeof value !== "object") return value;
     const merged = Object.assign({}, value, value[`@${form}`], value[`@${mode}`]);
@@ -481,18 +550,19 @@ function noteOpenMode(note, text, variable = workflowVariable) {
 function writeNoteWindow({ store, workflowFolder, id, form, note, text }, variable = workflowVariable) {
   const mode = noteOpenMode(note, text, variable);
   const fontSize = noteFontSize(variable);
-  const tint = noteTint(note ? note.meta : {});
-  const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, tint });
-  return writeNoteBundle(id, form, ui, { folder: store.folder, fontSize, tint, textHash: textHash(text) }, variable);
+  const colour = noteColour(note ? note.meta : {}, variable).name;
+  const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, colour });
+  return writeNoteBundle(id, form, ui, { folder: store.folder, fontSize, colour, textHash: textHash(text) }, variable);
 }
 
 // Writes a note's window bundle: its ui.json, and context.json, what the
 // window's scripts need that Alfred doesn't give them (the UI's scripts only
 // get the alfred_* variables, not User Configuration). Returns the bundle's
-// path. `context` is { folder, fontSize, tint, textHash }: the notes folder,
-// the look the window opened with, for the parts the Edit / View toggle
-// replaces, and a hash of the text it opened with (see textHash), so the
-// window can tell when the note has changed since its bundle was written.
+// path. `context` is { folder, fontSize, colour, textHash }: the notes folder,
+// the window's look (the font size and the note's colour's name), for the
+// parts the Edit / View toggle replaces, and a hash of the text it opened with
+// (see textHash), so the window can tell when the note has changed since its
+// bundle was written.
 function writeNoteBundle(id, form, ui, context, variable = workflowVariable) {
   const bundle = noteBundlePath(id, form, variable);
   ensureFolder(bundle, true);
@@ -504,6 +574,15 @@ function writeNoteBundle(id, form, ui, context, variable = workflowVariable) {
 // The context written into a note's bundle for a form, or null.
 function readNoteContext(id, form, variable = workflowVariable) {
   return readJsonObject(`${noteBundlePath(id, form, variable)}/context.json`);
+}
+
+// Merges `changes` into the context of a note's bundle for a form, for a
+// window whose look has changed (its note's colour), so the parts it's given
+// later match. Its ui.json is left as it is: the window has already read it.
+function updateNoteContext(id, form, changes, variable = workflowVariable) {
+  const context = readNoteContext(id, form, variable);
+  if (!context) return;
+  writeFileAtomically(`${noteBundlePath(id, form, variable)}/context.json`, JSON.stringify(Object.assign(context, changes), null, 2) + "\n");
 }
 
 // Deletes a note's window bundles, quick and pinned, if it has them: for a
@@ -528,7 +607,7 @@ const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/toprow.json", "ui/editor.json
 // before the results are shown.
 //
 // A bundle's fingerprint is a hash of everything it's built from: the note's
-// text, its mode and tint (from its sidecar and the settings), the font size,
+// text, its mode and colour (from its sidecar and the settings), the font size,
 // the notes and workflow folders, and the modification times of
 // NOTE_WINDOW_SOURCES. The fingerprints are kept in quick/.index.json, read
 // once per run, so a bundle is only rebuilt when its fingerprint changes:
@@ -565,7 +644,7 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
   let newId = null;
 
   function bundleFor(note) {
-    const fingerprint = textHash([base, noteOpenMode(note, note.text, variable), noteTint(note.meta), note.text].join("\0"));
+    const fingerprint = textHash([base, noteOpenMode(note, note.text, variable), noteColour(note.meta, variable).name, note.text].join("\0"));
     if (index.get(note.id) === fingerprint && bundles.has(`${note.id}.alfredui`)) return `${folder}/${note.id}.alfredui`;
     const bundle = writeNoteWindow({ store, workflowFolder, id: note.id, form: "quick", note, text: note.text }, variable);
     index.set(note.id, fingerprint);

@@ -7,6 +7,7 @@
 //   window.js toggle <id> <form> <text>     ⌘E or the Edit / View button
 //   window.js edit <id> <form> <text>       ↩ in View: to Edit
 //   window.js view <id> <form> <text>       ⌘↩ in Edit: saves, to View
+//   window.js colour <id> <form> <colour>   the colour menu or ⌘1 to ⌘6
 //   window.js quit <id> <form> <text>       the window closed: saves, and
 //                                           deletes the note if it's empty
 //
@@ -49,6 +50,8 @@ function run(argv) {
     case "quit":
       quit(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
       return;
+    case "colour":
+      return setColour(store, workflowFolder, context, id, form, rest[0]);
     default:
       throw new Error(`Unknown command: ${command}`);
   }
@@ -69,7 +72,7 @@ function launched(store, workflowFolder, context, id, form, mode) {
   writeNoteState(id, { form, pid: $.getppid(), mode });
   const note = form === "quick" ? store.read(id) : null;
   if (!note || textHash(note.text) === context.textHash) return;
-  const parts = noteModeParts({ workflowFolder, id, form, mode, text: note.text, fontSize: context.fontSize, tint: context.tint });
+  const parts = noteModeParts({ workflowFolder, id, form, mode, text: note.text, fontSize: context.fontSize, colour: context.colour });
   return JSON.stringify({ replace: { ids: parts } });
 }
 
@@ -105,11 +108,29 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
     mode,
     text: note ? note.text : "",
     fontSize: context.fontSize,
-    tint: context.tint,
+    colour: context.colour,
   });
   writeNoteState(id, Object.assign(state, { mode }));
   store.updateMeta(id, { mode });
   return JSON.stringify({ replace: { ids: parts } });
+}
+
+// Gives the note the palette colour named `name`: records it in the note's
+// sidecar (which works for a new note that isn't saved yet) and in the
+// window's context, so the parts the toggle gives it later match, and prints
+// the replace action for the top row, whose dot and menu show the colour. A
+// pinned window's tint has already been updated by the action that ran this
+// (see noteColourAction in lib.js). Does nothing without a state of the
+// window's form, as for switchMode, since the top row depends on the mode.
+function setColour(store, workflowFolder, context, id, form, name) {
+  if (!notePaletteColour(name)) throw new Error(`Unknown colour: ${name}`);
+  const state = readNoteState(id);
+  if (!state || state.form !== form) return;
+  store.updateMeta(id, { colour: name });
+  updateNoteContext(id, form, { colour: name });
+  const mode = state.mode === "view" ? "view" : "edit";
+  const { toprow } = noteModeParts({ workflowFolder, id, form, mode, fontSize: context.fontSize, colour: name });
+  return JSON.stringify({ replace: { ids: { toprow } } });
 }
 
 // The window has closed. Saves the editor's text (see isEditorText), then

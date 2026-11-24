@@ -85,7 +85,7 @@ before_old=$(mtime old)
 (cd "$tmp" && font_size=16 notes_folder=$notes alfred_workflow_cache=$cache "$list" "") >/dev/null
 expect "a changed setting rewrites every bundle" "$([[ $(mtime cafe) != $before_cafe ]] && print rewritten) $([[ $(mtime old) != $before_old ]] && print rewritten)" "rewritten rewritten"
 items "$notes" milk >/dev/null
-expect "with a query, only matching notes' bundles are rebuilt" "$(grep -c '"size": 16' $(ui cafe)) $(grep -c '"size": 13' $(ui shopping))" "1 1"
+expect "with a query, only matching notes' bundles are rebuilt" "$(grep -c '"size": 16' $(ui cafe)) $(grep -c '"size": 16' $(ui shopping) || true)" "1 0"
 mkdir -p "$quick/20200101-000000.alfredui" "$quick/gone.alfredui" "$quick/open.alfredui" "$cache/state"
 print -r -- '{"form":"quick","pid":1,"mode":"edit"}' > "$cache/state/open.json"
 mv "$notes/recent.md" "$tmp/"
@@ -94,6 +94,29 @@ expect "gone notes' and old new notes' bundles are removed, open ones kept" "$(l
 expect "the index drops gone notes" "$(grep -c recent $quick/.index.json || true)" "0"
 new1=$(items "$notes" | head -1 | cut -d'|' -f3 | xargs basename)
 expect "a New note bundle has a new ID and opens in Edit" "$new1 $(grep -c '"textarea"' $quick/$new1/ui.json)" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9].alfredui 1"
+
+# Colours: each note's icon, and its quick bundle.
+# Each item's title and icon ("-" for none), one per line, with the workflow's
+# variables given before the query as NAME=value.
+icons() {
+  local -a vars=()
+  while [[ ${1:-} == *=* ]]; do vars+=$1; shift; done
+  (cd "$tmp" && env notes_folder=$notes alfred_workflow_cache=$cache "${vars[@]}" "$list" "$@") | osascript -l JavaScript -e '
+    ObjC.import("Foundation");
+    function run() {
+      const input = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js;
+      return JSON.parse(input).items.map((i) => `${i.title} ${i.icon ? i.icon.path : "-"}`).join("\n");
+    }'
+}
+expect "the workflow has an icon for each palette colour" "$(ls ${here:h}/icons | tr '\n' ' ')" "blue.png green.png grey.png pink.png purple.png yellow.png "
+expect "a note's icon is its colour's dot, yellow by default; New note has none" "$(icons '')" $'New note -\nCafé ideas icons/yellow.png\nShopping icons/yellow.png\nOld note icons/yellow.png'
+expect "default_colour sets the icon of notes without a colour" "$(icons default_colour=purple milk)" "Shopping icons/purple.png"
+print -r -- '{"colour":"pink"}' > "$notes/.scratchnotes/shopping.json"
+before_shopping=$(mtime shopping)
+expect "a note's own colour sets its icon" "$(icons default_colour=purple milk)" "Shopping icons/pink.png"
+expect "a colour change rewrites the note's quick bundle with the new dot" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c '#F87F7F' $(ui shopping))" "rewritten 1"
+print -r -- '{"colour":"orange"}' > "$notes/.scratchnotes/shopping.json"
+expect "an unknown colour gets the default's icon" "$(icons milk)" "Shopping icons/yellow.png"
 
 # A pinned note's result (no arg, `pinned` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a pinned state whose process isn't one is ignored.

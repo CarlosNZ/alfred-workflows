@@ -22,7 +22,8 @@
         { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "shortcut": "⌘↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["view", "@note", "@form", "{value:editor.text}"] } },
         { "@form": "quick", "shortcut": "⌘P", "action": { "type": "json", "src": { "finish": { "variables": { "pin_note": "@note" } } } } },
-        { "@form": "pinned", "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } }
+        { "@form": "pinned", "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } },
+        "@colourShortcuts"
       ],
       "events": [
         { "triggers": "launched", "action": { "type": "script", "src": "scripts/window.js", "args": ["launched", "@note", "@form", "@mode"] } },

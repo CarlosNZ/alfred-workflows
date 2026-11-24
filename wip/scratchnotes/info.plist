@@ -530,6 +530,48 @@
 			<key>variable</key>
 			<string>open_mode</string>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>yellow</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Yellow</string>
+						<string>yellow</string>
+					</array>
+					<array>
+						<string>Blue</string>
+						<string>blue</string>
+					</array>
+					<array>
+						<string>Green</string>
+						<string>green</string>
+					</array>
+					<array>
+						<string>Pink</string>
+						<string>pink</string>
+					</array>
+					<array>
+						<string>Purple</string>
+						<string>purple</string>
+					</array>
+					<array>
+						<string>Grey</string>
+						<string>grey</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>The colour of new notes, and of notes without a colour of their own. Change a note's colour with the dot at the top of its window, or with ⌘1 to ⌘6.</string>
+			<key>label</key>
+			<string>Default colour</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>default_colour</string>
+		</dict>
 	</array>
 	<key>webaddress</key>
 	<string></string>

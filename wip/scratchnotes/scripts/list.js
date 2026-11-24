@@ -35,7 +35,11 @@ function run(argv) {
   const matches = notes.filter((note) => words.every((word) => searchText(note).includes(word)));
   const now = new Date();
   const pinned = attempt(pinnedNoteIds) || new Set();
-  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), pinned.has(note.id)));
+  // The default colour is read once: a variable read per note, through the
+  // ObjC bridge, adds up over hundreds of notes on every keystroke.
+  const defaultColour = noteDefaultColour();
+  const colourOf = (note) => noteColour(note.meta, () => defaultColour.name);
+  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), pinned.has(note.id), colourOf(note)));
   if (!query) items.unshift(newNoteItem("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
   else if (items.length === 0) items.push(newNoteItem(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
   if (quick) attempt(() => quick.finish(notes));
@@ -54,17 +58,19 @@ function attempt(fn) {
   }
 }
 
-// A note that's pinned gets no arg, so ↩ shows no quick view, and the variable
-// `pinned`, which takes ↩ down the pin route instead (with `pin_note` naming
-// the note, as Pin in a quick view does), where open.js brings the pinned
-// window to the front.
-function noteItem(note, now, bundle, pinned) {
+// Its icon is its colour's dot (icons/, from dev/make-icons.js). A note that's
+// pinned gets no arg, so ↩ shows no quick view, and the variable `pinned`,
+// which takes ↩ down the pin route instead (with `pin_note` naming the note,
+// as Pin in a quick view does), where open.js brings the pinned window to the
+// front.
+function noteItem(note, now, bundle, pinned, colour) {
   const edited = `Edited ${formatEditedTime(note.modified, now)}`;
   const subtitle = note.preview ? `${edited} · ${note.preview}` : edited;
   return {
     title: note.title,
     subtitle: pinned ? `Pinned · ${subtitle}` : subtitle,
     arg: pinned ? "" : bundle,
+    icon: { path: `icons/${colour.name}.png` },
     variables: pinned ? { pinned: "1", pin_note: escapeForAlfredUi(note.id) } : undefined,
     quicklookurl: note.path,
     action: { file: note.path },

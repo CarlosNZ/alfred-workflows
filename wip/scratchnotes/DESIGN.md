@@ -62,18 +62,46 @@ Every item is marked with its status:
 ## Colour
 
 - Each note has a colour, stored in its metadata sidecar (see [Metadata](#metadata)). **Decided**
-- Colours are a fixed, named palette of about 6–8 (e.g. yellow, orange, pink, purple, blue, green, grey), picked from a `picker` or a button with a `menu`, and stored by name (`"colour": "yellow"`). **Decided**
-  - Each name maps to one tint, defined in one place, so the palette can be re-tuned without rewriting notes.
-  - The workflow ships one pre-made dot icon per colour for the results list.
+- Colours are a fixed, named palette, picked from a menu on a top-row button (see [Colour control](#colour-control)), and stored by name (`"colour": "yellow"`). **Decided**
+  - Each name maps to its colours, defined in one place, so the palette can be re-tuned without rewriting notes.
+  - The workflow ships one pre-made dot icon per colour for the results list: a circle filled with the spine colour and ringed in the control colour, so yellow and grey show on light and dark Alfred themes, drawn by `dev/make-icons.js`. **Decided**
   - A missing or unknown colour name gets the default colour (see [Configuration](#configuration)).
+- The palette is Stickies' six colours, read from its asset catalogue (`/System/Applications/Stickies.app/Contents/Resources/Assets.car`, with `assetutil --info`): the note's tint, a stronger "spine" colour (Stickies' menu swatches) and a "control" colour. Dark text (`#1D1D1F`) on the tints has a contrast of 10–15:1. **Decided**
+
+| Name | Tint | Spine | Control |
+|---|---|---|---|
+| `yellow` (default) | `#FEF49C` | `#FEEA3D` | `#DBC503` |
+| `blue` | `#ADF4FF` | `#89F0FF` | `#24D0E9` |
+| `green` | `#B2FFA1` | `#83FE83` | `#51BB51` |
+| `pink` | `#FFC7C7` | `#FFB2B2` | `#F87F7F` |
+| `purple` | `#B6CAFF` | `#9BB6FE` | `#7D9BEB` |
+| `grey` | `#EEEEEE` | `#DADADA` | `#A8A8A8` |
   - Free choice (hex) was rejected: Alfred UI has no colour well component, so it would need `opendialog`-style workarounds or a `webkitview` (unproven), icons generated on demand, and tints derived from arbitrary hex values to stay readable.
 - The colour tints the whole of a pinned window, text area included, like a sticky note: the root view's `background` is the tint, and the `textarea` and `markdownarea` have `background: null`, so it shows through them. Tested inside Alfred and in a pinned window, with solid (`#FFF3B0`), translucent (`#FFCC0033`, `#FFCC0066`) and macOS (`systemYellowColor`, `yellowColor`) colours, all readable in light appearance. **Decided**
-- The quick view isn't tinted: its root view has no `background` or `appearance` (they're `@pinned` in `ui/window.json`), so it takes Alfred's theme, text and buttons included, and looks like the rest of Alfred's window (checked with a dark theme). **Decided**. An accent of the note's colour in the quick view is **Open**.
+- The quick view isn't tinted: its root view has no `background` or `appearance` (they're `@pinned` in `ui/window.json`), so it takes Alfred's theme, text and buttons included, and looks like the rest of Alfred's window (checked with a dark theme). **Decided**. Its only accent of the note's colour is the colour button's dot. **Decided**. A 4pt stripe of the spine colour down the left edge was tried: in the `border` layout it only spans the middle band, between the top row and the bottom, so it looks like a quote bar; a full-height one would need another layout level. A top row in the spine colour would be heavy against a dark theme.
 - A pinned note looks the same in light and dark appearance, like Apple's Stickies: its pale tint stays, and its text is always dark, set with `colour` on the `textarea` and `markdownarea`. The default text colour follows the appearance, so without this, dark mode gives white text on the pale tint, which is unreadable (tested). **Decided**
   - Only macOS's named colours adapt to the appearance by themselves; hex, `rgb()`, `hsv()` and `ui.json`'s `colours` constants are fixed. Adaptive notes would need either a light and a dark tint per colour, chosen by the script that opens the window (so an open window keeps its tint until reopened), or a translucent tint that suits both.
   - TO-DO: dark-appearance variants of the palette, in a later version.
   - Tested in dark appearance with a pale tint and `colour: "#1D1D1F"` on both: the editor and the rendered view stayed dark and readable across seven pale hues (`#FFF3B0`, `#FFD6E0`, `#D6E9FF`, `#D9F2D0`, `#E8DDF7`, `#FFE2C2`, `#E6E6E6`). The top row's buttons still switched to their dark style.
   - Simpler, and covering the buttons, caret and selection too: the root view has `appearance: "light"`, so the whole note keeps its light-appearance look, rather than setting `colour` on each component. **Decided**. Tested: a view's `appearance` applies to everything inside it, pinned and inside Alfred. A root view set to `"light"` inside a window forced to `"dark"` kept its dark text and light-style buttons; only the title bar follows the window's appearance. Inside Alfred, without it, text took Alfred's theme (white with a dark theme), unreadable on the tint.
+
+### Colour control
+
+**Decided**, and built in step 4:
+
+- A borderless `circle.fill` button in the note's control colour, first in the top row's group of buttons, pops up a menu like Stickies' Color menu: each colour as a heart and its name (💛 Yellow, 🩵 Blue, 💚 Green, 🩷 Pink, 💜 Purple, 🩶 Grey), with ✓ on the note's colour. **Decided**. 🩵, 🩷 and 🩶 are Emoji 15, from macOS 13.3; on older systems the items show their names only.
+- ⌘1 to ⌘6 set the colours directly, in that order, as in Stickies, with the same action as the menu item (an array of actions works in a shortcut too). Menu items can't show their shortcuts, so the button's tooltip gives them ("Colour (⌘1–⌘6)").
+- An item runs `window.js colour <name>`, which writes the sidecar (`updateMeta`) and replaces the top row, so the dot's colour and the ✓ follow; it also updates the colour in the bundle's `context.json`, so the top row the Edit / View toggle builds matches. In a pinned window the item's action is an array that first sends an `update` of the root view's `background`, so the tint changes at once, without waiting for the script.
+- No right-click menu: the `textarea` and `markdownarea` keep their own text menus, so it would only work in the margins.
+
+Alfred UI's menus aren't documented. Found in its framework (`AUIMenu`, `AUIActionJSONProcessorPopupMenu`) and tested on 25 Nov 2026, in a standalone window and in the quick view:
+
+- `{"popupmenu": {"src": "<component id>", "menu": [items]}}` is an action that pops up a menu at that component: over it, at its top-left corner, with the first item under the pointer (not the checked one). A script can print it too.
+- An item is `{"text", "state", "action", "submenu"}`, or `{"type": "separator"}`. `"state": "on"` shows ✓ and `"mixed"` shows –. An item without an `action` is greyed out. Items take no image and no key equivalent, so a swatch can only be an emoji in the text: a `●` takes the text colour (white in a dark menu).
+- The `action` is any Alfred UI action: a `script` (its `args` expand `{value:…}`), `json` (an `update` of the background from an item worked), or an array of actions, run in order. Nothing says which item was chosen, so each item's action carries its colour.
+- The `menu` key, which every component takes, is its right-click menu (`setMenu:`). It works on views and buttons, and a click on a child without its own menu shows its parent's. A `textarea` or `markdownarea` keeps its standard text menu.
+- The menu takes the appearance of the view it opens from: light in a pinned note (its root view has `appearance: "light"`), Alfred's theme in the quick view.
+- In the quick view, a menu opens and its items' actions run without Alfred closing. Esc with a menu open closes only the menu; a second Esc closes Alfred. ⌘1 and a ⌘K shortcut that opens the menu both worked inside Alfred, though Alfred uses ⌘1–⌘9 for its results.
 
 ## Alfred results list
 
@@ -81,7 +109,7 @@ A Script Filter on a keyword (`scratch` by default, configurable), run by `scrip
 
 - One result per note, sorted by last edited, newest first. No result has a `uid`, so Alfred keeps this order. With each note's ID as its `uid`, Alfred's learning moved notes chosen often above New note and above more recently edited notes (tested). `skipknowledge: true` stops Alfred recording what's chosen, but it still sorts by entries recorded before the flag was added (tested): they're the rows of the `knowledge` table in `~/Library/Application Support/Alfred/Databases/knowledge.alfdb` whose `item` is `<Script Filter object uid>.<item uid>`. Without uids those entries can't match, so a Mac that ran an earlier build needs no clean-up. A `uid` would only be worth adding with `rerun`, where it keeps the selection on the same item (as in Now Playing and World Clock), and would then need `skipknowledge: true` and those old entries deleted.
 - Title: the note's title. Subtitle: when it was last edited and its preview, e.g. `Edited 3h ago · milk, eggs, flour…`. The time is "just now", minutes, hours or days ago ("5m ago", "3h ago", "2d ago"), and after a week the date in the Mac's format ("12 Nov", with the year if it isn't this year). A note that's pinned has "Pinned · " in front.
-- Icon: the note's colour (step 4; until then results have no icon of their own).
+- Icon: the note's colour's dot (`icons/<colour>.png`). New note has no icon of its own until the workflow has one (step 6).
 - Typing searches the whole note, not just the title: every word of the query must appear somewhere in the note, in any order, ignoring case and accents ("cafe" finds "Café"). `list.js` does the matching itself, rather than leaving it to Alfred (`alfredfiltersresults` is off), since it has to know when nothing matches. It reruns on every keystroke, reading every note (about 115 ms for 300 notes, plus `osascript`'s startup), and Alfred stops the previous run when a new one starts (`queuemode` 2).
 - A **New note** result, at the top with no query. With a query that matches nothing, it's the only result, **New note: \<query>**, creating a note with that text. ↩ and ⌘↩ on it behave as they do on a note, as closely as possible: ↩ opens the new note in a quick view, ⌘↩ pins it. Its arg is the bundle of a quick view of a new note with that text (see [Quick notes and pinned notes](#quick-notes-and-pinned-notes)); ⌘'s arg is the text itself (empty for a blank note), with the variable `new` set to `1`, so `open.js` knows it isn't a note's ID. ⌥ and ⌃ do nothing on it (`valid: false`): their actions take a note's ID or path, and the query would otherwise reach them as one.
 - ⌘C copies the note's text and ⌘L shows it in Large Type. → shows Alfred's file actions for the note's file (the item's `action`).
@@ -112,7 +140,7 @@ A Script Filter on a keyword (`scratch` by default, configurable), run by `scrip
 
 ### Layout and controls
 
-- A slim top row (24pt) of borderless SF Symbol buttons at the right, level with a pinned window's traffic lights: the Edit / View toggle (`eye` in Edit, to switch to View; `pencil` in View, to switch to Edit) and, in the quick view only, Pin (`pin`), each with a tooltip naming its key. The colour control (step 4) goes in this row too; in a pinned window its left end is under the traffic lights, so it needs to sit beside the other buttons or clear of them. The rest of the window is the note. **Decided**
+- A slim top row (24pt) of borderless SF Symbol buttons at the right, level with a pinned window's traffic lights: the Edit / View toggle (`eye` in Edit, to switch to View; `pencil` in View, to switch to Edit) and, in the quick view only, Pin (`pin`), each with a tooltip naming its key. The colour button (step 4, see [Colour control](#colour-control)) is first in the same group, since in a pinned window the row's left end is under the traffic lights. The rest of the window is the note. **Decided**
 - ⌘E toggles Edit / View, Esc closes the window, and ⌘P pins the quick view. All three work inside Alfred as well as pinned (tested), apart from Esc inside Alfred, which Alfred handles itself by closing (the quick view's `quit` still runs). **Decided**
 - ↩ in View switches to Edit, and ⌘↩ in Edit "submits": it saves and switches to View (`window.js view`, which does nothing in View). This is Jupyter's convention for Markdown cells (↩ to edit, ⇧↩ or ⌃↩ to render). Both work inside Alfred as well as pinned (tested, 25 Nov 2026). **Decided**
   - The ↩ shortcut is on the content view in `viewer.json`, not the root, so it's only there in View: the Edit / View switch replaces the content view, and the root's shortcuts stay as the window opened. Shortcuts on an inner view work (tested), and after the switch to Edit, ↩ in the `textarea` types a new line (tested).
@@ -220,7 +248,7 @@ The gap between the results and the quick view, tested with screen recordings at
 **Decided**, and built (tested in Alfred with a screen recording: the results are replaced by the view from one frame to the next):
 
 - The Script Filter's ↩ connects straight to the quick view's Alfred UI object, and each result's `arg` is its note's quick bundle, `$alfred_workflow_cache/quick/<note id>.alfredui`, which `list.js` writes before the results are shown (`quickWindows` in `lib.js`). ⌘↩ (pin) keeps its Run Script, where a fade doesn't matter.
-- A bundle is only rebuilt when its fingerprint changes: a hash of the note's text, its mode and tint, the font size and `open_mode` settings, the notes and workflow folders, and the modification times of the templates and `lib.js`. The fingerprints are in `quick/.index.json`, read once per run. So most keystrokes rebuild nothing, an edited note's next list rebuilds its bundle, and a changed setting or workflow update rebuilds every bundle once. With 300 notes, `list.js` took 0.16 s a run with nothing to rebuild (0.15 s before quick bundles), and 0.8 s when it rebuilt them all; a bundle takes about 2–2.5 ms. Variables and the bundle folder are read once per run: reading them per note through the ObjC bridge added 0.1 s.
+- A bundle is only rebuilt when its fingerprint changes: a hash of the note's text, its mode and colour, the font size and `open_mode` settings, the notes and workflow folders, and the modification times of the templates and `lib.js`. The fingerprints are in `quick/.index.json`, read once per run. So most keystrokes rebuild nothing, an edited note's next list rebuilds its bundle, and a changed setting or workflow update rebuilds every bundle once. With 300 notes, `list.js` took 0.16 s a run with nothing to rebuild (0.15 s before quick bundles), and 0.8 s when it rebuilt them all; a bundle takes about 2–2.5 ms. Variables and the bundle folder are read once per run: reading them per note through the ObjC bridge added 0.1 s.
 - Each run also removes the quick bundles of notes that have gone, and of New notes offered earlier and never opened, keeping any that's open (has a window state).
 - New note: `list.js` picks the new note's ID (the time) and writes its bundle with the query as its text, each time it shows the result; within the same second it's the same ID and bundle. A quick bundle alone doesn't make an ID taken (`isNoteIdInUse`), so these don't pile up as -2, -3….
 - The view's `launched` (`window.js`) compares the note with the hash of the text its bundle was built with (`textHash` in `context.json`), and if the note has changed since (an edit elsewhere between the list and ↩), replaces the content with the note as it is, so a stale text can never be saved back over it.
@@ -247,7 +275,7 @@ User Configuration fields (values saved in the gitignored `prefs.plist`). **Prop
 | `notes_folder` | folder picker | blank: `$alfred_workflow_data/notes/` (**Decided**) |
 | `keyword` | text | `scratch` (**Decided**) |
 | `keyword_new` | text | `snn` |
-| `default_colour` | popup of the palette's colour names | `yellow` (**Decided**) |
+| `default_colour` | popup of the palette's six colours | `yellow` (**Decided**, built) |
 | `font_size` | slider, 11–20 pt, for both Edit and View | `13` (**Decided**, built) |
 | `open_mode` | popup: View / Edit, the mode for notes that don't have their own yet | `view` (**Decided**, built) |
 
@@ -280,15 +308,15 @@ Alfred objects are added to `info.plist` with targeted `plutil` edits and then c
 | `scripts/open.js` | Pins a note: writes its pinned window's bundle, or brings its pinned window to the front. `open.js quick` writes a quick bundle as `list.js` does, for testing. |
 | `scripts/new.js` | Creates a note (blank, from text, or from the clipboard) and opens it. |
 | `scripts/trash.js` | Closes a note's window, if it has one, and moves the note to the Trash. |
-| `scripts/window.js` | The note window's actions: `launched`, `typingstopped` (`save`), `quit` and the Edit / View switch (`toggle`, and `edit` and `view` for ↩ and ⌘↩); the colour control in step 4. Pin is a `finish` action in the template. |
+| `scripts/window.js` | The note window's actions: `launched`, `typingstopped` (`save`), `quit` and the Edit / View switch (`toggle`, and `edit` and `view` for ↩ and ⌘↩), and `colour`, from the colour menu and ⌘1–⌘6. Pin is a `finish` action in the template. |
 | `ui/` | The templates a note's window is built from: `window.json` (the window and root view), `toprow.json`, and `editor.json` or `viewer.json` for the content. See [The note window bundle](#the-note-window-bundle). |
 | `ui/appicon.png` | Pinned windows' app icon (`iconpath`), for ⌘-Tab and the Dock. A stand-in (a yellow tile with the `note.text` symbol) until step 6 makes the workflow's icon; rebuild it then with `bin/make-appicon icon.png ui/appicon.png`. |
 | `icons/<colour>.png` | One dot icon per palette colour, for the results list. |
 | `dev/make-icons.js` | Draws the icons from the palette. Development only (`.wfignore`). |
 | `dev/install-samples.js` | Installs eight sample notes, `example1` to `example8`, in the current notes folder (or a folder given as its argument), replacing their text, sidecars and dates, so the samples can be reset however they've been changed. Other notes are left alone. Outside Alfred it reads `notes_folder` from `prefs.plist`, falling back to the data folder. Development only (`.wfignore`). |
-| `dev/test-list.sh` | Tests `list.js` with sample notes and queries in a temporary folder, and the quick bundles it writes: rebuilt only when out of date, and swept up when their notes have gone. Development only (`.wfignore`). |
+| `dev/test-list.sh` | Tests `list.js` with sample notes and queries in a temporary folder, each result's colour icon, and the quick bundles it writes: rebuilt only when out of date, and swept up when their notes have gone. Development only (`.wfignore`). |
 | `dev/test-storage.sh` | Tests `lib.js`'s storage functions against a temporary folder, with `dev/test-storage.js`, which does the work. Development only (`.wfignore`). |
-| `dev/test-window.sh` | Tests `open.js` and `window.js` from the terminal against a temporary notes folder and cache folder: bundles and their templates, settings, escaping, new note IDs, saving (and the saves it ignores), the Edit / View switch, `launched`'s check for a changed note, `quit` and the pinned-window check. Opens no windows. Development only (`.wfignore`). |
+| `dev/test-window.sh` | Tests `open.js` and `window.js` from the terminal against a temporary notes folder and cache folder: bundles and their templates, settings, escaping, new note IDs, saving (and the saves it ignores), the Edit / View switch, `launched`'s check for a changed note, `quit`, colours (the button, menu and shortcuts, `default_colour`, and `window.js colour`) and the pinned-window check. Opens no windows. Development only (`.wfignore`). |
 
 ### Loading lib.js
 
@@ -330,14 +358,15 @@ The storage functions (step 1), for the later scripts. Fuller notes are in the c
 
 Note windows (step 3; see [The note window bundle](#the-note-window-bundle)):
 
-- `noteWindowUi(options)`: a window's whole `ui.json`; `noteModeParts(options)`: the `toprow` and `content` parts for the toggle's `replace`. `options` is `{ workflowFolder, id, form, mode, text, fontSize, tint }`. `resolveNoteTemplate` resolves the templates' directives.
+- `noteWindowUi(options)`: a window's whole `ui.json`; `noteModeParts(options)`: the `toprow` and `content` parts for the toggle's `replace`. `options` is `{ workflowFolder, id, form, mode, text, fontSize, colour }`, `colour` being a palette name. `resolveNoteTemplate` resolves the templates' directives.
 - `writeNoteWindow({ store, workflowFolder, id, form, note, text })`: builds and writes a note's bundle for a form, with the mode from `noteOpenMode(note, text)`. `quickWindows(store, workflowFolder)`: the quick bundles for `list.js` (see [Seamless quick views](#seamless-quick-views)). `textHash(text)`: a short hash, for fingerprints.
 - `writeNoteBundle(id, form, ui, context)`, `readNoteContext(id, form)`, `removeNoteBundle(id)` (both forms), `noteBundlePath(id, form)`, `noteWindowsFolder(form)`.
 - `escapeForAlfredUi(text)` and `unescapeFromAlfredUi(text)` (see [Placeholders in a note's text](#placeholders-in-a-notes-text)).
-- `noteFontSize()` (the `font_size` setting, kept within 11–20) and `noteTint(meta)` (the fixed yellow until step 4's palette).
+- `noteFontSize()` (the `font_size` setting, kept within 11–20).
+- The palette (step 4): `notePalette()`, `notePaletteColour(name)` (a colour by name, or null), `noteColour(meta)` (a note's colour: its own, or the `default_colour` setting's, or yellow) and `noteDefaultColour()`. A colour is `{ name, label, heart, tint, spine, control }`. `noteColourAction` builds the action of a colour's menu item and shortcut. `updateNoteContext(id, form, changes)` merges changes into a bundle's `context.json`.
 - Window state: `readNoteState(id)`, `writeNoteState(id, state)`, `removeNoteState(id)`, `pinnedNotePid(id)` (the PID of a live pinned window, checked to be an Alfred UI helper, or null), `pinnedNoteIds()` (the IDs of the notes with a live pinned window, for `list.js`), `activateWindowProcess(pid)`, `closePinnedNoteWindow(id)` (force-quits the process, so its `quit` doesn't run, for `trash.js`), and `isNoteIdInUse(id)`, the `isTaken` for `newId` (a pinned bundle or state file exists).
 - `runningApp(pid)` imports AppKit only when it's needed, so scripts that don't use it don't pay for loading it.
-- Top-level `const`s are private to `lib.js` (see [Loading lib.js](#loading-libjs)), so a value a script needs, such as the tint, comes from a function.
+- Top-level `const`s are private to `lib.js` (see [Loading lib.js](#loading-libjs)), so a value a script needs, such as the palette, comes from a function.
 
 Learned while building it:
 
@@ -351,8 +380,8 @@ Learned while building it:
 
 - Some window settings need real JSON types (the font size is a number), and variables reach a UI only as strings, which Alfred ignores in those places (see Now Playing's `DEVELOPMENT.md`). A `{file:…}` placeholder could insert typed JSON, but its path can't contain a placeholder, so it can't be per note.
 - Each note still has its own bundle path, so each pinned window still keeps its own saved position: the frame is saved under a hash of the path, whether the path is a symlink or a folder.
-- `writeNoteWindow` builds `ui.json` from the templates in `ui/` with the note's text, the window `title` (the note's title), the tint, the font size, the form and the mode (`noteWindowUi` in `lib.js`). Text, title and ID are escaped (see [Placeholders in a note's text](#placeholders-in-a-notes-text)).
-- It also writes `context.json` into the bundle: the notes folder, font size and tint, which the window's scripts need but don't get from Alfred (they only get the `alfred_*` variables), so `window.js` can save to the right folder and the toggle can build parts that match, and `textHash`, a hash of the text the window opens with, for `launched`'s check for a changed note.
+- `writeNoteWindow` builds `ui.json` from the templates in `ui/` with the note's text, the window `title` (the note's title), the note's colour, the font size, the form and the mode (`noteWindowUi` in `lib.js`). Text, title and ID are escaped (see [Placeholders in a note's text](#placeholders-in-a-notes-text)).
+- It also writes `context.json` into the bundle: the notes folder, font size and the note's colour's name, which the window's scripts need but don't get from Alfred (they only get the `alfred_*` variables), so `window.js` can save to the right folder and the toggle can build parts that match, and `textHash`, a hash of the text the window opens with, for `launched`'s check for a changed note.
 - The bundle's actions run `scripts/window.js` by its absolute path, with the note ID and the form as arguments; the form says which bundle the window opened from.
 - Both Alfred UI objects take the bundle path as `{query}`: the result's arg for the quick view, `open.js`'s for the pinned window.
 
@@ -360,7 +389,7 @@ The templates are `ui.json` as Alfred UI reads it, with a few directives that `r
 
 - `"@form": "quick"` or `"pinned"` on an array element keeps it in that form only (the Pin button and ⌘P are quick only, the `⎋` shortcut pinned only); `"@mode": "edit"` or `"view"` likewise.
 - `"@quick"`, `"@pinned"`, `"@edit"` and `"@view"` hold properties merged into their object in that form or mode (the quick view's size and insets, the toggle button's symbol and tooltip).
-- A whole string that's a token (`"@note"`, `"@text"`, `"@title"`, `"@tint"`, `"@fontSize"`, `"@form"`, `"@mode"`, `"@iconPath"`) becomes its value, typed (the font size is a number), except in `args`, where it's a string.
+- A whole string that's a token (`"@note"`, `"@text"`, `"@title"`, `"@tint"`, `"@colourDot"`, `"@colourMenu"`, `"@colourShortcuts"`, `"@fontSize"`, `"@form"`, `"@mode"`, `"@iconPath"`) becomes its value, typed (the font size is a number, the colour menu an array of items), except in `args`, where it's a string. An array element that's a token whose value is an array is replaced by its elements: `window.json`'s shortcuts end with `"@colourShortcuts"`, ⌘1 to ⌘6.
 - An action's `"src": "scripts/…"` becomes an absolute path, since the bundle isn't in the workflow folder.
 - `window.json`'s root view has `{ "id": "toprow" }` and `{ "id": "content" }` placeholders, filled with `toprow.json` and `editor.json` or `viewer.json`. The toggle replaces the same two ids.
 
@@ -396,7 +425,6 @@ The objects: the Script Filter's ↩ goes straight to the quick view's Alfred UI
    - How typing in the quick view feels, since each pause in typing runs a save inside Alfred's process.
 
    For later steps:
-   - Step 4: the colour control goes in the top row (`ui/toprow.json`), clear of a pinned window's traffic lights. `noteTint(meta)` in `lib.js` is where the palette plugs in; the tint reaches the window through the `@tint` token and `context.json` (for the toggle's parts). Changing the colour of an open pinned window needs an `update` of the root view's `background` (id `note`); the quick view isn't tinted (see [Colour](#colour)). The tint is part of a quick bundle's fingerprint, so a colour change rebuilds the note's quick bundle.
    - Step 5: a quick view only works while Alfred's window is showing, so routes from outside Alfred open new notes pinned. `open.js` takes `new=1` with the starting text as its arg; with no Script Filter in front, an External Trigger or keyword can feed `open.js pin` directly.
    - Step 6: rebuild `ui/appicon.png` from the workflow's icon. Move the Alfred UI findings below into `DEVELOPMENT.md`.
 
@@ -409,7 +437,9 @@ The objects: the Script Filter's ↩ goes straight to the quick view's Alfred UI
 - `markdownarea` spacing keys (see [Components](#components)).
 - Launching the helper directly (`open -n … --args <bundle>`), even with Alfred's `__alfredui_constants` and `__alfredui_variables` in the environment, didn't show a window this time, though it did in the earlier tests; going through an Alfred UI object works.
 - `alfred://runtrigger/<bundle id>/<trigger>/?argument=…` runs an External Trigger (with `availableviaurlhandler`), without an AppleEvent. Not used.
-4. **Colour.** The palette (names and tints) in `lib.js`, `dev/make-icons.js` and the icons, the colour control in the top row (a `picker`, or a button with a `menu`) writing the sidecar (`updateMeta`) and updating the tint, per-colour icons in the results list, and the `default_colour` field.
+4. **Colour.** **Done**: built and tested from the terminal (`dev/test-window.sh`, `dev/test-list.sh`) and in Alfred. The palette (see [Colour](#colour)) in `lib.js`; `dev/make-icons.js` and the icons, on each note's result; the colour button and its menu in the top row, and ⌘1–⌘6 (see [Colour control](#colour-control)), running `window.js colour`, which records the colour in the sidecar (`updateMeta`) and the window's context and replaces the top row, after an `update` of a pinned window's tint; and the `default_colour` field. The colour is part of a quick bundle's fingerprint, so a colour change rebuilds the note's quick bundle.
+
+   Tested in Alfred on 25 Nov 2026 (posted clicks and keys, checked through the sidecar and screenshots), with a throwaway note: the result's dot; in the quick view, the menu (Alfred's theme, ✓ on the colour), choosing from it, ⌘3, and the dot following; pinning with ⌘P in the new colour; in the pinned window, ⌘5 (the tint changed within 0.12 s), the menu (light, ✓ on the colour), and the dot keeping its colour after ⌘E; and the result's dot after closing.
 5. **Creating notes.** `new.js`: the `{var:keyword_new}` keyword with optional text, the "New ScratchNote" Universal Action, from the clipboard, and an optional hotkey (unset). A quick view only works while Alfred's window is showing (tested), so routes from outside Alfred, such as the hotkey, open the new note pinned. Test the Universal Action on a selection in another app and on a clipboard history item.
 6. **Docs and polish.** Move the developer notes into `DEVELOPMENT.md` (how it's built, from this document and what was learned), write the user guide in `README.md` and run `bin/wf sync-readme scratchnotes`, and make the workflow icon.
 

@@ -13,6 +13,18 @@
       "constraints": { "region": "right", "position": "centre" },
       "components": [
         {
+          "id": "colour",
+          "type": "button",
+          "text": "",
+          "bordered": false,
+          "font": { "size": 13 },
+          "contenttintcolour": "@colourDot",
+          "image": { "type": "symbol", "src": "circle.fill" },
+          "tooltip": "Colour (⌘1–⌘6)",
+          "accessibility": { "label": "Colour" },
+          "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "popupmenu": { "src": "colour", "menu": "@colourMenu" } } } }]
+        },
+        {
           "id": "toggle",
           "type": "button",
           "text": "",
