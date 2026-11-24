@@ -317,6 +317,258 @@ function noteStore(folder = notesFolder()) {
 }
 
 // ---------------------------------------------------------------------------
+// Note windows
+//
+// A note opens in a window built from the templates in the workflow's ui/
+// folder, written as its own bundle, <cache>/windows/<id>.alfredui, so each
+// pinned note keeps its own saved position (AppKit saves a window's frame under
+// a hash of its bundle's path). The window is in one of two forms, "quick"
+// (inside Alfred's window) or "pinned" (its own window on the desktop), and one
+// of two modes, "edit" (a textarea) or "view" (a markdownarea).
+//
+// The templates are ui.json as Alfred UI reads it, with directives that
+// resolveNoteTemplate resolves and removes:
+//   "@form": "quick" | "pinned"   on an array element: kept in that form only
+//   "@mode": "edit" | "view"      on an array element: kept in that mode only
+//   "@quick", "@pinned", "@edit", "@view": { … }
+//                                 properties merged into the object in that
+//                                 form or mode
+//   "@note", "@text", …           a whole string that's a token is replaced by
+//                                 its value (see noteWindowTokens)
+//   "src": "scripts/…"            an action's script, made absolute, since the
+//                                 bundle isn't in the workflow folder
+//
+// Alfred UI expands {var:…} and {const:…} placeholders in every string it's
+// given (in ui.json and in update and replace actions), and {value:…} and
+// {data:…} in action arguments, so text from a note is escaped before it goes
+// in (escapeForAlfredUi) and unescaped when it comes back.
+
+const NOTE_TINT = "#FFF3B0";
+const FONT_SIZE = { min: 11, max: 20, default: 13 };
+const WORD_JOINER = "⁠";
+
+// The window tint for a note with metadata `meta`.
+// TO-DO: the note's colour from the palette (step 4).
+function noteTint(meta) {
+  return NOTE_TINT;
+}
+
+// The text with a word joiner after the "{" of each {var:, {const:, {value:
+// and {data:, so Alfred UI doesn't treat them as placeholders (it's case
+// sensitive, and a placeholder may span lines). The word joiner is invisible.
+function escapeForAlfredUi(text) {
+  return text.replace(/\{(?=(?:var|const|value|data):)/g, `{${WORD_JOINER}`);
+}
+
+// Undoes escapeForAlfredUi: removes a word joiner only where it put one.
+function unescapeFromAlfredUi(text) {
+  return text.replace(new RegExp(`\\{${WORD_JOINER}(var|const|value|data):`, "g"), "{$1:");
+}
+
+// The font size from the `font_size` setting, in points, within FONT_SIZE.
+function noteFontSize(variable = workflowVariable) {
+  const size = parseInt(variable("font_size"), 10);
+  return isNaN(size) ? FONT_SIZE.default : Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, size));
+}
+
+// The folder of note window bundles in the workflow's cache folder.
+function noteWindowsFolder(variable = workflowVariable) {
+  const cache = variable("alfred_workflow_cache");
+  if (!cache) throw new Error("alfred_workflow_cache isn't set");
+  return `${expandPath(cache)}/windows`;
+}
+
+function noteBundlePath(id, variable = workflowVariable) {
+  if (!isNoteId(id)) throw new Error(`Not a note ID: ${JSON.stringify(id)}`);
+  return `${noteWindowsFolder(variable)}/${id}.alfredui`;
+}
+
+function readNoteTemplate(workflowFolder, name) {
+  const path = `${workflowFolder}/ui/${name}.json`;
+  const text = readText(path);
+  if (text === null) throw new Error(`Can't read ${path}`);
+  return JSON.parse(text);
+}
+
+// The values of the templates' tokens for a window, given:
+//   workflowFolder, id, form, mode, text, fontSize, tint
+function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize = FONT_SIZE.default, tint = NOTE_TINT }) {
+  return {
+    "@note": escapeForAlfredUi(id),
+    "@form": form,
+    "@mode": mode,
+    "@text": escapeForAlfredUi(text),
+    "@title": escapeForAlfredUi(noteSummary(text).title),
+    "@tint": tint,
+    "@fontSize": fontSize,
+    "@iconPath": `${workflowFolder}/ui/appicon.png`,
+  };
+}
+
+// A template with its directives resolved for a form and mode (see above).
+function resolveNoteTemplate(template, { form, mode, tokens, workflowFolder }) {
+  function resolve(value, inArgs) {
+    if (typeof value === "string") {
+      if (Object.prototype.hasOwnProperty.call(tokens, value)) return inArgs ? String(tokens[value]) : tokens[value];
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value
+        .filter((item) => !(item && typeof item === "object" && ((item["@form"] && item["@form"] !== form) || (item["@mode"] && item["@mode"] !== mode))))
+        .map((item) => resolve(item, inArgs));
+    }
+    if (value === null || typeof value !== "object") return value;
+    const merged = Object.assign({}, value, value[`@${form}`], value[`@${mode}`]);
+    const result = {};
+    for (const [key, item] of Object.entries(merged)) {
+      if (key.startsWith("@")) continue;
+      result[key] = resolve(item, inArgs || key === "args");
+    }
+    if (typeof result.src === "string" && result.src.startsWith("scripts/") && result.type === "script") {
+      result.src = `${workflowFolder}/${result.src}`;
+    }
+    return result;
+  }
+  return resolve(template, false);
+}
+
+// A note window's whole ui.json. `options` as for noteWindowTokens.
+function noteWindowUi(options) {
+  const { workflowFolder, form, mode } = options;
+  const settings = { form, mode, tokens: noteWindowTokens(options), workflowFolder };
+  const ui = resolveNoteTemplate(readNoteTemplate(workflowFolder, "window"), settings);
+  const parts = noteModeParts(options);
+  ui.window.root.components = ui.window.root.components.map((c) => parts[c.id] || c);
+  return ui;
+}
+
+// The parts of an open window that change with its mode, for a replace
+// action: { toprow, content }. `options` as for noteWindowTokens.
+function noteModeParts(options) {
+  const { workflowFolder, form, mode } = options;
+  const settings = { form, mode, tokens: noteWindowTokens(options), workflowFolder };
+  return {
+    toprow: resolveNoteTemplate(readNoteTemplate(workflowFolder, "toprow"), settings),
+    content: resolveNoteTemplate(readNoteTemplate(workflowFolder, mode === "edit" ? "editor" : "viewer"), settings),
+  };
+}
+
+// Writes a note's window bundle: its ui.json, and context.json, what the
+// window's scripts need that Alfred doesn't give them (the UI's scripts only
+// get the alfred_* variables, not User Configuration). Returns the bundle's
+// path. `context` is { folder, fontSize, tint }: the notes folder, and the
+// look the window opened with, for the parts the Edit / View toggle replaces.
+function writeNoteBundle(id, ui, context, variable = workflowVariable) {
+  const bundle = noteBundlePath(id, variable);
+  ensureFolder(bundle, true);
+  writeFileAtomically(`${bundle}/context.json`, JSON.stringify(context, null, 2) + "\n");
+  writeFileAtomically(`${bundle}/ui.json`, JSON.stringify(ui, null, 2) + "\n");
+  return bundle;
+}
+
+// The context open.js wrote into a note's bundle, or null.
+function readNoteContext(id, variable = workflowVariable) {
+  return readJsonObject(`${noteBundlePath(id, variable)}/context.json`);
+}
+
+// Deletes a note's window bundle, if it has one: for a note that's gone
+// (deleted on close, or moved to the Trash). Its saved window position goes
+// with it, as nothing will open from that path again.
+function removeNoteBundle(id, variable = workflowVariable) {
+  const bundle = noteBundlePath(id, variable);
+  if ($.NSFileManager.defaultManager.fileExistsAtPath(bundle)) removeFile(bundle);
+}
+
+// ---------------------------------------------------------------------------
+// Window state
+//
+// Each open window's state is in <cache>/state/<id>.json, { form, pid, mode }:
+// its form ("quick" or "pinned"), the process it runs in (its Alfred UI
+// helper's when pinned, Alfred's own when quick) and its mode ("edit" or
+// "view"). The window's `launched` event writes it, the Edit / View toggle
+// updates the mode, and `quit` removes it. A window whose process is killed
+// leaves its state behind, so a pinned note counts as open only while its
+// process is alive (pinnedNotePid).
+
+function noteStatePath(id, variable = workflowVariable) {
+  if (!isNoteId(id)) throw new Error(`Not a note ID: ${JSON.stringify(id)}`);
+  const cache = variable("alfred_workflow_cache");
+  if (!cache) throw new Error("alfred_workflow_cache isn't set");
+  return `${expandPath(cache)}/state/${id}.json`;
+}
+
+function readNoteState(id, variable = workflowVariable) {
+  return readJsonObject(noteStatePath(id, variable));
+}
+
+function writeNoteState(id, state, variable = workflowVariable) {
+  const path = noteStatePath(id, variable);
+  ensureFolder($(path).stringByDeletingLastPathComponent.js, true);
+  writeFileAtomically(path, JSON.stringify(state) + "\n");
+}
+
+function removeNoteState(id, variable = workflowVariable) {
+  const path = noteStatePath(id, variable);
+  if ($.NSFileManager.defaultManager.fileExistsAtPath(path)) removeFile(path);
+}
+
+// The process ID of the note's pinned window, or null if it has none: its
+// state says pinned, and that process is still an Alfred UI helper (so a
+// process ID reused by another app doesn't count).
+function pinnedNotePid(id, variable = workflowVariable) {
+  const state = readNoteState(id, variable);
+  if (!state || state.form !== "pinned" || !Number.isInteger(state.pid)) return null;
+  const app = runningApp(state.pid);
+  if (!app || app.isTerminated) return null;
+  const executable = app.executableURL.isNil() ? "" : app.executableURL.path.js;
+  return executable.endsWith("/Alfred UI") ? state.pid : null;
+}
+
+// Brings the window of the Alfred UI process `pid` to the front.
+function activateWindowProcess(pid) {
+  const app = runningApp(pid);
+  return Boolean(app && app.activateWithOptions($.NSApplicationActivateAllWindows));
+}
+
+// The running app with process ID `pid`, or null. AppKit is imported only
+// here, so scripts that don't need it don't pay for loading it.
+function runningApp(pid) {
+  ObjC.import("AppKit");
+  const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(pid);
+  return app.isNil() ? null : app;
+}
+
+// Ends the process of a note's pinned window, if it has one, without its
+// `quit` event, so nothing writes the note back (for moving it to the
+// Trash). Returns whether there was one.
+function closePinnedNoteWindow(id, variable = workflowVariable) {
+  const pid = pinnedNotePid(id, variable);
+  if (pid === null) return false;
+  runningApp(pid).forceTerminate;
+  removeNoteState(id, variable);
+  return true;
+}
+
+// Whether `id` is in use by a note that's open but may not be saved yet: it
+// has a window bundle or window state. For noteStore's newId.
+function isNoteIdInUse(id, variable = workflowVariable) {
+  const fm = $.NSFileManager.defaultManager;
+  return fm.fileExistsAtPath(noteBundlePath(id, variable)) || fm.fileExistsAtPath(noteStatePath(id, variable));
+}
+
+// The JSON object in a file, or null if it's missing or isn't one.
+function readJsonObject(path) {
+  const text = readText(path);
+  if (text === null) return null;
+  try {
+    const value = JSON.parse(text);
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Files
 
 // The file's text as UTF-8, falling back to the encoding Foundation detects;

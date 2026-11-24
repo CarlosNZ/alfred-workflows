@@ -1,0 +1,34 @@
+{
+  "iconpath": "@iconPath",
+  "window": {
+    "title": "@title",
+    "titlevisibility": false,
+    "titlebarappearstransparent": true,
+    "fullsizecontentview": true,
+    "fullscreenable": false,
+    "movablebybackground": true,
+    "resizeable": true,
+    "frameautosave": true,
+    "size": { "width": 360, "height": 320 },
+    "minsize": { "width": 220, "height": 160 },
+    "@quick": { "size": { "width": 640, "height": 400 } },
+    "root": {
+      "id": "note",
+      "type": "view",
+      "layout": "border",
+      "appearance": "light",
+      "background": "@tint",
+      "spacing": 6,
+      "shortcuts": [
+        { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "{value:editor.text}"] } },
+        { "@form": "quick", "shortcut": "⌘P", "action": { "type": "json", "src": { "finish": { "variables": { "pin_note": "@note" } } } } },
+        { "@form": "pinned", "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } }
+      ],
+      "events": [
+        { "triggers": "launched", "action": { "type": "script", "src": "scripts/window.js", "args": ["launched", "@note", "@form", "@mode"] } },
+        { "triggers": "quit", "action": { "type": "script", "src": "scripts/window.js", "args": ["quit", "@note", "{value:editor.text}"] } }
+      ],
+      "components": [{ "id": "toprow" }, { "id": "content" }]
+    }
+  }
+}

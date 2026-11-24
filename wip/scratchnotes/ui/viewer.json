@@ -1,0 +1,19 @@
+{
+  "id": "content",
+  "type": "view",
+  "layout": "stack",
+  "constraints": { "region": "centre", "stretch": "both", "insets": { "left": 14, "right": 10, "bottom": 10 } },
+  "components": [
+    {
+      "id": "viewer",
+      "type": "markdownarea",
+      "text": "@text",
+      "font": { "size": "@fontSize" },
+      "linespacing": 0,
+      "paragraphspacing": 6,
+      "listspacing": 2,
+      "background": null,
+      "constraints": { "stretch": "both" }
+    }
+  ]
+}

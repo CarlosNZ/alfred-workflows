@@ -3,6 +3,10 @@
 // ⌥↩ on a note: moves the note whose ID is argv[0] to the Trash, through
 // Finder so "Put Back" works, and prints the text of the notification that
 // follows, naming the note.
+//
+// If the note is pinned, its window's process is ended first, without its
+// `quit` event, which would otherwise save the note back after it's gone.
+// The note's window bundle goes too; its sidecar stays (see trash in lib.js).
 
 ObjC.import("Foundation");
 
@@ -12,7 +16,9 @@ function run(argv) {
     const store = noteStore();
     const note = store.read(argv[0]);
     if (!note) return "That note no longer exists";
+    closePinnedNoteWindow(note.id);
     store.trash(note.id);
+    removeNoteBundle(note.id);
     return `Moved “${note.title}” to the Trash`;
   } catch (e) {
     return `Couldn't move the note to the Trash: ${e.message}`;

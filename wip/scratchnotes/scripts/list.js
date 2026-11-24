@@ -35,7 +35,6 @@ function run(argv) {
 function noteItem(note, now) {
   const edited = `Edited ${formatEditedTime(note.modified, now)}`;
   return {
-    uid: note.id,
     title: note.title,
     subtitle: note.preview ? `${edited} · ${note.preview}` : edited,
     arg: note.id,
@@ -43,15 +42,29 @@ function noteItem(note, now) {
     action: { file: note.path },
     text: { copy: note.text, largetype: note.text },
     mods: {
+      cmd: { subtitle: "Pin to the desktop", arg: note.id },
       alt: { subtitle: "Move to the Trash", arg: note.id },
       ctrl: { subtitle: "Reveal in Finder", arg: note.path },
     },
   };
 }
 
-// No uid, so Alfred's learning never moves it from where it's placed.
+// Its arg is the text the note starts with, so the variable `new` tells
+// open.js it isn't a note's ID. ⌥ and ⌃ do nothing: their actions take a
+// note's ID or path.
 function newNoteItem(title, subtitle, text) {
-  return { title, subtitle, arg: text };
+  const variables = { new: "1" };
+  return {
+    title,
+    subtitle,
+    arg: text,
+    variables,
+    mods: {
+      cmd: { subtitle: "Create it pinned to the desktop", arg: text, variables },
+      alt: { subtitle, valid: false },
+      ctrl: { subtitle, valid: false },
+    },
+  };
 }
 
 // The query's words, folded for matching (see foldForSearch).
@@ -83,6 +96,10 @@ function formatEditedTime(date, now) {
   return date.toLocaleDateString(undefined, options);
 }
 
+// The items have no uid, so Alfred keeps them in this order: a uid would let
+// its learning move notes chosen often above New note and above more recently
+// edited notes. A uid is only worth adding with `rerun`, to keep the selection
+// on the same item, and would then need `skipknowledge: true`.
 function output(items) {
   return JSON.stringify({ items });
 }

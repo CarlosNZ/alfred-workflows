@@ -43,6 +43,7 @@ Every item is marked with its status:
 - Every note in the notes folder is used, with or without a sidecar, so `.md` files added by hand or by other apps are notes too. A note without a sidecar is given one the first time it's read or listed, recording the file's birth time as `created`. A sidecar that exists but can't be read is left alone rather than overwritten. This applies in any notes folder, including one of the user's own, so "has a sidecar" doesn't mark the notes ScratchNotes made. **Decided**
 - Moving a note to the Trash leaves its sidecar in place, so a note that's put back keeps its colour. TO-DO: a sweep for sidecars whose notes have been gone a long time (each is a few hundred bytes).
 - Notes from other apps may start with YAML front matter. It's left in the text, but skipped when working out the title and preview.
+- Sidecar keys so far: `created`, `colour` (step 4) and `mode`, the mode (`edit` or `view`) a note's window was last switched to, so the note reopens in it (see [Layout and controls](#layout-and-controls)). **Decided**
 
 ```json
 {
@@ -71,17 +72,17 @@ Every item is marked with its status:
   - Only macOS's named colours adapt to the appearance by themselves; hex, `rgb()`, `hsv()` and `ui.json`'s `colours` constants are fixed. Adaptive notes would need either a light and a dark tint per colour, chosen by the script that opens the window (so an open window keeps its tint until reopened), or a translucent tint that suits both.
   - TO-DO: dark-appearance variants of the palette, in a later version.
   - Tested in dark appearance with a pale tint and `colour: "#1D1D1F"` on both: the editor and the rendered view stayed dark and readable across seven pale hues (`#FFF3B0`, `#FFD6E0`, `#D6E9FF`, `#D9F2D0`, `#E8DDF7`, `#FFE2C2`, `#E6E6E6`). The top row's buttons still switched to their dark style.
-  - Simpler, and covering the buttons, caret and selection too: give the root view `appearance: "light"`, so the whole note keeps its light-appearance look, rather than setting `colour` on each component. **Proposed**; **To test**, inside Alfred as well as pinned.
+  - Simpler, and covering the buttons, caret and selection too: the root view has `appearance: "light"`, so the whole note keeps its light-appearance look, rather than setting `colour` on each component. **Decided**. Tested: a view's `appearance` applies to everything inside it, pinned and inside Alfred. A root view set to `"light"` inside a window forced to `"dark"` kept its dark text and light-style buttons; only the title bar follows the window's appearance. Inside Alfred, without it, text took Alfred's theme (white with a dark theme), unreadable on the tint.
 
 ## Alfred results list
 
 A Script Filter on a keyword (`scratch` by default, configurable), run by `scripts/list.js`. **Decided** throughout, except where marked:
 
-- One result per note, sorted by last edited, newest first. Each result's `uid` is the note's ID, so Alfred learns from use and keeps the selection steady.
+- One result per note, sorted by last edited, newest first. No result has a `uid`, so Alfred keeps this order. With each note's ID as its `uid`, Alfred's learning moved notes chosen often above New note and above more recently edited notes (tested). `skipknowledge: true` stops Alfred recording what's chosen, but it still sorts by entries recorded before the flag was added (tested): they're the rows of the `knowledge` table in `~/Library/Application Support/Alfred/Databases/knowledge.alfdb` whose `item` is `<Script Filter object uid>.<item uid>`. Without uids those entries can't match, so a Mac that ran an earlier build needs no clean-up. A `uid` would only be worth adding with `rerun`, where it keeps the selection on the same item (as in Now Playing and World Clock), and would then need `skipknowledge: true` and those old entries deleted.
 - Title: the note's title. Subtitle: when it was last edited and its preview, e.g. `Edited 3h ago · milk, eggs, flour…`. The time is "just now", minutes, hours or days ago ("5m ago", "3h ago", "2d ago"), and after a week the date in the Mac's format ("12 Nov", with the year if it isn't this year).
 - Icon: the note's colour (step 4; until then results have no icon of their own).
 - Typing searches the whole note, not just the title: every word of the query must appear somewhere in the note, in any order, ignoring case and accents ("cafe" finds "Café"). `list.js` does the matching itself, rather than leaving it to Alfred (`alfredfiltersresults` is off), since it has to know when nothing matches. It reruns on every keystroke, reading every note (about 115 ms for 300 notes, plus `osascript`'s startup), and Alfred stops the previous run when a new one starts (`queuemode` 2).
-- A **New note** result, at the top with no query. With a query that matches nothing, it's the only result, **New note: \<query>**, creating a note with that text. It has no `uid`, so Alfred's learning never moves it. ↩ and ⌘↩ on it behave as they do on a note, as closely as possible: ↩ opens the new note in a quick view, ⌘↩ pins it (connected in step 3).
+- A **New note** result, at the top with no query. With a query that matches nothing, it's the only result, **New note: \<query>**, creating a note with that text. ↩ and ⌘↩ on it behave as they do on a note, as closely as possible: ↩ opens the new note in a quick view, ⌘↩ pins it. Its arg is the text the note starts with (empty for a blank note), and it sets the variable `new` to `1` (on ⌘ too), so `open.js` knows the arg isn't a note's ID. ⌥ and ⌃ do nothing on it (`valid: false`): their actions take a note's ID or path, and the query would otherwise reach them as one.
 - ⌘C copies the note's text and ⌘L shows it in Large Type. → shows Alfred's file actions for the note's file (the item's `action`).
 - Modifiers on a note:
   - ↩ opens it in a quick view inside Alfred, or, if it's already pinned, brings its window to the front (see [Quick notes and pinned notes](#quick-notes-and-pinned-notes)). **Decided**
@@ -102,30 +103,39 @@ A Script Filter on a keyword (`scratch` by default, configurable), run by `scrip
 
 ### Components
 
-- Edit mode is a `textarea`: `editable`, a monospaced `font`, `disableallsubstitutions: true` (no smart quotes or dashes in Markdown). **Proposed**
-- View mode is a `markdownarea`, which renders with Alfred's own Markdown renderer (headings, lists, code blocks, tables, block quotes, images, links). It's display-only. Tested: task lists, tables, inline code, bold and italic render; raw HTML (e.g. `<b>Hello</b>`) doesn't. **Proposed**
-- The toggle swaps one for the other with a `replace` of the view that holds them, as Now Playing does: a hidden component still takes up space (Alfred's docs say so), so they can't be stacked with one hidden. The text goes through the save file: switching to View saves the editor's text and renders it, and switching back puts the saved text in a new `textarea`. Tested, in both forms. **Proposed**
+- Edit mode is a `textarea`: `editable`, a monospaced `font` (`monospaced: true`), `disableallsubstitutions: true` (no smart quotes or dashes in Markdown), and `focus: true`, which puts the caret at the end of the text. **Decided**
+- View mode is a `markdownarea`, which renders with Alfred's own Markdown renderer (headings, lists, code blocks, tables, block quotes, images, links). It's display-only. Tables, inline code, bold and italic render; raw HTML (e.g. `<b>Hello</b>`) doesn't, and neither do task boxes: `- [ ]` and `- [x]` show their brackets as text (tested in step 3). **Decided**
+  - Its default spacing is very loose, with a wide gap between the wrapped lines of a paragraph. It has four spacing keys, not in Alfred's docs (found in its framework, and tested): `linespacing`, `paragraphspacing`, `listspacing` and `lineheightmultiple`. The viewer uses `linespacing: 0`, `paragraphspacing: 6` and `listspacing: 2`. `lineheightmultiple` below 1 misplaces list bullets. Heading sizes and bullet style can't be changed.
+- The toggle swaps one for the other with a `replace` of the view that holds them, as Now Playing does: a hidden component still takes up space (Alfred's docs say so), so they can't be stacked with one hidden. The text goes through the save file: switching to View saves the editor's text and renders it, and switching back puts the saved text in a new `textarea`. The top row is replaced too, for the toggle button's new symbol. Tested, in both forms. **Decided**
 - `webkitview` was considered for rendering (full CommonMark via a vendored JS library) and for a richer editor, but Alfred documents no way for a page's JavaScript to call back to the workflow, so it couldn't save. Not used unless that changes.
 
 ### Layout and controls
 
-- A slim top row with the colour control and the Edit / View toggle; the rest of the window is the note. **Proposed**
-- ⌘E toggles Edit / View; Esc closes the window. **Proposed**
-- New notes open in Edit mode with the caret in the text; existing notes open in View mode. Possibly a preference. **Proposed**
+- A slim top row (24pt) of borderless SF Symbol buttons at the right, level with a pinned window's traffic lights: the Edit / View toggle (`eye` in Edit, to switch to View; `pencil` in View, to switch to Edit) and, in the quick view only, Pin (`pin`), each with a tooltip naming its key. The colour control (step 4) goes in this row too; in a pinned window its left end is under the traffic lights, so it needs to sit beside the other buttons or clear of them. The rest of the window is the note. **Decided**
+- ⌘E toggles Edit / View, Esc closes the window, and ⌘P pins the quick view. All three work inside Alfred as well as pinned (tested), apart from Esc inside Alfred, which Alfred handles itself by closing (the quick view's `quit` still runs). **Decided**
+- New notes open in Edit mode with the caret in the text. Other notes reopen in the mode they were last switched to, kept in the note's sidecar (`mode`), or, if they have none, the mode the `open_mode` setting gives (View by default). A blank note always opens in Edit. **Decided**
+- A pinned window opens at 360×320 (it comes out 32pt shorter, as World Clock records), and can be resized down to 220×160; the quick view is 640×400, which Alfred uses as given, width included. It has a transparent title bar with no visible title, and is dragged by its background. **Decided** for now; sizes may be refined.
 - A pinned window's title is the note's title, so pinned notes can be told apart in ⌘-Tab, the Dock and window switchers (it's hidden in the window itself if the title bar is transparent). **Decided**. It's set when the window opens and can't change while it's open: neither an `update` of the window's `id` nor a `window` action with a `title` changed it (tested), and Alfred's docs give the `window` action only `resize`. Renaming a note shows in its window title the next time it's pinned.
 - Alfred UI can't keep a window above other apps' windows (see [Alfred requests](../../Alfred%20requests.md#alfred-ui-always-on-top-windows)), so notes behave like normal windows, not floating stickies.
 
 ### Saving
 
-- The `textarea`'s `typingstopped` event runs the save script with the text as an argument (`{value:editor.text}`), and the `quit` event saves once more. **Proposed**
+- The `textarea`'s `typingstopped` event runs the save script with the text as an argument (`{value:editor.text}`), about a second after typing stops (tested), and the `quit` event saves once more. The actions aren't `async`, so they run one at a time and a `quit` save can't be overtaken by an earlier save. **Decided**
 - Saves are atomic: the text is written to a hidden temporary file in the same folder, which then replaces the note with `NSFileManager`'s `replaceItemAtURL`, so a crash, a sync app or another save never sees half a note, and when saves race (the `typingstopped` and `quit` saves of one window, each its own process) the last to finish wins whole. `replaceItemAtURL` keeps the note's birth time, permissions and Finder tags; Cocoa's own `writeToFile:atomically:` also swaps in a new file but loses them (tested). A save whose text matches the file is skipped, so its modification time stays. **Decided**
   - Tested by racing separate processes on one note: with versions of about 5 MB (large enough for the writes to overlap despite `osascript`'s startup time), a plain write in place left a mixed note every time, and the atomic save never did. With notes of ordinary size the writes didn't overlap either way, so the risk is small, but the atomic save costs nothing.
 - `quit` fires however a window closes (close button, ⌘W, Esc, pinning, and, for the quick view, Alfred closing), but not if its process is killed (see [Multiple windows](#multiple-windows)). In View mode `{value:editor.text}` is empty, so the `quit` save must know the mode (e.g. from a per-window state file) and skip saving in View mode, where the file is already up to date from the switch to View. **Decided**
-- The View mode's `markdownarea` is refreshed from the saved text when switching to View. **Proposed**
+- The View mode's `markdownarea` is refreshed from the saved text when switching to View. **Decided**
+- Text from a note is escaped on its way into a window (see [Placeholders in a note's text](#placeholders-in-a-notes-text)), and unescaped when it comes back to be saved. **Decided**
+
+### Placeholders in a note's text
+
+Alfred UI expands `{var:…}` and `{const:…}` in every string it's given: text in `ui.json`, the window title, and text in `update` and `replace` actions (tested). A name it doesn't know becomes empty, a match can span lines, and matching is case-sensitive (`{VAR:x}` is left alone). In action arguments it also expands `{value:…}` and `{data:…}`. `{file:…}`, `{fileraw:…}`, `{query}` and `{date}` in a component's text aren't expanded. So a note containing `{var:x}` would lose it in its window, and the next save would write the note back without it. Text coming out of a window is safe: a typed `{var:x}` reaches a script through `{value:editor.text}` as typed (tested).
+
+So everything put into a window from a note (its text, title and ID) has a word joiner (U+2060) inserted after the `{` of each `{var:`, `{const:`, `{value:` and `{data:` (`escapeForAlfredUi` in `lib.js`), which stops the match and is invisible. It comes back intact in the editor's text, and `window.js` removes it from exactly those places before saving (`unescapeFromAlfredUi`). **Decided** (tested). The cost, only in notes containing these strings: the caret steps over an invisible character there, and text copied from the editor includes it.
 
 ### Changes made elsewhere
 
-- If the file is changed on disk while its window is open (another editor, a sync), and the window has no unsaved typing, the window reloads it. Done with a slow pulse comparing the file's modification time. **Proposed**, possibly later.
+- If the file is changed on disk while its window is open (another editor, a sync), and the window has no unsaved typing, the window reloads it. Done with a slow pulse comparing the file's modification time. **Decided**: after the first version. Until then, an edit made elsewhere while a note's window is open is overwritten by that window's next save.
 - If the file is deleted or trashed while open, the window closes without its final save, which would otherwise write the note back. ⌥↩ in the results list closes the note's window itself before trashing the file; a deletion by anything else is caught by the same pulse as above, so until that pulse exists such a window stays open. **Decided**
 
 ## Multiple windows
@@ -170,7 +180,7 @@ Chosen: 5 combined with 1. Pinned windows use the ScratchNotes icon and are titl
 Alfred's own displays (the Text View, "View in Alfred", Quick Look, Large Type) and Alfred UI's "Open within Alfred" mode all live in Alfred's window and process: one at a time, closing when Alfred closes. None stays on the desktop. But the same `.alfredui` bundle can be opened either way, so a note can have two forms. **Decided**:
 
 - **Quick:** ↩ on a note opens it inside Alfred's window, for a quick read or edit. No process, no ⌘-Tab entry; it goes when Alfred closes.
-- **Pinned:** ⌘↩ on a note, or a pin button in the quick view, opens it as its own window on the desktop (its own process, per-note position, as in [Test results](#test-results)). Pinning from the quick view closes the quick view (`finish`) and launches the external window.
+- **Pinned:** ⌘↩ on a note, or Pin (⌘P or its button) in the quick view, opens it as its own window on the desktop (its own process, per-note position, as in [Test results](#test-results)). Pin in the quick view is a `finish` action with the variable `pin_note` set to the note's ID; the quick view's Alfred UI object is connected to the pin route (`open.js pin`, as World Clock's inline view is connected to its detail window), so Alfred carries on there once the view has closed. No AppleEvent is sent, so nothing can deadlock Alfred, and macOS doesn't ask for permission to control Alfred. The quick view's `quit` save finishes before `open.js` reads the note (tested). This replaces the background `run trigger` tested below.
 - If a note is already pinned, ↩ brings its window to the front rather than opening a quick view, so a note is never open in two places at once.
 
 Tested so far for the quick form:
@@ -178,7 +188,7 @@ Tested so far for the quick form:
 - **`quit` fires when Alfred's window closes.** A quick view opened while Alfred was hidden closed at once, and its `quit` event ran with the `textarea`'s text, so a last save on close works. Opening a quick view from outside Alfred (an External Trigger) needs Alfred's window showing first, or it closes straight away.
 - **Pinning from the quick view works.** A Pin button whose script fires an External Trigger (→ Run Script → Alfred UI object set to launch externally) and prints `{"finish":{}}` opened the note as its own window.
 - **A script running inside Alfred must never wait on Alfred.** The quick view's scripts run synchronously in Alfred's process, so a script that calls Alfred over AppleScript (`run trigger`) and waits for the reply deadlocks Alfred until the AppleEvent times out (2 minutes), with a beach ball and no way to quit Alfred normally. Send the AppleEvent in the background (`… &!`) and return straight away. Killing the stuck `osascript` releases Alfred.
-- **A note needs a guard against a second window.** Two queued pins opened two windows for the same note; opening or pinning must check for a live window first (see [Proposed approach](#proposed-approach)).
+- **A note needs a guard against a second window.** Two queued pins opened two windows for the same note; opening or pinning must check for a live window first (see [Approach](#approach)).
 
 Then tested by hand with a test bundle (a top row of buttons over a `textarea`, opened by a keyword inside Alfred and by an External Trigger externally):
 
@@ -190,16 +200,16 @@ Then tested by hand with a test bundle (a top row of buttons over a `textarea`, 
 - **`{value:editor.text}` is empty when the `textarea` isn't in the window.** After the Edit / View toggle has replaced the `textarea` with the `markdownarea`, `quit` (and any other action) gets an empty string for it. A save on `quit` must only use it in Edit mode, or it would blank the note (and the empty-note rule would then delete it); see [Saving](#saving).
 - **Pinning a note that's already pinned** once opened a second window (above) and once opened none, so the behaviour isn't reliable either way; the guard is still needed.
 
-### Still to test
+### Per-window state
 
-- Per-window state: variable persistence (`persist`) is keyed on the UI's `bundleid`, so all windows would share it. Each window's own state (its note, mode, PID) must live elsewhere, e.g. in files keyed by note ID in `$alfred_workflow_cache`.
+Variable persistence (`persist`) is keyed on the UI's `bundleid`, so all windows would share it. Each window's own state (its form, PID and mode) is in a file keyed by note ID in `$alfred_workflow_cache/state/` instead (see [The note window bundle](#the-note-window-bundle)).
 
-### Proposed approach
+### Approach
 
-Given the results so far (**Proposed**; details in [The note window bundle](#the-note-window-bundle)):
+**Decided**, and built in step 3 (details in [The note window bundle](#the-note-window-bundle)):
 
-- Each note opens from its own bundle path in `$alfred_workflow_cache/windows/<note id>.alfredui`, so a pinned window reopens where it was left.
-- On `launched`, the window records its form, PID and mode in a state file keyed by note ID; on `quit` it removes it. Opening a note that has a live pinned window brings that window to the front instead of opening a second one.
+- Each note opens from its own bundle in `$alfred_workflow_cache/windows/<note id>.alfredui`, so a pinned window reopens where it was left. The bundle is a throwaway cache folder, rewritten on every open, and kept after the window closes only so its path, and so the window's saved position, stays the same. It's deleted when its note is: deleted on close for being empty, or moved to the Trash.
+- On `launched`, the window records its form, PID and mode in a state file keyed by note ID; on `quit` it removes it. Opening a note that has a live pinned window brings that window to the front instead of opening a second one (tested, from ↩ and ⌘↩).
 
 ## Configuration
 
@@ -211,8 +221,10 @@ User Configuration fields (values saved in the gitignored `prefs.plist`). **Prop
 | `keyword` | text | `scratch` (**Decided**) |
 | `keyword_new` | text | `snn` |
 | `default_colour` | popup of the palette's colour names | `yellow` (**Decided**) |
-| `font_size` | slider, 11–20 pt, for both Edit and View | `13` (**Decided**) |
-| `open_mode` | popup: View / Edit | View for existing notes |
+| `font_size` | slider, 11–20 pt, for both Edit and View | `13` (**Decided**, built) |
+| `open_mode` | popup: View / Edit, the mode for notes that don't have their own yet | `view` (**Decided**, built) |
+
+A note window's scripts don't get User Configuration (an Alfred UI's scripts only get the `alfred_*` variables), so `open.js` writes what they need into the note's bundle (see [The note window bundle](#the-note-window-bundle)). A changed setting reaches a window the next time it opens.
 
 ## Language
 
@@ -241,13 +253,15 @@ Alfred objects are added to `info.plist` with targeted `plutil` edits and then c
 | `scripts/open.js` | Opens a note, quick or pinned: writes its window bundle, or brings its pinned window to the front. |
 | `scripts/new.js` | Creates a note (blank, from text, or from the clipboard) and opens it. |
 | `scripts/trash.js` | Closes a note's window, if it has one, and moves the note to the Trash. |
-| `scripts/window.js` | The note window's actions: `launched`, `typingstopped`, `quit`, the Edit / View toggle, the colour control, Pin. |
-| `ui/` | The templates a note's window is built from: `window.json` and the parts it's assembled from. |
+| `scripts/window.js` | The note window's actions: `launched`, `typingstopped` (`save`), `quit` and the Edit / View toggle; the colour control in step 4. Pin is a `finish` action in the template. |
+| `ui/` | The templates a note's window is built from: `window.json` (the window and root view), `toprow.json`, and `editor.json` or `viewer.json` for the content. See [The note window bundle](#the-note-window-bundle). |
+| `ui/appicon.png` | Pinned windows' app icon (`iconpath`), for ⌘-Tab and the Dock. A stand-in (a yellow tile with the `note.text` symbol) until step 6 makes the workflow's icon; rebuild it then with `bin/make-appicon icon.png ui/appicon.png`. |
 | `icons/<colour>.png` | One dot icon per palette colour, for the results list. |
 | `dev/make-icons.js` | Draws the icons from the palette. Development only (`.wfignore`). |
 | `dev/install-samples.js` | Installs eight sample notes, `example1` to `example8`, in the current notes folder (or a folder given as its argument), replacing their text, sidecars and dates, so the samples can be reset however they've been changed. Other notes are left alone. Outside Alfred it reads `notes_folder` from `prefs.plist`, falling back to the data folder. Development only (`.wfignore`). |
 | `dev/test-list.sh` | Tests `list.js` with sample notes and queries in a temporary folder. Development only (`.wfignore`). |
 | `dev/test-storage.sh` | Tests `lib.js`'s storage functions against a temporary folder, with `dev/test-storage.js`, which does the work. Development only (`.wfignore`). |
+| `dev/test-window.sh` | Tests `open.js` and `window.js` from the terminal against a temporary notes folder and cache folder: bundles and their templates, settings, escaping, new note IDs, saving, the toggle, `quit` and the pinned-window check. Opens no windows. Development only (`.wfignore`). |
 
 ### Loading lib.js
 
@@ -287,6 +301,16 @@ The storage functions (step 1), for the later scripts. Fuller notes are in the c
 - `noteSummary(text, { titleLength, previewLength })`: `{ title, preview }` (see [Title, timestamps, empty notes](#title-timestamps-empty-notes)), for a note's text that isn't saved yet, such as a window's title.
 - Smaller helpers: `workflowVariable(name)`, `truncateText(text, maxLength)`, `isBlankText`, `formatNoteId(date)`, `formatLocalIsoDate(date)`, `readText(path)`, `writeFileAtomically(path, text)`.
 
+Note windows (step 3; see [The note window bundle](#the-note-window-bundle)):
+
+- `noteWindowUi(options)`: a window's whole `ui.json`; `noteModeParts(options)`: the `toprow` and `content` parts for the toggle's `replace`. `options` is `{ workflowFolder, id, form, mode, text, fontSize, tint }`. `resolveNoteTemplate` resolves the templates' directives.
+- `writeNoteBundle(id, ui, context)`, `readNoteContext(id)`, `removeNoteBundle(id)`, `noteBundlePath(id)`, `noteWindowsFolder()`.
+- `escapeForAlfredUi(text)` and `unescapeFromAlfredUi(text)` (see [Placeholders in a note's text](#placeholders-in-a-notes-text)).
+- `noteFontSize()` (the `font_size` setting, kept within 11–20) and `noteTint(meta)` (the fixed yellow until step 4's palette).
+- Window state: `readNoteState(id)`, `writeNoteState(id, state)`, `removeNoteState(id)`, `pinnedNotePid(id)` (the PID of a live pinned window, checked to be an Alfred UI helper, or null), `activateWindowProcess(pid)`, `closePinnedNoteWindow(id)` (force-quits the process, so its `quit` doesn't run, for `trash.js`), and `isNoteIdInUse(id)`, the `isTaken` for `newId` (a bundle or state file exists).
+- `runningApp(pid)` imports AppKit only when it's needed, so scripts that don't use it don't pay for loading it.
+- Top-level `const`s are private to `lib.js` (see [Loading lib.js](#loading-libjs)), so a value a script needs, such as the tint, comes from a function.
+
 Learned while building it:
 
 - An ObjC method's object parameter must be given `$()` for nil: JavaScript `null` arrives as `NSNull`, which crashed `replaceItemAtURL` (as its backup name). `null` is fine for `NSError **` and other out parameters.
@@ -295,15 +319,26 @@ Learned while building it:
 
 ### The note window bundle
 
-Each note opens from its own generated bundle, `$alfred_workflow_cache/windows/<note id>.alfredui`, whose `ui.json` `open.js` writes every time the note opens, quick or pinned. This replaces the tested arrangement of a symlink per note to one shared bundle, with the note passed in variables:
+**Decided**, and built in step 3. Each note opens from its own generated bundle, `$alfred_workflow_cache/windows/<note id>.alfredui`, whose `ui.json` `open.js` writes every time the note opens, quick or pinned. This replaces the tested arrangement of a symlink per note to one shared bundle, with the note passed in variables:
 
 - Some window settings need real JSON types (the font size is a number), and variables reach a UI only as strings, which Alfred ignores in those places (see Now Playing's `DEVELOPMENT.md`). A `{file:…}` placeholder could insert typed JSON, but its path can't contain a placeholder, so it can't be per note.
 - Each note still has its own bundle path, so each pinned window still keeps its own saved position: the frame is saved under a hash of the path, whether the path is a symlink or a folder.
-- `open.js` fills in the note's text (the `textarea`'s or `markdownarea`'s `text`), the window `title`, the tint, the font size and the starting mode.
+- `open.js` builds `ui.json` from the templates in `ui/` with the note's text, the window `title` (the note's title), the tint, the font size, the form and the mode (`noteWindowUi` in `lib.js`). Text, title and ID are escaped (see [Placeholders in a note's text](#placeholders-in-a-notes-text)).
+- It also writes `context.json` into the bundle: the notes folder, font size and tint, which the window's scripts need but don't get from Alfred (they only get the `alfred_*` variables), so `window.js` can save to the right folder and the toggle can build parts that match.
 - The bundle's actions run `scripts/window.js` by its absolute path, with the note ID as an argument.
-- Both Alfred UI objects take the bundle path as `{var:uipath}` (tested).
+- Both Alfred UI objects take the bundle path as `{query}`, `open.js`'s arg.
 
-Each window's state is in `$alfred_workflow_cache/state/<note id>.json`: its form (`quick` or `pinned`), PID and mode (`edit` or `view`). `launched` writes it, the toggle updates the mode, and `quit` removes it. A note counts as pinned only when the form is `pinned` and the PID is alive; the quick view's PID is Alfred's own, which is always alive.
+The templates are `ui.json` as Alfred UI reads it, with a few directives that `resolveNoteTemplate` resolves and removes, so one set of files covers both forms and both modes:
+
+- `"@form": "quick"` or `"pinned"` on an array element keeps it in that form only (the Pin button and ⌘P are quick only, the `⎋` shortcut pinned only); `"@mode": "edit"` or `"view"` likewise.
+- `"@quick"`, `"@pinned"`, `"@edit"` and `"@view"` hold properties merged into their object in that form or mode (the quick view's size and insets, the toggle button's symbol and tooltip).
+- A whole string that's a token (`"@note"`, `"@text"`, `"@title"`, `"@tint"`, `"@fontSize"`, `"@form"`, `"@mode"`, `"@iconPath"`) becomes its value, typed (the font size is a number), except in `args`, where it's a string.
+- An action's `"src": "scripts/…"` becomes an absolute path, since the bundle isn't in the workflow folder.
+- `window.json`'s root view has `{ "id": "toprow" }` and `{ "id": "content" }` placeholders, filled with `toprow.json` and `editor.json` or `viewer.json`. The toggle replaces the same two ids.
+
+Each window's state is in `$alfred_workflow_cache/state/<note id>.json`: its form (`quick` or `pinned`), PID and mode (`edit` or `view`). `launched` writes it (the PID is `window.js`'s parent: the helper's when pinned, Alfred's when quick), the toggle updates the mode, and `quit` removes it. A note counts as pinned only when the form is `pinned` and the PID is still an Alfred UI helper (`pinnedNotePid`); the quick view's PID is Alfred's own, which is always alive. A `quit` without a state (its `launched` failed) saves only non-blank text, since blank text could be View mode's empty value.
+
+The objects: the Script Filter's ↩ runs `./scripts/open.js quick "$1"` and ⌘↩ runs `./scripts/open.js pin "$1"`, inline zsh one-liners (an external script can't be given a fixed first argument). Each is followed by a Conditional that goes on only when the variable `open_window` is `1` (`open.js` leaves it empty when it brought a pinned window to the front instead), then by the Alfred UI object for that form. The quick view's Alfred UI object is connected to the pin route's Run Script, for Pin. The plan's External Trigger `pin` isn't needed for that, so there isn't one; a route from outside Alfred in step 5 can add it.
 
 ### Steps
 
@@ -311,18 +346,41 @@ Each window's state is in `$alfred_workflow_cache/state/<note id>.json`: its for
 2. **Results list.** **Built**, tested directly (`dev/test-list.sh`); to check in Alfred. `list.js` and a Script Filter on `{var:keyword}`, with the `keyword` and `notes_folder` fields. ⌥↩ trashes (Run Script `trash.js`, which prints the notification's text, then Post Notification), ⌃↩ reveals in Finder (Reveal in Finder on the path, the ⌃ modifier's `arg`), ⇧ / ⌘Y Quick Looks; ↩ and ⌘↩ are connected in step 3. Results have no icon until step 4. Moving notes when `notes_folder` changes is on hold (see [Notes folder](#notes-folder)). To check in Alfred:
    - The `notes_folder` field's picker chooses folders: its `filtermode` is 1, which is a guess (the repo's only other file picker, Now Playing's, picks an app with 0).
    - The Reveal in Finder object (`alfred.workflow.action.revealfile`, `path` set to `{query}`) and the notification object show correctly in the workflow editor.
-   - Whether Alfred's learning moves notes above the New note result, which has no `uid`.
+   - ~~Whether Alfred's learning moves notes above the New note result.~~ Checked in step 3: it does, through the notes' `uid`s, so results have no `uid` (see [Alfred results list](#alfred-results-list)).
    - The first ⌥↩ asks for permission for Alfred to control Finder.
 
-   For step 3: a note result's `arg` is its ID, and the New note result's is the text to start with (empty for a blank note), so step 3 needs a way to tell them apart before `open.js`, such as a variable on the New note result.
-3. **Note window.** The `ui/` templates, `open.js` and `window.js`. Objects: the Script Filter's ↩ → Run Script `open.js quick` → Alfred UI (open within Alfred); ⌘↩ and an External Trigger `pin` → Run Script `open.js pin` → Conditional (stop when it brought an open window to the front) → Alfred UI (launch externally). Covers:
-   - Edit / View with ⌘E and a button, opening in the mode `open_mode` sets (new notes in Edit).
-   - Saving on `typingstopped` and on `quit` (skipped in View mode), and deleting an empty note on close.
-   - Pin (background `run trigger`, then `finish`), Esc, and the guard that brings an already pinned note to the front.
-   - ⌥↩ on a pinned note killing its window's process before trashing it: a killed process doesn't fire `quit`, so nothing writes the note back.
+   Also fixed in step 3: ⌥↩ and ⌃↩ on "New note: \<query>" passed the query to the Trash and Reveal in Finder actions as a note's ID or path. They do nothing on New note now.
+3. **Note window.** **Done**: built and tested from the terminal (`dev/test-window.sh`) and in Alfred, apart from the checks below. The `ui/` templates, `open.js`, `window.js` and the stand-in app icon; `trash.js` closes a pinned window first. Objects: the Script Filter's ↩ → Run Script `open.js quick` → Conditional → Alfred UI (open within Alfred), which connects on to the pin route for Pin; ⌘↩ → Run Script `open.js pin` → Conditional → Alfred UI (launch externally). See [The note window bundle](#the-note-window-bundle). Covers:
+   - Edit / View with ⌘E and a button, opening in the note's remembered mode or the one `open_mode` sets (new notes in Edit).
+   - Saving on `typingstopped` and on `quit` (skipped in View mode), and deleting an empty note, with its bundle, on close.
+   - Pin (⌘P and a button, a `finish` that carries on to the pin route), Esc, and the guard that brings an already pinned note to the front.
+   - ⌥↩ on a pinned note force-quits its window's process before trashing it: a killed process doesn't fire `quit`, so nothing writes the note back. The note's bundle is deleted.
    - The window title, the `font_size` and `open_mode` fields, and an app icon for pinned windows (`iconpath`).
+   - Escaping placeholders in a note's text (see [Placeholders in a note's text](#placeholders-in-a-notes-text)), and the Markdown view's spacing.
 
-   Test at the start of this step: root view `appearance: "light"` (see [Colour](#colour)), and whether Alfred expands placeholders such as `{var:x}` or `{file:…}` that appear in a note's own text, in `ui.json` and in `update` actions. If it does, the text has to be escaped or loaded another way.
+   Tested in Alfred (driven by AppleScript `search`, key events posted to Alfred's or a window's process, and the accessibility API; checked through the note files, state files, processes and screenshots): ↩ opens a quick view; ⌘E toggles and remembers the mode; Esc saves; ⌘P pins, with the quick view's save first; ↩ and ⌘↩ on a pinned note bring it to the front; New note with text is created, and a blank one leaves nothing; typing in a pinned window saves after a pause; the close button saves; `closePinnedNoteWindow` kills a pinned window without a save.
+
+   To check in Alfred, by hand:
+   - ⌘↩ in the results pins a note and a new note (Alfred reads the live modifier keys, so posted key events can't test it).
+   - ⌥↩ on a pinned note closes its window and trashes it (with step 2's Finder permission check).
+   - The app icon in ⌘-Tab and the Dock, and the window title in window switchers.
+   - The `font_size` and `open_mode` fields in the workflow's configuration, and their effect on the next window.
+   - How typing in the quick view feels, since each pause in typing runs a save inside Alfred's process.
+
+   For later steps:
+   - Step 4: the colour control goes in the top row (`ui/toprow.json`), clear of a pinned window's traffic lights. `noteTint(meta)` in `lib.js` is where the palette plugs in; the tint reaches the window through the `@tint` token and `context.json` (for the toggle's parts). Changing the colour of an open window needs an `update` of the root view's `background` (id `note`).
+   - Step 5: a quick view only works while Alfred's window is showing, so routes from outside Alfred open new notes pinned. `open.js` takes `new=1` with the starting text as its arg; with no Script Filter in front, an External Trigger or keyword can feed `open.js pin` directly.
+   - Step 6: rebuild `ui/appicon.png` from the workflow's icon. Move the Alfred UI findings below into `DEVELOPMENT.md`.
+
+#### Alfred UI findings from step 3
+
+- `root` goes inside `window` in `ui.json`. At the top level, the helper creates a window but never shows it.
+- The root view's `events` take `launched` and `quit`; a top-level `events` key doesn't fire.
+- A view's `padding` is a single number; an object is ignored. Per-side spacing is `insets` in a child's `constraints`.
+- A vertical `inline` root doesn't fill the window: it centres its contents. A `border` root fills it, but a `top` region needs an explicit `size: { height }`, or it collapses to the window's top edge.
+- `markdownarea` spacing keys (see [Components](#components)).
+- Launching the helper directly (`open -n … --args <bundle>`), even with Alfred's `__alfredui_constants` and `__alfredui_variables` in the environment, didn't show a window this time, though it did in the earlier tests; going through an Alfred UI object works.
+- `alfred://runtrigger/<bundle id>/<trigger>/?argument=…` runs an External Trigger (with `availableviaurlhandler`), without an AppleEvent. Not used.
 4. **Colour.** The palette (names and tints) in `lib.js`, `dev/make-icons.js` and the icons, the colour control in the top row (a `picker`, or a button with a `menu`) writing the sidecar (`updateMeta`) and updating the tint, per-colour icons in the results list, and the `default_colour` field.
 5. **Creating notes.** `new.js`: the `{var:keyword_new}` keyword with optional text, the "New ScratchNote" Universal Action, from the clipboard, and an optional hotkey (unset). A quick view only works while Alfred's window is showing (tested), so routes from outside Alfred, such as the hotkey, open the new note pinned. Test the Universal Action on a selection in another app and on a clipboard history item.
 6. **Docs and polish.** Move the developer notes into `DEVELOPMENT.md` (how it's built, from this document and what was learned), write the user guide in `README.md` and run `bin/wf sync-readme scratchnotes`, and make the workflow icon.

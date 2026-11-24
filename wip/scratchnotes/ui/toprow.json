@@ -1,0 +1,42 @@
+{
+  "id": "toprow",
+  "type": "view",
+  "layout": "border",
+  "constraints": { "region": "top", "stretch": "horizontal", "size": { "height": 24 }, "insets": { "top": 4, "right": 10 } },
+  "@quick": { "constraints": { "region": "top", "stretch": "horizontal", "size": { "height": 24 }, "insets": { "top": 8, "right": 10 } } },
+  "components": [
+    {
+      "type": "view",
+      "layout": "inline",
+      "direction": "horizontal",
+      "spacing": 12,
+      "constraints": { "region": "right", "position": "centre" },
+      "components": [
+        {
+          "id": "toggle",
+          "type": "button",
+          "text": "",
+          "bordered": false,
+          "font": { "size": 14 },
+          "contenttintcolour": "secondaryLabelColor",
+          "@edit": { "image": { "type": "symbol", "src": "eye" }, "tooltip": "View (⌘E)", "accessibility": { "label": "View" } },
+          "@view": { "image": { "type": "symbol", "src": "pencil" }, "tooltip": "Edit (⌘E)", "accessibility": { "label": "Edit" } },
+          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "{value:editor.text}"] } }]
+        },
+        {
+          "@form": "quick",
+          "id": "pin",
+          "type": "button",
+          "text": "",
+          "bordered": false,
+          "font": { "size": 14 },
+          "contenttintcolour": "secondaryLabelColor",
+          "image": { "type": "symbol", "src": "pin" },
+          "tooltip": "Pin to the desktop (⌘P)",
+          "accessibility": { "label": "Pin" },
+          "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "finish": { "variables": { "pin_note": "@note" } } } } }]
+        }
+      ]
+    }
+  ]
+}
