@@ -8,36 +8,56 @@
 // comes first; with a query that matches no note, the only result is
 // "New note: <query>", which creates a note with that text.
 //
-// Each note result's arg is the note's ID. ⌥↩ moves it to the Trash
-// (trash.js), ⌃↩ reveals it in Finder (its path is that modifier's arg), and
-// Quick Look shows the file.
+// Each result's arg is its quick view's bundle, which ↩ opens inside Alfred
+// with nothing in between, so the view replaces the results seamlessly. The
+// bundles are written here, before the results are shown, and only rebuilt
+// when out of date (see quickWindows in lib.js). ⌘↩ pins the note (open.js;
+// that modifier's arg is the note's ID), ⌥↩ moves it to the Trash (trash.js),
+// ⌃↩ reveals it in Finder (its path is that modifier's arg), and Quick Look
+// shows the file.
 
 ObjC.import("Foundation");
 
 function run(argv) {
-  loadLib(argv, "lib.js");
+  const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   const query = (argv[0] || "").trim();
-  let notes;
+  let store, notes;
   try {
-    notes = noteStore().list();
+    store = noteStore();
+    notes = store.list();
   } catch (e) {
     return output([{ title: "Can't open the notes folder", subtitle: e.message, valid: false }]);
   }
+  const quick = attempt(() => quickWindows(store, workflowFolder));
+  const bundle = (make) => (quick ? attempt(make) || "" : "");
   const words = searchWords(query);
   const matches = notes.filter((note) => words.every((word) => searchText(note).includes(word)));
   const now = new Date();
-  const items = matches.map((note) => noteItem(note, now));
-  if (!query) items.unshift(newNoteItem("New note", "Create a blank note", ""));
-  else if (items.length === 0) items.push(newNoteItem(`New note: ${query}`, "Create a note with this text", query));
+  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note))));
+  if (!query) items.unshift(newNoteItem("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
+  else if (items.length === 0) items.push(newNoteItem(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
+  if (quick) attempt(() => quick.finish(notes));
   return output(items);
 }
 
-function noteItem(note, now) {
+// What `fn` returns, or null if it throws, logging the error (to Alfred's
+// debugger). A quick bundle that can't be written leaves its result's arg
+// empty, so ↩ does nothing, while the list and the other keys still work.
+function attempt(fn) {
+  try {
+    return fn();
+  } catch (e) {
+    console.log(`Quick view bundles: ${e.message}`);
+    return null;
+  }
+}
+
+function noteItem(note, now, bundle) {
   const edited = `Edited ${formatEditedTime(note.modified, now)}`;
   return {
     title: note.title,
     subtitle: note.preview ? `${edited} · ${note.preview}` : edited,
-    arg: note.id,
+    arg: bundle,
     quicklookurl: note.path,
     action: { file: note.path },
     text: { copy: note.text, largetype: note.text },
@@ -49,16 +69,15 @@ function noteItem(note, now) {
   };
 }
 
-// Its arg is the text the note starts with, so the variable `new` tells
-// open.js it isn't a note's ID. ⌥ and ⌃ do nothing: their actions take a
-// note's ID or path.
-function newNoteItem(title, subtitle, text) {
+// Its arg is the bundle of a quick view of a new note starting with `text`.
+// ⌘'s arg is the text itself, so the variable `new` tells open.js it isn't a
+// note's ID. ⌥ and ⌃ do nothing: their actions take a note's ID or path.
+function newNoteItem(title, subtitle, text, bundle) {
   const variables = { new: "1" };
   return {
     title,
     subtitle,
-    arg: text,
-    variables,
+    arg: bundle,
     mods: {
       cmd: { subtitle: "Create it pinned to the desktop", arg: text, variables },
       alt: { subtitle, valid: false },

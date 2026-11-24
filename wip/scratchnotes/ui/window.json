@@ -19,13 +19,13 @@
       "@pinned": { "appearance": "light", "background": "@tint" },
       "spacing": 6,
       "shortcuts": [
-        { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "{value:editor.text}"] } },
+        { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "@form": "quick", "shortcut": "⌘P", "action": { "type": "json", "src": { "finish": { "variables": { "pin_note": "@note" } } } } },
         { "@form": "pinned", "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } }
       ],
       "events": [
         { "triggers": "launched", "action": { "type": "script", "src": "scripts/window.js", "args": ["launched", "@note", "@form", "@mode"] } },
-        { "triggers": "quit", "action": { "type": "script", "src": "scripts/window.js", "args": ["quit", "@note", "{value:editor.text}"] } }
+        { "triggers": "quit", "action": { "type": "script", "src": "scripts/window.js", "args": ["quit", "@note", "@form", "{value:editor.text}"] } }
       ],
       "components": [{ "id": "toprow" }, { "id": "content" }]
     }

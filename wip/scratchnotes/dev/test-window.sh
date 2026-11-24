@@ -52,7 +52,7 @@ print -rn -- $'Vars: {var:x} and {const:y}\n' > "$notes/vars.md"
 
 # An existing note, quick: View by default.
 bundle=$(open_note quick meeting)
-expect "quick: the bundle is the note's, in the cache" "$bundle" "$cache/windows/meeting.alfredui"
+expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" "$cache/quick/meeting.alfredui"
 ui=$bundle/ui.json
 expect "quick: View mode, with the top row" "$(json $ui $ids)" "note:view toprow:view toggle:button pin:button content:view viewer:markdownarea"
 expect "quick: the viewer has the note's text" "$(json $ui 'd.window.root.components[1].components[0].text')" $'# Team meeting\n- Ship it'
@@ -67,6 +67,7 @@ expect "context: notes folder, font size, tint" "$(json $bundle/context.json 'd.
 
 # Pinned, with settings.
 bundle=$(open_note font_size=17 open_mode=edit pin meeting)
+expect "pinned: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
 ui=$bundle/ui.json
 expect "pinned: open_mode edit gives Edit, without Pin" "$(json $ui $ids)" "note:view toprow:view toggle:button content:view editor:textarea"
 expect "pinned: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FFF3B0 light"
@@ -81,46 +82,63 @@ expect "{var: and {const: are escaped with a word joiner" "$(json $ui 'd.window.
 # New notes.
 id1=$(basename "$(open_note new=1 quick 'Buy milk')" .alfredui)
 expect "a new note's ID is the time" "$id1" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]"
-# A new note that's open but not saved has only its bundle: an ID with a bundle
-# is taken. Bundles for the next few seconds' IDs make the next new note -2.
-for s in 0 1 2 3 4; do mkdir -p "$cache/windows/$(date -v+${s}S +%Y%m%d-%H%M%S).alfredui"; done
+# A new note that's open but not saved may have only its pinned bundle: an ID
+# with one is taken. Bundles for the next few seconds' IDs make the next new
+# note -2.
+for s in {0..9}; do mkdir -p "$cache/windows/$(date -v+${s}S +%Y%m%d-%H%M%S).alfredui"; done
 id2=$(basename "$(open_note new=1 quick '')" .alfredui)
-expect "an ID whose bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
-expect "a new note opens in Edit with its text" "$(json $cache/windows/$id1.alfredui/ui.json 'd.window.root.components[1].components[0].type + " " + d.window.root.components[1].components[0].text')" "textarea Buy milk"
+expect "an ID whose pinned bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
+expect "a new note opens in Edit with its text" "$(json $cache/quick/$id1.alfredui/ui.json 'd.window.root.components[1].components[0].type + " " + d.window.root.components[1].components[0].text')" "textarea Buy milk"
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md vars.md "
 expect "open.js sets open_window, clears new and pin_note" "$(env notes_folder=$notes alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","pin_note":""}'
 
 # window.js: launched, save, toggle, quit.
 window_js launched "$id1" quick edit
 expect "launched records form, process and mode" "$(json $cache/state/$id1.json 'd.form + " " + (d.pid === '$$' ? "this shell" : d.pid) + " " + d.mode')" "quick this shell edit"
-window_js save "$id1" "Buy milk {${wj}var:x}"
+window_js save "$id1" quick "Buy milk {${wj}var:x}"
 expect "save writes the text, unescaped" "$(cat $notes/$id1.md)" "Buy milk {var:x}"
-replace=$(window_js toggle "$id1" "Buy oat milk")
+replace=$(window_js toggle "$id1" quick "Buy oat milk")
 expect "toggle to View: saves first" "$(cat $notes/$id1.md)" "Buy oat milk"
 expect "toggle to View: replaces the top row and content" "$(print -r -- $replace | json - 'Object.keys(d.replace.ids).join(" ")')" "toprow content"
 expect "toggle to View: a viewer with the saved text" "$(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text')" "markdownarea Buy oat milk"
 expect "toggle to View: the button shows Edit" "$(print -r -- $replace | json - 'd.replace.ids.toprow.components[0].components[0].accessibility.label')" "Edit"
 expect "toggle: the mode is in the state and the sidecar" "$(json $cache/state/$id1.json d.mode) $(json $notes/.scratchnotes/$id1.json d.mode)" "view view"
-window_js quit "$id1" ""
+window_js quit "$id1" quick ""
 expect "quit in View: no save from the empty editor value" "$(cat $notes/$id1.md)" "Buy oat milk"
 expect "quit removes the state" "$([[ -e $cache/state/$id1.json ]] && print there || print gone)" "gone"
-replace=$(window_js launched "$id1" pinned view; window_js toggle "$id1" "")
+open_note pin "$id1" >/dev/null
+replace=$(window_js launched "$id1" pinned view; window_js toggle "$id1" pinned "")
 expect "toggle to Edit: an editor with the file's text" "$(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text')" "textarea Buy oat milk"
 expect "toggle in a pinned window: no Pin button" "$(print -r -- $replace | json - 'd.replace.ids.toprow.components[0].components.length')" "1"
-window_js quit "$id1" "Buy oat milk and bread"
+window_js quit "$id1" pinned "Buy oat milk and bread"
 expect "quit in Edit: saves" "$(cat $notes/$id1.md)" "Buy oat milk and bread"
 expect "the next open uses the remembered mode" "$(json "$(open_note quick $id1)/ui.json" 'd.window.root.components[1].components[0].type')" "textarea"
 
 window_js launched "$id2" quick edit
-window_js quit "$id2" "  "
-expect "quit with a blank new note: nothing saved, bundle removed" "$(ls $notes | grep -c $id2 || true) $([[ -e $cache/windows/$id2.alfredui ]] && print there || print gone)" "0 gone"
-window_js launched meeting quick edit
-window_js quit meeting ""
+window_js quit "$id2" quick "  "
+expect "quit with a blank new note: nothing saved, bundle removed" "$(ls $notes | grep -c $id2 || true) $([[ -e $cache/quick/$id2.alfredui ]] && print there || print gone)" "0 gone"
+
+# launched in a quick view: the note as it is now, if it changed after its
+# bundle was written.
+expect "launched with the note unchanged: no action" "$(window_js launched meeting quick view)" ""
+print -rn -- $'# Team meeting\n- Ship it today\n' > "$notes/meeting.md"
+replace=$(window_js launched meeting quick view)
+expect "launched with the note changed: replaces the content with its text" "$(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text')" $'markdownarea # Team meeting\n- Ship it today'
+
+# quit with another form's state: a quick view that handed over to the note's
+# pinned window leaves the note and the pinned window's state alone.
+print -r -- '{"form":"pinned","pid":1,"mode":"edit"}' > $cache/state/meeting.json
+window_js quit meeting quick "stale text"
+expect "quit with the other form's state: no save, state kept" "$(head -1 $notes/meeting.md) $(json $cache/state/meeting.json d.form)" "# Team meeting pinned"
+rm $cache/state/meeting.json
+
+window_js launched meeting quick edit >/dev/null
+window_js quit meeting quick ""
 expect "quit with an existing note emptied: deleted with its sidecar" "$(ls -A $notes | grep -c meeting || true) $(ls -A $notes/.scratchnotes | grep -c meeting || true)" "0 0"
 
 # Pinned windows.
 mkdir -p $cache/state && print -r -- '{"form":"pinned","pid":'$$',"mode":"edit"}' > $cache/state/vars.json
-expect "a pinned state whose process isn't Alfred UI doesn't count" "$(open_note quick vars)" "$cache/windows/vars.alfredui"
+expect "a pinned state whose process isn't Alfred UI doesn't count" "$(open_note quick vars)" "$cache/quick/vars.alfredui"
 expect "pin_note: pins the note it names, ignoring new" "$(open_note new=1 pin_note="v{${wj}var:x}" pin 'ignored' 2>&1 | tail -1)" "$cache/windows/v{var:x}.alfredui"
 
 print

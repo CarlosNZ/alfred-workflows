@@ -12,6 +12,11 @@
 // that window to the front instead and leaves `open_window` empty, so the
 // Conditional after it stops, and a note is never open in two windows at once.
 //
+// The workflow runs it for pinning (⌘↩, and Pin in a quick view). ↩ in the
+// results opens a quick bundle that list.js has already written (see
+// quickWindows in lib.js); `open.js quick` writes one the same way, for
+// testing.
+//
 // A new note gets its ID now, before it's saved, so its window can save to it;
 // newId skips IDs that open, unsaved notes already use (isNoteIdInUse).
 
@@ -37,18 +42,7 @@ function run(argv) {
   // its quick view before anything was typed, or one that has gone since the
   // results were shown; both open blank.
   const text = isNew ? argv[1] || "" : note ? note.text : "";
-  const meta = note ? note.meta : {};
-  const mode = !note || isBlankText(text) ? "edit" : meta.mode === "edit" || meta.mode === "view" ? meta.mode : openModeSetting();
-  const fontSize = noteFontSize();
-  const tint = noteTint(meta);
-  const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, tint });
-  const bundle = writeNoteBundle(id, ui, { folder: store.folder, fontSize, tint });
-  return output(bundle);
-}
-
-// The `open_mode` setting: the mode for notes that have none of their own.
-function openModeSetting() {
-  return workflowVariable("open_mode") === "edit" ? "edit" : "view";
+  return output(writeNoteWindow({ store, workflowFolder, id, form, note, text }));
 }
 
 // The output for the next objects: the bundle to open, if any, and the

@@ -43,7 +43,7 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D05</string>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -75,19 +75,6 @@
 				<false/>
 			</dict>
 		</array>
-		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D05</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D07</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</key>
 		<array>
 			<dict>
@@ -97,21 +84,6 @@
 				<integer>0</integer>
 				<key>modifiersubtext</key>
 				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D07</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>sourceoutputuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D09</string>
 				<key>vitoclose</key>
 				<false/>
 			</dict>
@@ -251,29 +223,6 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string>./scripts/open.js quick "$1"</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>type</key>
-				<integer>5</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D05</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>launchmode</key>
 				<integer>0</integer>
 				<key>path</key>
@@ -285,38 +234,6 @@
 			<string>alfred.workflow.userinterface.alfredui</string>
 			<key>uid</key>
 			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>conditions</key>
-				<array>
-					<dict>
-						<key>inputstring</key>
-						<string>{var:open_window}</string>
-						<key>matchcasesensitive</key>
-						<false/>
-						<key>matchmode</key>
-						<integer>0</integer>
-						<key>matchstring</key>
-						<string>1</string>
-						<key>outputlabel</key>
-						<string>Open quick view</string>
-						<key>uid</key>
-						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D09</string>
-					</dict>
-				</array>
-				<key>elselabel</key>
-				<string>else</string>
-				<key>hideelse</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.conditional</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D07</string>
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
@@ -432,26 +349,12 @@
 			<key>ypos</key>
 			<real>560</real>
 		</dict>
-		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D05</key>
-		<dict>
-			<key>xpos</key>
-			<real>300</real>
-			<key>ypos</key>
-			<real>400</real>
-		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</key>
 		<dict>
 			<key>xpos</key>
 			<real>300</real>
 			<key>ypos</key>
 			<real>560</real>
-		</dict>
-		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D07</key>
-		<dict>
-			<key>xpos</key>
-			<real>485</real>
-			<key>ypos</key>
-			<real>430</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</key>
 		<dict>

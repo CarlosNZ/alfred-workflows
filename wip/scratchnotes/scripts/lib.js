@@ -328,11 +328,12 @@ function noteStore(folder = notesFolder()) {
 // Note windows
 //
 // A note opens in a window built from the templates in the workflow's ui/
-// folder, written as its own bundle, <cache>/windows/<id>.alfredui, so each
-// pinned note keeps its own saved position (AppKit saves a window's frame under
-// a hash of its bundle's path). The window is in one of two forms, "quick"
-// (inside Alfred's window) or "pinned" (its own window on the desktop), and one
-// of two modes, "edit" (a textarea) or "view" (a markdownarea).
+// folder, written as its own bundle: <cache>/quick/<id>.alfredui for a quick
+// view, <cache>/windows/<id>.alfredui for a pinned window, so each pinned note
+// keeps its own saved position (AppKit saves a window's frame under a hash of
+// its bundle's path). The window is in one of two forms, "quick" (inside
+// Alfred's window) or "pinned" (its own window on the desktop), and one of two
+// modes, "edit" (a textarea) or "view" (a markdownarea).
 //
 // The templates are ui.json as Alfred UI reads it, with directives that
 // resolveNoteTemplate resolves and removes:
@@ -379,16 +380,20 @@ function noteFontSize(variable = workflowVariable) {
   return isNaN(size) ? FONT_SIZE.default : Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, size));
 }
 
-// The folder of note window bundles in the workflow's cache folder.
-function noteWindowsFolder(variable = workflowVariable) {
+// The folder of a form's window bundles in the workflow's cache folder:
+// quick/ for quick views (kept up to date by list.js, see quickWindows) and
+// windows/ for pinned windows. Separate folders keep list.js from ever
+// rewriting an open pinned window's bundle, and each pinned window's saved
+// position is keyed on its own bundle's path.
+function noteWindowsFolder(form, variable = workflowVariable) {
   const cache = variable("alfred_workflow_cache");
   if (!cache) throw new Error("alfred_workflow_cache isn't set");
-  return `${expandPath(cache)}/windows`;
+  return `${expandPath(cache)}/${form === "quick" ? "quick" : "windows"}`;
 }
 
-function noteBundlePath(id, variable = workflowVariable) {
+function noteBundlePath(id, form, variable = workflowVariable) {
   if (!isNoteId(id)) throw new Error(`Not a note ID: ${JSON.stringify(id)}`);
-  return `${noteWindowsFolder(variable)}/${id}.alfredui`;
+  return `${noteWindowsFolder(form, variable)}/${id}.alfredui`;
 }
 
 function readNoteTemplate(workflowFolder, name) {
@@ -461,30 +466,157 @@ function noteModeParts(options) {
   };
 }
 
+// The mode a note's window opens in: Edit for a new or blank note; otherwise
+// the mode it was last switched to (its sidecar's `mode`), or the `open_mode`
+// setting's (View by default). `note` is null for a new note.
+function noteOpenMode(note, text, variable = workflowVariable) {
+  if (!note || isBlankText(text)) return "edit";
+  if (note.meta.mode === "edit" || note.meta.mode === "view") return note.meta.mode;
+  return variable("open_mode") === "edit" ? "edit" : "view";
+}
+
+// Writes the window bundle of a note in `store` for a form ("quick" or
+// "pinned") and returns its path. `note` is the note as the store read it, or
+// null for a new note; `text` is the text the window opens with.
+function writeNoteWindow({ store, workflowFolder, id, form, note, text }, variable = workflowVariable) {
+  const mode = noteOpenMode(note, text, variable);
+  const fontSize = noteFontSize(variable);
+  const tint = noteTint(note ? note.meta : {});
+  const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, tint });
+  return writeNoteBundle(id, form, ui, { folder: store.folder, fontSize, tint, textHash: textHash(text) }, variable);
+}
+
 // Writes a note's window bundle: its ui.json, and context.json, what the
 // window's scripts need that Alfred doesn't give them (the UI's scripts only
 // get the alfred_* variables, not User Configuration). Returns the bundle's
-// path. `context` is { folder, fontSize, tint }: the notes folder, and the
-// look the window opened with, for the parts the Edit / View toggle replaces.
-function writeNoteBundle(id, ui, context, variable = workflowVariable) {
-  const bundle = noteBundlePath(id, variable);
+// path. `context` is { folder, fontSize, tint, textHash }: the notes folder,
+// the look the window opened with, for the parts the Edit / View toggle
+// replaces, and a hash of the text it opened with (see textHash), so the
+// window can tell when the note has changed since its bundle was written.
+function writeNoteBundle(id, form, ui, context, variable = workflowVariable) {
+  const bundle = noteBundlePath(id, form, variable);
   ensureFolder(bundle, true);
   writeFileAtomically(`${bundle}/context.json`, JSON.stringify(context, null, 2) + "\n");
   writeFileAtomically(`${bundle}/ui.json`, JSON.stringify(ui, null, 2) + "\n");
   return bundle;
 }
 
-// The context open.js wrote into a note's bundle, or null.
-function readNoteContext(id, variable = workflowVariable) {
-  return readJsonObject(`${noteBundlePath(id, variable)}/context.json`);
+// The context written into a note's bundle for a form, or null.
+function readNoteContext(id, form, variable = workflowVariable) {
+  return readJsonObject(`${noteBundlePath(id, form, variable)}/context.json`);
 }
 
-// Deletes a note's window bundle, if it has one: for a note that's gone
-// (deleted on close, or moved to the Trash). Its saved window position goes
-// with it, as nothing will open from that path again.
+// Deletes a note's window bundles, quick and pinned, if it has them: for a
+// note that's gone (deleted on close, or moved to the Trash). Its saved window
+// position goes with them, as nothing will open from that path again.
 function removeNoteBundle(id, variable = workflowVariable) {
-  const bundle = noteBundlePath(id, variable);
-  if ($.NSFileManager.defaultManager.fileExistsAtPath(bundle)) removeFile(bundle);
+  for (const form of ["quick", "pinned"]) {
+    const bundle = noteBundlePath(id, form, variable);
+    if ($.NSFileManager.defaultManager.fileExistsAtPath(bundle)) removeFile(bundle);
+  }
+}
+
+// The files a window bundle is built from, besides the note: the templates,
+// and this file, which builds them. A change to any (a workflow update) makes
+// every quick bundle out of date.
+const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/toprow.json", "ui/editor.json", "ui/viewer.json", "scripts/lib.js"];
+
+// Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
+// from the Script Filter, with nothing in between: a Run Script or Conditional
+// there makes Alfred hide its window and fade the view in (see "Quick notes
+// and pinned notes" in DESIGN.md). So each note's quick bundle has to be ready
+// before the results are shown.
+//
+// A bundle's fingerprint is a hash of everything it's built from: the note's
+// text, its mode and tint (from its sidecar and the settings), the font size,
+// the notes and workflow folders, and the modification times of
+// NOTE_WINDOW_SOURCES. The fingerprints are kept in quick/.index.json, read
+// once per run, so a bundle is only rebuilt when its fingerprint changes:
+// usually none, one after a note is edited, every one after a setting or the
+// workflow changes.
+//
+//   bundleFor(note)     the quick bundle of a note from store.list(), rebuilt
+//                       if it's out of date
+//   bundleForNew(text)  a quick bundle for a new note starting with `text`,
+//                       with a new ID
+//   finish(notes)       removes the bundles and fingerprints of notes that
+//                       are gone, given every note in the folder, keeping any
+//                       that's open (has a window state), and saves the index
+function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
+  const fm = $.NSFileManager.defaultManager;
+  // Each variable is read once: through the ObjC bridge, a read per note adds
+  // up over hundreds of notes on every keystroke.
+  const variables = new Map();
+  const variable = (name) => {
+    if (!variables.has(name)) variables.set(name, readVariable(name));
+    return variables.get(name);
+  };
+  const folder = noteWindowsFolder("quick", variable);
+  const indexPath = `${folder}/.index.json`;
+  const index = new Map(Object.entries(readJsonObject(indexPath) || {}));
+  const entries = fm.contentsOfDirectoryAtPathError(folder, null);
+  const bundles = new Set(entries.isNil() ? [] : ObjC.deepUnwrap(entries));
+  const sources = NOTE_WINDOW_SOURCES.map((path) => {
+    const date = fileDate(`${workflowFolder}/${path}`, "NSFileModificationDate");
+    return date ? date.getTime() : 0;
+  });
+  const base = JSON.stringify([workflowFolder, store.folder, noteFontSize(variable), variable("open_mode"), sources]);
+  let changed = false;
+  let newId = null;
+
+  function bundleFor(note) {
+    const fingerprint = textHash([base, noteOpenMode(note, note.text, variable), noteTint(note.meta), note.text].join("\0"));
+    if (index.get(note.id) === fingerprint && bundles.has(`${note.id}.alfredui`)) return `${folder}/${note.id}.alfredui`;
+    const bundle = writeNoteWindow({ store, workflowFolder, id: note.id, form: "quick", note, text: note.text }, variable);
+    index.set(note.id, fingerprint);
+    changed = true;
+    return bundle;
+  }
+
+  // A new note's ID is the time, so on each run within the same second it's
+  // the same ID and bundle; a bundle from an earlier second is removed by the
+  // next finish.
+  function bundleForNew(text) {
+    newId = store.newId({ isTaken: (id) => isNoteIdInUse(id, variable) });
+    return writeNoteWindow({ store, workflowFolder, id: newId, form: "quick", note: null, text }, variable);
+  }
+
+  function finish(notes) {
+    const ids = new Set(notes.map((note) => note.id));
+    for (const id of index.keys()) {
+      if (!ids.has(id)) {
+        index.delete(id);
+        changed = true;
+      }
+    }
+    for (const name of bundles) {
+      if (!name.endsWith(".alfredui")) continue;
+      const id = name.slice(0, -".alfredui".length);
+      if (ids.has(id) || id === newId || !isNoteId(id) || fm.fileExistsAtPath(noteStatePath(id, variable))) continue;
+      removeFile(`${folder}/${name}`);
+    }
+    if (changed) {
+      ensureFolder(folder, true);
+      writeFileAtomically(indexPath, JSON.stringify(Object.fromEntries(index)) + "\n");
+    }
+  }
+
+  return { bundleFor, bundleForNew, finish };
+}
+
+// A short hash of a string (cyrb53, 53 bits, in base 36), for fingerprints:
+// not cryptographic, but a chance collision is negligible.
+function textHash(text) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
 // ---------------------------------------------------------------------------
@@ -558,10 +690,12 @@ function closePinnedNoteWindow(id, variable = workflowVariable) {
 }
 
 // Whether `id` is in use by a note that's open but may not be saved yet: it
-// has a window bundle or window state. For noteStore's newId.
+// has a pinned window bundle or a window state. For noteStore's newId. A
+// quick bundle alone doesn't count: list.js writes one for each new note it
+// offers, and reuses its ID within the same second.
 function isNoteIdInUse(id, variable = workflowVariable) {
   const fm = $.NSFileManager.defaultManager;
-  return fm.fileExistsAtPath(noteBundlePath(id, variable)) || fm.fileExistsAtPath(noteStatePath(id, variable));
+  return fm.fileExistsAtPath(noteBundlePath(id, "pinned", variable)) || fm.fileExistsAtPath(noteStatePath(id, variable));
 }
 
 // The JSON object in a file, or null if it's missing or isn't one.

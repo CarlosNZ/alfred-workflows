@@ -14,7 +14,7 @@
       "font": { "size": "@fontSize", "monospaced": true },
       "background": null,
       "constraints": { "stretch": "both" },
-      "events": [{ "triggers": "typingstopped", "action": { "type": "script", "src": "scripts/window.js", "args": ["save", "@note", "{value:editor.text}"] } }]
+      "events": [{ "triggers": "typingstopped", "action": { "type": "script", "src": "scripts/window.js", "args": ["save", "@note", "@form", "{value:editor.text}"] } }]
     }
   ]
 }

@@ -21,7 +21,7 @@
           "contenttintcolour": "secondaryLabelColor",
           "@edit": { "image": { "type": "symbol", "src": "eye" }, "tooltip": "View (⌘E)", "accessibility": { "label": "View" } },
           "@view": { "image": { "type": "symbol", "src": "pencil" }, "tooltip": "Edit (⌘E)", "accessibility": { "label": "Edit" } },
-          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "{value:editor.text}"] } }]
+          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } }]
         },
         {
           "@form": "quick",
