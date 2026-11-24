@@ -12,9 +12,19 @@ Select one or more files, a URL or some text in Alfred, open Universal Actions (
 - **URLs** are sent as links, which open on the receiving device.
 - **Text** is sent as a `.txt` file, named after its first line.
 
+To send what's on the clipboard, type `airdrop` in Alfred. It sends:
+
+- **Files** copied in Finder.
+- **Text or a URL**, as above.
+- **An image**, such as a screenshot copied to the clipboard (<kbd>⇧</kbd><kbd>⌃</kbd><kbd>⌘</kbd><kbd>4</kbd>), as a PNG.
+
 Once you've picked a device, you can press **Done** straight away: the transfer carries on in the background until it finishes.
 
 The panel opens on whichever display macOS chooses, which may not be the one you're looking at.
+
+## Configuration
+
+- **Keyword**: the keyword that sends the clipboard, `airdrop` by default.
 
 ## Acknowledgements
 

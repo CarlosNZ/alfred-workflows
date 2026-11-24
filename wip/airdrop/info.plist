@@ -32,6 +32,19 @@
 				<false/>
 			</dict>
 		</array>
+		<key>B3EE1010-E191-4F51-882E-4B0930C9FD0A</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>442B7D43-622E-4413-8901-EE1E3F1AEE42</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
@@ -108,6 +121,27 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>keyword</key>
+				<string>{var:keyword}</string>
+				<key>subtext</key>
+				<string>Send what's on the clipboard: copied files, text or an image</string>
+				<key>text</key>
+				<string>AirDrop the clipboard</string>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>B3EE1010-E191-4F51-882E-4B0930C9FD0A</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string>## Usage
@@ -120,9 +154,19 @@ Select one or more files, a URL or some text in Alfred, open Universal Actions (
 - **URLs** are sent as links, which open on the receiving device.
 - **Text** is sent as a `.txt` file, named after its first line.
 
+To send what's on the clipboard, type `airdrop` in Alfred. It sends:
+
+- **Files** copied in Finder.
+- **Text or a URL**, as above.
+- **An image**, such as a screenshot copied to the clipboard (&lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;4&lt;/kbd&gt;), as a PNG.
+
 Once you've picked a device, you can press **Done** straight away: the transfer carries on in the background until it finishes.
 
 The panel opens on whichever display macOS chooses, which may not be the one you're looking at.
+
+## Configuration
+
+- **Keyword**: the keyword that sends the clipboard, `airdrop` by default.
 
 ## Acknowledgements
 
@@ -132,16 +176,16 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 		<key>31154210-B967-4F54-A2B3-9719BB973FAC</key>
 		<dict>
 			<key>xpos</key>
-			<integer>420</integer>
+			<real>420</real>
 			<key>ypos</key>
-			<integer>75</integer>
+			<real>75</real>
 		</dict>
 		<key>442B7D43-622E-4413-8901-EE1E3F1AEE42</key>
 		<dict>
 			<key>xpos</key>
-			<integer>230</integer>
+			<real>230</real>
 			<key>ypos</key>
-			<integer>75</integer>
+			<real>75</real>
 		</dict>
 		<key>65BEB21D-BCCE-446A-AA88-4CFBF7AE5358</key>
 		<dict>
@@ -150,9 +194,38 @@ Workflow created with the assistance of [Claude Code](https://claude.com/product
 			<key>ypos</key>
 			<real>75</real>
 		</dict>
+		<key>B3EE1010-E191-4F51-882E-4B0930C9FD0A</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>205</real>
+		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
-	<array/>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>airdrop</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Sends what's on the clipboard with AirDrop: copied files, text or an image.</string>
+			<key>label</key>
+			<string>Keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>keyword</string>
+		</dict>
+	</array>
 	<key>webaddress</key>
 	<string></string>
 </dict>

@@ -2,7 +2,8 @@
 // Opens Apple's AirDrop panel with the given items loaded, for the user to pick a device.
 //
 // Each argument is a file or folder path, a URL, or text. Text is written to a .txt file in
-// $alfred_workflow_cache and that file is sent. Prints an error message to stdout when the
+// $alfred_workflow_cache and that file is sent. With no arguments (the keyword), it sends what's
+// on the clipboard: copied files, text, or an image. Prints an error message to stdout when the
 // panel can't be shown (for the workflow's notification), and nothing otherwise. Progress goes
 // to stderr, which Alfred's debugger shows.
 //
@@ -47,10 +48,11 @@ function expandArgs(argv) {
   return argv;
 }
 
-// Each run writes its text files into a folder of its own, as the AirDrop daemon may still be
-// reading an earlier run's files. Folders older than TEXT_KEEP are removed.
-function textFolder() {
-  const base = (env('alfred_workflow_cache') || $.NSTemporaryDirectory().js.replace(/\/$/, '')) + '/text';
+// Each run writes the files it makes (for text and clipboard images) into a folder of its own,
+// as the AirDrop daemon may still be reading an earlier run's files. Folders older than
+// TEXT_KEEP are removed.
+function itemFolder() {
+  const base = (env('alfred_workflow_cache') || $.NSTemporaryDirectory().js.replace(/\/$/, '')) + '/items';
   const old = fm.contentsOfDirectoryAtPathError(base, $());
   if (!old.isNil()) {
     for (let i = 0; i < old.count; i++) {
@@ -86,7 +88,7 @@ function toItems(args) {
     } else if (isURL(arg.trim()) && !$.NSURL.URLWithString(arg.trim()).isNil()) {
       items.addObject($.NSURL.URLWithString(arg.trim()));
     } else if (arg.trim()) {
-      folder = folder || textFolder();
+      folder = folder || itemFolder();
       const path = folder + '/' + textFileName(arg, taken);
       if (!$(arg).writeToFileAtomicallyEncodingError(path, true, $.NSUTF8StringEncoding, $())) {
         throw new Error('Couldn’t write the text to a file in the workflow’s cache folder.');
@@ -95,6 +97,40 @@ function toItems(args) {
     }
   }
   return items;
+}
+
+// Files copied in Finder come first, as Finder also puts their names on the clipboard as text
+// and their icons as an image. Then text, which is treated like an argument (a path, a URL or
+// text), then image data, such as a screenshot copied to the clipboard, saved as a PNG.
+function clipboardItems() {
+  const pb = $.NSPasteboard.generalPasteboard;
+
+  const fileOnly = $.NSDictionary.dictionaryWithObjectForKey($.NSNumber.numberWithBool(true), $.NSPasteboardURLReadingFileURLsOnlyKey);
+  const files = pb.readObjectsForClassesOptions($.NSArray.arrayWithObject($.NSURL), fileOnly);
+  if (!files.isNil() && files.count > 0) {
+    log('clipboard: ' + files.count + ' file(s)');
+    return files;
+  }
+
+  const text = pb.stringForType($.NSPasteboardTypeString);
+  if (!text.isNil() && text.js.trim()) {
+    log('clipboard: text');
+    return toItems([text.js]);
+  }
+
+  const image = $.NSImage.alloc.initWithPasteboard(pb);
+  if (!image.isNil()) {
+    log('clipboard: image');
+    const png = $.NSBitmapImageRep.imageRepWithData(image.TIFFRepresentation)
+      .representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
+    const path = itemFolder() + '/Image.png';
+    if (png.isNil() || !png.writeToFileAtomically(path, true)) {
+      throw new Error('Couldn’t save the image to the workflow’s cache folder.');
+    }
+    return $.NSArray.arrayWithObject($.NSURL.fileURLWithPath(path));
+  }
+
+  return $.NSArray.array;
 }
 
 function runLoopFor(seconds) {
@@ -121,11 +157,14 @@ function raiseWindows(app) {
 function run(argv) {
   const args = expandArgs(argv);
   log('items: ' + JSON.stringify(args));
-  if (args.length === 0) return 'Nothing to send.';
+
+  // The keyword passes no argument (Alfred may still pass one empty string); a Universal Action
+  // always passes at least one item.
+  const fromClipboard = args.every(a => !a.trim());
 
   let items;
-  try { items = toItems(args); } catch (e) { return e.message; }
-  if (items.count === 0) return 'Nothing to send.';
+  try { items = fromClipboard ? clipboardItems() : toItems(args); } catch (e) { return e.message; }
+  if (items.count === 0) return fromClipboard ? 'There’s nothing on the clipboard to send.' : 'Nothing to send.';
 
   const app = $.NSApplication.sharedApplication;
   app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);

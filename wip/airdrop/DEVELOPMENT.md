@@ -1,18 +1,21 @@
 # AirDrop
 
-Developer notes for a Universal Action that opens Apple's AirDrop panel with the files, URLs or text it's given already loaded, so the user only picks the device. The user guide is in [README.md](README.md).
+Developer notes for a Universal Action that opens Apple's AirDrop panel with the files, URLs or text it's given already loaded, so the user only picks the device, and a keyword that does the same with what's on the clipboard. The user guide is in [README.md](README.md).
 
 ## To-do
 
-- Test from Alfred: how several files reach the script (separate argv entries, or one tab-separated argument; the script handles both, and logs what it gets to the debugger), and whether the panel comes to the front when Alfred starts the script.
-- Test from Alfred that a second AirDrop started while a panel is still open isn't held back until the first panel closes (the Run Script object has `concurrently` set).
+- Test the keyword from Alfred with files copied in Finder, with copied text, and with a screenshot copied to the clipboard (⇧⌃⌘4).
 
 ## Design
 
 - **Apple's panel, not a device list in Alfred.** The public API is `NSSharingService` named `NSSharingServiceNameSendViaAirDrop`, whose `performWithItems:` shows the AirDrop panel. There's no public API to list nearby devices or to choose the recipient in code, so the device is always picked in the panel.
 - **JXA through the ObjC bridge**, in one external script (`airdrop.js`, type 8, input as argv), so nothing needs installing or compiling. A compiled helper app was the fallback if the panel didn't work from `osascript`, but it does, which avoids signing and notarising a binary (see [Compiled binaries](../../README.md#compiled-binaries)).
-- **Text becomes a file.** Text is written to a `.txt` file in `$alfred_workflow_cache/text/<UUID>/`, named after its first line (up to 40 characters, with `/`, `:` and `\` replaced), which is what the recipient sees. Each run gets its own folder, as the AirDrop daemon may still be reading an earlier run's files; folders older than a day are removed at the start of each run.
+- **Text becomes a file.** Text is written to a `.txt` file in `$alfred_workflow_cache/items/<UUID>/`, named after its first line (up to 40 characters, with `/`, `:` and `\` replaced), which is what the recipient sees. Each run gets its own folder, as the AirDrop daemon may still be reading an earlier run's files; folders older than a day are removed at the start of each run.
 - **URLs** are arguments that look like `scheme://…` and are sent as `NSURL`s. Existing absolute paths are sent as files (folders too). Anything else is text.
+- **The clipboard keyword runs the same script with no input** (the Keyword object takes no argument, and Alfred passes one empty string), which the script takes to mean the clipboard; a Universal Action always passes at least one item. The keyword is the User Configuration variable `keyword`, `airdrop` by default. It sends, in this order of preference:
+  - **Files copied in Finder** (file URLs on the pasteboard). These come first because Finder also puts the files' names on the pasteboard as text and their icons as an image.
+  - **Text**, treated like an argument: a path, a URL or text.
+  - **An image**, such as a screenshot copied to the clipboard, saved as `Image.png` in the run's folder in the cache.
 - **Errors only** reach the user: the script prints a message to stdout when it can't show the panel, which a Post Notification shows ("only show if populated"). A successful run prints nothing, so there's no notification for it. Done and Cancel can't be told apart (see below), so the workflow never claims something was sent.
 - **Runs concurrently** (Run Script `concurrently`), so a second AirDrop isn't queued behind a panel that's still open.
 
@@ -20,7 +23,7 @@ Developer notes for a Universal Action that opens Apple's AirDrop panel with the
 
 `airdrop.js`:
 
-1. Turns the arguments into items: file URLs, URLs, and file URLs for text written to the cache.
+1. Turns the arguments, or with none the clipboard's contents, into items: file URLs, URLs, and file URLs for text and images written to the cache.
 2. Makes the process an accessory app (`NSApplicationActivationPolicyAccessory`: no Dock icon) and calls `performWithItems:` on the AirDrop service, after checking `canPerformWithItems:` (false when AirDrop is unavailable, such as with Wi-Fi off).
 3. Runs the run loop until the panel has appeared and closed again, then exits. The panel's windows belong to this process, so it has to keep running while the panel is open. If no window appears within 30 seconds, it reports that the panel didn't open; a panel left open is closed after 10 minutes.
 
@@ -47,7 +50,7 @@ alfred_workflow_cache=/tmp/airdrop-test wip/airdrop/airdrop.js ~/Desktop/file.pd
 on two lines"
 ```
 
-Check that the panel appears in front with every item loaded, that the script exits when the panel closes (Done or Cancel) with nothing on stdout, and that `/tmp/airdrop-test/text/` holds a `.txt` file per text argument. A run with no arguments prints "Nothing to send."
+Check that the panel appears in front with every item loaded, that the script exits when the panel closes (Done or Cancel) with nothing on stdout, and that `/tmp/airdrop-test/items/` holds a `.txt` file per text argument. A run with no arguments (or one empty argument, as the keyword passes) sends the clipboard, and logs which kind of contents it found (`clipboard: text`, `clipboard: 2 file(s)` or `clipboard: image`).
 
 The `osascript` process doesn't answer Accessibility requests (error -25204), so System Events can't press the panel's buttons. Posting a mouse click with `CGEventPost` works: the panel sits centred in a display-sized window named "AirDrop" (find it with `CGWindowListCopyWindowInfo` by the script's pid), with Cancel 131 points right of and 102 points below the window's centre.
 
