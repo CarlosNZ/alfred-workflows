@@ -54,10 +54,10 @@ print -rn -- $'Vars: {var:x} and {const:y}\n' > "$notes/vars.md"
 bundle=$(open_note quick meeting)
 expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" "$cache/quick/meeting.alfredui"
 ui=$bundle/ui.json
-expect "quick: View mode, with the top row" "$(json $ui $ids)" "note:view toprow:view toggle:button pin:button content:view viewer:markdownarea"
+expect "quick: View mode, with the top row" "$(json $ui $ids)" "note:view toprow:view toggle:button pin:button content:view viewer:markdownarea doubleclick:view"
 expect "quick: the viewer has the note's text" "$(json $ui 'd.window.root.components[1].components[0].text')" $'# Team meeting\n- Ship it'
 expect "quick: the title is the note's" "$(json $ui 'd.window.title')" "Team meeting"
-expect "quick: ⌘E and ⌘P, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘P"
+expect "quick: ⌘E, ⌘↩ and ⌘P, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P"
 expect "quick: the quick size" "$(json $ui 'd.window.size.width + "x" + d.window.size.height')" "640x400"
 expect "quick: no tint or appearance, so it takes Alfred's theme" "$(json $ui '"background" in d.window.root || "appearance" in d.window.root')" "false"
 expect "actions run window.js by its absolute path" "$(json $ui 'd.window.root.events[0].action.src')" "$scripts/window.js"
@@ -71,7 +71,7 @@ expect "pinned: the bundle is in the cache's windows folder" "$bundle" "$cache/w
 ui=$bundle/ui.json
 expect "pinned: open_mode edit gives Edit, without Pin" "$(json $ui $ids)" "note:view toprow:view toggle:button content:view editor:textarea"
 expect "pinned: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FFF3B0 light"
-expect "pinned: ⎋ closes, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⎋"
+expect "pinned: ⌘E, ⌘↩ and ⎋, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⎋"
 expect "pinned: the font size is a number" "$(json $ui 'typeof d.window.root.components[1].components[0].font.size + " " + d.window.root.components[1].components[0].font.size')" "number 17"
 expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 pin meeting)/context.json" 'd.fontSize')" "20"
 
@@ -92,7 +92,7 @@ expect "a new note opens in Edit with its text" "$(json $cache/quick/$id1.alfred
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md vars.md "
 expect "open.js sets open_window, clears new and pin_note" "$(env notes_folder=$notes alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","pin_note":""}'
 
-# window.js: launched, save, toggle, quit.
+# window.js: launched, save, toggle, edit, view, quit.
 window_js launched "$id1" quick edit
 expect "launched records form, process and mode" "$(json $cache/state/$id1.json 'd.form + " " + (d.pid === '$$' ? "this shell" : d.pid) + " " + d.mode')" "quick this shell edit"
 window_js save "$id1" quick "Buy milk {${wj}var:x}"
@@ -103,13 +103,24 @@ expect "toggle to View: replaces the top row and content" "$(print -r -- $replac
 expect "toggle to View: a viewer with the saved text" "$(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text')" "markdownarea Buy oat milk"
 expect "toggle to View: the button shows Edit" "$(print -r -- $replace | json - 'd.replace.ids.toprow.components[0].components[0].accessibility.label')" "Edit"
 expect "toggle: the mode is in the state and the sidecar" "$(json $cache/state/$id1.json d.mode) $(json $notes/.scratchnotes/$id1.json d.mode)" "view view"
+window_js save "$id1" quick ""
+expect "save in View (typing stopped after the switch): nothing saved" "$(cat $notes/$id1.md)" "Buy oat milk"
 window_js quit "$id1" quick ""
 expect "quit in View: no save from the empty editor value" "$(cat $notes/$id1.md)" "Buy oat milk"
 expect "quit removes the state" "$([[ -e $cache/state/$id1.json ]] && print there || print gone)" "gone"
+expect "toggle with no state: nothing, and nothing saved" "$(window_js toggle "$id1" quick "") $(cat $notes/$id1.md)" " Buy oat milk"
+window_js save "$id1" quick ""
+expect "save with no state: blank text isn't saved" "$(cat $notes/$id1.md)" "Buy oat milk"
 open_note pin "$id1" >/dev/null
 replace=$(window_js launched "$id1" pinned view; window_js toggle "$id1" pinned "")
 expect "toggle to Edit: an editor with the file's text" "$(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text')" "textarea Buy oat milk"
 expect "toggle in a pinned window: no Pin button" "$(print -r -- $replace | json - 'd.replace.ids.toprow.components[0].components.length')" "1"
+expect "edit in Edit: nothing" "$(window_js edit "$id1" pinned "")" ""
+replace=$(window_js view "$id1" pinned "Buy oat milk!")
+expect "view in Edit: saves, then a viewer with the saved text" "$(cat $notes/$id1.md) $(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text') $(json $cache/state/$id1.json d.mode)" "Buy oat milk! markdownarea Buy oat milk! view"
+expect "view in View: nothing, and nothing saved" "$(window_js view "$id1" pinned "") $(cat $notes/$id1.md)" " Buy oat milk!"
+replace=$(window_js edit "$id1" pinned "")
+expect "edit in View: an editor with the file's text" "$(print -r -- $replace | json - 'd.replace.ids.content.components[0].type + " " + d.replace.ids.content.components[0].text') $(json $cache/state/$id1.json d.mode)" "textarea Buy oat milk! edit"
 window_js quit "$id1" pinned "Buy oat milk and bread"
 expect "quit in Edit: saves" "$(cat $notes/$id1.md)" "Buy oat milk and bread"
 expect "the next open uses the remembered mode" "$(json "$(open_note quick $id1)/ui.json" 'd.window.root.components[1].components[0].type')" "textarea"

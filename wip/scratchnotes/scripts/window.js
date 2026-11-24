@@ -5,6 +5,8 @@
 //   window.js launched <id> <form> <mode>   the window opened: records its state
 //   window.js save <id> <form> <text>       typing stopped: saves the text
 //   window.js toggle <id> <form> <text>     ⌘E or the Edit / View button
+//   window.js edit <id> <form> <text>       double-click in View: to Edit
+//   window.js view <id> <form> <text>       ⌘↩ in Edit: saves, to View
 //   window.js quit <id> <form> <text>       the window closed: saves, and
 //                                           deletes the note if it's empty
 //
@@ -38,10 +40,12 @@ function run(argv) {
     case "launched":
       return launched(store, workflowFolder, context, id, form, rest[0]);
     case "save":
-      store.save(id, unescapeFromAlfredUi(rest[0] || ""));
+      save(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
       return;
     case "toggle":
-      return toggle(store, workflowFolder, context, id, form, unescapeFromAlfredUi(rest[0] || ""));
+    case "edit":
+    case "view":
+      return switchMode(store, workflowFolder, context, id, form, unescapeFromAlfredUi(rest[0] || ""), command === "toggle" ? null : command);
     case "quit":
       quit(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
       return;
@@ -69,13 +73,28 @@ function launched(store, workflowFolder, context, id, form, mode) {
   return JSON.stringify({ replace: { ids: parts } });
 }
 
-// Switches the window between Edit and View, through the saved file: to View,
-// it saves the editor's text and renders the file; to Edit, it puts the file's
-// text in a new editor. Prints the replace action for the window, and
-// remembers the mode in the note's sidecar, so the note reopens in it.
-function toggle(store, workflowFolder, context, id, form, text) {
-  const state = readNoteState(id) || {};
+// Typing has stopped: saves the editor's text, if it's the editor's (see
+// isEditorText). The event fires about a second after the last keystroke, so
+// it can come after a switch to View has replaced the editor, when its text is
+// empty.
+function save(store, id, form, text) {
+  if (isEditorText(readNoteState(id), form, text)) store.save(id, text);
+}
+
+// Switches the window to mode `to` ("edit" or "view"), or to the other mode
+// when `to` is null, through the saved file: to View, it saves the editor's
+// text and renders the file; to Edit, it puts the file's text in a new editor.
+// Prints the replace action for the window, and remembers the mode in the
+// note's sidecar, so the note reopens in it. Does nothing when the window is
+// already in mode `to` (⌘↩ is a shortcut of the whole window, so it also
+// reaches this in View mode), or when it has no state of its form (its
+// `launched` failed, or it handed over to a pinned window), since then its
+// mode is unknown.
+function switchMode(store, workflowFolder, context, id, form, text, to) {
+  const state = readNoteState(id);
+  if (!state || state.form !== form) return;
   const from = state.mode === "view" ? "view" : "edit";
+  if (to === from) return;
   if (from === "edit") store.save(id, text);
   const mode = from === "edit" ? "view" : "edit";
   const note = store.read(id);
@@ -93,18 +112,27 @@ function toggle(store, workflowFolder, context, id, form, text) {
   return JSON.stringify({ replace: { ids: parts } });
 }
 
-// The window has closed. Saves the editor's text in Edit mode, then deletes
-// the note, with its window bundles, if it's empty or was never saved. Without
-// a state (its `launched` failed), the mode is unknown, so only non-blank text
-// is saved: blank text could be View mode's empty value. A state of the other
-// form is another window's: this was a quick view that handed over to the
-// note's pinned window (see launched), so it leaves everything alone.
+// The window has closed. Saves the editor's text (see isEditorText), then
+// deletes the note, with its window bundles, if it's empty or was never saved.
+// A state of the other form is another window's: this was a quick view that
+// handed over to the note's pinned window (see launched), so it leaves
+// everything alone.
 function quit(store, id, form, text) {
   const state = readNoteState(id);
   if (state && state.form !== form) return;
-  if (state ? state.mode === "edit" : !isBlankText(text)) store.save(id, text);
+  if (isEditorText(state, form, text)) store.save(id, text);
   removeNoteState(id);
   if (store.deleteIfEmpty(id)) removeNoteBundle(id);
+}
+
+// Whether `text`, a window's {value:editor.text}, is its editor's text, and so
+// can be saved: only in Edit mode, since in View there's no editor and the
+// value is empty. With no state (the window's `launched` failed), the mode is
+// unknown, so only non-blank text counts. A state of the other form is
+// another window's.
+function isEditorText(state, form, text) {
+  if (!state) return !isBlankText(text);
+  return state.form === form && state.mode === "edit";
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from
