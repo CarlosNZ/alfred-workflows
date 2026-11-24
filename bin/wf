@@ -469,6 +469,40 @@ sync_readme() {
   print -r -- $want > $state
 }
 
+# Download counts of the GitHub releases, per workflow, newest release first.
+# Each count is the total for the release's attached files since they were
+# uploaded: GitHub keeps no history by date, doesn't count the "Source code"
+# archives, and includes repeat downloads and bots. Only tags of the form
+# <slug>/v<version> are listed, so releases of workflows no longer in the repo
+# still show up.
+cmd_downloads() {
+  (( $# <= 1 )) || die "usage: wf downloads [<slug>]"
+  local want=${1:-} rows tag date count slug grand=0
+  local -A total lines
+  local -a slugs
+  command -v gh >/dev/null || die "downloads needs gh (https://cli.github.com)"
+  rows=$(cd $REPO && gh api --paginate 'repos/{owner}/{repo}/releases' --jq '.[] | [
+      .tag_name,
+      (if .draft then "draft" else .published_at[0:10] end),
+      ([.assets[].download_count] | add // 0)
+    ] | @tsv') || die "could not fetch the releases from GitHub"
+  while IFS=$'\t' read -r tag date count; do
+    [[ $tag == */v* ]] || continue
+    slug=${tag%%/v*}
+    [[ -z $want || $slug == $want ]] || continue
+    (( ${+total[$slug]} )) || { slugs+=($slug); total[$slug]=0; lines[$slug]= }
+    (( total[$slug] += count, grand += count ))
+    lines[$slug]+=$(printf '  %-24s %-10s %6d' ${tag#$slug/} $date $count)$'\n'
+  done <<< $rows
+  (( $#slugs )) || die "no GitHub releases${want:+ for '$want'}"
+  for slug in ${(o)slugs}; do
+    printf '%-37s %6d\n' $slug $total[$slug]
+    print -n -r -- $lines[$slug]
+  done
+  (( $#slugs > 1 )) && printf '%-37s %6d\n' Total $grand
+  return 0
+}
+
 # Bring the workflow's info.plist up to date with the files it's copied from:
 # the shared User Configuration and its README.md.
 sync_workflow() {
@@ -522,6 +556,8 @@ Usage: wf <command> [args]
                               Set the version, commit, tag <slug>/v<version>, build, and open a
                               draft GitHub release with the build attached; --allow-unsigned
                               only for pre-release versions (1.2.3-preview.1)
+  downloads [<slug>]          Show how many times each GitHub release has been downloaded, per
+                              workflow or only <slug>'s (totals since upload; needs gh)
   sync-config [<slug>]        Copy the shared User Configuration options (shared/userconfig)
                               into every workflow that uses them, or only into <slug>
   sync-readme [--force] [<slug>]
