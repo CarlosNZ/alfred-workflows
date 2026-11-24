@@ -1,0 +1,41 @@
+{
+  "id": "content",
+  "type": "view",
+  "layout": "stack",
+  "constraints": { "stretch": "both" },
+  "components": [
+    {
+      "id": "page",
+      "type": "view",
+      "layout": "stack",
+      "constraints": { "stretch": "both" },
+      "@pinned": { "constraints": { "stretch": "both", "insets": { "top": 28 } } },
+      "shortcuts": [{ "shortcut": "↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["edit", "@note", "@form", ""] } }],
+      "components": [
+        {
+          "id": "web",
+          "type": "webkitview",
+          "src": "view.html",
+          "openlinksexternally": true,
+          "opacity": 0,
+          "constraints": { "stretch": "both" },
+          "events": [{ "triggers": "changed", "action": { "type": "script", "src": "scripts/changed.sh", "args": ["{value:web.src}", "@note", "@form"] } }]
+        }
+      ]
+    },
+    {
+      "id": "editor",
+      "type": "textarea",
+      "text": "",
+      "editable": true,
+      "disableallsubstitutions": true,
+      "font": { "size": "@fontSize", "monospaced": true },
+      "background": null,
+      "constraints": { "stretch": "both", "insets": { "top": 34, "left": 14, "right": 10, "bottom": 10 } },
+      "@quick": { "constraints": { "stretch": "both", "insets": { "top": 38, "left": 14, "right": 10, "bottom": 10 } } },
+      "@edit": { "text": "@text", "focus": true },
+      "@view": { "hidden": true },
+      "events": [{ "triggers": "typingstopped", "action": { "type": "script", "src": "scripts/window.js", "args": ["save", "@note", "@form", "{value:editor.text}"] } }]
+    }
+  ]
+}

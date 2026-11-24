@@ -15,9 +15,8 @@
     "root": {
       "id": "note",
       "type": "view",
-      "layout": "border",
+      "layout": "stack",
       "@pinned": { "appearance": "light", "background": "@tint" },
-      "spacing": 6,
       "shortcuts": [
         { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "shortcut": "⌘↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["view", "@note", "@form", "{value:editor.text}"] } },
@@ -29,7 +28,7 @@
         { "triggers": "launched", "action": { "type": "script", "src": "scripts/window.js", "args": ["launched", "@note", "@form", "@mode"] } },
         { "triggers": "quit", "action": { "type": "script", "src": "scripts/window.js", "args": ["quit", "@note", "@form", "{value:editor.text}"] } }
       ],
-      "components": [{ "id": "toprow" }, { "id": "content" }]
+      "components": [{ "id": "content" }, { "id": "toprow" }]
     }
   }
 }

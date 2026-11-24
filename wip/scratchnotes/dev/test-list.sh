@@ -44,6 +44,12 @@ expect() {
   if [[ $actual == ${~${expected//|/\\|}} ]]; then print -r -- "ok    $label"; else print -r -- "FAIL  $label"$'\n'"      got:      ${actual//$'\n'/$'\n'                }"$'\n'"      expected: $expected"; (( failures++ )) || true; fi
 }
 
+# As expect, but the expected text is taken literally, with no patterns.
+expect_exact() {
+  local label=$1 actual=$2 expected=$3
+  if [[ $actual == "$expected" ]]; then print -r -- "ok    $label"; else print -r -- "FAIL  $label"$'\n'"      got:      ${actual//$'\n'/$'\n'                }"$'\n'"      expected: $expected"; (( failures++ )) || true; fi
+}
+
 all=$(items "$notes")
 expect "no query: New note first, then notes last edited first" "$(print -r -- $all | cut -d'|' -f1 | sed 's/ $//')" $'New note\nJust written\nCafé ideas\nShopping\nOld note'
 expect "New note: arg a quick bundle, ⌘ arg empty with new=1, ⌥ and ⌃ do nothing" "$(print -r -- $all | head -1)" "New note | Create a blank note | $quick/20*.alfredui |  |  | - | - | 1"
@@ -64,8 +70,9 @@ expect "notes without sidecars were given one" "$(ls -A "$notes/.scratchnotes" |
 # The quick bundle's ui.json of a note, and its modification time.
 ui() { print -r -- "$quick/$1.alfredui/ui.json" }
 mtime() { stat -f %Fm "$(ui $1)" }
+# The note's text in its quick bundle's page (note.js).
 text_of() {
-  osascript -l JavaScript -e 'ObjC.import("Foundation"); function run(argv) { const d = JSON.parse($.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js); return d.window.root.components[1].components[0].text; }' "$(ui $1)"
+  osascript -l JavaScript -e 'ObjC.import("Foundation"); function run(argv) { const page = {}; new Function("window", $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js)(page); return page.NOTE; }' "$quick/$1.alfredui/note.js"
 }
 items "$notes" >/dev/null
 expect "every note has a quick bundle with its text" "$(ls $quick | grep -v '^20' | tr '\n' ' ')$(text_of cafe)" "cafe.alfredui old.alfredui recent.alfredui shopping.alfredui "$'Café ideas\nFlat white, **long black**'
@@ -123,6 +130,21 @@ expect "an unknown colour gets the default's icon" "$(icons milk)" "Shopping ico
 print -r -- '{"form":"pinned","pid":'$$',"mode":"edit"}' > "$cache/state/shopping.json"
 expect "a pinned state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago · milk, eggs | $quick/shopping.alfredui "
 rm "$cache/state/shopping.json"
+
+# The theme stylesheet for quick views' pages, from Alfred's theme background.
+# The stylesheet list.js writes with alfred_theme_background set to $1 (unset
+# if it's empty).
+theme() {
+  (cd "$tmp" && env notes_folder=$notes alfred_workflow_cache=$cache ${1:+alfred_theme_background=$1} "$list" "") >/dev/null
+  cat "$cache/theme.css"
+}
+expect_exact "theme: a solid theme's colour, at full opacity, with the system's text" "$(theme 'rgba(255,255,255,1.00)')" $':root { --panel: rgb(255, 255, 255); --opacity: 1; }\n@media (prefers-color-scheme: light) { :root { --panel: rgb(255, 255, 255); } }'
+expect_exact "theme: a translucent theme over the base, at the lowest opacity, with stronger text" "$(theme 'rgba(40,161,250,0.05)')" $':root { --panel: rgb(31, 37, 41); --opacity: 0.8; }\n@media (prefers-color-scheme: light) { :root { --panel: rgb(244, 250, 255); } }\n@media (prefers-color-scheme: dark) { :root { --text: rgba(255, 255, 255, 1.00); --text-done: rgba(255, 255, 255, 0.60); --link: #4DA3FF; } }\n@media (prefers-color-scheme: light) { :root { --text: rgba(0, 0, 0, 1.00); --text-done: rgba(0, 0, 0, 0.60); --link: #0058D0; } }'
+expect_exact "theme: above the lowest opacity, the theme's alpha" "$(theme 'rgba(20, 20, 20, 0.9)' | head -1) $(theme 'rgba(20, 20, 20, 0.9)' | sed -n 3p | grep -o -- '--text: [^;]*')" ':root { --panel: rgb(21, 21, 21); --opacity: 0.9; } --text: rgba(255, 255, 255, 0.94)'
+before_theme=$(stat -f %Fm "$cache/theme.css")
+theme 'rgba(20, 20, 20, 0.9)' >/dev/null
+expect "theme: an unchanged stylesheet isn't rewritten" "$(stat -f %Fm "$cache/theme.css")" "$before_theme"
+expect "theme: without a theme colour, the page's own colours" "$(theme '')" "/\* No theme colour*"
 
 expect "unusable notes folder: an error result" "$(items "$tmp/missing/notes" | cut -d'|' -f1-2)" "Can't open the notes folder | Can't create *"
 

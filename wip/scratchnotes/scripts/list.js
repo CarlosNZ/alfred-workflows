@@ -11,7 +11,8 @@
 // Each result's arg is its quick view's bundle, which ↩ opens inside Alfred
 // with nothing in between, so the view replaces the results seamlessly. The
 // bundles are written here, before the results are shown, and only rebuilt
-// when out of date (see quickWindows in lib.js). ↩ on a note that's pinned
+// when out of date (see quickWindows in lib.js), and so is the stylesheet that
+// gives their pages the colour of Alfred's theme. ↩ on a note that's pinned
 // brings its pinned window to the front instead (see noteItem). ⌘↩ pins the note (open.js;
 // that modifier's arg is the note's ID), ⌥↩ moves it to the Trash (trash.js),
 // ⌃↩ reveals it in Finder (its path is that modifier's arg), and Quick Look
@@ -30,6 +31,9 @@ function run(argv) {
     return output([{ title: "Can't open the notes folder", subtitle: e.message, valid: false }]);
   }
   const quick = attempt(() => quickWindows(store, workflowFolder));
+  // Quick views' pages take their colour from Alfred's theme, which Alfred
+  // gives a Script Filter (see noteThemeStylesheet in lib.js).
+  attempt(() => writeNoteTheme(workflowVariable("alfred_theme_background")));
   const bundle = (make) => (quick ? attempt(make) || "" : "");
   const words = searchWords(query);
   const matches = notes.filter((note) => words.every((word) => searchText(note).includes(word)));
@@ -53,7 +57,7 @@ function attempt(fn) {
   try {
     return fn();
   } catch (e) {
-    console.log(`Quick view bundles: ${e.message}`);
+    console.log(`Quick views: ${e.message}`);
     return null;
   }
 }

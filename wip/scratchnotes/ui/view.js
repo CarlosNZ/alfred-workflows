@@ -1,0 +1,108 @@
+// The script of a note's page, its View mode in the window's web view.
+// lib.js inlines it into each window bundle's view.html (notePageHtml), so a
+// changed script reaches every window that opens afterwards, rather than
+// WebKit keeping a copy it loaded earlier.
+//
+// The page renders window.NOTE, the note's text from note.js beside it, with
+// markdown-it. NOTE is null in a window that opened in Edit: its page shows
+// nothing until the switch to View reloads it with the note.
+//
+// The page tells the window things by changing its URL's fragment, which the
+// web view reports with its `changed` event (scripts/changed.sh):
+//
+//   #ready-<opacity>-<n>   the note has been drawn: show the web view at
+//                          <opacity> (it starts at 0, which hides WebKit's
+//                          own fill until the note is there)
+//   #t-<line>-<x|o>-<n>    the task box of source line <line> (counting from
+//                          0) was ticked (x) or unticked (o)
+//
+// <n> counts the page's messages, so that each one changes the URL.
+//
+// Only function declarations at the top level: dev/test-window.sh loads this
+// file in JXA, without a document, to test the task rule.
+
+// A markdown-it renderer for notes: CommonMark with tables and strikethrough,
+// raw HTML escaped (so a note can't run script in the page), bare URLs as
+// links, and task boxes.
+function noteMarkdown(markdownit) {
+  const md = markdownit({ html: false, linkify: true, typographer: false });
+  md.core.ruler.after("inline", "note_tasks", noteTaskRule);
+  return md;
+}
+
+// A core rule, after `inline`: a list item whose paragraph starts with "[ ] ",
+// "[x] " or "[X] " gets a checkbox in place of that, carrying the paragraph's
+// first source line (`map`), which is the line window.js ticks.
+function noteTaskRule(state) {
+  const tokens = state.tokens;
+  for (let i = 2; i < tokens.length; i++) {
+    const inline = tokens[i];
+    if (inline.type !== "inline" || tokens[i - 1].type !== "paragraph_open" || tokens[i - 2].type !== "list_item_open") continue;
+    const match = /^\[([ xX])\] /.exec(inline.content);
+    const first = inline.children && inline.children[0];
+    if (!match || !inline.map || !first || first.type !== "text" || !first.content.startsWith(match[0])) continue;
+    const done = match[1] !== " ";
+    first.content = first.content.slice(match[0].length);
+    const box = new state.Token("html_inline", "", 0);
+    box.content = `<input type="checkbox" data-line="${inline.map[0]}"${done ? " checked" : ""}>`;
+    inline.children.unshift(box);
+    tokens[i - 2].attrJoin("class", done ? "task done" : "task");
+  }
+}
+
+// Gives a pinned note's page its colour, from note.js, so it changes with the
+// note's colour without view.html being rewritten. Run in the page's head,
+// before anything is drawn.
+function showNoteTint() {
+  if (typeof NOTE_TINT === "string") document.documentElement.style.setProperty("--tint", NOTE_TINT);
+}
+
+// Renders the note, keeps the scroll position across reloads, sends task
+// ticks, and says when the note has been drawn. `form` is "quick" or
+// "pinned".
+function startNotePage(form) {
+  if (typeof NOTE !== "string") return;
+  let messages = 0;
+  const send = (message) => history.replaceState(null, "", `#${message}-${++messages}`);
+
+  const note = document.getElementById("note");
+  if (typeof markdownit === "function") {
+    note.innerHTML = noteMarkdown(markdownit).render(NOTE);
+  } else {
+    // markdown-it didn't load: the note as plain text, rather than nothing.
+    const pre = document.createElement("pre");
+    pre.textContent = NOTE;
+    note.appendChild(pre);
+  }
+
+  // The page reloads when a tick is refused, after a switch from Edit, and
+  // when a pinned note's colour changes: each time it opens where it was.
+  try {
+    const saved = sessionStorage.getItem("scrollY");
+    if (saved !== null) scrollTo(0, Number(saved));
+    addEventListener("pagehide", () => sessionStorage.setItem("scrollY", String(scrollY)));
+  } catch (e) {
+    // No session storage: the page opens at the top.
+  }
+
+  document.addEventListener("change", (event) => {
+    const box = event.target;
+    if (!box.matches("input[type=checkbox][data-line]")) return;
+    box.parentElement.classList.toggle("done", box.checked);
+    send(`t-${box.dataset.line}-${box.checked ? "x" : "o"}`);
+  });
+
+  // Two animation frames after rendering, the note has been drawn. Shown any
+  // sooner (one frame after rendering), the web view showed WebKit's own
+  // fill for a moment in a pinned window.
+  requestAnimationFrame(() => requestAnimationFrame(() => send(`ready-${notePageOpacity(form)}`)));
+}
+
+// The opacity to show the web view at: 1 when pinned; in a quick view, the
+// theme stylesheet's --opacity (see noteThemeStylesheet in lib.js), or 1
+// without one.
+function notePageOpacity(form) {
+  if (form === "pinned") return 1;
+  const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--opacity"));
+  return isFinite(value) ? Math.round(Math.min(1, Math.max(0, value)) * 100) / 100 : 1;
+}

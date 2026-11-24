@@ -333,7 +333,14 @@ function noteStore(folder = notesFolder()) {
 // keeps its own saved position (AppKit saves a window's frame under a hash of
 // its bundle's path). The window is in one of two forms, "quick" (inside
 // Alfred's window) or "pinned" (its own window on the desktop), and one of two
-// modes, "edit" (a textarea) or "view" (a markdownarea).
+// modes, "edit" (a textarea) or "view" (the note rendered in a web view).
+//
+// Both modes have the same layout, a stack filling the window: the web view,
+// the textarea over it, and the top row's buttons over the top-right corner.
+// The web view stays in the window for its whole life (a new one takes
+// 100–250 ms to show anything): Edit fades it out and shows the textarea, and
+// View hides the textarea and reloads the web view's page with the note (see
+// writeNotePage).
 //
 // The templates are ui.json as Alfred UI reads it, with directives that
 // resolveNoteTemplate resolves and removes:
@@ -514,25 +521,32 @@ function resolveNoteTemplate(template, { form, mode, tokens, workflowFolder }) {
   return resolve(template, false);
 }
 
-// A note window's whole ui.json. `options` as for noteWindowTokens.
+// A note window's whole ui.json: window.json, with its { "id": "content" }
+// and { "id": "toprow" } placeholders filled. `options` as for
+// noteWindowTokens.
 function noteWindowUi(options) {
-  const { workflowFolder, form, mode } = options;
-  const settings = { form, mode, tokens: noteWindowTokens(options), workflowFolder };
-  const ui = resolveNoteTemplate(readNoteTemplate(workflowFolder, "window"), settings);
-  const parts = noteModeParts(options);
-  ui.window.root.components = ui.window.root.components.map((c) => parts[c.id] || c);
+  const ui = noteWindowPart(options, "window");
+  ui.window.root.components = ui.window.root.components.map((c) => (c.id === "content" || c.id === "toprow" ? noteWindowPart(options, c.id) : c));
   return ui;
 }
 
-// The parts of an open window that change with its mode, for a replace
-// action: { toprow, content }. `options` as for noteWindowTokens.
-function noteModeParts(options) {
+// One of a window's templates ("window", "toprow" or "content"), resolved for
+// its form and mode: the top row, for instance, for a replace action after a
+// colour change. `options` as for noteWindowTokens.
+function noteWindowPart(options, name) {
   const { workflowFolder, form, mode } = options;
   const settings = { form, mode, tokens: noteWindowTokens(options), workflowFolder };
-  return {
-    toprow: resolveNoteTemplate(readNoteTemplate(workflowFolder, "toprow"), settings),
-    content: resolveNoteTemplate(readNoteTemplate(workflowFolder, mode === "edit" ? "editor" : "viewer"), settings),
-  };
+  return resolveNoteTemplate(readNoteTemplate(workflowFolder, name), settings);
+}
+
+// The component with id `id` in a resolved template, or null.
+function findNoteComponent(component, id) {
+  if (component.id === id) return component;
+  for (const child of component.components || []) {
+    const found = findNoteComponent(child, id);
+    if (found) return found;
+  }
+  return null;
 }
 
 // The mode a note's window opens in: Edit for a new or blank note; otherwise
@@ -552,21 +566,31 @@ function writeNoteWindow({ store, workflowFolder, id, form, note, text }, variab
   const fontSize = noteFontSize(variable);
   const colour = noteColour(note ? note.meta : {}, variable).name;
   const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, colour });
-  return writeNoteBundle(id, form, ui, { folder: store.folder, fontSize, colour, textHash: textHash(text) }, variable);
+  const script = notePageScript(mode === "view" ? text : null, colour);
+  const page = notePageHtml({ workflowFolder, form, fontSize, noteVersion: textHash(script) }, variable);
+  const context = { folder: store.folder, fontSize, colour, textHash: textHash(text) };
+  return writeNoteBundle(id, form, { ui, context, page, script }, variable);
 }
 
-// Writes a note's window bundle: its ui.json, and context.json, what the
-// window's scripts need that Alfred doesn't give them (the UI's scripts only
-// get the alfred_* variables, not User Configuration). Returns the bundle's
-// path. `context` is { folder, fontSize, colour, textHash }: the notes folder,
-// the window's look (the font size and the note's colour's name), for the
-// parts the Edit / View toggle replaces, and a hash of the text it opened with
-// (see textHash), so the window can tell when the note has changed since its
-// bundle was written.
-function writeNoteBundle(id, form, ui, context, variable = workflowVariable) {
+// Writes a note's window bundle and returns its path. Its files:
+//   ui.json        the window (`ui`)
+//   context.json   what the window's scripts need that Alfred doesn't give
+//                  them (the UI's scripts only get the alfred_* variables, not
+//                  User Configuration): { folder, fontSize, colour, textHash },
+//                  the notes folder, the window's look (the font size and the
+//                  note's colour's name) and a hash of the note's text as the
+//                  window last had it (see textHash): the text it opened with,
+//                  and then the text its page was last given (writeNotePage),
+//                  so the window can tell when the note has changed since
+//   view.html      the page (`page`, from notePageHtml)
+//   note.js        the note for the page (`script`, from notePageScript)
+// ui.json is written last, as it's the file Alfred opens.
+function writeNoteBundle(id, form, { ui, context, page, script }, variable = workflowVariable) {
   const bundle = noteBundlePath(id, form, variable);
   ensureFolder(bundle, true);
   writeFileAtomically(`${bundle}/context.json`, JSON.stringify(context, null, 2) + "\n");
+  writeFileAtomically(`${bundle}/view.html`, page);
+  writeFileAtomically(`${bundle}/note.js`, script);
   writeFileAtomically(`${bundle}/ui.json`, JSON.stringify(ui, null, 2) + "\n");
   return bundle;
 }
@@ -598,7 +622,7 @@ function removeNoteBundle(id, variable = workflowVariable) {
 // The files a window bundle is built from, besides the note: the templates,
 // and this file, which builds them. A change to any (a workflow update) makes
 // every quick bundle out of date.
-const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/toprow.json", "ui/editor.json", "ui/viewer.json", "scripts/lib.js"];
+const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/toprow.json", "ui/content.json", "ui/view.html", "ui/view.js", "scripts/lib.js"];
 
 // Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
 // from the Script Filter, with nothing in between: a Run Script or Conditional
@@ -696,6 +720,162 @@ function textHash(text) {
   h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+// ---------------------------------------------------------------------------
+// The note's page
+//
+// View mode is a web view of the bundle's view.html, built from ui/view.html
+// with ui/view.js inlined, which renders the note with the vendored
+// markdown-it. The note's text comes from note.js beside it, as a script,
+// since the page can't read files (XMLHttpRequest and fetch fail), and the
+// page loads it as note.js?v=<version>, since WebKit keeps a script it has
+// loaded under the same URL. The note's text never passes through ui.json, so
+// it isn't escaped for Alfred UI's placeholders.
+//
+// The page reports that it has drawn, and clicks on task boxes, by changing
+// its URL's fragment, which the web view's `changed` event passes to
+// scripts/changed.sh (see ui/view.js).
+//
+// A quick view's page takes its colour and opacity from Alfred's theme, through
+// the theme stylesheet that list.js writes (see noteThemeStylesheet).
+
+const MARKDOWN_IT = "vendor/markdown-it/markdown-it.umd.min.js";
+
+// A note's view.html, from ui/view.html: `form` ("quick" or "pinned"),
+// `fontSize` (points), and `noteVersion`, the version of the bundle's note.js
+// it was written with (the page uses it when its own URL has no ?v=).
+function notePageHtml({ workflowFolder, form, fontSize, noteVersion }, variable = workflowVariable) {
+  const template = readText(`${workflowFolder}/ui/view.html`);
+  const script = readText(`${workflowFolder}/ui/view.js`);
+  if (template === null || script === null) throw new Error(`Can't read ${workflowFolder}/ui/view.html or view.js`);
+  if (/<\/script/i.test(script)) throw new Error("ui/view.js can't contain </script, as it's inlined in a <script> element");
+  const theme = form === "quick" ? fileUrl(noteThemePath(variable)) : null;
+  const values = {
+    form,
+    fontSize: String(Number(fontSize)),
+    markdownIt: escapeHtml(fileUrl(`${workflowFolder}/${MARKDOWN_IT}`)),
+    themeStylesheet: JSON.stringify(theme).replace(/</g, "\\u003c"),
+    noteVersion,
+    pageScript: script,
+  };
+  // One pass, so nothing in a value is taken for a token.
+  return template.replace(/@(\w+)@/g, (token, name) => {
+    if (!Object.prototype.hasOwnProperty.call(values, name)) throw new Error(`Unknown token in ui/view.html: ${token}`);
+    return values[name];
+  });
+}
+
+// A note's note.js: its `text` for the page (null for a window that opens in
+// Edit, whose page shows nothing until it's switched to View) and the tint of
+// the colour named `colour`, for a pinned window's page.
+function notePageScript(text, colour) {
+  const tint = (notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR)).tint;
+  return `window.NOTE = ${JSON.stringify(text)};\nwindow.NOTE_TINT = ${JSON.stringify(tint)};\n`;
+}
+
+// Gives the page of a note's open window `text`: rewrites its bundle's note.js
+// (with the colour in its context) and records the text's hash in its
+// context, as the text a tick is checked against. Returns the URL that
+// reloads the page with it, for an update of the web view's `src`: an
+// absolute file:// URL (a relative one is taken for https://), with a
+// version that's new every time, so the page reloads even when the text is
+// the same, and loads note.js afresh.
+function writeNotePage(id, form, text, variable = workflowVariable) {
+  const bundle = noteBundlePath(id, form, variable);
+  const context = readNoteContext(id, form, variable) || {};
+  const script = notePageScript(text, context.colour);
+  writeFileAtomically(`${bundle}/note.js`, script);
+  updateNoteContext(id, form, { textHash: textHash(text) }, variable);
+  return `${fileUrl(`${bundle}/view.html`)}?v=${textHash(script)}.${Date.now().toString(36)}`;
+}
+
+// A task box's line in a note: optional block quote markers and indent, a
+// bullet or number, then the box. markdown-it's own rule for a task (in
+// ui/view.js) is stricter, so a line the page ticks always matches.
+const NOTE_TASK_LINE = /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+\[)([ xX])(\][ \t])/;
+
+// The note's `text` with the task box on line `line` (counting from 0)
+// ticked (`done` true) or unticked, or null if that line isn't a task box in
+// the other state.
+function toggleNoteTask(text, line, done) {
+  const lines = text.split("\n");
+  const match = Number.isInteger(line) && line >= 0 && line < lines.length ? NOTE_TASK_LINE.exec(lines[line]) : null;
+  if (!match || (match[2] !== " ") === done) return null;
+  lines[line] = `${match[1]}${done ? "x" : " "}${match[3]}${lines[line].slice(match[0].length)}`;
+  return lines.join("\n");
+}
+
+// The theme stylesheet: <cache>/theme.css, linked by every quick view's page,
+// so a change of Alfred's theme rebuilds no bundles.
+function noteThemePath(variable = workflowVariable) {
+  const cache = variable("alfred_workflow_cache");
+  if (!cache) throw new Error("alfred_workflow_cache isn't set");
+  return `${expandPath(cache)}/theme.css`;
+}
+
+// The lowest opacity a quick view's web view is shown at, and the alpha of
+// the system's label colour, in both appearances.
+const THEME_MIN_OPACITY = 0.8;
+const THEME_TEXT_ALPHA = 0.85;
+
+// The theme stylesheet for Alfred's theme background, `background`
+// ($alfred_theme_background, "rgba(r,g,b,a)", which Alfred gives a Script
+// Filter). It sets the page's custom properties (see ui/view.html):
+//   --panel     the page's background
+//   --opacity   the web view's opacity, which the page reports once it has
+//               drawn (see ui/view.js)
+//   --text, --text-done, --link   stronger colours, below full opacity
+//
+// A web view can't be see-through (WebKit paints an opaque fill under the
+// page), so a translucent theme is imitated: the panel is the theme's colour
+// over the appearance's base (#1E1E1E in dark appearance, white in light) at
+// the theme's alpha, and the web view is shown at that alpha, but no lower
+// than THEME_MIN_OPACITY. The text fades with the view, so below full opacity
+// it's drawn at THEME_TEXT_ALPHA ÷ opacity (at most 1), and links brighter, to
+// land at its normal strength. A solid theme gets its exact colour at full
+// opacity, with the system's colours. Without a theme colour, the page keeps
+// its own colours at full opacity.
+function noteThemeStylesheet(background) {
+  const match = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(background || "");
+  if (!match) return "/* No theme colour: the page's own colours, at full opacity. */\n";
+  const clamp = (value, max) => Math.min(max, Math.max(0, value));
+  const [r, g, b] = match.slice(1, 4).map((c) => clamp(Number(c), 255));
+  const alpha = match[4] === undefined || isNaN(Number(match[4])) ? 1 : clamp(Number(match[4]), 1);
+  const opacity = Math.max(THEME_MIN_OPACITY, alpha);
+  const mix = (base) => `rgb(${[r, g, b].map((c) => Math.round(alpha * c + (1 - alpha) * base)).join(", ")})`;
+  const lines = [
+    `:root { --panel: ${mix(0x1e)}; --opacity: ${opacity}; }`,
+    `@media (prefers-color-scheme: light) { :root { --panel: ${mix(0xff)}; } }`,
+  ];
+  if (opacity < 1) {
+    const text = Math.min(1, THEME_TEXT_ALPHA / opacity);
+    const done = text * 0.6;
+    const rgba = (c, a) => `rgba(${c}, ${c}, ${c}, ${a.toFixed(2)})`;
+    lines.push(`@media (prefers-color-scheme: dark) { :root { --text: ${rgba(255, text)}; --text-done: ${rgba(255, done)}; --link: #4DA3FF; } }`);
+    lines.push(`@media (prefers-color-scheme: light) { :root { --text: ${rgba(0, text)}; --text-done: ${rgba(0, done)}; --link: #0058D0; } }`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+// Writes the theme stylesheet for `background` (see noteThemeStylesheet), if
+// it has changed. Returns whether it wrote it.
+function writeNoteTheme(background, variable = workflowVariable) {
+  const path = noteThemePath(variable);
+  const css = noteThemeStylesheet(background);
+  if (readText(path) === css) return false;
+  ensureFolder($(path).stringByDeletingLastPathComponent.js, true);
+  writeFileAtomically(path, css);
+  return true;
+}
+
+// A file's file:// URL, percent-encoded.
+function fileUrl(path) {
+  return $.NSURL.fileURLWithPath(path).absoluteString.js;
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // ---------------------------------------------------------------------------

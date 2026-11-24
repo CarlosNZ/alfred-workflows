@@ -1,0 +1,82 @@
+<!doctype html>
+<html class="@form@">
+<head>
+<meta charset="utf-8">
+<!--
+  A note's page: its View mode, in the window's web view. lib.js writes it into
+  the note's window bundle (notePageHtml), filling in the @…@ tokens and
+  inlining view.js. The note's text comes from note.js beside it, loaded as
+  note.js?v=…, since WebKit keeps a script it has loaded under the same URL.
+  See "View mode in a web view" in DESIGN.md.
+
+  In a quick view the page fills the whole window, with its own margins and a
+  bar of its background along the top, under the window's buttons, so that
+  scrolled text doesn't run under them. Its colours are the system's, on a
+  panel the colour of Alfred's theme (from the theme stylesheet, which list.js
+  writes). In a pinned window the page starts below the top row (see
+  ui/content.json), so the window can still be dragged by the strip under its
+  title bar (a web view takes the mouse), and it has dark text on the note's
+  tint, as in Edit and the window around it.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --panel: Canvas;
+    --text: -apple-system-label;
+    --text-done: -apple-system-secondary-label;
+    --link: -apple-system-control-accent;
+  }
+  html.pinned {
+    color-scheme: light;
+    --panel: var(--tint, #FEF49C);
+    --text: #1D1D1F;
+    --text-done: rgba(29, 29, 31, 0.5);
+    --link: #0058D0;
+  }
+  html { background: var(--panel); }
+  body { margin: 0; padding: 40px 12px 14px 16px; font: @fontSize@px -apple-system, sans-serif; line-height: 1.35; color: var(--text); -webkit-user-select: text; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; height: 34px; background: var(--panel); z-index: 1; }
+  html.pinned body { padding-top: 8px; }
+  html.pinned #bar { display: none; }
+  h1, h2, h3, h4, h5, h6 { line-height: 1.2; margin: 0.7em 0 0.35em; }
+  h1 { font-size: 1.45em; }
+  h2 { font-size: 1.2em; }
+  h3 { font-size: 1.05em; }
+  h4, h5, h6 { font-size: 1em; }
+  #note > :first-child { margin-top: 0; }
+  p, ul, ol, blockquote, pre, table { margin: 0 0 0.5em; }
+  ul, ol { padding-left: 1.4em; }
+  li > ul, li > ol { margin: 0.1em 0 0; }
+  li.task { list-style: none; }
+  li.task > input { margin: 0 0.4em 0 -1.35em; vertical-align: -1px; }
+  li.task.done { color: var(--text-done); }
+  code { font: 0.92em ui-monospace, monospace; }
+  pre { padding: 0.5em 0.7em; border-radius: 6px; background: rgba(127, 127, 127, 0.12); overflow-x: auto; }
+  blockquote { margin-left: 0; padding-left: 0.8em; border-left: 3px solid rgba(127, 127, 127, 0.35); }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid rgba(127, 127, 127, 0.35); padding: 0.2em 0.6em; }
+  hr { border: none; border-top: 1px solid rgba(127, 127, 127, 0.35); }
+  img { max-width: 100%; }
+  a { color: var(--link); }
+</style>
+<script src="@markdownIt@"></script>
+<script>
+  (function () {
+    const theme = @themeStylesheet@;
+    // A query that changes each time, so a changed theme is never read from
+    // WebKit's cache.
+    if (theme) document.write(`<link rel="stylesheet" href="${theme}?t=${Date.now()}">`);
+    document.write(`<script src="note.js${location.search || "?v=@noteVersion@"}"><\/script>`);
+  })();
+</script>
+<script>
+@pageScript@
+</script>
+<script>showNoteTint();</script>
+</head>
+<body>
+<div id="bar"></div>
+<div id="note"></div>
+<script>startNotePage("@form@");</script>
+</body>
+</html>
