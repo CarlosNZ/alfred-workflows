@@ -127,9 +127,15 @@ function testSave(store) {
   writeRaw(`${store.folder}/hand.md`, "added by hand");
   const handBirth = new Date(2022, 5, 1, 8, 30, 0);
   setDate(`${store.folder}/hand.md`, "NSFileCreationDate", handBirth);
-  eq("note added by hand: created is its birth time", store.read("hand").created.getTime(), handBirth.getTime());
+  check("note added by hand has no sidecar yet", !exists(`${store.folder}/.scratchnotes/hand.json`));
+  eq("…created is its birth time", store.read("hand").created.getTime(), handBirth.getTime());
+  eq("…first read records the birth time in a sidecar", store.readMeta("hand").created, formatLocalIsoDate(handBirth));
   store.save("hand", "edited");
-  eq("…first save records the birth time as created", store.readMeta("hand").created, formatLocalIsoDate(handBirth));
+  eq("…a save leaves it", store.readMeta("hand").created, formatLocalIsoDate(handBirth));
+  writeRaw(`${store.folder}/hand2.md`, "added by hand, never read");
+  setDate(`${store.folder}/hand2.md`, "NSFileCreationDate", handBirth);
+  store.save("hand2", "saved before it was read");
+  eq("note saved before it's read: first save records its birth time", store.readMeta("hand2").created, formatLocalIsoDate(handBirth));
 
   throws("ID with a slash", () => store.save("../escape", "x"), /Not a note ID/);
   throws("hidden ID", () => store.save(".hidden", "x"), /Not a note ID/);
@@ -142,11 +148,12 @@ function testMeta(store) {
   const path = `${store.folder}/${id}.md`;
   const sidecar = `${store.folder}/.scratchnotes/${id}.json`;
   writeRaw(path, "# Note\n");
-  eq("no sidecar: {}", store.readMeta(id), {});
-  eq("no sidecar: read().meta is {}", store.read(id).meta, {});
+  eq("no sidecar: readMeta is {}", store.readMeta(id), {});
+  const birth = formatLocalIsoDate(fileDate(path, "NSFileCreationDate"));
+  eq("no sidecar: read() records created", store.read(id).meta, { created: birth });
 
   setDate(path, "NSFileModificationDate", new Date(2020, 0, 1));
-  eq("updateMeta returns the merged object", store.updateMeta(id, { colour: "yellow" }), { colour: "yellow" });
+  eq("updateMeta returns the merged object", store.updateMeta(id, { colour: "yellow" }), { created: birth, colour: "yellow" });
   eq("…read back", store.read(id).meta.colour, "yellow");
   eq("…note's modification time untouched", fileDate(path, "NSFileModificationDate").getFullYear(), 2020);
   eq("…note's text untouched", readText(path), "# Note\n");
@@ -167,6 +174,7 @@ function testMeta(store) {
   writeRaw(sidecar, "{not json");
   eq("corrupt sidecar reads as {}", store.readMeta(id), {});
   check("…note still reads, created from birth time", store.read(id).created instanceof Date);
+  eq("…and reading doesn't overwrite it", readText(sidecar), "{not json");
   writeRaw(sidecar, "[1, 2]");
   eq("non-object JSON reads as {}", store.readMeta(id), {});
   eq("no temporary files left", leftoverTemps(store.folder), []);
@@ -191,6 +199,11 @@ function testSummary() {
     ["numbered and task list", "Todo\n1. one\n2) two\n- [x] three", "Todo", "one, two, three"],
     ["prose joins with spaces", "Title\nLine two\nline three", "Title", "Line two line three"],
     ["list then prose", "T\n- a\n- b\nAfter", "T", "a, b After"],
+    ["headings: ': ' after, ' | ' before", "## Meeting\n### Decisions\n- a\n- b\n### Actions\n- c", "Meeting", "Decisions: a, b | Actions: c"],
+    ["heading after prose", "T\nSome text\n## Next\nmore", "T", "Some text | Next: more"],
+    ["consecutive headings", "T\n## A\n## B\nx", "T", "A | B: x"],
+    ["heading at the end", "T\ntext\n## Last", "T", "text | Last"],
+    ["# inside a line isn't a heading", "T\nissue #12\nnext", "T", "issue #12 next"],
     ["bare bullet line skipped", "-\n#\nReal", "Real", ""],
     ["other app's front matter skipped", "---\ntitle: x\ntags:\n  - a\n---\n# Real title\nBody", "Real title", "Body"],
     ["front matter without closing line is text", "---\ntitle: x\n", "title: x", ""],
@@ -213,6 +226,7 @@ function testUnicode(store) {
   eq("combining accents stay on their letter", combining, "e\u0301".repeat(9) + "…");
   eq("skin tones cut whole", truncateText("👍🏽".repeat(20), 3), "👍🏽👍🏽…");
   eq("trailing space and comma dropped before …", truncateText("milk, eggs, flour", 7), "milk…");
+  eq("trailing | dropped before …", truncateText("a, b | Actions", 7), "a, b…");
 
   const longTitle = noteSummary("word ".repeat(100)).title;
   eq("title capped at 80 characters", graphemes(longTitle).length, 80);
@@ -270,6 +284,8 @@ function testList(store) {
   store.updateMeta("a", { colour: "yellow" });
   eq("only top-level, non-hidden .md files, last edited first", store.list().map((n) => n.id), ["b", "Upper", "c", "a"]);
   eq("note objects carry meta", store.list().find((n) => n.id === "a").meta, { colour: "yellow" });
+  eq("listing gave the notes without sidecars one, and nothing else", entries(`${store.folder}/.scratchnotes`).sort(), ["Upper.json", "a.json", "b.json", "c.json"]);
+  check("…recording created", typeof store.readMeta("b").created === "string");
   const b = store.read("b");
   check(
     "note object fields",
@@ -284,9 +300,12 @@ function testList(store) {
 function timeList(store) {
   section("Timing");
   for (let i = 0; i < 300; i++) writeRaw(`${store.folder}/note-${i}.md`, `# Note ${i}\n- item one\n- item two\n\nSome text here.\n`.repeat(3));
-  const start = Date.now();
+  let start = Date.now();
   const count = store.list().length;
   eq("300 notes listed", count, 300);
+  print(`info list() of 300 notes, first time (writing 300 sidecars): ${Date.now() - start} ms`);
+  start = Date.now();
+  store.list();
   print(`info list() of 300 notes: ${Date.now() - start} ms`);
 }
 

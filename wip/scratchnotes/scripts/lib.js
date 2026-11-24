@@ -104,9 +104,11 @@ function noteIdFromFileName(name) {
 //
 //   { id, path, fileName, text, meta, modified, created, title, preview }
 //
-// `text` is the whole file. `meta` is the sidecar's object ({} without one).
-// `modified` is the file's modification time; `created` is the sidecar's
-// `created`, or the file's birth time for a note without one. Both are Dates.
+// `text` is the whole file. `meta` is the sidecar's object. `modified` is the
+// file's modification time; `created` is the sidecar's `created`, or the
+// file's birth time if the sidecar has none. Both are Dates. Every note in the
+// folder is a note, with or without a sidecar: one without is given one when
+// it's first read or listed (recordNewNote).
 //
 // Metadata lives in a hidden sidecar per note, `.scratchnotes/<id>.json` in the
 // notes folder, so the note itself stays plain Markdown and changing its colour
@@ -171,7 +173,8 @@ function noteStore(folder = notesFolder()) {
     if (attributes.isNil() || attributes.objectForKey("NSFileType").js !== "NSFileTypeRegular") return null;
     const text = readText(path);
     if (text === null) return null;
-    const meta = readMeta(id);
+    const birth = jsDate(attributes.objectForKey("NSFileCreationDate"));
+    const meta = fm.fileExistsAtPath(metaPath(id)) ? readMeta(id) : recordNewNote(id, birth);
     const summary = noteSummary(text);
     return {
       id,
@@ -180,10 +183,24 @@ function noteStore(folder = notesFolder()) {
       text,
       meta,
       modified: jsDate(attributes.objectForKey("NSFileModificationDate")),
-      created: parseDate(meta.created) || jsDate(attributes.objectForKey("NSFileCreationDate")),
+      created: parseDate(meta.created) || birth,
       title: summary.title,
       preview: summary.preview,
     };
+  }
+
+  // Gives a note found without a sidecar (one added by hand or by another
+  // app) a sidecar recording its birth time as `created`, the first time it's
+  // read or listed, and returns its metadata. A note whose sidecar exists but
+  // can't be read isn't given a new one, so nothing in it is overwritten.
+  // Listing still works if the sidecar can't be written (a read-only folder).
+  function recordNewNote(id, birth) {
+    if (!birth) return {};
+    try {
+      return updateMeta(id, { created: formatLocalIsoDate(birth) });
+    } catch (e) {
+      return { created: formatLocalIsoDate(birth) };
+    }
   }
 
   // The note, or null if it doesn't exist or can't be read.
@@ -213,8 +230,9 @@ function noteStore(folder = notesFolder()) {
   // Blank text over an existing note is saved: an empty note is only deleted
   // when its window closes (deleteIfEmpty), so deleting everything and typing
   // again keeps the note's file and sidecar.
-  // The sidecar gets `created` the first time a note is saved: now for a new
-  // note, the file's birth time for one added by hand.
+  // The sidecar gets `created` the first time a note is saved, if it hasn't
+  // one yet: now for a new note, the file's birth time for one added by hand
+  // that hasn't been read yet.
   function save(id, text) {
     const path = notePath(id);
     const existed = fm.fileExistsAtPath(path);
@@ -397,14 +415,17 @@ function isBlankText(text) {
 //
 // The title is the first line with any text once Markdown markers are removed
 // (cleanMarkdownLine), or "Untitled". The preview is the lines after it,
-// cleaned the same way, list items joined with ", " and other lines with a
-// space. Both are truncated on whole characters (truncateText). A leading YAML
-// front matter block, as other apps write, is skipped.
+// cleaned the same way and joined: " | " before a heading, ": " after one,
+// ", " between list items, and a space between other lines, so
+// "### Decisions / - a / - b / ### Actions / - c" gives
+// "Decisions: a, b | Actions: c". Both are truncated on whole characters
+// (truncateText). A leading YAML front matter block, as other apps write, is
+// skipped.
 function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PREVIEW_MAX_LENGTH } = {}) {
   let title = null;
   let preview = "";
   let previewCount = 0;
-  let previousWasList = false;
+  let previous = null;
   for (const raw of markdownBodyLines(text)) {
     const line = cleanMarkdownLine(raw);
     if (!line.text) continue;
@@ -412,9 +433,13 @@ function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PRE
       title = line.text;
       continue;
     }
-    const separator = preview === "" ? "" : line.isList && previousWasList ? ", " : " ";
+    let separator = " ";
+    if (previous === null) separator = "";
+    else if (line.isHeading) separator = " | ";
+    else if (previous.isHeading) separator = ": ";
+    else if (line.isList && previous.isList) separator = ", ";
     preview += separator + line.text;
-    previousWasList = line.isList;
+    previous = line;
     previewCount += graphemes(separator + line.text).length;
     if (previewCount > previewLength) break;
   }
@@ -437,15 +462,19 @@ function markdownBodyLines(text) {
   return lines;
 }
 
-// One line of Markdown as plain text: { text, isList }. Removes block markers
-// (heading #s, > quotes, list bullets and numbers, task boxes) and inline
-// markup (emphasis, code, links and images, escapes). Code fence lines,
-// thematic breaks and setext underlines become empty.
+// One line of Markdown as plain text: { text, isList, isHeading }. Removes
+// block markers (heading #s, > quotes, list bullets and numbers, task boxes)
+// and inline markup (emphasis, code, links and images, escapes). Code fence
+// lines, thematic breaks and setext underlines become empty. Only # headings
+// count as headings: a setext heading's text comes before its underline.
 function cleanMarkdownLine(line) {
   let s = line.trim();
-  if (/^(```|~~~)/.test(s) || /^([-*_])(\s*\1){2,}$/.test(s) || /^=+$/.test(s)) return { text: "", isList: false };
+  if (/^(```|~~~)/.test(s) || /^([-*_])(\s*\1){2,}$/.test(s) || /^=+$/.test(s)) {
+    return { text: "", isList: false, isHeading: false };
+  }
   s = s.replace(/^(>\s?)+/, "");
-  s = s.replace(/^#{1,6}(\s+|$)/, "").replace(/\s+#+$/, "");
+  const isHeading = /^#{1,6}(\s+|$)/.test(s);
+  if (isHeading) s = s.replace(/^#{1,6}(\s+|$)/, "").replace(/\s+#+$/, "");
   let isList = false;
   const bullet = s.match(/^([-*+]|\d{1,9}[.)])(\s+|$)/);
   if (bullet) {
@@ -457,7 +486,7 @@ function cleanMarkdownLine(line) {
     isList = true;
     s = s.slice(task[0].length);
   }
-  return { text: cleanInlineMarkdown(s).replace(/\s+/g, " ").trim(), isList };
+  return { text: cleanInlineMarkdown(s).replace(/\s+/g, " ").trim(), isList, isHeading };
 }
 
 function cleanInlineMarkdown(s) {
@@ -486,7 +515,7 @@ function truncateText(text, maxLength) {
     characters
       .slice(0, Math.max(maxLength - 1, 0))
       .join("")
-      .replace(/[\s,;:·]+$/, "") + "…"
+      .replace(/[\s,;:·|]+$/, "") + "…"
   );
 }
 

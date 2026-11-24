@@ -25,7 +25,7 @@ Every item is marked with its status:
 - One `.md` file per note, in a notes folder. **Decided**
 - By default the notes folder is `notes/` in the workflow's data folder (`$alfred_workflow_data/notes/`), created on first use. The data folder, not the cache, which Alfred or a cleaning app may empty; a subfolder, so the notes are kept apart from anything else the workflow stores there. Notes only go somewhere permanent and visible if the user sets the `notes_folder` preference. A configured folder is created if missing, but only if its parent exists, so a folder on an unmounted volume isn't recreated on the startup disk. **Decided**
 - The notes are the files directly in the folder whose names end in `.md`, in any case (`.MD` too), and don't start with `.`. Subfolders, hidden files (including temporary save files) and other files are ignored. **Decided**
-- **Open:** changing `notes_folder` doesn't move existing notes, so they disappear from the list until it's changed back. Whether to offer moving them, or just say so in the preference's description, is for step 2.
+- When `notes_folder` changes, the notes move to the new folder without asking, so the change is seamless. **Decided**. Which files move is **Open**, on hold: there are many cases to think through, such as a folder of the user's own (an Obsidian vault, say) whose other `.md` files would count as notes. The moving code waits for that; until it's written, changing the folder leaves the notes in the old one.
 
 ### Filenames
 
@@ -40,6 +40,7 @@ Every item is marked with its status:
   - Sidecars stay with the notes when the whole folder is synced or copied, but a note moved or renamed on its own loses its metadata (it gets the default colour). Front matter was chosen first so metadata would travel with each note; with the notes in the workflow's data folder by default, that matters less than the above.
   - A hidden folder adds one hidden item to the notes folder, rather than a file per note beside each note.
 - A sidecar holds a JSON object, merged on write: keys being set are replaced, keys set to null are removed, and every other key is kept as it is, including ones from other versions or tools. An unreadable sidecar, or one that isn't a JSON object, reads as empty. A sidecar is only written once there's something to store, and removed when its last key is. **Decided**
+- Every note in the notes folder is used, with or without a sidecar, so `.md` files added by hand or by other apps are notes too. A note without a sidecar is given one the first time it's read or listed, recording the file's birth time as `created`. A sidecar that exists but can't be read is left alone rather than overwritten. This applies in any notes folder, including one of the user's own, so "has a sidecar" doesn't mark the notes ScratchNotes made. **Decided**
 - Moving a note to the Trash leaves its sidecar in place, so a note that's put back keeps its colour. TO-DO: a sweep for sidecars whose notes have been gone a long time (each is a few hundred bytes).
 - Notes from other apps may start with YAML front matter. It's left in the text, but skipped when working out the title and preview.
 
@@ -52,8 +53,8 @@ Every item is marked with its status:
 
 ### Title, timestamps, empty notes
 
-- The title is the note's first line that has any text once Markdown markers are removed: heading `#`s, `>` quotes, list bullets and numbers, task boxes, and inline emphasis, code and link syntax (a link becomes its text). Code fence lines, thematic breaks and setext underlines are skipped. "Untitled" if nothing is left. The preview is the following lines, cleaned the same way, with list items joined by ", " and other lines by a space (`# Shopping` / `- milk` / `- eggs` gives "Shopping" and "milk, eggs"). Both are truncated on whole characters (an emoji with modifiers, a flag, or a letter with combining accents counts as one, and is never split), with "…": the title at 80 characters and the preview at 100. **Decided**
-- "Created" is recorded in the note's sidecar (`created`, ISO 8601 in local time with its UTC offset) the first time the note is saved, so it never changes, whatever happens to the file. For a note added by hand, the first save records the file's birth time; until then its birth time is used. "Last edited" is the file's modification time. **Decided**
+- The title is the note's first line that has any text once Markdown markers are removed: heading `#`s, `>` quotes, list bullets and numbers, task boxes, and inline emphasis, code and link syntax (a link becomes its text). Code fence lines, thematic breaks and setext underlines are skipped. "Untitled" if nothing is left. The preview is the following lines, cleaned the same way and joined: " | " before a heading, ": " after one, ", " between list items, and a space between other lines (`# Shopping` / `- milk` / `- eggs` gives "Shopping" and "milk, eggs"; `## Team meeting` / `### Decisions` / `- Ship on Friday` / `- Stand-up at 9:30` / `### Actions` / `- Release notes` gives "Team meeting" and "Decisions: Ship on Friday, Stand-up at 9:30 | Actions: Release notes"). Only `#` headings count, since a setext heading's text comes before its underline. Both are truncated on whole characters (an emoji with modifiers, a flag, or a letter with combining accents counts as one, and is never split), with "…": the title at 80 characters and the preview at 100. **Decided**
+- "Created" is recorded in the note's sidecar (`created`, ISO 8601 in local time with its UTC offset) when the note is first saved, or, for a note added by hand, first read or listed (the file's birth time then), so it never changes, whatever happens to the file. "Last edited" is the file's modification time. **Decided**
 - Saves are atomic, keep the file's birth time and Finder tags, and skip writing when the text hasn't changed (see [Saving](#saving)), so opening and closing a note doesn't change its "last edited". **Decided**
 - A note is empty when its text is only whitespace, whatever its sidecar holds. A new note isn't written to disk until its text isn't blank. Saving blank text over an existing note writes it, so deleting everything and typing again keeps the note's file and sidecar. A note that's empty when its window closes is deleted outright with its sidecar (not through the Trash: there's nothing to recover), so abandoned new notes leave no files. **Decided**
 
@@ -74,27 +75,27 @@ Every item is marked with its status:
 
 ## Alfred results list
 
-A Script Filter on a keyword (`sn` by default, configurable). **Proposed** throughout:
+A Script Filter on a keyword (`scratch` by default, configurable), run by `scripts/list.js`. **Decided** throughout, except where marked:
 
-- One result per note, sorted by last edited, newest first.
-- Title: the note's title. Subtitle: relative edit time and the start of the body, e.g. `Edited 3h ago · milk, eggs, flour…`.
-- Icon: the note's colour.
-- Typing filters on the whole content, not just the title (Alfred's `match` field holds the title and body).
-- A **New note** result, at the top with no query. With a query that matches nothing, it becomes **New note: \<query>**, creating a note with that text.
+- One result per note, sorted by last edited, newest first. Each result's `uid` is the note's ID, so Alfred learns from use and keeps the selection steady.
+- Title: the note's title. Subtitle: when it was last edited and its preview, e.g. `Edited 3h ago · milk, eggs, flour…`. The time is "just now", minutes, hours or days ago ("5m ago", "3h ago", "2d ago"), and after a week the date in the Mac's format ("12 Nov", with the year if it isn't this year).
+- Icon: the note's colour (step 4; until then results have no icon of their own).
+- Typing searches the whole note, not just the title: every word of the query must appear somewhere in the note, in any order, ignoring case and accents ("cafe" finds "Café"). `list.js` does the matching itself, rather than leaving it to Alfred (`alfredfiltersresults` is off), since it has to know when nothing matches. It reruns on every keystroke, reading every note (about 115 ms for 300 notes, plus `osascript`'s startup), and Alfred stops the previous run when a new one starts (`queuemode` 2).
+- A **New note** result, at the top with no query. With a query that matches nothing, it's the only result, **New note: \<query>**, creating a note with that text. It has no `uid`, so Alfred's learning never moves it. ↩ and ⌘↩ on it behave as they do on a note, as closely as possible: ↩ opens the new note in a quick view, ⌘↩ pins it (connected in step 3).
+- ⌘C copies the note's text and ⌘L shows it in Large Type. → shows Alfred's file actions for the note's file (the item's `action`).
 - Modifiers on a note:
   - ↩ opens it in a quick view inside Alfred, or, if it's already pinned, brings its window to the front (see [Quick notes and pinned notes](#quick-notes-and-pinned-notes)). **Decided**
   - ⌘↩ pins it: opens it as its own window on the desktop, or brings that window to the front if it's already pinned. **Decided**
   - ⌥↩ moves it to the Trash, through Finder so "Put Back" works, without asking first, and shows a notification naming the note. If the note is pinned, its window is closed first (see [Changes made elsewhere](#changes-made-elsewhere)). **Decided**
   - ⌃↩ reveals it in Finder.
   - ⇧ / ⌘Y Quick Looks it (`quicklookurl` is the file).
-- Modifiers on New note: ⌘↩ creates the note from the clipboard. **Proposed**
-- Each result's `uid` is the note's ID, so Alfred learns from use and keeps the selection steady.
+- Creating a note from the clipboard comes later (step 5), on a key still to choose, since ⌘↩ on New note pins it. **Open**
 
 ## Creating notes
 
 - A keyword for a new note (`snn` by default, configurable), with optional text: `snn` opens a blank note, `snn buy milk` creates one with that text and opens it. **Proposed**
 - A Universal Action on text, "New ScratchNote", creating a note from the text and opening it. Covers the macOS selection (via Alfred's Universal Action hotkey) and items in Alfred's clipboard history. **Decided** (the action itself); naming **Proposed**
-- From the clipboard: the ⌘ modifier on the New note result (see above), rather than its own keyword. **Proposed**
+- From the clipboard: from the results list, on a key still to choose (see [Alfred results list](#alfred-results-list)), rather than its own keyword. **Open**
 - An optional hotkey for a new blank note, unset by default. **Proposed**
 
 ## Note windows
@@ -207,7 +208,7 @@ User Configuration fields (values saved in the gitignored `prefs.plist`). **Prop
 | Variable | Type | Default |
 |---|---|---|
 | `notes_folder` | folder picker | blank: `$alfred_workflow_data/notes/` (**Decided**) |
-| `keyword` | text | `sn` |
+| `keyword` | text | `scratch` (**Decided**) |
 | `keyword_new` | text | `snn` |
 | `default_colour` | popup of the palette's colour names | `yellow` (**Decided**) |
 | `font_size` | slider, 11–20 pt, for both Edit and View | `13` (**Decided**) |
@@ -244,6 +245,8 @@ Alfred objects are added to `info.plist` with targeted `plutil` edits and then c
 | `ui/` | The templates a note's window is built from: `window.json` and the parts it's assembled from. |
 | `icons/<colour>.png` | One dot icon per palette colour, for the results list. |
 | `dev/make-icons.js` | Draws the icons from the palette. Development only (`.wfignore`). |
+| `dev/install-samples.js` | Installs eight sample notes, `example1` to `example8`, in the current notes folder (or a folder given as its argument), replacing their text, sidecars and dates, so the samples can be reset however they've been changed. Other notes are left alone. Outside Alfred it reads `notes_folder` from `prefs.plist`, falling back to the data folder. Development only (`.wfignore`). |
+| `dev/test-list.sh` | Tests `list.js` with sample notes and queries in a temporary folder. Development only (`.wfignore`). |
 | `dev/test-storage.sh` | Tests `lib.js`'s storage functions against a temporary folder, with `dev/test-storage.js`, which does the work. Development only (`.wfignore`). |
 
 ### Loading lib.js
@@ -273,7 +276,7 @@ The storage functions (step 1), for the later scripts. Fuller notes are in the c
 
 - `notesFolder()`: the notes folder (see [Notes folder](#notes-folder)), created if missing. Throws if `notes_folder` and `alfred_workflow_data` are both unset (a script run by hand needs one of them).
 - `noteStore(folder = notesFolder())` returns the functions for the notes in a folder. Notes are passed as IDs, which are checked (`isNoteId`: one non-hidden filename component, so an ID from a script argument can't reach outside the folder):
-  - `list()`: every note, last edited first, as note objects: `{ id, path, fileName, text, meta, modified, created, title, preview }`. `text` is the whole file, `meta` the sidecar's object (`{}` without one), `modified` and `created` are `Date`s. For the results list.
+  - `list()`: every note, last edited first, as note objects: `{ id, path, fileName, text, meta, modified, created, title, preview }`. `text` is the whole file, `meta` the sidecar's object (`{}` without one), `modified` and `created` are `Date`s. For the results list. Gives notes without a sidecar one (see [Metadata](#metadata)), as `read` does.
   - `read(id)`: one note object, or null if it doesn't exist.
   - `newId({ date, isTaken })`: an ID for a new note. Nothing is written, so a new note can open before it's saved; `isTaken(id)` should return true for the IDs of notes that are open but not saved yet (in step 3, ones with a window bundle or state file), or two notes created in the same second would get the same ID.
   - `save(id, text)`: saves the whole text atomically and returns `"created"`, `"saved"`, `"unchanged"` (not rewritten) or `"blank"` (a new note with blank text, not written). Records `created` in the sidecar on a note's first save.
@@ -287,7 +290,7 @@ The storage functions (step 1), for the later scripts. Fuller notes are in the c
 Learned while building it:
 
 - An ObjC method's object parameter must be given `$()` for nil: JavaScript `null` arrives as `NSNull`, which crashed `replaceItemAtURL` (as its backup name). `null` is fine for `NSError **` and other out parameters.
-- `list()` of 300 notes took about 110 ms, on top of `osascript`'s startup.
+- `list()` of 300 notes took about 115 ms, on top of `osascript`'s startup, and about 270 ms the first time, when it writes their sidecars.
 - The Trash test confirms Finder moves the note to the Trash; that Finder's "Put Back" then works isn't checked automatically, since the Trash's records can't be read without Full Disk Access.
 
 ### The note window bundle
@@ -305,7 +308,13 @@ Each window's state is in `$alfred_workflow_cache/state/<note id>.json`: its for
 ### Steps
 
 1. **Storage core.** **Done.** `lib.js`'s storage functions (see [lib.js](#libjs)): notes folder (created if missing), IDs with collision suffixes, metadata sidecars (keeping unknown keys), title and preview, atomic save, delete if empty, Trash through Finder, and the way scripts load `lib.js`. `dev/test-storage.sh` tests them against a temporary folder from `mktemp`, and takes about 8 seconds: loading `lib.js` from other folders, configuration, IDs and collisions, saves (birth time, Finder tags and modification time), sidecar round trips and unknown keys, notes without sidecars, titles and previews, Unicode (emoji, flags, combining accents, truncation, decomposed filenames), empty notes, listing, separate processes saving at once, and the Trash (`SKIP_TRASH=1` skips it; it trashes only a note it created, then deletes that file from the Trash). No Alfred objects yet.
-2. **Results list.** `list.js` and a Script Filter on `{var:keyword}`, with the `notes_folder` and `keyword` fields. ⌥↩ trashes (`trash.js`), ⌃↩ reveals in Finder, ⇧ / ⌘Y Quick Looks; ↩ and ⌘↩ are connected in step 3. Every note shows the default colour's dot until step 4. Settle what ↩ and ⌘↩ do on the New note result. Test `list.js` directly with sample notes and queries, then in Alfred.
+2. **Results list.** **Built**, tested directly (`dev/test-list.sh`); to check in Alfred. `list.js` and a Script Filter on `{var:keyword}`, with the `keyword` and `notes_folder` fields. ⌥↩ trashes (Run Script `trash.js`, which prints the notification's text, then Post Notification), ⌃↩ reveals in Finder (Reveal in Finder on the path, the ⌃ modifier's `arg`), ⇧ / ⌘Y Quick Looks; ↩ and ⌘↩ are connected in step 3. Results have no icon until step 4. Moving notes when `notes_folder` changes is on hold (see [Notes folder](#notes-folder)). To check in Alfred:
+   - The `notes_folder` field's picker chooses folders: its `filtermode` is 1, which is a guess (the repo's only other file picker, Now Playing's, picks an app with 0).
+   - The Reveal in Finder object (`alfred.workflow.action.revealfile`, `path` set to `{query}`) and the notification object show correctly in the workflow editor.
+   - Whether Alfred's learning moves notes above the New note result, which has no `uid`.
+   - The first ⌥↩ asks for permission for Alfred to control Finder.
+
+   For step 3: a note result's `arg` is its ID, and the New note result's is the text to start with (empty for a blank note), so step 3 needs a way to tell them apart before `open.js`, such as a variable on the New note result.
 3. **Note window.** The `ui/` templates, `open.js` and `window.js`. Objects: the Script Filter's ↩ → Run Script `open.js quick` → Alfred UI (open within Alfred); ⌘↩ and an External Trigger `pin` → Run Script `open.js pin` → Conditional (stop when it brought an open window to the front) → Alfred UI (launch externally). Covers:
    - Edit / View with ⌘E and a button, opening in the mode `open_mode` sets (new notes in Edit).
    - Saving on `typingstopped` and on `quit` (skipped in View mode), and deleting an empty note on close.
