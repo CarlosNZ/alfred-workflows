@@ -6,7 +6,6 @@ Developer notes for a Universal Action that opens Apple's AirDrop panel with the
 
 - Test from Alfred: how several files reach the script (separate argv entries, or one tab-separated argument; the script handles both, and logs what it gets to the debugger), and whether the panel comes to the front when Alfred starts the script.
 - Test from Alfred that a second AirDrop started while a panel is still open isn't held back until the first panel closes (the Run Script object has `concurrently` set).
-- Replace `icon.png` (512 × 512) and `resources/icon_1024.png` before a public release. They're Apple's icon for Finder's AirDrop app (`/System/Library/CoreServices/Finder.app/Contents/Applications/AirDrop.app`), rendered at 1024 × 1024 with `NSWorkspace`'s `iconForFile:`, which is Apple's artwork and not ours to redistribute.
 
 ## Design
 
