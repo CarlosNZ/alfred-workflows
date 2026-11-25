@@ -163,7 +163,9 @@ expect "a new note's ID is the time" "$id1" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-
 for s in {0..9}; do mkdir -p "$cache/windows/$(date -v+${s}S +%Y%m%d-%H%M%S).alfredui"; done
 id2=$(basename "$(open_note new=1 quick '')" .alfredui)
 expect "an ID whose sticky bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
-expect "a new note opens in Edit with its text" "$(json $cache/quick/$id1.alfredui/ui.json '[Boolean('$editor'.hidden), '$editor'.text].join(" ")') $(page_text $cache/quick/$id1.alfredui)" "false Buy milk null"
+expect_exact "a new note opens in Edit with its text, as a heading" "$(json $cache/quick/$id1.alfredui/ui.json '[Boolean('$editor'.hidden), JSON.stringify('$editor'.text)].join(" ")') $(page_text $cache/quick/$id1.alfredui)" 'false "# Buy milk\n\n" null'
+id5=$(basename "$(open_note new=1 quick $'Line one\n  Line two  \n')" .alfredui)
+expect_exact "a new note from text that isn't a heading keeps it exactly" "$(json $cache/quick/$id5.alfredui/ui.json '[Boolean('$editor'.hidden), JSON.stringify('$editor'.text)].join(" ")')" 'false "Line one\n  Line two  \n"'
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md script.md vars.md "
 expect "open.js sets open_window, clears new and stick_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","stick_note":"","stick_mode":""}'
 

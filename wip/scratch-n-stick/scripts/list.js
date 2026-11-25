@@ -22,6 +22,7 @@ ObjC.import("Foundation");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
+  loadLib(argv, "titles.js");
   const query = (argv[0] || "").trim();
   let store, notes;
   try {
@@ -47,7 +48,7 @@ function run(argv) {
   const icon = (note) => attempt(() => noteResultIcon(workflowFolder, note, noteColour(note.meta, variable), variable));
   const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), sticky.has(note.id), icon(note)));
   if (!query) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
-  else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
+  else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, newNoteSubtitle(query), query, bundle(() => quick.bundleForNew(query))));
   if (quick) attempt(() => quick.finish(notes));
   return output(items);
 }

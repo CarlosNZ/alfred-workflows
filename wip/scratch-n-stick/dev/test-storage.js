@@ -19,6 +19,7 @@ let failed = 0;
 
 function run(argv) {
   const libPath = loadLib(argv, "../scripts/lib.js");
+  loadLib(argv, "../scripts/titles.js");
   const [command, ...args] = argv;
   if (command === "loader") return print(`loaded ${libPath} (noteStore: ${typeof noteStore})`);
   if (command === "save") return print(noteStore(args[0]).save(args[1], readText(args[2])));
@@ -29,6 +30,7 @@ function run(argv) {
     testSave(freshStore(args[0], "save"));
     testMeta(freshStore(args[0], "meta"));
     testSummary();
+    testTitles();
     testUnicode(freshStore(args[0], "unicode"));
     testEmpty(freshStore(args[0], "empty"));
     testList(freshStore(args[0], "list"));
@@ -221,6 +223,84 @@ function testSummary() {
     ["CRLF", "Title\r\nBody\r\n", "Title", "Body"],
   ];
   for (const [name, text, title, preview] of cases) eq(name, noteSummary(text), { title, preview });
+}
+
+// titles.js, with its tuning as shipped (SPLIT_LENGTH 65, and so on): a case
+// whose split moves when a boundary is tuned needs its expected values updated.
+function testTitles() {
+  section("Titles: a single long line split");
+  const splits = [
+    ["sentence", "Call the plumber tomorrow morning. The kitchen tap is dripping again and the washer needs replacing.", "Call the plumber tomorrow morning.", "The kitchen tap is dripping again and the washer needs replacing."],
+    ["question", "Should we move the team offsite to March? Venue availability is better then and half the team is away.", "Should we move the team offsite to March?", "Venue availability is better then and half the team is away."],
+    ["as many sentences as fit", "Buy milk. Call mum. Then go to the gym and do the long session on the rower before dinner.", "Buy milk. Call mum.", "Then go to the gym and do the long session on the rower before dinner."],
+    ["no break after an abbreviation", "Remind Mr. Jones to send the invoice. He promised it last Tuesday and accounts are chasing us.", "Remind Mr. Jones to send the invoice.", "He promised it last Tuesday and accounts are chasing us."],
+    ["decimals and URLs aren't sentence ends", "Version 2.5 of the app ships on Friday. Release notes are at https://example.com/releases/2.5 for a read.", "Version 2.5 of the app ships on Friday.", "Release notes are at https://example.com/releases/2.5 for a read."],
+    ["a short first sentence gives way to a comma", "Hi Sam. Thanks for the notes from yesterday, I've added the action items to the tracker and assigned owners.", "Hi Sam. Thanks for the notes from yesterday,", "I've added the action items to the tracker and assigned owners."],
+    ["a short sentence with no punctuation break", "Note to self. Remember the password for the router is on the sticker underneath the box in the hallway", "Note to self.", "Remember the password for the router is on the sticker underneath the box in the hallway"],
+    ["semicolon", "The figures look better than expected in every region; the board will want a breakdown by product line.", "The figures look better than expected in every region;", "the board will want a breakdown by product line."],
+    ["colon", "Things to sort out before the holiday next week: passports, pet sitter, the car's MOT, and cancelling the milk", "Things to sort out before the holiday next week:", "passports, pet sitter, the car's MOT, and cancelling the milk"],
+    ["dash, which goes", "Remember to book the venue for the spring fundraiser — the deposit is due by the end of March this year", "Remember to book the venue for the spring fundraiser", "the deposit is due by the end of March this year"],
+    ["spaced hyphen as a dash", "Remember to book the venue for the spring fundraiser - the deposit is due by the end of March this year", "Remember to book the venue for the spring fundraiser", "the deposit is due by the end of March this year"],
+    ["; : or a dash before a later comma", "Order more of the printer paper and toner today; the office runs out by Friday, and the supplier is slow", "Order more of the printer paper and toner today;", "the office runs out by Friday, and the supplier is slow"],
+    ["the last comma that fits", "Check with Dr. Patel, Mrs. Okafor and the St. John's team, e.g. about cover, before we publish the rota.", "Check with Dr. Patel, Mrs. Okafor and the St. John's team,", "e.g. about cover, before we publish the rota."],
+    ["list item marker removed first", "- [ ] Email the school about the trip. Ask about the consent form and the dietary requirements by Friday.", "Email the school about the trip.", "Ask about the consent form and the dietary requirements by Friday."],
+    ["Markdown removed first", "**Call the plumber** tomorrow morning. The kitchen tap is dripping again and the washer needs replacing.", "Call the plumber tomorrow morning.", "The kitchen tap is dripping again and the washer needs replacing."],
+  ];
+  for (const [name, text, title, preview] of splits) eq(name, noteSummary(text), { title, preview });
+
+  section("Titles: not split");
+  const longRunOn = "idea for the blog post about how we migrated the whole notes system to plain markdown files and what we learned";
+  const notSplit = [
+    ["65 characters or fewer", "Buy milk. Also pick up the dry cleaning on the way back from work", "Buy milk. Also pick up the dry cleaning on the way back from work", ""],
+    ["no sentence or punctuation break", longRunOn, longRunOn.slice(0, 79) + "…", ""],
+    ["a comma too early", "Right, so the plan for the weekend is to drive up on Saturday morning and come back on Sunday", "Right, so the plan for the weekend is to drive up on Saturday morning and come…", ""],
+    ["a break past the limit", "We need to decide on the final venue for the conference by the end of this month. Or lose it.", "We need to decide on the final venue for the conference by the end of this mont…", ""],
+    ["an abbreviation's full stop isn't a break", "Ask Dr. Patel about the test results and whether the follow-up appointment needs moving", "Ask Dr. Patel about the test results and whether the follow-up appointment need…", ""],
+    ["a heading", "# Planning document for the migration of the customer database. Owner: the data team, by Friday", "Planning document for the migration of the customer database. Owner: the data t…", ""],
+    ["more than one line", "Shopping for the dinner party on Saturday night. Now eight people instead of six as planned.\n- lamb", "Shopping for the dinner party on Saturday night. Now eight people instead of si…", "lamb"],
+  ];
+  for (const [name, text, title, preview] of notSplit) eq(name, noteSummary(text), { title, preview });
+  // macOS's sentence splitter only ends a sentence before a capital letter.
+  eq("splitTitleLine: null at 65 characters", splitTitleLine("a".repeat(30) + ". " + "B".repeat(33)), null);
+  eq("splitTitleLine: split at 66", splitTitleLine("a".repeat(30) + ". " + "B".repeat(34)), { title: "a".repeat(30) + ".", rest: "B".repeat(34) });
+  eq("no sentence break before a lower-case letter", splitTitleLine("a".repeat(30) + ". " + "b".repeat(34)), null);
+  const family = "👨‍👩‍👧‍👦";
+  eq("emoji count as one character", splitTitleLine(`${family.repeat(40)}. ${"B".repeat(30)}`), { title: `${family.repeat(40)}.`, rest: "B".repeat(30) });
+  const huge = "Call the plumber tomorrow morning. Then " + "word ".repeat(200000);
+  const started = Date.now();
+  const hugeSplit = splitTitleLine(huge);
+  check("a very long line splits quickly", hugeSplit && hugeSplit.title === "Call the plumber tomorrow morning." && Date.now() - started < 200, `${Date.now() - started} ms`);
+
+  section("Titles: text starting a new note");
+  const seeds = [
+    ["short text: a heading, then an empty line", "buy milk", "# buy milk\n\n"],
+    ["trimmed", "  Trip to Lisbon \n", "# Trip to Lisbon\n\n"],
+    ["a question", "What should we do about the garage?", "# What should we do about the garage?\n\n"],
+    ["a trailing colon dropped", "Things to buy:", "# Things to buy\n\n"],
+    ["an ellipsis isn't a full stop", "Ideas for the party...", "# Ideas for the party...\n\n"],
+    ["an abbreviation isn't a sentence break", "Questions for Dr. Patel", "# Questions for Dr. Patel\n\n"],
+    ["emoji", "🛒 Shopping", "# 🛒 Shopping\n\n"],
+    ["60 characters", "a".repeat(60), `# ${"a".repeat(60)}\n\n`],
+    ["61 characters: kept", "a".repeat(61), "a".repeat(61)],
+    ["ends with a full stop: kept", "Remember to call the bank.", "Remember to call the bank."],
+    ["two sentences: kept", "Call Bob! Ask about the invoice", "Call Bob! Ask about the invoice"],
+    ["more than one line: kept exactly", "Plan\n\n  - one  \n", "Plan\n\n  - one  \n"],
+    ["a heading already: kept", "## Plan", "## Plan"],
+    ["a list item: kept", "- milk", "- milk"],
+    ["a numbered item: kept", "1. first", "1. first"],
+    ["a quote: kept", "> quoted", "> quoted"],
+    ["a thematic break: kept", "---", "---"],
+    ["a URL: kept", "https://example.com/page", "https://example.com/page"],
+    ["www: kept", "www.example.com", "www.example.com"],
+    ["an email address: kept", "someone@example.com", "someone@example.com"],
+    ["a path: kept", "~/Documents/notes", "~/Documents/notes"],
+    ["an absolute path: kept", "/usr/local/bin", "/usr/local/bin"],
+    ["empty", "", ""],
+    ["whitespace: kept", "  \n", "  \n"],
+  ];
+  for (const [name, seed, text] of seeds) eq(name, newNoteText(seed), text);
+  eq("seedHeading: the heading or null", [seedHeading(" Trip "), seedHeading("Trip.")], ["Trip", null]);
+  eq("newNoteSubtitle: heading or text", [newNoteSubtitle("buy milk"), newNoteSubtitle("Buy milk.")], ["Create a note with this heading", "Create a note with this text"]);
 }
 
 function testUnicode(store) {

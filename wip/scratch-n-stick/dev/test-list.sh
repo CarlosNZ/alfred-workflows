@@ -71,7 +71,7 @@ expect "query ignores case and accents" "$(items "$notes" CAFE | cut -d'|' -f1)"
 expect "every word must match" "$(items "$notes" "milk eggs" | cut -d'|' -f1)" "Shopping "
 expect "words can match in any order and place" "$(items "$notes" "black flat" | cut -d'|' -f1)" "Café ideas "
 expect "no uid on any result, so Alfred keeps the order" "$(notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" | grep -c '"uid"' || true)" "0"
-expect "no match: New note with the query" "$(items "$notes" "buy  bread ")" "New note: buy  bread | Create a note with this text | $quick/20*.alfredui |  | buy  bread | - | - | 1"
+expect "no match: New note with the query, as a heading" "$(items "$notes" "buy  bread ")" "New note: buy  bread | Create a note with this heading | $quick/20*.alfredui |  | buy  bread | - | - | 1"
 expect "notes without sidecars were given one" "$(ls -A "$notes/.scratchnstick" | sort | tr '\n' ' ')" "cafe.json old.json recent.json shopping.json "
 # Quick bundles.
 # The quick bundle's ui.json of a note, and its modification time.
@@ -247,7 +247,12 @@ clip() {
 text=public.utf8-plain-text
 clip
 expect "new: an empty clipboard: only New note, as in the list" "$(new_items "$notes")" "New note | Create a blank note | $quick/20*.alfredui |  |  | - | - | 1"
-expect "new: with text, only New note: <text>, trimmed" "$(new_items "$notes" "  buy milk ")" "New note: buy milk | Create a note with this text | $quick/20*.alfredui |  | buy milk | - | - | 1"
+expect "new: with text, only New note: <text>, trimmed" "$(new_items "$notes" "  buy milk ")" "New note: buy milk | Create a note with this heading | $quick/20*.alfredui |  | buy milk | - | - | 1"
+headingbundle=$(new_items "$notes" "buy milk" | cut -d'|' -f3 | tr -d ' ')
+expect "new: text that reads as a heading starts the note as one, then an empty line" "$(grep -c '"text": "# buy milk\\n\\n"' $headingbundle/ui.json)" "1"
+sentence=$(new_items "$notes" "Remember to call the bank.")
+sentencebundle=$(print -r -- $sentence | cut -d'|' -f3 | tr -d ' ')
+expect "new: a sentence stays as text" "$(print -r -- $sentence | cut -d'|' -f2) $(grep -c '"text": "Remember to call the bank."' $sentencebundle/ui.json)" " Create a note with this text  1"
 expect "new: text that matches a note still makes a new one" "$(new_items "$notes" milk | cut -d'|' -f1)" "New note: milk "
 clip $text $'# Plan
 

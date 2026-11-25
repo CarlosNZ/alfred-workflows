@@ -3,7 +3,7 @@
 // Opens a note in a window: argv[0] is the form, "quick" (inside Alfred's
 // window) or "stick" (its own window on the desktop), and argv[1] the note's ID,
 // or, with the variable `new` set to "1" (the New note result), the text a new
-// note starts with. After Stick in a quick view, or ↩ on a sticky note in the
+// note starts with, which may become its heading (newNoteText in titles.js). After Stick in a quick view, or ↩ on a sticky note in the
 // results, the variable `stick_note` names the note instead (escaped as in its
 // window; see escapeForAlfredUi). After Stick, `stick_mode` is the quick view's
 // mode, which the sticky window opens in.
@@ -32,6 +32,7 @@ ObjC.import("Foundation");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
+  loadLib(argv, "titles.js");
   const form = argv[0] === "stick" ? "sticky" : "quick";
   if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");
   const store = noteStore();
@@ -50,7 +51,7 @@ function run(argv) {
   // A note that doesn't exist and isn't new is either a new note made sticky
   // from its quick view before anything was typed, or one that has gone
   // since the results were shown; both open blank.
-  const text = isNew ? argv[1] || "" : note ? note.text : "";
+  const text = isNew ? newNoteText(argv[1] || "") : note ? note.text : "";
   const mode = stickNote ? workflowVariable("stick_mode") : "";
   return output(writeNoteWindow({ store, workflowFolder, id, form, note, text, mode }));
 }

@@ -1654,7 +1654,7 @@ function removeNoteBundle(id, variable = workflowVariable) {
 // The files a window bundle is built from, besides the note: the templates,
 // and this file, which builds them. A change to any (a workflow update) makes
 // every quick bundle out of date.
-const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/customise.json", "ui/actions.json", "ui/content.json", "ui/view.html", "ui/view.js", "scripts/lib.js"];
+const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/customise.json", "ui/actions.json", "ui/content.json", "ui/view.html", "ui/view.js", "scripts/lib.js", "scripts/titles.js"];
 
 // Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
 // from the Script Filter, with nothing in between: a Run Script or Conditional
@@ -1674,8 +1674,9 @@ const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/customise.json", "ui/actions.
 //
 //   bundleFor(note)     the quick bundle of a note from store.list(), rebuilt
 //                       if it's out of date
-//   bundleForNew(text)  a quick bundle for a new note starting with `text`,
-//                       with a new ID, a different one on each call in a run
+//   bundleForNew(seed)  a quick bundle for a new note starting with `seed`
+//                       (as newNoteText in titles.js makes it), with a new
+//                       ID, a different one on each call in a run
 //   finish(notes)       removes the bundles and fingerprints of notes that
 //                       are gone, given every note in the folder, keeping any
 //                       that's open (has a window state), and saves the index
@@ -1712,10 +1713,10 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
   // from the clipboard, beside New note) gets the next ID, -2, even if writing
   // the first bundle took the clock into the next second.
   const started = new Date();
-  function bundleForNew(text) {
+  function bundleForNew(seed) {
     const id = store.newId({ date: started, isTaken: (id) => newIds.has(id) || isNoteIdInUse(id, variable) });
     newIds.add(id);
-    return writeNoteWindow({ store, workflowFolder, id, form: "quick", note: null, text, appearance }, variable);
+    return writeNoteWindow({ store, workflowFolder, id, form: "quick", note: null, text: newNoteText(seed), appearance }, variable);
   }
 
   function finish(notes) {
@@ -1742,11 +1743,12 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
 }
 
 // A Script Filter result that creates a note starting with `text` (list.js's
-// New note, and new.js's results). Its arg is `bundle`, the quick view of the
-// new note (quickWindows' bundleForNew), which ↩ opens inside Alfred. ⌘'s arg
-// is the text itself, with the variable `new`, so open.js knows it isn't a
-// note's ID, and sticks the new note. ⌥ and ⌃ do nothing: in the results list
-// their actions take a note's ID or path.
+// New note, and new.js's results), as newNoteText in titles.js makes it from
+// `text`. Its arg is `bundle`, the quick view of the new note (quickWindows'
+// bundleForNew), which ↩ opens inside Alfred. ⌘'s arg is the text itself, with
+// the variable `new`, so open.js knows it isn't a note's ID, and sticks the
+// new note. ⌥ and ⌃ do nothing: in the results list their actions take a
+// note's ID or path.
 function newNoteResult(title, subtitle, text, bundle) {
   const variables = { new: "1" };
   return {
@@ -1759,6 +1761,13 @@ function newNoteResult(title, subtitle, text, bundle) {
       ctrl: { subtitle, valid: false },
     },
   };
+}
+
+// The subtitle of a New note result for text typed after a keyword, which
+// says whether the text starts the note as its heading (seedHeading in
+// titles.js).
+function newNoteSubtitle(text) {
+  return seedHeading(text) === null ? "Create a note with this text" : "Create a note with this heading";
 }
 
 // A short hash of a string (cyrb53, 53 bits, in base 36), for fingerprints:
@@ -2175,11 +2184,14 @@ function isBlankText(text) {
 // cleaned the same way and joined: " | " before a heading, ": " after one,
 // ", " between list items, and a space between other lines, so
 // "### Decisions / - a / - b / ### Actions / - c" gives
-// "Decisions: a, b | Actions: c". Both are truncated on whole characters
+// "Decisions: a, b | Actions: c". A note that's a single long line, not a
+// heading, is split between the title and the preview where it reads well
+// (splitTitleLine in titles.js). Both are truncated on whole characters
 // (truncateText). A leading YAML front matter block, as other apps write, is
 // skipped.
 function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PREVIEW_MAX_LENGTH } = {}) {
   let title = null;
+  let titleIsHeading = false;
   let preview = "";
   let previewCount = 0;
   let previous = null;
@@ -2188,6 +2200,7 @@ function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PRE
     if (!line.text) continue;
     if (title === null) {
       title = line.text;
+      titleIsHeading = line.isHeading;
       continue;
     }
     let separator = " ";
@@ -2200,6 +2213,8 @@ function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PRE
     previewCount += graphemes(separator + line.text).length;
     if (previewCount > previewLength) break;
   }
+  const split = title !== null && previous === null && !titleIsHeading ? splitTitleLine(title) : null;
+  if (split) ({ title, rest: preview } = split);
   return {
     title: truncateText(title === null ? UNTITLED : title, titleLength),
     preview: truncateText(preview, previewLength),

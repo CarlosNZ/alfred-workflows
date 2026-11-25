@@ -12,6 +12,7 @@ ObjC.import("Foundation");
 
 function run(argv) {
   loadLib(argv, "lib.js");
+  loadLib(argv, "titles.js");
   try {
     const store = noteStore();
     const note = store.read(argv[0]);

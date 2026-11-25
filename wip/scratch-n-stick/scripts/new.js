@@ -17,6 +17,7 @@ ObjC.import("Foundation");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
+  loadLib(argv, "titles.js");
   const text = (argv[0] || "").trim();
   let quick;
   try {
@@ -31,7 +32,7 @@ function run(argv) {
   // gives a Script Filter (see noteThemeStylesheet in lib.js).
   attempt(() => writeNoteTheme(workflowVariable("alfred_theme_background")));
   const bundle = (text) => attempt(() => quick.bundleForNew(text)) || "";
-  if (text) return output([newNoteResult(`New note: ${text}`, "Create a note with this text", text, bundle(text))]);
+  if (text) return output([newNoteResult(`New note: ${text}`, newNoteSubtitle(text), text, bundle(text))]);
   const items = [newNoteResult("New note", "Create a blank note", "", bundle(""))];
   const clipboard = attempt(() => clipboardText(workflowVariable("scratchnstick_pasteboard")));
   if (clipboard) items.push(newNoteResult("New note from clipboard", truncateText(clipboard.trim().replace(/\s+/g, " "), 100), clipboard, bundle(clipboard)));

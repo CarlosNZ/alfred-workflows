@@ -41,6 +41,7 @@ ObjC.import("unistd");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
+  loadLib(argv, "titles.js");
   const [command, escapedId, form, ...rest] = argv;
   const id = unescapeFromAlfredUi(escapedId || "");
   if (form !== "quick" && form !== "sticky") throw new Error(`Unknown form: ${form}`);
