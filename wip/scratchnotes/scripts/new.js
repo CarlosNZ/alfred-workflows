@@ -20,9 +20,12 @@ function run(argv) {
   const text = (argv[0] || "").trim();
   let quick;
   try {
+    // The notes may have to move to a newly configured folder first.
+    const move = checkNotesFolderMove({ workflowFolder, showFailure: true });
+    if (move.status !== "ready") return notesFolderMoveOutput(move);
     quick = quickWindows(noteStore(), workflowFolder);
   } catch (e) {
-    return output([{ title: "Can't open the notes folder", subtitle: e.message, valid: false }]);
+    return output([notesFolderErrorItem(e)]);
   }
   // Quick views' pages take their colour from Alfred's theme, which Alfred
   // gives a Script Filter (see noteThemeStylesheet in lib.js).

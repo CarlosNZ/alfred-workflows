@@ -27,23 +27,43 @@ function workflowVariable(name) {
   return value.isNil() ? "" : value.js;
 }
 
-// The notes folder, created if it's missing. `notes_folder` from User
-// Configuration if set; otherwise `notes/` in the workflow's data folder.
-// A configured folder is only created if its parent exists, so a folder on an
-// unmounted volume isn't recreated on the startup disk. `variable` reads a
+// The notes folder: `notes_folder` from User Configuration if set; otherwise
+// `notes/` in the workflow's data folder, created if it's missing. A
+// configured folder must already exist and is never created, so a folder on
+// an unmounted volume isn't recreated on the startup disk: if it's missing,
+// the error thrown has `missingFolder` set to its path. `variable` reads a
 // workflow variable, and is replaceable for tests.
 function notesFolder(variable = workflowVariable) {
-  const configured = variable("notes_folder").trim();
-  if (configured) {
-    const folder = expandPath(configured);
-    ensureFolder(folder, false);
-    return folder;
+  const folder = configuredNotesFolder(variable);
+  if (!variable("notes_folder").trim()) {
+    ensureFolder(folder, true);
+  } else if (!$.NSFileManager.defaultManager.fileExistsAtPath(folder)) {
+    const error = new Error(`Missing notes folder: ${folder}`);
+    error.missingFolder = folder;
+    throw error;
+  } else if (!isFolderPath(folder)) {
+    throw new Error(`Not a folder: ${folder}`);
   }
+  return folder;
+}
+
+// The path of the notes folder the settings give (see notesFolder), whether
+// or not it exists.
+function configuredNotesFolder(variable = workflowVariable) {
+  const configured = variable("notes_folder").trim();
+  return configured ? expandPath(configured) : defaultNotesFolder(variable);
+}
+
+// `notes/` in the workflow's data folder.
+function defaultNotesFolder(variable = workflowVariable) {
   const data = variable("alfred_workflow_data");
   if (!data) throw new Error("No notes folder: neither notes_folder nor alfred_workflow_data is set");
-  const folder = expandPath(data) + "/notes";
-  ensureFolder(folder, true);
-  return folder;
+  return expandPath(data) + "/notes";
+}
+
+function isFolderPath(path) {
+  const isFolder = Ref();
+  return $.NSFileManager.defaultManager.fileExistsAtPathIsDirectory(path, isFolder) && Boolean(isFolder[0]);
 }
 
 function expandPath(path) {
@@ -61,7 +81,7 @@ function ensureFolder(folder, createParents) {
     const parent = $(folder).stringByDeletingLastPathComponent.js;
     if (!fm.fileExistsAtPath(parent)) throw new Error(`Can't create ${folder}: ${parent} doesn't exist`);
   }
-  const error = Ref();
+  const error = $();
   if (!fm.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(folder, createParents, $(), error)) {
     throw new Error(`Can't create ${folder}: ${errorText(error)}`);
   }
@@ -322,6 +342,374 @@ function noteStore(folder = notesFolder()) {
   }
 
   return { folder, notePath, exists, newId, read, list, save, readMeta, updateMeta, deleteIfEmpty, trash };
+}
+
+// ---------------------------------------------------------------------------
+// Moving the notes folder
+//
+// Alfred runs nothing when a setting changes, so the notes move on the next
+// run (see "Moving the notes folder" in DESIGN.md). The scripts that read the
+// setting (list.js, new.js, open.js) call checkNotesFolderMove first. It
+// compares the folder the notes were last in, recorded per Mac in the data
+// folder, with the folder the setting gives, and when they differ starts
+// scripts/move.js in the background, which closes the pinned windows and
+// moves the notes (moveNotes). A move holds a lock, <cache>/move.lock/, while
+// it runs, and one that fails leaves <cache>/move-failure.json saying why.
+
+const MOVE_TEMP_PREFIX = ".scratchnotes-move-";
+const MOVE_RERUN_SECONDS = 0.5;
+
+// Whether the notes can be used in the folder the settings give, starting a
+// move if they have to move there first. Returns:
+//   { status: "ready" }    nothing to move: notesFolder() is the folder (and
+//                          throws if a configured folder is missing)
+//   { status: "moving" }   a move is running, or has just been started
+//   { status: "failed", error }
+//                          the last try at this move failed. Only with
+//                          `showFailure`, for a Script Filter, and only once:
+//                          the failure's record is removed, so the next run
+//                          tries again.
+// With no record yet, the current folder is recorded and nothing moves. A
+// missing old folder has nothing to move, so the record changes to the new
+// one; a missing new folder leaves the record as it is, and the move waits
+// until the folder exists. `start(from, to)` starts the move, and is
+// replaceable for tests.
+function checkNotesFolderMove({ workflowFolder, showFailure = false, start = (from, to) => startNotesMove(workflowFolder, from, to), variable = workflowVariable }) {
+  if (isMoveLockHeld(variable)) return { status: "moving" };
+  const to = configuredNotesFolder(variable);
+  if (!variable("notes_folder").trim()) ensureFolder(to, true);
+  if (!isFolderPath(to)) return { status: "ready" };
+  const from = readLastNotesFolder(variable);
+  if (from === null || !isFolderPath(from) || isSameFolder(from, to)) {
+    if (from !== to) writeLastNotesFolder(to, variable);
+    return { status: "ready" };
+  }
+  const failure = readMoveFailure(variable);
+  if (showFailure && failure && failure.from === from && failure.to === to) {
+    removeMoveFailure(variable);
+    return { status: "failed", error: String(failure.error) };
+  }
+  start(from, to);
+  return { status: "moving" };
+}
+
+// A Script Filter's output while the notes can't be listed because of a move
+// (see checkNotesFolderMove): "Moving notes…", rerun until the move has
+// finished, or why the last try failed.
+function notesFolderMoveOutput(move) {
+  if (move.status === "moving") {
+    return JSON.stringify({ rerun: MOVE_RERUN_SECONDS, items: [{ title: "Moving notes…", subtitle: "To the notes folder set in the workflow's configuration", valid: false }] });
+  }
+  return JSON.stringify({ items: [{ title: "Couldn't move the notes", subtitle: move.error, valid: false }] });
+}
+
+// A Script Filter's result for an error opening the notes folder.
+function notesFolderErrorItem(error) {
+  if (error.missingFolder) return { title: "Missing notes folder", subtitle: error.missingFolder, valid: false };
+  return { title: "Can't open the notes folder", subtitle: error.message, valid: false };
+}
+
+// Starts scripts/move.js in the background, with the workflow's variables
+// (it inherits the environment) and its input and output on /dev/null, so
+// Alfred doesn't wait for it.
+function startNotesMove(workflowFolder, from, to) {
+  const task = $.NSTask.alloc.init;
+  task.launchPath = "/usr/bin/osascript";
+  task.arguments = $(["-l", "JavaScript", `${workflowFolder}/scripts/move.js`, from, to]);
+  const nullDevice = $.NSFileHandle.fileHandleWithNullDevice;
+  task.standardInput = nullDevice;
+  task.standardOutput = nullDevice;
+  task.standardError = nullDevice;
+  task.launch;
+}
+
+function workflowDataFolder(variable) {
+  const data = variable("alfred_workflow_data");
+  if (!data) throw new Error("alfred_workflow_data isn't set");
+  return expandPath(data);
+}
+
+function workflowCacheFolder(variable) {
+  const cache = variable("alfred_workflow_cache");
+  if (!cache) throw new Error("alfred_workflow_cache isn't set");
+  return expandPath(cache);
+}
+
+// The record of the folder the notes were last in: its path, in a file in
+// the data folder, which is local to each Mac.
+function readLastNotesFolder(variable = workflowVariable) {
+  const text = readText(`${workflowDataFolder(variable)}/last-notes-folder`);
+  return text === null || !text.trim() ? null : text.trim();
+}
+
+function writeLastNotesFolder(folder, variable = workflowVariable) {
+  const data = workflowDataFolder(variable);
+  ensureFolder(data, true);
+  writeFileAtomically(`${data}/last-notes-folder`, `${folder}\n`);
+}
+
+// Whether two paths are the same folder: with symlinks resolved, the same
+// volume and file number. A path that differs only in case, on a
+// case-insensitive volume, or that goes through a symlink, is the same.
+function isSameFolder(a, b) {
+  const idA = fileIdentity(a);
+  return idA !== null && idA === fileIdentity(b);
+}
+
+function fileIdentity(path) {
+  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError($(path).stringByResolvingSymlinksInPath, null);
+  if (attributes.isNil()) return null;
+  return `${attributes.objectForKey("NSFileSystemNumber").js}:${attributes.objectForKey("NSFileSystemFileNumber").js}`;
+}
+
+function volumeIdentity(path) {
+  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError($(path).stringByResolvingSymlinksInPath, null);
+  return attributes.isNil() ? null : attributes.objectForKey("NSFileSystemNumber").js;
+}
+
+// The move lock is a folder, so taking it is one step that only one process
+// can win, holding a file `pid` with the process ID of the move.
+function moveLockPath(variable) {
+  return `${workflowCacheFolder(variable)}/move.lock`;
+}
+
+// Whether a live move holds the lock. A lock with no process ID in it yet is
+// still being taken, and counts as held for a few seconds.
+function isMoveLockHeld(variable = workflowVariable) {
+  const lock = moveLockPath(variable);
+  if (!$.NSFileManager.defaultManager.fileExistsAtPath(lock)) return false;
+  const pid = moveLockPid(lock);
+  if (pid !== null) return isProcessAlive(pid);
+  const created = fileDate(lock, "NSFileCreationDate");
+  return created !== null && Date.now() - created < 5000;
+}
+
+function moveLockPid(lock) {
+  const text = readText(`${lock}/pid`);
+  const pid = text === null ? NaN : Number(text.trim());
+  return Number.isInteger(pid) && pid > 0 ? pid : null;
+}
+
+// Takes the lock for this process, taking over a stale one (its process has
+// gone), and returns whether it did.
+function takeMoveLock(variable = workflowVariable) {
+  ObjC.import("unistd");
+  const fm = $.NSFileManager.defaultManager;
+  const lock = moveLockPath(variable);
+  ensureFolder(workflowCacheFolder(variable), true);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (fm.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(lock, false, $(), null)) {
+      writeFileAtomically(`${lock}/pid`, `${$.getpid()}\n`);
+      return true;
+    }
+    if (isMoveLockHeld(variable)) return false;
+    fm.removeItemAtPathError(lock, null);
+  }
+  return false;
+}
+
+// Releases the lock, if this process holds it.
+function releaseMoveLock(variable = workflowVariable) {
+  ObjC.import("unistd");
+  const lock = moveLockPath(variable);
+  if (moveLockPid(lock) === $.getpid()) $.NSFileManager.defaultManager.removeItemAtPathError(lock, null);
+}
+
+function isProcessAlive(pid) {
+  ObjC.import("signal");
+  return $.kill(pid, 0) === 0;
+}
+
+// The record of a failed move, { from, to, error }, or null.
+function readMoveFailure(variable = workflowVariable) {
+  return readJsonObject(`${workflowCacheFolder(variable)}/move-failure.json`);
+}
+
+function writeMoveFailure(failure, variable = workflowVariable) {
+  const cache = workflowCacheFolder(variable);
+  ensureFolder(cache, true);
+  writeFileAtomically(`${cache}/move-failure.json`, JSON.stringify(failure) + "\n");
+}
+
+function removeMoveFailure(variable = workflowVariable) {
+  const path = `${workflowCacheFolder(variable)}/move-failure.json`;
+  if ($.NSFileManager.defaultManager.fileExistsAtPath(path)) removeFile(path);
+}
+
+// Asks every pinned window to quit, as its close button does, so its `quit`
+// event saves its note, and waits for each one's process to exit, which it
+// does once the note is saved. One still running after `timeout` ms is
+// force-quit. Quitting another app goes through Apple events, so this runs
+// as Alfred (in a process Alfred started). `isTerminated` doesn't change
+// while a script runs, as nothing runs the run loop that updates it, so the
+// wait checks the processes themselves.
+function quitPinnedNoteWindows(variable = workflowVariable, timeout = 5000) {
+  const windows = [...pinnedNoteIds(variable)].map((id) => ({ id, pid: pinnedNotePid(id, variable) })).filter((w) => w.pid !== null);
+  for (const { pid } of windows) {
+    const app = runningApp(pid);
+    if (app) app.terminate;
+  }
+  const start = Date.now();
+  while (windows.some(({ pid }) => isProcessAlive(pid)) && Date.now() - start < timeout) delay(0.05);
+  for (const { id, pid } of windows) {
+    if (!isProcessAlive(pid)) continue;
+    const app = runningApp(pid);
+    if (app) app.forceTerminate;
+    removeNoteState(id, variable);
+  }
+}
+
+// Moves the notes in the folder `from` into the folder `to`, with their
+// sidecars, and returns { moved, renamed, duplicates }: the number of notes
+// moved, the [old ID, new ID] of those renamed, and the number already in
+// `to`. The notes are the files the results list shows (see list in
+// noteStore), with or without a sidecar.
+//
+// - A note whose ID is taken in `to`, by a note in any extension case and
+//   Unicode normalization or by a sidecar, gets the next free suffix, as
+//   newId gives (foo-2, foo-3), keeping its extension's case, and its sidecar
+//   is renamed with it.
+// - A note with the same text as the note of the same ID in `to` is only
+//   deleted from `from`; its sidecar moves if that note has none.
+// - Sidecars without a note are deleted, with the rest of `from`'s
+//   .scratchnotes, once every note has moved.
+//
+// It works one note at a time, copying the sidecar, then moving the note,
+// then deleting the old sidecar, so it can be stopped at any point and run
+// again to finish. A sidecar in `to` with exactly the text of the note's own
+// is the copy made by a move that was stopped, and doesn't count as taking
+// the note's ID. Within a volume a note is renamed, and a sidecar's copy is a
+// hard link, made in one step; across volumes both are copied (see
+// copyFileTo). Throws on the first file it can't move, naming it.
+function moveNotes(from, to) {
+  const fm = $.NSFileManager.defaultManager;
+  const fromMeta = `${from}/${META_FOLDER}`;
+  const toMeta = `${to}/${META_FOLDER}`;
+  const target = noteStore(to);
+  const sameVolume = volumeIdentity(from) === volumeIdentity(to);
+  removeMoveTemps(to);
+  removeMoveTemps(toMeta);
+
+  // The IDs of the notes in `to`, in NFC, so a note whose name is in the
+  // other normalization counts. fileExistsAtPath covers the rest on a
+  // case-insensitive volume, where Foo.md and foo.MD are one file.
+  const targetIds = new Set(folderNames(to).map(noteIdFromFileName).filter((id) => id !== null).map((id) => id.normalize("NFC")));
+  const noteTaken = (id) => targetIds.has(id.normalize("NFC")) || fm.fileExistsAtPath(`${to}/${id}${NOTE_EXTENSION}`);
+  const freeId = (id, meta) => {
+    for (let n = 1; ; n++) {
+      const candidate = n === 1 ? id : `${id}-${n}`;
+      if (noteTaken(candidate)) continue;
+      const sidecar = `${toMeta}/${candidate}.json`;
+      if (!fm.fileExistsAtPath(sidecar) || (meta !== null && readText(sidecar) === readText(meta))) return candidate;
+    }
+  };
+  let toMetaReady = false;
+  const copySidecar = (meta, dest) => {
+    if (!toMetaReady) ensureFolder(toMeta, false);
+    toMetaReady = true;
+    if (!sameVolume) return copyFileTo(meta, dest);
+    const error = $();
+    if (!fm.linkItemAtPathToPathError(meta, dest, error)) throw new Error(`Can't copy ${meta} to ${dest}: ${errorText(error)}`);
+  };
+
+  const result = { moved: 0, renamed: [], duplicates: 0 };
+  for (const name of folderNames(from)) {
+    const id = noteIdFromFileName(name);
+    const path = `${from}/${name}`;
+    if (id === null || !isRegularFile(path)) continue;
+    const meta = `${fromMeta}/${id}.json`;
+    const hasMeta = fm.fileExistsAtPath(meta);
+
+    if (noteTaken(id)) {
+      const text = readText(path);
+      if (text !== null && text === readText(target.notePath(id))) {
+        if (hasMeta && !fm.fileExistsAtPath(`${toMeta}/${id}.json`)) copySidecar(meta, `${toMeta}/${id}.json`);
+        removeFile(path);
+        if (hasMeta) removeFile(meta);
+        result.duplicates++;
+        continue;
+      }
+    }
+
+    const newId = freeId(id, hasMeta ? meta : null);
+    if (hasMeta && !fm.fileExistsAtPath(`${toMeta}/${newId}.json`)) copySidecar(meta, `${toMeta}/${newId}.json`);
+    const dest = `${to}/${newId}${name.slice(id.length)}`;
+    if (sameVolume) moveFileTo(path, dest);
+    else {
+      copyFileTo(path, dest);
+      removeFile(path);
+    }
+    if (hasMeta) removeFile(meta);
+    targetIds.add(newId.normalize("NFC"));
+    result.moved++;
+    if (newId !== id) result.renamed.push([id, newId]);
+  }
+
+  if (fm.fileExistsAtPath(fromMeta)) {
+    const error = $();
+    if (!fm.removeItemAtPathError(fromMeta, error)) throw new Error(`Can't delete ${fromMeta}: ${errorText(error)}`);
+  }
+  return result;
+}
+
+// Moves a file to `dest`, which must not exist: it fails rather than replace
+// a file.
+function moveFileTo(source, dest) {
+  const error = $();
+  if (!$.NSFileManager.defaultManager.moveItemAtPathToPathError(source, dest, error)) {
+    throw new Error(`Can't move ${source} to ${dest}: ${errorText(error)}`);
+  }
+}
+
+// Copies a file to `dest`, which must not exist, by way of a temporary hidden
+// name beside it, so a copy that's stopped part way never leaves a partial
+// file at `dest`. Its birth and modification times are set to the
+// original's, which a copy to another volume may not keep.
+function copyFileTo(source, dest) {
+  const fm = $.NSFileManager.defaultManager;
+  const temp = `${$(dest).stringByDeletingLastPathComponent.js}/${MOVE_TEMP_PREFIX}${$.NSUUID.UUID.UUIDString.js}.tmp`;
+  const error = $();
+  if (!fm.copyItemAtPathToPathError(source, temp, error)) throw new Error(`Can't copy ${source} to ${dest}: ${errorText(error)}`);
+  const attributes = fm.attributesOfItemAtPathError(source, null);
+  if (!attributes.isNil()) {
+    const dates = $.NSMutableDictionary.dictionary;
+    for (const key of ["NSFileCreationDate", "NSFileModificationDate"]) {
+      const date = attributes.objectForKey(key);
+      if (!date.isNil()) dates.setObjectForKey(date, key);
+    }
+    fm.setAttributesOfItemAtPathError(dates, temp, null);
+  }
+  try {
+    moveFileTo(temp, dest);
+  } catch (e) {
+    fm.removeItemAtPathError(temp, null);
+    throw e;
+  }
+}
+
+// Deletes the temporary files a stopped copy left in `folder`.
+function removeMoveTemps(folder) {
+  for (const name of folderNames(folder)) {
+    if (name.startsWith(MOVE_TEMP_PREFIX)) removeFile(`${folder}/${name}`);
+  }
+}
+
+// Deletes `folder` if nothing is in it but Finder's .DS_Store.
+function removeFolderIfEmpty(folder) {
+  const names = folderNames(folder);
+  if (!isFolderPath(folder) || names.some((name) => name !== ".DS_Store")) return false;
+  return $.NSFileManager.defaultManager.removeItemAtPathError(folder, null);
+}
+
+// The names of the items in a folder, or [] if it can't be read.
+function folderNames(folder) {
+  const entries = $.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(folder, null);
+  return entries.isNil() ? [] : ObjC.deepUnwrap(entries);
+}
+
+function isRegularFile(path) {
+  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError(path, null);
+  return !attributes.isNil() && attributes.objectForKey("NSFileType").js === "NSFileTypeRegular";
 }
 
 // ---------------------------------------------------------------------------
@@ -1377,7 +1765,7 @@ function writeFileAtomically(path, text) {
   const temp = `${folder}/.scratchnotes-save-${$.NSUUID.UUID.UUIDString.js}.tmp`;
   const data = $(text).dataUsingEncoding($.NSUTF8StringEncoding);
   if (!data.writeToFileAtomically(temp, false)) throw new Error(`Can't write ${temp}`);
-  const error = Ref();
+  const error = $();
   let done = false;
   if (!fm.fileExistsAtPath(path)) {
     done = fm.moveItemAtPathToPathError(temp, path, error);
@@ -1400,7 +1788,7 @@ function writeFileAtomically(path, text) {
 }
 
 function removeFile(path) {
-  const error = Ref();
+  const error = $();
   if (!$.NSFileManager.defaultManager.removeItemAtPathError(path, error)) {
     throw new Error(`Can't delete ${path}: ${errorText(error)}`);
   }
@@ -1415,8 +1803,10 @@ function jsDate(nsDate) {
   return nsDate.isNil() ? null : new Date(nsDate.timeIntervalSince1970 * 1000);
 }
 
-function errorText(errorRef) {
-  const error = errorRef[0];
+// The description of an NSError from an out-parameter. Pass `$()` as the
+// parameter, not `Ref()`: reading an NSError back from a Ref crashes
+// osascript (tested on moveItemAtPath and copyItemAtPath).
+function errorText(error) {
   return error && !error.isNil() ? error.localizedDescription.js : "unknown error";
 }
 

@@ -748,7 +748,7 @@
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>Where your notes are kept, one Markdown file each. Leave empty to keep them in the workflow's own data folder.</string>
+			<string>Where your notes are kept, one Markdown file each. Leave empty to keep them in the workflow's own data folder. Changing it moves your notes to the new folder, and closes any pinned notes.</string>
 			<key>label</key>
 			<string>Notes folder</string>
 			<key>type</key>

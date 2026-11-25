@@ -1,9 +1,10 @@
 #!/bin/zsh
 # Tests scripts/list.js, the results list's Script Filter, and scripts/new.js,
-# the new-note keyword's, by running them as Alfred does (with notes_folder and
-# alfred_workflow_cache set and the query as their argument) against sample
-# notes in a temporary folder from mktemp, deleted afterwards. new.js reads a
-# named pasteboard of its own instead of the clipboard, released afterwards.
+# the new-note keyword's, by running them as Alfred does (with notes_folder,
+# alfred_workflow_data and alfred_workflow_cache set, and the query as their
+# argument) against sample notes in a temporary folder from mktemp, deleted
+# afterwards. new.js reads a named pasteboard of its own instead of the
+# clipboard, released afterwards.
 # Run from anywhere: dev/test-list.sh
 
 setopt err_return pipe_fail no_unset
@@ -32,7 +33,7 @@ note recent $'Just written' -10S
 # key does nothing (valid: false), and ⌘'s `new` variable. Runs $script:
 # list.js, or new.js in new_items.
 items() {
-  (cd "$tmp" && notes_folder=$1 alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$script" "${@:2}") | osascript -l JavaScript -e '
+  (cd "$tmp" && notes_folder=$1 alfred_workflow_data=$1.data alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$script" "${@:2}") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run() {
       const input = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js;
@@ -69,7 +70,7 @@ expect "query matches text, not just the title" "$(items "$notes" milk | cut -d'
 expect "query ignores case and accents" "$(items "$notes" CAFE | cut -d'|' -f1)" "Café ideas "
 expect "every word must match" "$(items "$notes" "milk eggs" | cut -d'|' -f1)" "Shopping "
 expect "words can match in any order and place" "$(items "$notes" "black flat" | cut -d'|' -f1)" "Café ideas "
-expect "no uid on any result, so Alfred keeps the order" "$(notes_folder=$notes alfred_workflow_cache=$cache $list "" | grep -c '"uid"' || true)" "0"
+expect "no uid on any result, so Alfred keeps the order" "$(notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" | grep -c '"uid"' || true)" "0"
 expect "no match: New note with the query" "$(items "$notes" "buy  bread ")" "New note: buy  bread | Create a note with this text | $quick/20*.alfredui |  | buy  bread | - | - | 1"
 expect "notes without sidecars were given one" "$(ls -A "$notes/.scratchnotes" | sort | tr '\n' ' ')" "cafe.json old.json recent.json shopping.json "
 # Quick bundles.
@@ -95,7 +96,7 @@ print -r -- '{"mode":"edit"}' > "$notes/.scratchnotes/old.json"
 items "$notes" >/dev/null
 expect "a changed sidecar rewrites its note's bundle" "$([[ $(mtime old) != $before_old ]] && print rewritten) $(mtime cafe)" "rewritten $before_cafe"
 before_old=$(mtime old)
-(cd "$tmp" && font_size=16 notes_folder=$notes alfred_workflow_cache=$cache "$list" "") >/dev/null
+(cd "$tmp" && font_size=16 notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache "$list" "") >/dev/null
 expect "a changed setting rewrites every bundle" "$([[ $(mtime cafe) != $before_cafe ]] && print rewritten) $([[ $(mtime old) != $before_old ]] && print rewritten)" "rewritten rewritten"
 items "$notes" milk >/dev/null
 expect "with a query, only matching notes' bundles are rebuilt" "$(grep -c '"size": 16' $(ui cafe)) $(grep -c '"size": 16' $(ui shopping) || true)" "1 0"
@@ -114,7 +115,7 @@ expect "a New note bundle has a new ID and opens in Edit" "$new1 $(grep -c '"tex
 icons() {
   local -a vars=()
   while [[ ${1:-} == *=* ]]; do vars+=$1; shift; done
-  (cd "$tmp" && env notes_folder=$notes alfred_workflow_cache=$cache "${vars[@]}" "$list" "$@") | osascript -l JavaScript -e '
+  (cd "$tmp" && env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache "${vars[@]}" "$list" "$@") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run() {
       const input = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js;
@@ -169,7 +170,7 @@ rm "$cache/state/shopping.json"
 # The stylesheet list.js writes with alfred_theme_background set to $1 (unset
 # if it's empty).
 theme() {
-  (cd "$tmp" && env notes_folder=$notes alfred_workflow_cache=$cache ${1:+alfred_theme_background=$1} "$list" "") >/dev/null
+  (cd "$tmp" && env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache ${1:+alfred_theme_background=$1} "$list" "") >/dev/null
   cat "$cache/theme.css"
 }
 expect_exact "theme: a solid theme's colour, at full opacity, with the system's text" "$(theme 'rgba(255,255,255,1.00)')" $':root { --panel: rgb(255, 255, 255); --opacity: 1; }\n@media (prefers-color-scheme: light) { :root { --panel: rgb(255, 255, 255); } }'
@@ -180,7 +181,7 @@ theme 'rgba(20, 20, 20, 0.9)' >/dev/null
 expect "theme: an unchanged stylesheet isn't rewritten" "$(stat -f %Fm "$cache/theme.css")" "$before_theme"
 expect "theme: without a theme colour, the page's own colours" "$(theme '')" "/\* No theme colour*"
 
-expect "unusable notes folder: an error result" "$(items "$tmp/missing/notes" | cut -d'|' -f1-2)" "Can't open the notes folder | Can't create *"
+expect "a missing notes folder: Missing notes folder, with its path" "$(items "$tmp/missing/notes" | cut -d'|' -f1-2)" "Missing notes folder | $tmp/missing/notes "
 
 # new.js: the new-note keyword.
 new_items() { local script=$new; items "$@" }
@@ -205,7 +206,7 @@ clip $text $'# Plan
 '
 # A JavaScript expression's value, with `d` new.js's output with no text.
 new_json() {
-  (cd "$tmp" && notes_folder=$notes alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$new" "") | osascript -l JavaScript -e '
+  (cd "$tmp" && notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$new" "") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run(argv) {
       const d = JSON.parse($.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js);
@@ -228,7 +229,7 @@ clip org.nspasteboard.TransientType "" $text "transient"
 expect "new: transient text: no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
 clip public.png "" 
 expect "new: no text (an image): no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
-expect "new: unusable notes folder: an error result" "$(new_items "$tmp/missing/notes" | cut -d'|' -f1)" "Can't open the notes folder "
+expect "new: a missing notes folder: Missing notes folder" "$(new_items "$tmp/missing/notes" | cut -d'|' -f1)" "Missing notes folder "
 
 print
 if (( failures )); then print "FAILED: $failures"; exit 1; else print "All passed"; fi

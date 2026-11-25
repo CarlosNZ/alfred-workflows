@@ -5,17 +5,23 @@
 #
 #   dev/test-storage.sh             everything
 #   SKIP_TRASH=1 dev/test-storage.sh   without the Trash test
+#   SKIP_VOLUME=1 dev/test-storage.sh  without moving notes to another volume
 #
 # The Trash test moves one note it created to the Trash through Finder (macOS
 # asks for permission to control Finder the first time), then deletes just
-# that file from the Trash.
+# that file from the Trash. The volume test attaches a small disk image from
+# the temporary folder, without showing it in Finder, and detaches it after.
 
 setopt err_return pipe_fail no_unset
 here=${0:A:h}
 workflow=${here:h}
 runner=$here/test-storage.js
 tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnotes-test.XXXXXX")
-trap '[[ $tmp == */scratchnotes-test.* ]] && rm -rf -- "$tmp"' EXIT
+cleanup() {
+  [[ -d $tmp/volume ]] && hdiutil detach -quiet -force "$tmp/volume" 2>/dev/null
+  [[ $tmp == */scratchnotes-test.* ]] && chmod -R u+w "$tmp" && rm -rf -- "$tmp"
+}
+trap cleanup EXIT
 failures=0
 
 ok() { print -r -- "ok    $1" }
@@ -63,6 +69,48 @@ for round in create overwrite; do
   leftovers=$(ls -A "$conc/notes" "$conc/notes/.scratchnotes" | grep -c '^\.scratchnotes-save-' || true)
   if (( leftovers == 0 )); then ok "$round: no temporary files left"; else fail "$round: $leftovers temporary files left"; fi
 done
+
+print "\n# move.js and the move started by list.js"
+mv=$tmp/movejs
+mkdir -p "$mv/data/notes" "$mv/cache" "$mv/new"
+print -rn "Moved by move.js" > "$mv/data/notes/a.md"
+print -r -- "$mv/data/notes" > "$mv/data/last-notes-folder"
+movejs() { env alfred_workflow_data=$mv/data alfred_workflow_cache=$mv/cache "$workflow/scripts/move.js" "$@" }
+expect() { if [[ $2 == "$3" ]]; then ok "$1"; else fail "$1: got '$2', expected '$3'"; fi }
+movejs "$mv/data/notes" "$mv/new"
+expect "the note moved" "$(cat "$mv/new/a.md" 2>&1)" "Moved by move.js"
+expect "the record is the new folder" "$(cat "$mv/data/last-notes-folder")" "$mv/new"
+expect "the old default folder, left empty, is removed" "$([[ -e $mv/data/notes ]] && print kept || print removed)" "removed"
+expect "the lock is released, and there's no failure" "$(ls -A "$mv/cache")" ""
+
+mkdir -p "$mv/locked"; chmod 555 "$mv/locked"
+print -rn "Can't move" > "$mv/new/b.md"
+movejs "$mv/new" "$mv/locked"
+expect "a failed move: its failure is recorded, naming the file" "$(grep -c '"error":"Can.t move [^"]*b.md' "$mv/cache/move-failure.json" 2>&1)" "1"
+expect "…the record still names the old folder, and the lock is released" "$(cat "$mv/data/last-notes-folder") $(ls -A "$mv/cache")" "$mv/new move-failure.json"
+chmod 755 "$mv/locked"; rm -f "$mv/cache/move-failure.json"
+
+mkdir "$mv/cache/move.lock"; print $$ > "$mv/cache/move.lock/pid"
+movejs "$mv/new" "$mv/locked"
+expect "a lock held by a live process: move.js does nothing" "$(ls -A "$mv/locked") $(cat "$mv/data/last-notes-folder")" " $mv/new"
+rm -rf "$mv/cache/move.lock"
+
+listjs() { (cd "$tmp" && env alfred_workflow_data=$mv/data alfred_workflow_cache=$mv/cache notes_folder=$1 "$workflow/scripts/list.js" "") }
+out=$(listjs "$mv/locked")
+expect "list.js after a change of folder: Moving notes…, rerun" "$(print -r -- $out | grep -o '"rerun":0.5,"items":\[{"title":"Moving notes…"')" '"rerun":0.5,"items":[{"title":"Moving notes…"'
+for i in {1..50}; do [[ $(cat "$mv/data/last-notes-folder") == "$mv/locked" ]] && break; sleep 0.1; done
+expect "…the move it started in the background finishes" "$(cat "$mv/data/last-notes-folder") $(cd "$mv/locked" && print -r -- *)" "$mv/locked a.md b.md"
+expect "…then list.js lists the notes" "$(listjs "$mv/locked" | grep -o '"title":"[^"]*"' | tr '\n' ' ')" '"title":"New note" "title":"Can'"'"'t move" "title":"Moved by move.js" '
+expect "a missing notes folder: Missing notes folder" "$(listjs "$mv/missing" | grep -o '"title":"[^"]*","subtitle":"[^"]*"')" "\"title\":\"Missing notes folder\",\"subtitle\":\"$mv/missing\""
+
+if [[ -n ${SKIP_VOLUME:-} ]]; then
+  print "\n# Moving notes to another volume: skipped (SKIP_VOLUME)"
+else
+  hdiutil create -quiet -size 16m -fs APFS -volname ScratchNotesTest "$tmp/volume.dmg"
+  hdiutil attach -quiet -nobrowse -mountpoint "$tmp/volume" "$tmp/volume.dmg"
+  "$runner" move-volume "$tmp" "$tmp/volume" || (( failures++ )) || true
+  hdiutil detach -quiet "$tmp/volume"
+fi
 
 if [[ -n ${SKIP_TRASH:-} ]]; then
   print "\n# Trash: skipped (SKIP_TRASH)"

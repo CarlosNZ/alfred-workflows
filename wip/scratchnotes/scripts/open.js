@@ -21,12 +21,19 @@
 //
 // A new note gets its ID now, before it's saved, so its window can save to it;
 // newId skips IDs that open, unsaved notes already use (isNoteIdInUse).
+//
+// While the notes are moving to a newly configured folder (see
+// checkNotesFolderMove in lib.js), it opens nothing. From the results list
+// that can't happen, as the list shows only "Moving notes…" then; from the
+// hotkey or the Universal Action, the new note isn't opened, and its text is
+// still where it came from.
 
 ObjC.import("Foundation");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   const form = argv[0] === "pin" ? "pinned" : "quick";
+  if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");
   const store = noteStore();
   const pinNote = workflowVariable("pin_note");
   const isNew = !pinNote && workflowVariable("new") === "1";

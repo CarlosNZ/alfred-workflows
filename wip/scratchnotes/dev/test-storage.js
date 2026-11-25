@@ -8,6 +8,8 @@
 //   test-storage.js test <temp folder>      the unit tests
 //   test-storage.js save <folder> <id> <file>  saves the file's text as a note
 //   test-storage.js trash <temp folder>     moves a note it creates to the Trash
+//   test-storage.js move-volume <temp folder> <volume folder>
+//                                           moves notes between two volumes
 
 ObjC.import("Foundation");
 ObjC.import("stdlib");
@@ -31,8 +33,13 @@ function run(argv) {
     testEmpty(freshStore(args[0], "empty"));
     testList(freshStore(args[0], "list"));
     timeList(freshStore(args[0], "timing"));
+    testMoveNotes(args[0]);
+    testMoveCheck(args[0]);
+    timeMove(args[0]);
   } else if (command === "trash") {
     testTrash(freshStore(args[0], "trash"));
+  } else if (command === "move-volume") {
+    testMoveVolume(args[0], args[1]);
   } else {
     throw new Error(`Unknown command: ${command}`);
   }
@@ -48,13 +55,17 @@ function testConfiguration(root) {
   makeFolder(`${root}/config`);
 
   const configured = `${root}/config/notes`;
+  let missing = null;
+  try {
+    notesFolder(variables({ notes_folder: configured }));
+  } catch (e) {
+    missing = e.missingFolder;
+  }
+  eq("a missing notes_folder throws, with missingFolder its path", missing, configured);
+  check("…and isn't created", !exists(configured));
+  makeFolder(configured);
   eq("notes_folder is used, trailing slash removed", notesFolder(variables({ notes_folder: configured + "/" })), configured);
-  check("notes_folder is created", isFolder(configured));
-  throws(
-    "notes_folder whose parent is missing isn't created",
-    () => notesFolder(variables({ notes_folder: `${root}/no-such-volume/notes` })),
-    /doesn't exist/,
-  );
+  throws("notes_folder whose parent is missing", () => notesFolder(variables({ notes_folder: `${root}/no-such-volume/notes` })), /Missing notes folder/);
   check("…and nothing was created", !exists(`${root}/no-such-volume`));
   writeRaw(`${root}/config/a-file`, "x");
   throws("notes_folder that's a file", () => notesFolder(variables({ notes_folder: `${root}/config/a-file` })), /Not a folder/);
@@ -326,6 +337,205 @@ function testTrash(store) {
     const removed = $.NSFileManager.defaultManager.removeItemAtPathError(trashed, null);
     print(removed ? `info removed ${trashed} from the Trash` : `info couldn't remove ${trashed} from the Trash; delete it by hand`);
   }
+}
+
+function testMoveNotes(root) {
+  section("Moving notes");
+  const from = `${root}/move/from`;
+  const to = `${root}/move/to`;
+  makeFolder(from);
+  makeFolder(`${to}/.scratchnotes`);
+  const note = (folder, name, text, meta) => {
+    writeRaw(`${folder}/${name}`, text);
+    if (meta) writeRaw(`${folder}/.scratchnotes/${noteIdFromFileName(name)}.json`, JSON.stringify(meta));
+  };
+  makeFolder(`${from}/.scratchnotes`);
+  note(from, "plain.md", "Plain", { colour: "blue" });
+  note(from, "bare.md", "No sidecar");
+  note(from, "Upper.MD", "Upper case extension", { colour: "green" });
+  note(from, "clash.md", "From clash", { colour: "green" });
+  note(from, "clash-2.md", "From clash-2");
+  note(from, "same.md", "Same text", { colour: "pink" });
+  note(from, "same2.md", "Same text 2", { colour: "pink" });
+  note(from, "sidecar.md", "Its ID is taken by a sidecar alone", { colour: "purple" });
+  note(from, "resumed.md", "Its sidecar was copied by a move that stopped", { colour: "blue" });
+  note(from, "Café.md".normalize("NFD"), "Decomposed name");
+  writeRaw(`${from}/.scratchnotes/orphan.json`, JSON.stringify({ colour: "grey" }));
+  writeRaw(`${from}/notes.txt`, "Not a note");
+  writeRaw(`${from}/.hidden.md`, "Hidden");
+  makeFolder(`${from}/sub`);
+  writeRaw(`${from}/sub/inside.md`, "In a subfolder");
+  const birth = new Date(2021, 0, 1, 12, 0, 0);
+  const modified = new Date(2022, 5, 1, 9, 30, 0);
+  setDate(`${from}/plain.md`, "NSFileCreationDate", birth);
+  setDate(`${from}/plain.md`, "NSFileModificationDate", modified);
+  setTags(`${from}/plain.md`, ["Red"]);
+
+  note(to, "clash.md", "To clash");
+  note(to, "clash-2.md", "To clash-2");
+  note(to, "upper.md", "Lower case, the same file name as Upper.MD on a case-insensitive volume");
+  note(to, "same.md", "Same text");
+  note(to, "same2.md", "Same text 2", { colour: "yellow" });
+  note(to, "Café.md".normalize("NFC"), "Composed name");
+  writeRaw(`${to}/.scratchnotes/sidecar.json`, JSON.stringify({ colour: "red" }));
+  writeRaw(`${to}/.scratchnotes/resumed.json`, JSON.stringify({ colour: "blue" }));
+  writeRaw(`${to}/.scratchnotes-move-stopped.tmp`, "A partial copy");
+  writeRaw(`${to}/.scratchnotes/.scratchnotes-move-stopped.tmp`, "A partial copy");
+
+  const result = moveNotes(from, to);
+  eq("only other files, hidden files and subfolders are left behind, without .scratchnotes", entries(from).sort(), [".hidden.md", "notes.txt", "sub"]);
+  const notes = entries(to).filter((name) => !name.startsWith(".")).map((name) => name.normalize("NFC")).sort();
+  eq(
+    "the new folder's notes",
+    notes,
+    ["Café-2.md", "Café.md", "Upper-2.MD", "bare.md", "clash-2-2.md", "clash-2.md", "clash-3.md", "clash.md", "plain.md", "resumed.md", "same.md", "same2.md", "sidecar-2.md", "upper.md"],
+  );
+  const text = (name) => readText(`${to}/${name}`);
+  const meta = (id) => readJsonObject(`${to}/.scratchnotes/${id}.json`);
+  eq("a clash takes the next free suffix: clash-3, past the new folder's clash-2", [text("clash-3.md"), meta("clash-3")], ["From clash", { colour: "green" }]);
+  eq("a suffixed ID clashing gets its own suffix: clash-2-2", text("clash-2-2.md"), "From clash-2");
+  eq("the new folder's own notes are untouched", [text("clash.md"), text("clash-2.md"), meta("clash")], ["To clash", "To clash-2", null]);
+  eq("extension case is kept, and Upper.MD clashes with upper.md", [text("Upper-2.MD"), meta("Upper-2")], ["Upper case extension", { colour: "green" }]);
+  eq("a decomposed name clashes with the composed one", text("Café-2.md".normalize("NFD")) || text("Café-2.md"), "Decomposed name");
+  eq("same text: one copy kept, and the sidecar moves when it has none", [text("same.md"), meta("same")], ["Same text", { colour: "pink" }]);
+  eq("same text: the new folder's sidecar is kept", meta("same2"), { colour: "yellow" });
+  eq("an ID taken by a sidecar alone: renamed with its own sidecar", [text("sidecar-2.md"), meta("sidecar-2"), meta("sidecar")], ["Its ID is taken by a sidecar alone", { colour: "purple" }, { colour: "red" }]);
+  eq("a sidecar a stopped move copied doesn't take the ID", [text("resumed.md"), meta("resumed")], ["Its sidecar was copied by a move that stopped", { colour: "blue" }]);
+  eq("a note without a sidecar moves without one", [text("bare.md"), exists(`${to}/.scratchnotes/bare.json`)], ["No sidecar", false]);
+  eq("a sidecar without a note isn't moved", exists(`${to}/.scratchnotes/orphan.json`), false);
+  eq("modification and birth times, and Finder tags, are kept", [fileDate(`${to}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${to}/plain.md`, "NSFileCreationDate").getTime(), tags(`${to}/plain.md`)], [modified.getTime(), birth.getTime(), ["Red"]]);
+  eq("a stopped move's temporary files are deleted", entries(to).concat(entries(`${to}/.scratchnotes`)).filter((name) => name.startsWith(".scratchnotes-move-")), []);
+  eq("moved and duplicates", [result.moved, result.duplicates], [8, 2]);
+  eq("renamed", result.renamed.map(([a, b]) => `${a.normalize("NFC")}→${b.normalize("NFC")}`).sort(), ["Café→Café-2", "Upper→Upper-2", "clash-2→clash-2-2", "clash→clash-3", "sidecar→sidecar-2"]);
+  eq("running it again moves nothing", moveNotes(from, to), { moved: 0, renamed: [], duplicates: 0 });
+
+  // A move stopped after a note was copied but before the old one was deleted.
+  note(from, "copied.md", "Copied, not yet deleted");
+  makeFolder(`${from}/.scratchnotes`);
+  writeRaw(`${from}/.scratchnotes/copied.json`, JSON.stringify({ colour: "orange" }));
+  note(to, "copied.md", "Copied, not yet deleted");
+  writeRaw(`${to}/.scratchnotes/copied.json`, JSON.stringify({ colour: "orange" }));
+  eq("a stopped move is finished: the copy left behind is deleted", [moveNotes(from, to).duplicates, exists(`${from}/copied.md`), exists(`${from}/.scratchnotes`), meta("copied")], [1, false, false, { colour: "orange" }]);
+
+  const before = entries(to).sort();
+  note(from, "taken.md", "Can't move");
+  const locked = `${root}/move/locked`;
+  makeFolder(locked);
+  $.NSFileManager.defaultManager.setAttributesOfItemAtPathError($({ NSFilePosixPermissions: 0o555 }), locked, null);
+  throws("a note that can't be moved: throws, naming it", () => moveNotes(from, locked), /taken\.md/);
+  check("…and it stays where it was", exists(`${from}/taken.md`));
+  $.NSFileManager.defaultManager.setAttributesOfItemAtPathError($({ NSFilePosixPermissions: 0o755 }), locked, null);
+  eq("…and nothing else changed", entries(to).sort(), before);
+
+  check("same folder: a path through a symlink", (() => {
+    $.NSFileManager.defaultManager.createSymbolicLinkAtPathWithDestinationPathError(`${root}/move/link`, to, null);
+    return isSameFolder(`${root}/move/link`, to);
+  })());
+  check("same folder: a path differing in case (a case-insensitive volume)", isSameFolder(`${root}/move/TO`, to));
+  check("different folders", !isSameFolder(from, to));
+  check("a missing folder is never the same", !isSameFolder(`${root}/move/missing`, `${root}/move/missing`));
+  eq("removeFolderIfEmpty: kept with a file in it, removed with only .DS_Store", [removeFolderIfEmpty(from), exists(from), (() => {
+    makeFolder(`${root}/move/empty`);
+    writeRaw(`${root}/move/empty/.DS_Store`, "");
+    return removeFolderIfEmpty(`${root}/move/empty`);
+  })(), exists(`${root}/move/empty`)], [false, true, true, false]);
+}
+
+function testMoveCheck(root) {
+  section("Noticing a move");
+  const data = `${root}/check/data`;
+  const cache = `${root}/check/cache`;
+  const a = `${root}/check/a`;
+  makeFolder(a);
+  let started = [];
+  const settings = (notesFolder) => (name) => ({ alfred_workflow_data: data, alfred_workflow_cache: cache, notes_folder: notesFolder })[name] || "";
+  const check_ = (notesFolder, showFailure = false) => {
+    started = [];
+    return checkNotesFolderMove({ workflowFolder: "/nowhere", showFailure, start: (from, to) => started.push([from, to]), variable: settings(notesFolder) });
+  };
+  const record = () => readLastNotesFolder(settings(""));
+  const defaultFolder = `${data}/notes`;
+
+  eq("first run: ready", check_("").status, "ready");
+  eq("…records the folder, the default one, which is created", [record(), isFolder(defaultFolder)], [defaultFolder, true]);
+  eq("the same folder again: ready, nothing started", [check_("").status, started], ["ready", []]);
+  eq("a new folder: a move from the recorded folder starts", [check_(a).status, started], ["moving", [[defaultFolder, a]]]);
+  eq("…and the record stays until the move finishes", record(), defaultFolder);
+  eq("a missing new folder: ready, nothing started (notesFolder then says it's missing)", [check_(`${root}/check/missing`).status, started, record()], ["ready", [], defaultFolder]);
+
+  writeMoveFailure({ from: defaultFolder, to: a, error: "The disk is full" }, settings(a));
+  eq("a failed move, in a Script Filter: the failure, once, nothing started", [check_(a, true), started], [{ status: "failed", error: "The disk is full" }, []]);
+  eq("…then the next run tries again", [check_(a, true).status, started], ["moving", [[defaultFolder, a]]]);
+  writeMoveFailure({ from: defaultFolder, to: a, error: "The disk is full" }, settings(a));
+  eq("a failed move, elsewhere (open.js): tries again, and the failure stays for the list", [check_(a).status, started.length, readMoveFailure(settings(a)).error], ["moving", 1, "The disk is full"]);
+  writeMoveFailure({ from: defaultFolder, to: `${root}/check/other`, error: "Old" }, settings(a));
+  eq("a failure of a different move is ignored", [check_(a, true).status, started.length], ["moving", 1]);
+
+  check("the lock: taken", takeMoveLock(settings(a)));
+  eq("…while held: moving, nothing started", [check_(a).status, started], ["moving", []]);
+  check("…can't be taken twice", !takeMoveLock(settings(a)));
+  releaseMoveLock(settings(a));
+  check("…released", !exists(`${cache}/move.lock`));
+  makeFolder(`${cache}/move.lock`);
+  check("a lock with no process ID yet counts as held", isMoveLockHeld(settings(a)));
+  writeRaw(`${cache}/move.lock/pid`, "999999\n");
+  check("a lock whose process has gone is stale", !isMoveLockHeld(settings(a)));
+  check("…and is taken over", takeMoveLock(settings(a)) && readText(`${cache}/move.lock/pid`).trim() !== "999999");
+  releaseMoveLock(settings(a));
+
+  writeLastNotesFolder(`${root}/check/gone`, settings(a));
+  eq("a missing old folder: ready, nothing started, the record is the new folder", [check_(a).status, started, record()], ["ready", [], a]);
+  $.NSFileManager.defaultManager.createSymbolicLinkAtPathWithDestinationPathError(`${root}/check/link`, a, null);
+  eq("the same folder by another path: ready, and the record takes the new path", [check_(`${root}/check/link`).status, started, record()], ["ready", [], `${root}/check/link`]);
+  eq("no record and a missing configured folder: nothing recorded", (() => {
+    removeFile(`${data}/last-notes-folder`);
+    check_(`${root}/check/missing`);
+    return record();
+  })(), null);
+}
+
+function timeMove(root) {
+  section("Timing a move");
+  const from = `${root}/timing-move/from`;
+  const to = `${root}/timing-move/to`;
+  makeFolder(`${from}/.scratchnotes`);
+  makeFolder(to);
+  for (let i = 0; i < 1000; i++) {
+    writeRaw(`${from}/note-${i}.md`, `# Note ${i}\nSome text.\n`);
+    writeRaw(`${from}/.scratchnotes/note-${i}.json`, JSON.stringify({ created: "2026-11-25T12:00:00+13:00", colour: "blue" }));
+  }
+  const start = Date.now();
+  const result = moveNotes(from, to);
+  const ms = Date.now() - start;
+  eq("1,000 notes with sidecars moved", [result.moved, entries(to).length, entries(`${to}/.scratchnotes`).length], [1000, 1001, 1000]);
+  print(`info moveNotes of 1,000 notes with sidecars, within a volume: ${ms} ms`);
+}
+
+// Moves notes from the temporary folder to a folder on another volume (a
+// disk image test-storage.sh attaches), and back.
+function testMoveVolume(root, volume) {
+  section("Moving notes to another volume");
+  const from = `${root}/volume-from`;
+  const to = `${volume}/notes`;
+  makeFolder(`${from}/.scratchnotes`);
+  makeFolder(to);
+  check("the two folders are on different volumes", volumeIdentity(from) !== volumeIdentity(to));
+  writeRaw(`${from}/plain.md`, "Plain");
+  writeRaw(`${from}/.scratchnotes/plain.json`, JSON.stringify({ colour: "blue" }));
+  writeRaw(`${from}/clash.md`, "From clash");
+  writeRaw(`${to}/clash.md`, "To clash");
+  const birth = new Date(2021, 0, 1, 12, 0, 0);
+  const modified = new Date(2022, 5, 1, 9, 30, 0);
+  setDate(`${from}/plain.md`, "NSFileCreationDate", birth);
+  setDate(`${from}/plain.md`, "NSFileModificationDate", modified);
+  setTags(`${from}/plain.md`, ["Red"]);
+  eq("moved", moveNotes(from, to), { moved: 2, renamed: [["clash", "clash-2"]], duplicates: 0 });
+  eq("the old folder is empty", entries(from), []);
+  eq("the notes and sidecar are there", [readText(`${to}/plain.md`), readText(`${to}/clash-2.md`), readJsonObject(`${to}/.scratchnotes/plain.json`)], ["Plain", "From clash", { colour: "blue" }]);
+  eq("modification and birth times, and Finder tags, are kept", [fileDate(`${to}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${to}/plain.md`, "NSFileCreationDate").getTime(), tags(`${to}/plain.md`)], [modified.getTime(), birth.getTime(), ["Red"]]);
+  eq("no temporary files are left", entries(to).concat(entries(`${to}/.scratchnotes`)).filter((name) => name.startsWith(".scratchnotes-move-")), []);
+  eq("and back again", moveNotes(to, from).moved, 3);
+  eq("…with the times kept", [fileDate(`${from}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${from}/plain.md`, "NSFileCreationDate").getTime()], [modified.getTime(), birth.getTime()]);
 }
 
 // ---------------------------------------------------------------------------

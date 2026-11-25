@@ -34,7 +34,7 @@ expect_exact() {
 open_note() {
   local -a vars=()
   while [[ ${1:-} == *=* ]]; do vars+=$1; shift; done
-  env notes_folder=$notes alfred_workflow_cache=$cache "${vars[@]}" "$scripts/open.js" "$@" | json - 'd.alfredworkflow.arg'
+  env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache "${vars[@]}" "$scripts/open.js" "$@" | json - 'd.alfredworkflow.arg'
 }
 
 # Runs window.js or changed.sh as a window's action does (only the alfred_*
@@ -158,7 +158,7 @@ id2=$(basename "$(open_note new=1 quick '')" .alfredui)
 expect "an ID whose pinned bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
 expect "a new note opens in Edit with its text" "$(json $cache/quick/$id1.alfredui/ui.json '[Boolean('$editor'.hidden), '$editor'.text].join(" ")') $(page_text $cache/quick/$id1.alfredui)" "false Buy milk null"
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md script.md vars.md "
-expect "open.js sets open_window, clears new and pin_note" "$(env notes_folder=$notes alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","pin_note":"","pin_mode":""}'
+expect "open.js sets open_window, clears new and pin_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","pin_note":"","pin_mode":""}'
 
 # window.js: launched, save, toggle, edit, view, quit.
 bundle1=$cache/quick/$id1.alfredui
