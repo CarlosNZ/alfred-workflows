@@ -13,7 +13,10 @@
 // old folder; moves the notes (moveNotes); and records the new folder as the
 // one the notes are in. If the move fails, it records why, for the results
 // list to show, and the record still names the old folder, so the next run
-// tries again and carries on where this one stopped.
+// tries again and carries on where this one stopped. It posts a
+// notification saying what happened (postNotesNotification), except for a
+// retry that fails the same way as the last try, so retries made as the
+// user types in the list don't notify each time.
 
 ObjC.import("Foundation");
 ObjC.import("unistd");
@@ -28,13 +31,18 @@ function run(argv) {
     // Another move may have finished this one since it was started.
     if (readLastNotesFolder() !== from) return;
     quitPinnedNoteWindows();
-    moveNotes(from, to);
+    const result = moveNotes(from, to);
     writeLastNotesFolder(to);
     removeMoveFailure();
     // The default folder is created again whenever it's needed.
     if (from === defaultNotesFolder()) removeFolderIfEmpty(from);
+    postNotesNotification(notesMovedMessage(result, to));
   } catch (e) {
+    const last = readMoveFailure();
     writeMoveFailure({ from, to, error: e.message });
+    if (!last || last.from !== from || last.to !== to || last.error !== e.message) {
+      postNotesNotification(`Couldn't move the notes to ${notesFolderName(to)}: ${e.message}`);
+    }
   } finally {
     releaseMoveLock();
   }

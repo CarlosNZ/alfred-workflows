@@ -448,10 +448,12 @@ function testMoveCheck(root) {
   const a = `${root}/check/a`;
   makeFolder(a);
   let started = [];
+  let notified = [];
   const settings = (notesFolder) => (name) => ({ alfred_workflow_data: data, alfred_workflow_cache: cache, notes_folder: notesFolder })[name] || "";
   const check_ = (notesFolder, showFailure = false) => {
     started = [];
-    return checkNotesFolderMove({ workflowFolder: "/nowhere", showFailure, start: (from, to) => started.push([from, to]), variable: settings(notesFolder) });
+    notified = [];
+    return checkNotesFolderMove({ workflowFolder: "/nowhere", showFailure, start: (from, to) => started.push([from, to]), notify: (text) => notified.push(text), variable: settings(notesFolder) });
   };
   const record = () => readLastNotesFolder(settings(""));
   const defaultFolder = `${data}/notes`;
@@ -464,7 +466,8 @@ function testMoveCheck(root) {
   eq("a missing new folder: ready, nothing started (notesFolder then says it's missing)", [check_(`${root}/check/missing`).status, started, record()], ["ready", [], defaultFolder]);
 
   writeMoveFailure({ from: defaultFolder, to: a, error: "The disk is full" }, settings(a));
-  eq("a failed move, in a Script Filter: the failure, once, nothing started", [check_(a, true), started], [{ status: "failed", error: "The disk is full" }, []]);
+  eq("a failed move, in a Script Filter: the failure, nothing started", [check_(a, true), started], [{ status: "failed", error: "The disk is full" }, []]);
+  eq("…marked as shown, and kept, so move.js knows a retry failing the same way is no news", readMoveFailure(settings(a)), { from: defaultFolder, to: a, error: "The disk is full", shown: true });
   eq("…then the next run tries again", [check_(a, true).status, started], ["moving", [[defaultFolder, a]]]);
   writeMoveFailure({ from: defaultFolder, to: a, error: "The disk is full" }, settings(a));
   eq("a failed move, elsewhere (open.js): tries again, and the failure stays for the list", [check_(a).status, started.length, readMoveFailure(settings(a)).error], ["moving", 1, "The disk is full"]);
@@ -485,8 +488,16 @@ function testMoveCheck(root) {
 
   writeLastNotesFolder(`${root}/check/gone`, settings(a));
   eq("a missing old folder: ready, nothing started, the record is the new folder", [check_(a).status, started, record()], ["ready", [], a]);
+  eq("…with a notification saying why", notified, [`Your notes are now kept in ${$(a).stringByAbbreviatingWithTildeInPath.js}. No notes were moved, as the old folder, ${$(`${root}/check/gone`).stringByAbbreviatingWithTildeInPath.js}, wasn't found.`]);
+  eq("…and no notification otherwise", [check_(a), notified], [{ status: "ready" }, []]);
   $.NSFileManager.defaultManager.createSymbolicLinkAtPathWithDestinationPathError(`${root}/check/link`, a, null);
   eq("the same folder by another path: ready, and the record takes the new path", [check_(`${root}/check/link`).status, started, record()], ["ready", [], `${root}/check/link`]);
+  const message = (moved, renamed, duplicates, to) => notesMovedMessage({ moved, renamed: Array(renamed).fill(["a", "a-2"]), duplicates }, to, settings(""));
+  eq("the message for a move: notes, and the default folder by name", message(1, 0, 0, defaultFolder), "Moved 1 note to the workflow's data folder.");
+  eq("…several, with ~ for the home folder, counting duplicates", message(40, 0, 2, `${$.NSHomeDirectory().js}/Notes`), "Moved 42 notes to ~/Notes.");
+  eq("…some renamed", message(5, 2, 0, "/Volumes/Disk/Notes"), "Moved 5 notes to /Volumes/Disk/Notes. 2 were renamed, as their names were taken there.");
+  eq("…one renamed", message(5, 1, 0, "/Volumes/Disk/Notes"), "Moved 5 notes to /Volumes/Disk/Notes. 1 was renamed, as its name was taken there.");
+  eq("…none to move", message(0, 0, 0, "/Volumes/Disk/Notes"), "Your notes are now kept in /Volumes/Disk/Notes. There were no notes to move.");
   eq("no record and a missing configured folder: nothing recorded", (() => {
     removeFile(`${data}/last-notes-folder`);
     check_(`${root}/check/missing`);

@@ -366,27 +366,34 @@ const MOVE_RERUN_SECONDS = 0.5;
 //   { status: "moving" }   a move is running, or has just been started
 //   { status: "failed", error }
 //                          the last try at this move failed. Only with
-//                          `showFailure`, for a Script Filter, and only once:
-//                          the failure's record is removed, so the next run
-//                          tries again.
+//                          `showFailure`, for a Script Filter, and only once
+//                          per try: the failure's record is marked as shown,
+//                          so the next run tries again.
 // With no record yet, the current folder is recorded and nothing moves. A
 // missing old folder has nothing to move, so the record changes to the new
 // one; a missing new folder leaves the record as it is, and the move waits
-// until the folder exists. `start(from, to)` starts the move, and is
-// replaceable for tests.
-function checkNotesFolderMove({ workflowFolder, showFailure = false, start = (from, to) => startNotesMove(workflowFolder, from, to), variable = workflowVariable }) {
+// until the folder exists. A missing old folder is the one case that posts
+// a notification here, as nothing else says why the list is empty.
+// `start(from, to)` starts the move and `notify(text)` posts a notification;
+// both are replaceable for tests.
+function checkNotesFolderMove({ workflowFolder, showFailure = false, start = (from, to) => startNotesMove(workflowFolder, from, to), notify = (text) => postNotesNotification(text, variable), variable = workflowVariable }) {
   if (isMoveLockHeld(variable)) return { status: "moving" };
   const to = configuredNotesFolder(variable);
   if (!variable("notes_folder").trim()) ensureFolder(to, true);
   if (!isFolderPath(to)) return { status: "ready" };
   const from = readLastNotesFolder(variable);
-  if (from === null || !isFolderPath(from) || isSameFolder(from, to)) {
+  if (from === null || isSameFolder(from, to)) {
     if (from !== to) writeLastNotesFolder(to, variable);
     return { status: "ready" };
   }
+  if (!isFolderPath(from)) {
+    writeLastNotesFolder(to, variable);
+    notify(`Your notes are now kept in ${notesFolderName(to, variable)}. No notes were moved, as the old folder, ${notesFolderName(from, variable)}, wasn't found.`);
+    return { status: "ready" };
+  }
   const failure = readMoveFailure(variable);
-  if (showFailure && failure && failure.from === from && failure.to === to) {
-    removeMoveFailure(variable);
+  if (showFailure && failure && failure.from === from && failure.to === to && !failure.shown) {
+    writeMoveFailure(Object.assign(failure, { shown: true }), variable);
     return { status: "failed", error: String(failure.error) };
   }
   start(from, to);
@@ -409,13 +416,64 @@ function notesFolderErrorItem(error) {
   return { title: "Can't open the notes folder", subtitle: error.message, valid: false };
 }
 
-// Starts scripts/move.js in the background, with the workflow's variables
-// (it inherits the environment) and its input and output on /dev/null, so
-// Alfred doesn't wait for it.
+// Starts scripts/move.js in the background (see launchInBackground), with
+// the workflow's variables, so Alfred doesn't wait for it.
 function startNotesMove(workflowFolder, from, to) {
+  launchInBackground("/usr/bin/osascript", ["-l", "JavaScript", `${workflowFolder}/scripts/move.js`, from, to]);
+}
+
+// Posts a notification from the workflow, through its "notify" External
+// Trigger and Post Notification object, so it comes from Alfred with the
+// workflow's icon, as the Trash's does: for scripts outside Alfred's flow of
+// objects (move.js, and checkNotesFolderMove). The AppleScript call runs in
+// a process of its own that nothing waits for, so a Script Filter never
+// waits on Alfred while Alfred waits on it, and the text is passed as an
+// argument, never pasted into the script. Does nothing outside Alfred (no
+// alfred_workflow_bundleid), so the tests post nothing.
+function postNotesNotification(text, variable = workflowVariable) {
+  const bundleId = variable("alfred_workflow_bundleid");
+  if (!bundleId) return;
+  launchInBackground("/usr/bin/osascript", [
+    "-e", "on run argv",
+    "-e", 'tell application id "com.runningwithcrayons.Alfred" to run trigger "notify" in workflow (item 1 of argv) with argument (item 2 of argv)',
+    "-e", "end run",
+    bundleId,
+    text,
+  ]);
+}
+
+// What a finished move's notification says, from moveNotes' result: the
+// notes that were already in the new folder count as moved, as they're
+// there now.
+function notesMovedMessage(result, to, variable = workflowVariable) {
+  const count = result.moved + result.duplicates;
+  const place = notesFolderName(to, variable);
+  if (count === 0) return `Your notes are now kept in ${place}. There were no notes to move.`;
+  const notes = count === 1 ? "1 note" : `${count} notes`;
+  const renamed = result.renamed.length;
+  if (renamed === 0) return `Moved ${notes} to ${place}.`;
+  return `Moved ${notes} to ${place}. ${renamed === 1 ? "1 was" : `${renamed} were`} renamed, as ${renamed === 1 ? "its name was" : "their names were"} taken there.`;
+}
+
+// A notes folder as a notification names it: "the workflow's data folder"
+// for the default one, otherwise its path with ~ for the home folder.
+function notesFolderName(folder, variable = workflowVariable) {
+  let isDefault = false;
+  try {
+    isDefault = folder === defaultNotesFolder(variable);
+  } catch (e) {
+    // No data folder: not the default.
+  }
+  return isDefault ? "the workflow's data folder" : $(folder).stringByAbbreviatingWithTildeInPath.js;
+}
+
+// Starts a program that runs on its own, with its input and output on
+// /dev/null, so nothing waits for it. It inherits the environment, and so
+// the workflow's variables.
+function launchInBackground(path, args) {
   const task = $.NSTask.alloc.init;
-  task.launchPath = "/usr/bin/osascript";
-  task.arguments = $(["-l", "JavaScript", `${workflowFolder}/scripts/move.js`, from, to]);
+  task.launchPath = path;
+  task.arguments = $(args);
   const nullDevice = $.NSFileHandle.fileHandleWithNullDevice;
   task.standardInput = nullDevice;
   task.standardOutput = nullDevice;
@@ -520,7 +578,9 @@ function isProcessAlive(pid) {
   return $.kill(pid, 0) === 0;
 }
 
-// The record of a failed move, { from, to, error }, or null.
+// The record of a failed move, { from, to, error, shown }, or null: `shown`
+// once a Script Filter has shown it. It stays until a move succeeds, so a
+// retry that fails the same way doesn't notify again (see move.js).
 function readMoveFailure(variable = workflowVariable) {
   return readJsonObject(`${workflowCacheFolder(variable)}/move-failure.json`);
 }
