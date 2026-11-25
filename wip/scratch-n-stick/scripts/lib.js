@@ -1936,8 +1936,8 @@ function noteFontSizeAction({ workflowFolder, note, form, choice }) {
 // The actions menu (…, or ⌘K) of a window in `form` and `mode`, `collapsed`
 // or not, whose note is `blank` or not: Collapse or Expand in a sticky window,
 // or Stick to Desktop in a quick view, then Edit or View, Close, Move to Trash,
-// Share… (the note's .md file) and Copy as Rich Text, each with its shortcut in
-// brackets where it has one. An item that does nothing is
+// Share… (the note's .md file), Copy as Rich Text and Copy as Markdown Text,
+// each with its shortcut in brackets where it has one. An item that does nothing is
 // greyed out (an item without an action): Edit / View in a collapsed window,
 // and sharing and copying a blank note. `note` is the escaped ID.
 function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank }) {
@@ -1960,6 +1960,7 @@ function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank })
     { type: "separator" },
     item("Share…", script("share"), !blank),
     item("Copy as Rich Text", script("copyrich"), !blank),
+    item("Copy as Markdown Text", script("copytext"), !blank),
   ];
 }
 
@@ -2515,6 +2516,15 @@ function copyNoteAsRichText(workflowFolder, text) {
   pasteboard.clearContents;
   pasteboard.setDataForType(rtf, $.NSPasteboardTypeRTF);
   pasteboard.setStringForType($(html), $.NSPasteboardTypeHTML);
+  pasteboard.setStringForType($(text), $.NSPasteboardTypeString);
+}
+
+// Puts a note's `text` (Markdown) on the clipboard as it is, as plain text
+// only, so every app pastes the Markdown source, not a rendering of it.
+function copyNoteAsMarkdownText(text) {
+  ObjC.import("AppKit");
+  const pasteboard = $.NSPasteboard.generalPasteboard;
+  pasteboard.clearContents;
   pasteboard.setStringForType($(text), $.NSPasteboardTypeString);
 }
 

@@ -26,6 +26,8 @@
 //                                           share menu, with the note's file
 //   window.js copyrich <id> <form> <text>   Copy as Rich Text: the note,
 //                                           rendered, on the clipboard
+//   window.js copytext <id> <form> <text>   Copy as Markdown Text: the note's
+//                                           Markdown on the clipboard
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
 //                                           then sticks
@@ -105,6 +107,7 @@ function run(argv) {
       return trashNote(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "share":
     case "copyrich":
+    case "copytext":
       return shareNote(store, workflowFolder, id, form, command, unescapeFromAlfredUi(rest[0] || ""));
     case "tick":
       return tick(store, context, id, form, Number(rest[0]), rest[1]);
@@ -360,8 +363,8 @@ function actionsMenu(store, workflowFolder, id, form, text) {
   return JSON.stringify({ popupmenu: { src: "menuanchor", menu } });
 }
 
-// Share… and Copy as Rich Text in the actions menu (`how` is "share" or
-// "copyrich"). Each first saves the editor's text in Edit, so it uses the
+// Share…, Copy as Rich Text and Copy as Markdown Text in the actions menu
+// (`how` is "share", "copyrich" or "copytext"). Each first saves the editor's text in Edit, so it uses the
 // note as it is on screen (a new note is saved then, as sharing it makes it
 // worth keeping), and does nothing for a blank note.
 //
@@ -374,7 +377,9 @@ function actionsMenu(store, workflowFolder, id, form, text) {
 // centre of the window, or under it when there's no room above, whatever view
 // the action names, so it names none. Copy as Rich Text puts the note,
 // rendered as the View page renders it, on the clipboard instead
-// (copyNoteAsRichText in lib.js), for pasting with its formatting.
+// (copyNoteAsRichText in lib.js), for pasting with its formatting, and Copy as
+// Markdown Text puts its Markdown there as plain text (copyNoteAsMarkdownText),
+// without switching to Edit to select it.
 // Does nothing without a state of the window's form, as for switchMode.
 function shareNote(store, workflowFolder, id, form, how, text) {
   const state = readNoteState(id);
@@ -384,6 +389,10 @@ function shareNote(store, workflowFolder, id, form, how, text) {
   if (!note || isBlankText(note.text)) return;
   if (how === "copyrich") {
     copyNoteAsRichText(workflowFolder, note.text);
+    return;
+  }
+  if (how === "copytext") {
+    copyNoteAsMarkdownText(note.text);
     return;
   }
   return JSON.stringify({ share: { src: store.notePath(id) } });

@@ -261,19 +261,19 @@ expect_exact "menu: the … button and ⌘K both run window.js menu" "$(json $ui
 expect "menu with no state: nothing" "$(window_js menu groceries sticky)" ""
 window_js launched groceries sticky view
 update=$(window_js menu groceries sticky)
-expect_exact "menu, sticky in View: Collapse, Edit, Close, Move to Trash, Share and Copy as Rich Text, at the anchor" "$(print -r -- $update | json - 'd.popupmenu.src + " | " + '$menu_items)" "menuanchor | Collapse | Edit (⌘E) | Close (⌘W) | — | Move to Trash | — | Share… | Copy as Rich Text"
-expect_exact "menu: each item's action" "$(print -r -- $update | json - 'd.popupmenu.menu.flatMap(i => i.submenu || [i]).filter(i => i.action).map(i => i.action.type === "script" ? i.action.args.join(",") : JSON.stringify(i.action.src)).join(" | ")')" 'collapse,groceries,sticky,{value:editor.text} | toggle,groceries,sticky,{value:editor.text} | {"finish":{}} | trash,groceries,sticky,{value:editor.text} | share,groceries,sticky,{value:editor.text} | copyrich,groceries,sticky,{value:editor.text}'
+expect_exact "menu, sticky in View: Collapse, Edit, Close, Move to Trash, Share, Copy as Rich Text and Copy as Markdown Text, at the anchor" "$(print -r -- $update | json - 'd.popupmenu.src + " | " + '$menu_items)" "menuanchor | Collapse | Edit (⌘E) | Close (⌘W) | — | Move to Trash | — | Share… | Copy as Rich Text | Copy as Markdown Text"
+expect_exact "menu: each item's action" "$(print -r -- $update | json - 'd.popupmenu.menu.flatMap(i => i.submenu || [i]).filter(i => i.action).map(i => i.action.type === "script" ? i.action.args.join(",") : JSON.stringify(i.action.src)).join(" | ")')" 'collapse,groceries,sticky,{value:editor.text} | toggle,groceries,sticky,{value:editor.text} | {"finish":{}} | trash,groceries,sticky,{value:editor.text} | share,groceries,sticky,{value:editor.text} | copyrich,groceries,sticky,{value:editor.text} | copytext,groceries,sticky,{value:editor.text}'
 window_js collapse groceries sticky "" >/dev/null
-expect_exact "menu, collapsed: Expand, and Edit greyed out" "$(window_js menu groceries sticky | json - $menu_items)" "Expand | Edit (⌘E) [off] | Close (⌘W) | — | Move to Trash | — | Share… | Copy as Rich Text"
+expect_exact "menu, collapsed: Expand, and Edit greyed out" "$(window_js menu groceries sticky | json - $menu_items)" "Expand | Edit (⌘E) [off] | Close (⌘W) | — | Move to Trash | — | Share… | Copy as Rich Text | Copy as Markdown Text"
 window_js collapse groceries sticky "" >/dev/null
 window_js quit groceries sticky ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
 open_note quick quickmenu >/dev/null
 window_js launched quickmenu quick edit
-expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, View, and Close with Esc" "$(window_js menu quickmenu quick "Quick menu" | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash | — | Share… | Copy as Rich Text"
-expect_exact "menu, a blank note in Edit: sharing and copying greyed out" "$(window_js menu quickmenu quick "  " | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash | — | Share… [off] | Copy as Rich Text [off]"
+expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, View, and Close with Esc" "$(window_js menu quickmenu quick "Quick menu" | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash | — | Share… | Copy as Rich Text | Copy as Markdown Text"
+expect_exact "menu, a blank note in Edit: sharing and copying greyed out" "$(window_js menu quickmenu quick "  " | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash | — | Share… [off] | Copy as Rich Text [off] | Copy as Markdown Text [off]"
 expect_exact "share, in Edit: saves first, then shares the note's file" "$(window_js share quickmenu quick $'Quick menu {var:x}\n' | json - 'JSON.stringify(d)') $(cat $notes/quickmenu.md)" '{"share":{"src":"'$notes'/quickmenu.md"}} Quick menu {var:x}'
-expect "share and copy a blank note: nothing" "$(window_js share quickmenu quick "  ")$(window_js copyrich quickmenu quick "  ")" ""
+expect "share and copy a blank note: nothing" "$(window_js share quickmenu quick "  ")$(window_js copyrich quickmenu quick "  ")$(window_js copytext quickmenu quick "  ")" ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
 expect_exact "menu, quick view: Stick to Desktop sticks, as ⌘P does" "$(window_js menu quickmenu quick | json - 'd.popupmenu.menu[0].action.args.join(",")')" "stick,quickmenu,quick,{value:editor.text}"
 expect_exact "menu, quick view: Close finishes with close_view" "$(window_js menu quickmenu quick | json - 'JSON.stringify(d.popupmenu.menu[2].action.src)')" '{"finish":{"variables":{"close_view":"1"}}}'
