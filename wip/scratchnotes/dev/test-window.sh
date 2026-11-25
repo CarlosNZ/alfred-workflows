@@ -64,6 +64,12 @@ page_note() {
       return JSON.stringify(page);
     }' "$1/note.js"
 }
+# Sets the mode in a note's sidecar, as its window records it.
+note_mode() {
+  local sidecar=$notes/.scratchnotes/$1.json
+  if [[ -e $sidecar ]]; then plutil -replace mode -string "$2" "$sidecar"; else mkdir -p "${sidecar:h}"; print -rn -- "{\"mode\":\"$2\"}" > "$sidecar"; fi
+}
+
 # The note's text in a bundle's note.js, or "null".
 page_text() { page_note "$1" | json - 'd.NOTE === null ? "null" : d.NOTE' }
 
@@ -115,7 +121,8 @@ expect "page: view.js is inlined, and every token filled" "$(grep -c 'function s
 expect "page: note.js has the tint" "$(page_note $bundle | json - d.NOTE_TINT)" "#FEF49C"
 
 # Pinned, with settings.
-bundle=$(open_note font_size=17 open_mode=edit pin meeting)
+note_mode meeting edit
+bundle=$(open_note font_size=17 pin meeting)
 expect "pinned: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
 ui=$bundle/ui.json
 expect "pinned: the same layout, without Pin" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea toprow:view colour:button toggle:button"
@@ -124,14 +131,16 @@ expect "pinned: ⌘E, ⌘↩, ⎋ and ⌘1-⌘6, no ⌘P" "$(json $ui 'd.window.
 expect "pinned: the font size is a number" "$(json $ui 'typeof '$editor'.font.size + " " + '$editor'.font.size')" "number 17"
 expect "pinned: the editor's insets clear the top row" "$(json $ui ''$editor'.constraints.insets.top')" "34"
 expect "pinned: the page starts below the top row, so the window drags by the strip above" "$(json $ui '('$page').constraints.insets.top')" "28"
-expect "pinned: Edit (open_mode): the editor shown with the text and focus" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.focus, '$editor'.text].join(" ")')" $'false true # Team meeting\n- Ship it'
+expect "pinned: Edit (the sidecar's mode): the editor shown with the text and focus" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.focus, '$editor'.text].join(" ")')" $'false true # Team meeting\n- Ship it'
 expect "pinned: Edit: the page has no note, so it shows nothing" "$(page_text $bundle)" "null"
 expect "pinned: the page is pinned, at the font size, without the theme" "$(grep -c '<html class="pinned">' $bundle/view.html) $(grep -o 'font: [0-9]*px' $bundle/view.html) $(grep -o 'const theme = .*;' $bundle/view.html)" "1 font: 17px const theme = null;"
 expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 pin meeting)/context.json" 'd.fontSize')" "20"
 
 # Placeholders in a note's text are escaped in the window, but not in the page.
-ui=$(open_note open_mode=edit quick vars)/ui.json
+note_mode vars edit
+ui=$(open_note quick vars)/ui.json
 expect "{var: and {const: are escaped with a word joiner" "$(json $ui ''$editor'.text')" "Vars: {${wj}var:x} and {${wj}const:y}"
+note_mode vars view
 expect "the page's text isn't escaped" "$(page_text "$(open_note quick vars)")" "Vars: {var:x} and {const:y}"
 print -rn -- $'</script><b>"Quotes"</b>\n {value:x}\n' > "$notes/script.md"
 expect "the page's text keeps </script>, quotes and U+2028" "$(page_text "$(open_note quick script)")" $'</script><b>"Quotes"</b>\n {value:x}'
@@ -147,7 +156,7 @@ id2=$(basename "$(open_note new=1 quick '')" .alfredui)
 expect "an ID whose pinned bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
 expect "a new note opens in Edit with its text" "$(json $cache/quick/$id1.alfredui/ui.json '[Boolean('$editor'.hidden), '$editor'.text].join(" ")') $(page_text $cache/quick/$id1.alfredui)" "false Buy milk null"
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md script.md vars.md "
-expect "open.js sets open_window, clears new and pin_note" "$(env notes_folder=$notes alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","pin_note":""}'
+expect "open.js sets open_window, clears new and pin_note" "$(env notes_folder=$notes alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","pin_note":"","pin_mode":""}'
 
 # window.js: launched, save, toggle, edit, view, quit.
 bundle1=$cache/quick/$id1.alfredui
@@ -188,11 +197,43 @@ expect "view again with the same text: a new URL, so the page reloads" "$([[ $sr
 window_js edit "$id1" pinned "" >/dev/null
 window_js quit "$id1" pinned "Buy oat milk and bread"
 expect "quit in Edit: saves" "$(cat $notes/$id1.md)" "Buy oat milk and bread"
+expect "quit records the window's mode in the sidecar" "$(json $notes/.scratchnotes/$id1.json d.mode)" "edit"
 expect "the next open uses the remembered mode" "$(json "$(open_note quick $id1)/ui.json" 'Boolean('$editor'.hidden)')" "false"
 
 window_js launched "$id2" quick edit
 window_js quit "$id2" quick "  "
-expect "quit with a blank new note: nothing saved, bundle removed" "$(ls $notes | grep -c $id2 || true) $([[ -e $cache/quick/$id2.alfredui ]] && print there || print gone)" "0 gone"
+expect "quit with a blank new note: nothing saved, no sidecar, bundle removed" "$(ls -A $notes $notes/.scratchnotes | grep -c $id2 || true) $([[ -e $cache/quick/$id2.alfredui ]] && print there || print gone)" "0 gone"
+id4=$(basename "$(open_note new=1 quick 'Never switched')" .alfredui)
+window_js launched "$id4" quick edit
+window_js quit "$id4" quick "Never switched"
+expect "quit of a new note never switched: Edit recorded, and it reopens in Edit" "$(json $notes/.scratchnotes/$id4.json d.mode) $(json "$(open_note quick $id4)/ui.json" 'Boolean('$editor'.hidden)')" "edit false"
+print -rn -- "From another app" > "$notes/elsewhere.md"
+expect "a note never open in a window opens in View, quick and pinned" "$(json "$(open_note quick elsewhere)/ui.json" 'Boolean('$editor'.hidden)') $(json "$(open_note pin elsewhere)/ui.json" 'Boolean('$editor'.hidden)')" "true true"
+window_js quit elsewhere quick ""
+expect "quit with no state: no mode recorded" "$(json $notes/.scratchnotes/elsewhere.json '"mode" in d')" "false"
+
+# pin: Pin or ⌘P in a quick view saves before finishing, so the pin route
+# finds the text on disk without waiting for the view's quit, and the pinned
+# window carries on in the view's mode.
+id3=$(basename "$(open_note new=1 quick 'Pinned straight away')" .alfredui)
+window_js launched "$id3" quick edit
+pinbutton=$(byid pin)
+expect "quick: ⌘P and the Pin button run window.js pin with the editor's text" "$(json $cache/quick/$id3.alfredui/ui.json '[d.window.root.shortcuts.find(s => s.shortcut === "⌘P").action, ('$pinbutton').events[0].action].map(a => [a.src].concat(a.args).join(" ")).join(" | ")')" "$scripts/window.js pin $id3 quick {value:editor.text} | $scripts/window.js pin $id3 quick {value:editor.text}"
+finish=$(window_js pin "$id3" quick "Pinned straight away {${wj}var:x}")
+expect "pin in Edit: saves the editor's text, unescaped, before finishing" "$(cat $notes/$id3.md)" "Pinned straight away {var:x}"
+expect "pin: finishes with pin_note, the escaped ID, and pin_mode, the view's mode" "$(print -r -- $finish | json - 'JSON.stringify(d)')" '{"finish":{"variables":{"pin_note":"'$id3'","pin_mode":"edit"}}}'
+window_js quit "$id3" quick "Pinned straight away {${wj}var:x}"
+ui=$(open_note pin_note=$id3 pin_mode=edit pin '')/ui.json
+expect "pin: open.js pins the saved text, in Edit" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.text].join(" ")')" "false Pinned straight away {${wj}var:x}"
+expect "pin: without pin_mode, the pinned window opens in the sidecar's mode, recorded by quit" "$(json $notes/.scratchnotes/$id3.json d.mode) $(json "$(open_note pin_note=$id3 pin '')/ui.json" 'Boolean('$editor'.hidden)')" "edit false"
+note_mode $id3 view
+expect "pin_mode only applies after Pin, with pin_note" "$(json "$(open_note pin_mode=edit pin $id3)/ui.json" 'Boolean('$editor'.hidden)')" "true"
+expect "pin_mode=view: a blank note still opens in Edit" "$(json "$(open_note pin_note=$id2 pin_mode=view pin '')/ui.json" 'Boolean('$editor'.hidden)')" "false"
+finish=$(window_js launched meeting quick view >/dev/null; window_js pin meeting quick "stale")
+expect "pin in View: nothing saved from the hidden editor, pin_mode view" "$(head -1 $notes/meeting.md) $(print -r -- $finish | json - d.finish.variables.pin_mode)" "# Team meeting view"
+window_js quit meeting quick ""
+window_js launched "$id3" quick edit >/dev/null; window_js toggle "$id3" quick "Pinned straight away" >/dev/null; window_js quit "$id3" quick ""
+expect "pin: the view's mode carries over, not the sidecar's" "$(json $notes/.scratchnotes/$id3.json d.mode) $(json "$(open_note pin_note=$id3 pin_mode=edit pin '')/ui.json" 'Boolean('$editor'.hidden)')" "view false"
 
 # launched in a quick view: the note as it is now, if it changed after its
 # bundle was written.
@@ -202,7 +243,8 @@ print -rn -- $'# Team meeting\n- Ship it today\n' > "$notes/meeting.md"
 update=$(window_js launched meeting quick view)
 expect "launched in View with the note changed: reloads the page with its text" "$(print -r -- $update | json - 'd.update.ids.web.src') $(page_text $bundle)" $'file://'$bundle$'/view.html?v=* # Team meeting\n- Ship it today'
 window_js quit meeting quick ""
-bundle=$(open_note open_mode=edit quick meeting)
+note_mode meeting edit
+bundle=$(open_note quick meeting)
 print -rn -- $'# Team meeting\n- Ship it now {var:x}\n' > "$notes/meeting.md"
 update=$(window_js launched meeting quick edit)
 expect "launched in Edit with the note changed: the editor gets its text, escaped" "$(print -r -- $update | json - 'Object.keys(d.update.ids).join(" ") + " " + d.update.ids.editor.text')" $'editor # Team meeting\n- Ship it now {'$wj'var:x}'

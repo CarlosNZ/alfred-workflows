@@ -44,8 +44,8 @@ function run(argv) {
   const defaultColour = noteDefaultColour();
   const colourOf = (note) => noteColour(note.meta, () => defaultColour.name);
   const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), pinned.has(note.id), colourOf(note)));
-  if (!query) items.unshift(newNoteItem("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
-  else if (items.length === 0) items.push(newNoteItem(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
+  if (!query) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
+  else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
   if (quick) attempt(() => quick.finish(notes));
   return output(items);
 }
@@ -83,23 +83,6 @@ function noteItem(note, now, bundle, pinned, colour) {
       cmd: { subtitle: "Pin to the desktop", arg: note.id },
       alt: { subtitle: "Move to the Trash", arg: note.id },
       ctrl: { subtitle: "Reveal in Finder", arg: note.path },
-    },
-  };
-}
-
-// Its arg is the bundle of a quick view of a new note starting with `text`.
-// ⌘'s arg is the text itself, so the variable `new` tells open.js it isn't a
-// note's ID. ⌥ and ⌃ do nothing: their actions take a note's ID or path.
-function newNoteItem(title, subtitle, text, bundle) {
-  const variables = { new: "1" };
-  return {
-    title,
-    subtitle,
-    arg: bundle,
-    mods: {
-      cmd: { subtitle: "Create it pinned to the desktop", arg: text, variables },
-      alt: { subtitle, valid: false },
-      ctrl: { subtitle, valid: false },
     },
   };
 }

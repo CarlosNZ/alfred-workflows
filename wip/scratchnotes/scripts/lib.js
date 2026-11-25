@@ -550,19 +550,23 @@ function findNoteComponent(component, id) {
 }
 
 // The mode a note's window opens in: Edit for a new or blank note; otherwise
-// the mode it was last switched to (its sidecar's `mode`), or the `open_mode`
-// setting's (View by default). `note` is null for a new note.
-function noteOpenMode(note, text, variable = workflowVariable) {
+// the mode its window was last in (its sidecar's `mode`, recorded when the
+// mode is switched and when the window closes), or View for a note that has
+// never been open in a window, such as a file added to the notes folder by
+// another app. `note` is null for a new note.
+function noteOpenMode(note, text) {
   if (!note || isBlankText(text)) return "edit";
-  if (note.meta.mode === "edit" || note.meta.mode === "view") return note.meta.mode;
-  return variable("open_mode") === "edit" ? "edit" : "view";
+  return note.meta.mode === "edit" ? "edit" : "view";
 }
 
 // Writes the window bundle of a note in `store` for a form ("quick" or
 // "pinned") and returns its path. `note` is the note as the store read it, or
-// null for a new note; `text` is the text the window opens with.
-function writeNoteWindow({ store, workflowFolder, id, form, note, text }, variable = workflowVariable) {
-  const mode = noteOpenMode(note, text, variable);
+// null for a new note; `text` is the text the window opens with. `mode`
+// ("edit" or "view"), if given, is the mode to open in, as when a quick view
+// is pinned and its window carries on in the same mode; otherwise it's
+// noteOpenMode's. A blank note opens in Edit either way.
+function writeNoteWindow({ store, workflowFolder, id, form, note, text, mode: requestedMode }, variable = workflowVariable) {
+  const mode = (requestedMode === "edit" || requestedMode === "view") && !isBlankText(text) ? requestedMode : noteOpenMode(note, text);
   const fontSize = noteFontSize(variable);
   const colour = noteColour(note ? note.meta : {}, variable).name;
   const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, colour });
@@ -641,7 +645,7 @@ const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/toprow.json", "ui/content.jso
 //   bundleFor(note)     the quick bundle of a note from store.list(), rebuilt
 //                       if it's out of date
 //   bundleForNew(text)  a quick bundle for a new note starting with `text`,
-//                       with a new ID
+//                       with a new ID, a different one on each call in a run
 //   finish(notes)       removes the bundles and fingerprints of notes that
 //                       are gone, given every note in the folder, keeping any
 //                       that's open (has a window state), and saves the index
@@ -663,12 +667,12 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
     const date = fileDate(`${workflowFolder}/${path}`, "NSFileModificationDate");
     return date ? date.getTime() : 0;
   });
-  const base = JSON.stringify([workflowFolder, store.folder, noteFontSize(variable), variable("open_mode"), sources]);
+  const base = JSON.stringify([workflowFolder, store.folder, noteFontSize(variable), sources]);
   let changed = false;
-  let newId = null;
+  const newIds = new Set();
 
   function bundleFor(note) {
-    const fingerprint = textHash([base, noteOpenMode(note, note.text, variable), noteColour(note.meta, variable).name, note.text].join("\0"));
+    const fingerprint = textHash([base, noteOpenMode(note, note.text), noteColour(note.meta, variable).name, note.text].join("\0"));
     if (index.get(note.id) === fingerprint && bundles.has(`${note.id}.alfredui`)) return `${folder}/${note.id}.alfredui`;
     const bundle = writeNoteWindow({ store, workflowFolder, id: note.id, form: "quick", note, text: note.text }, variable);
     index.set(note.id, fingerprint);
@@ -678,10 +682,12 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
 
   // A new note's ID is the time, so on each run within the same second it's
   // the same ID and bundle; a bundle from an earlier second is removed by the
-  // next finish.
+  // next finish. A second new note in the same run (New note from the
+  // clipboard, beside New note) gets the next ID, -2.
   function bundleForNew(text) {
-    newId = store.newId({ isTaken: (id) => isNoteIdInUse(id, variable) });
-    return writeNoteWindow({ store, workflowFolder, id: newId, form: "quick", note: null, text }, variable);
+    const id = store.newId({ isTaken: (id) => newIds.has(id) || isNoteIdInUse(id, variable) });
+    newIds.add(id);
+    return writeNoteWindow({ store, workflowFolder, id, form: "quick", note: null, text }, variable);
   }
 
   function finish(notes) {
@@ -695,7 +701,7 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
     for (const name of bundles) {
       if (!name.endsWith(".alfredui")) continue;
       const id = name.slice(0, -".alfredui".length);
-      if (ids.has(id) || id === newId || !isNoteId(id) || fm.fileExistsAtPath(noteStatePath(id, variable))) continue;
+      if (ids.has(id) || newIds.has(id) || !isNoteId(id) || fm.fileExistsAtPath(noteStatePath(id, variable))) continue;
       removeFile(`${folder}/${name}`);
     }
     if (changed) {
@@ -705,6 +711,26 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
   }
 
   return { bundleFor, bundleForNew, finish };
+}
+
+// A Script Filter result that creates a note starting with `text` (list.js's
+// New note, and new.js's results). Its arg is `bundle`, the quick view of the
+// new note (quickWindows' bundleForNew), which ↩ opens inside Alfred. ⌘'s arg
+// is the text itself, with the variable `new`, so open.js knows it isn't a
+// note's ID, and pins the new note. ⌥ and ⌃ do nothing: in the results list
+// their actions take a note's ID or path.
+function newNoteResult(title, subtitle, text, bundle) {
+  const variables = { new: "1" };
+  return {
+    title,
+    subtitle,
+    arg: bundle,
+    mods: {
+      cmd: { subtitle: "Create it pinned to the desktop", arg: text, variables },
+      alt: { subtitle, valid: false },
+      ctrl: { subtitle, valid: false },
+    },
+  };
 }
 
 // A short hash of a string (cyrb53, 53 bits, in base 36), for fingerprints:
@@ -967,6 +993,23 @@ function closePinnedNoteWindow(id, variable = workflowVariable) {
 function isNoteIdInUse(id, variable = workflowVariable) {
   const fm = $.NSFileManager.defaultManager;
   return fm.fileExistsAtPath(noteBundlePath(id, "pinned", variable)) || fm.fileExistsAtPath(noteStatePath(id, variable));
+}
+
+// The clipboard's text, for a new note, or null if it has none worth offering:
+// no plain text, only whitespace, files copied in Finder (which also put their
+// names on the clipboard as text), or text that the app copying it marked as
+// concealed or transient (a password manager's, say), as Alfred's own
+// clipboard history leaves out. `pasteboardName` is a named pasteboard to read
+// instead of the general one, for testing.
+function clipboardText(pasteboardName = "") {
+  ObjC.import("AppKit");
+  const pasteboard = pasteboardName ? $.NSPasteboard.pasteboardWithName(pasteboardName) : $.NSPasteboard.generalPasteboard;
+  const types = pasteboard.types.isNil() ? [] : ObjC.deepUnwrap(pasteboard.types);
+  const skip = ["public.file-url", "org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType"];
+  if (types.some((type) => skip.includes(type))) return null;
+  const text = pasteboard.stringForType("public.utf8-plain-text");
+  if (text.isNil() || isBlankText(text.js)) return null;
+  return text.js;
 }
 
 // The JSON object in a file, or null if it's missing or isn't one.

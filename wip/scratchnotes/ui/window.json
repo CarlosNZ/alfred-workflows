@@ -20,7 +20,7 @@
       "shortcuts": [
         { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "shortcut": "⌘↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["view", "@note", "@form", "{value:editor.text}"] } },
-        { "@form": "quick", "shortcut": "⌘P", "action": { "type": "json", "src": { "finish": { "variables": { "pin_note": "@note" } } } } },
+        { "@form": "quick", "shortcut": "⌘P", "action": { "type": "script", "src": "scripts/window.js", "args": ["pin", "@note", "@form", "{value:editor.text}"] } },
         { "@form": "pinned", "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } },
         "@colourShortcuts"
       ],

@@ -23,9 +23,9 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
+				<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
 				<key>modifiers</key>
-				<integer>524288</integer>
+				<integer>262144</integer>
 				<key>modifiersubtext</key>
 				<string></string>
 				<key>vitoclose</key>
@@ -33,9 +33,9 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
+				<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
 				<key>modifiers</key>
-				<integer>262144</integer>
+				<integer>524288</integer>
 				<key>modifiersubtext</key>
 				<string></string>
 				<key>vitoclose</key>
@@ -128,6 +128,81 @@
 				<false/>
 			</dict>
 		</array>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
@@ -142,25 +217,15 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string></string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string>scripts/trash.js</string>
-				<key>type</key>
-				<integer>8</integer>
+				<key>path</key>
+				<string>{query}</string>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.action.script</string>
+			<string>alfred.workflow.action.revealfile</string>
 			<key>uid</key>
-			<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
+			<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
 			<key>version</key>
-			<integer>2</integer>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -180,19 +245,6 @@
 			<string>alfred.workflow.output.notification</string>
 			<key>uid</key>
 			<string>2AAC74E0-969A-4500-A412-97376F3EDD5B</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>path</key>
-				<string>{query}</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.revealfile</string>
-			<key>uid</key>
-			<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
@@ -242,6 +294,78 @@
 			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
 			<string>3FDC54A5-ACE6-4C18-8675-482F2052F2DE</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>scripts/trash.js</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>{var:keyword_new}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>2</integer>
+				<key>runningsubtext</key>
+				<string></string>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>scripts/new.js</string>
+				<key>subtext</key>
+				<string>Create a note, from text or the clipboard</string>
+				<key>title</key>
+				<string>New ScratchNote</string>
+				<key>type</key>
+				<integer>8</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</string>
 			<key>version</key>
 			<integer>3</integer>
 		</dict>
@@ -366,6 +490,101 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string>new=1 ./scripts/open.js quick "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>5</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<true/>
+				<key>acceptsurls</key>
+				<true/>
+				<key>name</key>
+				<string>New ScratchNote</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>hotkey</key>
+				<integer>1</integer>
+				<key>hotmod</key>
+				<integer>393216</integer>
+				<key>hotstring</key>
+				<string>S</string>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argument</key>
+				<string></string>
+				<key>passthroughargument</key>
+				<false/>
+				<key>variables</key>
+				<dict>
+					<key>new</key>
+					<string>1</string>
+				</dict>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.argument</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string></string>
@@ -374,65 +593,102 @@
 		<key>2AAC74E0-969A-4500-A412-97376F3EDD5B</key>
 		<dict>
 			<key>xpos</key>
-			<real>610</real>
+			<real>820</real>
 			<key>ypos</key>
-			<real>80</real>
+			<real>140</real>
 		</dict>
 		<key>2F740338-1573-4278-81CC-2F174BE452E7</key>
 		<dict>
 			<key>xpos</key>
-			<real>300</real>
+			<real>375</real>
 			<key>ypos</key>
-			<real>80</real>
+			<real>140</real>
 		</dict>
 		<key>3FDC54A5-ACE6-4C18-8675-482F2052F2DE</key>
 		<dict>
 			<key>xpos</key>
-			<real>40</real>
+			<real>30</real>
 			<key>ypos</key>
-			<real>315</real>
+			<real>140</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</key>
 		<dict>
 			<key>xpos</key>
-			<real>600</real>
+			<real>825</real>
 			<key>ypos</key>
-			<real>315</real>
+			<real>330</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D02</key>
 		<dict>
 			<key>xpos</key>
-			<real>600</real>
+			<real>815</real>
 			<key>ypos</key>
-			<real>560</real>
+			<real>470</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</key>
 		<dict>
 			<key>xpos</key>
-			<real>300</real>
+			<real>370</real>
 			<key>ypos</key>
 			<real>560</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</key>
 		<dict>
 			<key>xpos</key>
-			<real>490</real>
+			<real>625</real>
 			<key>ypos</key>
 			<real>590</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</key>
 		<dict>
 			<key>xpos</key>
-			<real>180</real>
+			<real>235</real>
 			<key>ypos</key>
 			<real>590</real>
+		</dict>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>700</real>
+		</dict>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</key>
+		<dict>
+			<key>xpos</key>
+			<real>375</real>
+			<key>ypos</key>
+			<real>700</real>
+		</dict>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</key>
+		<dict>
+			<key>xpos</key>
+			<real>30</real>
+			<key>ypos</key>
+			<real>330</real>
+		</dict>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</key>
+		<dict>
+			<key>note</key>
+			<string>Optional: set a hotkey for a new note, pinned</string>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>840</real>
+		</dict>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</key>
+		<dict>
+			<key>xpos</key>
+			<real>200</real>
+			<key>ypos</key>
+			<real>870</real>
 		</dict>
 		<key>CEC2F155-08CF-4B0A-8AC9-268E023173CA</key>
 		<dict>
 			<key>xpos</key>
-			<real>300</real>
+			<real>370</real>
 			<key>ypos</key>
-			<real>240</real>
+			<real>15</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
@@ -457,6 +713,27 @@
 			<string>textfield</string>
 			<key>variable</key>
 			<string>keyword</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>snn</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Creates a note. Type text after it to start the note with that text, or leave it blank for a blank note or one from the clipboard.</string>
+			<key>label</key>
+			<string>New note keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>keyword_new</string>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -503,32 +780,6 @@
 			<string>slider</string>
 			<key>variable</key>
 			<string>font_size</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>view</string>
-				<key>pairs</key>
-				<array>
-					<array>
-						<string>View</string>
-						<string>view</string>
-					</array>
-					<array>
-						<string>Edit</string>
-						<string>edit</string>
-					</array>
-				</array>
-			</dict>
-			<key>description</key>
-			<string>How a note opens the first time: rendered (View) or as Markdown to edit (Edit). After that, each note opens the way you last left it. New notes open in Edit.</string>
-			<key>label</key>
-			<string>Open notes in</string>
-			<key>type</key>
-			<string>popupbutton</string>
-			<key>variable</key>
-			<string>open_mode</string>
 		</dict>
 		<dict>
 			<key>config</key>

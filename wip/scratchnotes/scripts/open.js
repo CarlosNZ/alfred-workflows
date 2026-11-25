@@ -5,7 +5,8 @@
 // or, with the variable `new` set to "1" (the New note result), the text a new
 // note starts with. After Pin in a quick view, or ↩ on a pinned note in the
 // results, the variable `pin_note` names the note instead (escaped as in its
-// window; see escapeForAlfredUi).
+// window; see escapeForAlfredUi). After Pin, `pin_mode` is the quick view's
+// mode, which the pinned window opens in.
 //
 // It writes the note's window bundle (see "Note windows" in lib.js) and
 // prints it as the arg, for the Alfred UI object that follows, with the
@@ -43,14 +44,15 @@ function run(argv) {
   // its quick view before anything was typed, or one that has gone since the
   // results were shown; both open blank.
   const text = isNew ? argv[1] || "" : note ? note.text : "";
-  return output(writeNoteWindow({ store, workflowFolder, id, form, note, text }));
+  const mode = pinNote ? workflowVariable("pin_mode") : "";
+  return output(writeNoteWindow({ store, workflowFolder, id, form, note, text, mode }));
 }
 
 // The output for the next objects: the bundle to open, if any, and the
 // variables, clearing those that chose the note, so they don't carry on to a
 // note pinned from the window this opens.
 function output(bundle) {
-  return JSON.stringify({ alfredworkflow: { arg: bundle, variables: { open_window: bundle ? "1" : "", new: "", pin_note: "" } } });
+  return JSON.stringify({ alfredworkflow: { arg: bundle, variables: { open_window: bundle ? "1" : "", new: "", pin_note: "", pin_mode: "" } } });
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from

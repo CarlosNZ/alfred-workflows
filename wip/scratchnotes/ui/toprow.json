@@ -41,7 +41,7 @@
       "image": { "type": "symbol", "src": "pin" },
       "tooltip": "Pin to the desktop (⌘P)",
       "accessibility": { "label": "Pin" },
-      "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "finish": { "variables": { "pin_note": "@note" } } } } }]
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["pin", "@note", "@form", "{value:editor.text}"] } }]
     }
   ]
 }

@@ -1,14 +1,19 @@
 #!/bin/zsh
-# Tests scripts/list.js, the results list's Script Filter, by running it as
-# Alfred does (with notes_folder and alfred_workflow_cache set and the query as
-# its argument) against sample notes in a temporary folder from mktemp,
-# deleted afterwards. Run from anywhere: dev/test-list.sh
+# Tests scripts/list.js, the results list's Script Filter, and scripts/new.js,
+# the new-note keyword's, by running them as Alfred does (with notes_folder and
+# alfred_workflow_cache set and the query as their argument) against sample
+# notes in a temporary folder from mktemp, deleted afterwards. new.js reads a
+# named pasteboard of its own instead of the clipboard, released afterwards.
+# Run from anywhere: dev/test-list.sh
 
 setopt err_return pipe_fail no_unset
 here=${0:A:h}
 list=${here:h}/scripts/list.js
+new=${here:h}/scripts/new.js
+script=$list
 tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnotes-test.XXXXXX")
-trap '[[ $tmp == */scratchnotes-test.* ]] && rm -rf -- "$tmp"' EXIT
+pasteboard=scratchnotes-test-$$
+trap '[[ $tmp == */scratchnotes-test.* ]] && rm -rf -- "$tmp"; osascript -l JavaScript -e "ObjC.import(\"AppKit\"); \$.NSPasteboard.pasteboardWithName(\"$pasteboard\").releaseGlobally" >/dev/null' EXIT
 notes=$tmp/notes
 cache=$tmp/cache
 quick=$cache/quick
@@ -24,9 +29,10 @@ note recent $'Just written' -10S
 
 # The list's items for a query, one line per item: title | subtitle | arg |
 # the `new` variable, then for each of ⌘, ⌥ and ⌃ its arg, or "-" when the
-# key does nothing (valid: false), and ⌘'s `new` variable.
+# key does nothing (valid: false), and ⌘'s `new` variable. Runs $script:
+# list.js, or new.js in new_items.
 items() {
-  (cd "$tmp" && notes_folder=$1 alfred_workflow_cache=$cache "$list" "${@:2}") | osascript -l JavaScript -e '
+  (cd "$tmp" && notes_folder=$1 alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$script" "${@:2}") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run() {
       const input = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js;
@@ -147,6 +153,54 @@ expect "theme: an unchanged stylesheet isn't rewritten" "$(stat -f %Fm "$cache/t
 expect "theme: without a theme colour, the page's own colours" "$(theme '')" "/\* No theme colour*"
 
 expect "unusable notes folder: an error result" "$(items "$tmp/missing/notes" | cut -d'|' -f1-2)" "Can't open the notes folder | Can't create *"
+
+# new.js: the new-note keyword.
+new_items() { local script=$new; items "$@" }
+# Sets the test pasteboard's contents, as pairs of type and string.
+clip() {
+  osascript -l JavaScript -e '
+    ObjC.import("AppKit");
+    function run(argv) {
+      const pasteboard = $.NSPasteboard.pasteboardWithName(argv[0]);
+      pasteboard.clearContents;
+      for (let i = 1; i < argv.length; i += 2) pasteboard.setStringForType($(argv[i + 1]), argv[i]);
+    }' "$pasteboard" "$@" >/dev/null
+}
+text=public.utf8-plain-text
+clip
+expect "new: an empty clipboard: only New note, as in the list" "$(new_items "$notes")" "New note | Create a blank note | $quick/20*.alfredui |  |  | - | - | 1"
+expect "new: with text, only New note: <text>, trimmed" "$(new_items "$notes" "  buy milk ")" "New note: buy milk | Create a note with this text | $quick/20*.alfredui |  | buy milk | - | - | 1"
+expect "new: text that matches a note still makes a new one" "$(new_items "$notes" milk | cut -d'|' -f1)" "New note: milk "
+clip $text $'# Plan
+
+  - one  
+'
+# A JavaScript expression's value, with `d` new.js's output with no text.
+new_json() {
+  (cd "$tmp" && notes_folder=$notes alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$new" "") | osascript -l JavaScript -e '
+    ObjC.import("Foundation");
+    function run(argv) {
+      const d = JSON.parse($.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js);
+      return String(new Function("d", `return (${argv[0]});`)(d));
+    }' "$1"
+}
+expect_exact "new: clipboard text: New note, then New note from clipboard" "$(new_json 'd.items.map((i) => i.title).join("\n")')" $'New note\nNew note from clipboard'
+expect_exact "new: from clipboard: its text on one line as the subtitle, ⌘ arg the text as copied, with new=1" "$(new_json 'JSON.stringify([d.items[1].subtitle, d.items[1].mods.cmd.arg, d.items[1].mods.cmd.variables.new])')" '["# Plan - one","# Plan\n\n  - one  \n","1"]'
+args=$(new_json 'd.items.map((i) => i.arg.split("/").pop()).join(" ")')
+blank=${args% *} fromclip=${args#* }
+expect "new: the two new notes have their own IDs and bundles, the second's with the clipboard's text" "${blank%.alfredui}-2.alfredui $(grep -c '"text": "# Plan' $quick/$fromclip/ui.json) $(grep -c '"text": "# Plan' $quick/$blank/ui.json || true)" "$fromclip 1 0"
+expect "new: text typed after the keyword leaves out the clipboard" "$(new_items "$notes" x | cut -d'|' -f1)" "New note: x "
+clip $text $' \n\t '
+expect "new: a clipboard of whitespace: no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
+clip public.file-url "file:///tmp/a.txt" $text "a.txt"
+expect "new: files copied in Finder: no result for them" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
+clip org.nspasteboard.ConcealedType "" $text "hunter2"
+expect "new: concealed text (a password): no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
+clip org.nspasteboard.TransientType "" $text "transient"
+expect "new: transient text: no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
+clip public.png "" 
+expect "new: no text (an image): no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
+expect "new: unusable notes folder: an error result" "$(new_items "$tmp/missing/notes" | cut -d'|' -f1)" "Can't open the notes folder "
 
 print
 if (( failures )); then print "FAILED: $failures"; exit 1; else print "All passed"; fi

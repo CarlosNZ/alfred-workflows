@@ -8,6 +8,8 @@
 //   window.js edit <id> <form> <text>       ↩ in View: to Edit
 //   window.js view <id> <form> <text>       ⌘↩ in Edit: saves, to View
 //   window.js colour <id> <form> <colour>   the colour menu or ⌘1 to ⌘6
+//   window.js pin <id> <form> <text>        Pin or ⌘P in a quick view: saves,
+//                                           then pins
 //   window.js tick <id> <form> <line> <x|o> a task box in View: ticks (x) or
 //                                           unticks (o) the task on that line
 //                                           (from scripts/changed.sh)
@@ -54,6 +56,8 @@ function run(argv) {
     case "quit":
       quit(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
       return;
+    case "pin":
+      return pin(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "colour":
       return setColour(store, workflowFolder, context, id, form, rest[0]);
     case "tick":
@@ -172,8 +176,25 @@ function tick(store, context, id, form, line, to) {
   writeNotePage(id, form, ticked);
 }
 
+// Pin (its button or ⌘P) in a quick view: saves the editor's text, then
+// finishes with the variables `pin_note` and `pin_mode` (the view's mode), so
+// Alfred carries on to the pin route, where open.js writes the pinned
+// window's bundle from the note on disk, to open in the same mode. The save
+// has to come first, here: once the view finishes, Alfred runs the pin route
+// without waiting for the view's `quit`, so a note whose text was only in the
+// editor (a new note with text, or typing within the last second) would open
+// blank or stale in its pinned window.
+function pin(store, id, form, text) {
+  const state = readNoteState(id);
+  save(store, id, form, text);
+  const mode = state && state.form === form ? state.mode : "";
+  return JSON.stringify({ finish: { variables: { pin_note: escapeForAlfredUi(id), pin_mode: mode } } });
+}
+
 // The window has closed. Saves the editor's text (see isEditorText), then
-// deletes the note, with its window bundles, if it's empty or was never saved.
+// deletes the note, with its window bundles, if it's empty or was never saved,
+// and otherwise records the window's mode in the note's sidecar, so the note
+// reopens in the mode it was last in, whether or not it was ever switched.
 // A state of the other form is another window's: this was a quick view that
 // handed over to the note's pinned window (see launched), so it leaves
 // everything alone.
@@ -183,6 +204,7 @@ function quit(store, id, form, text) {
   if (isEditorText(state, form, text)) store.save(id, text);
   removeNoteState(id);
   if (store.deleteIfEmpty(id)) removeNoteBundle(id);
+  else if (state && store.exists(id)) store.updateMeta(id, { mode: state.mode === "view" ? "view" : "edit" });
 }
 
 // Whether `text`, a window's {value:editor.text}, is its editor's text, and so
