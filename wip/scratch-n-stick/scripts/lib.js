@@ -951,9 +951,11 @@ const NOTE_ICONS = [
 // size button's (`text-size`, the workflow's own, in Lucide's style; see
 // dev/make-icons.js), a sticky window's close button's (`close`, the
 // workflow's own too: a filled circle with an X cut out of it), and its
-// collapse button's (`arrow-up-to-line` to collapse, `arrow-down-to-line` to
-// expand). Each has an SF Symbol for windows that can't show the button icons
-// (macOS 12; see noteIconsSupported), which follows the appearance by itself.
+// collapse button's (`arrows-to-axis-dashed-horizontal` to collapse,
+// `arrows-from-axis-dashed-horizontal` to expand, from a later Lucide release
+// than the rest; see dev/lucide/VERSION). Each has an SF Symbol for windows
+// that can't show the button icons (macOS 12; see noteIconsSupported), which
+// follows the appearance by itself.
 const NOTE_WINDOW_BUTTON_ICONS = {
   eye: "eye",
   pencil: "pencil",
@@ -962,8 +964,8 @@ const NOTE_WINDOW_BUTTON_ICONS = {
   ban: "nosign",
   "text-size": "textformat.size",
   close: "xmark.circle.fill",
-  "arrow-up-to-line": "arrow.up.to.line",
-  "arrow-down-to-line": "arrow.down.to.line",
+  "arrows-to-axis-dashed-horizontal": "arrow.up.to.line",
+  "arrows-from-axis-dashed-horizontal": "arrow.down.to.line",
 };
 
 // The release of lucide-static that the button icons were drawn from, as
@@ -1385,7 +1387,13 @@ const NOTE_WINDOW_LAYOUT = {
   // low: the button is twice that much shorter than its box, at the top of
   // it, so the swatch's centre is that much higher.
   buttonIcon: 18,
-  buttonIconSizes: { "text-size": 19, eye: 20, close: 15, "arrow-up-to-line": 16, "arrow-down-to-line": 16 },
+  buttonIconSizes: {
+    "text-size": 19,
+    eye: 20,
+    close: 15,
+    "arrows-to-axis-dashed-horizontal": 16,
+    "arrows-from-axis-dashed-horizontal": 16,
+  },
   swatch: 16,
   swatchRaise: 1,
   // A collapsed sticky window (see "Collapsing" in window.js): its height,

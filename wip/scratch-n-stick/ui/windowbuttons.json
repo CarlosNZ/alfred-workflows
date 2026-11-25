@@ -23,10 +23,10 @@
       "text": "",
       "bordered": false,
       "constraints": "@buttonBox",
-      "image": "@buttonIcon:arrow-up-to-line",
+      "image": "@buttonIcon:arrows-to-axis-dashed-horizontal",
       "tooltip": "Collapse",
       "accessibility": { "label": "Collapse" },
-      "@collapsed": { "image": "@buttonIcon:arrow-down-to-line", "tooltip": "Expand", "accessibility": { "label": "Expand" } },
+      "@collapsed": { "image": "@buttonIcon:arrows-from-axis-dashed-horizontal", "tooltip": "Expand", "accessibility": { "label": "Expand" } },
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["collapse", "@note", "@form", "{value:editor.text}"] } }]
     }
   ]
