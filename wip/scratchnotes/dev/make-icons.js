@@ -7,7 +7,7 @@
 //
 //   dev/make-icons.js
 //
-//   icons/lucide/button/<icon>-<appearance>.svg
+//   icons/lucide/<icon>-<appearance>.svg
 //                                            a button icon: the icon alone in
 //                                            the colour of the window's
 //                                            buttons (secondaryLabelColor) in
@@ -65,7 +65,7 @@ function run(argv) {
   writeFileAtomically(`${workflowFolder}/icons/lucide/LICENSE`, licence);
   written.push("icons/lucide/LICENSE");
 
-  const removed = removeOthers(workflowFolder, "icons/lucide/button", new Set(written));
+  const removed = removeOthers(workflowFolder, "icons/lucide", new Set(written));
   return [`${written.length} files written`].concat(removed.map((path) => `removed ${path}`)).join("\n");
 }
 

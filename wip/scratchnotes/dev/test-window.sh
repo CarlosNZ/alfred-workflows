@@ -179,7 +179,7 @@ expect "toggle to View: updates the toggle button, the editor and the web view" 
 expect "toggle to View: hides the editor" "$(print -r -- $update | json - 'JSON.stringify(d.update.ids.editor)')" '{"hidden":true}'
 expect "toggle to View: reloads the page by its absolute URL, with a version" "$(print -r -- $update | json - 'Object.keys(d.update.ids.web).join(" ") + " " + d.update.ids.web.src')" "src file://$bundle1/view.html?v=*.*"
 expect "toggle to View: the page's note.js has the saved text" "$(page_text $bundle1)" "Buy oat milk"
-expect_exact "toggle to View: the button shows Edit" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip, d.update.ids.toggle.accessibility.label].join(" ")')" "$workflow/icons/lucide/button/pencil-light.svg Edit (⌘E) Edit"
+expect_exact "toggle to View: the button shows Edit" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip, d.update.ids.toggle.accessibility.label].join(" ")')" "$workflow/icons/lucide/pencil-light.svg Edit (⌘E) Edit"
 expect "toggle: the mode is in the state and the sidecar" "$(json $cache/state/$id1.json d.mode) $(json $notes/.scratchnotes/$id1.json d.mode)" "view view"
 window_js save "$id1" quick "Buy oat"
 expect "save in View (typing stopped after the switch): nothing saved" "$(cat $notes/$id1.md)" "Buy oat milk"
@@ -193,7 +193,7 @@ bundle1=$(open_note pin "$id1")
 update=$(window_js launched "$id1" pinned view; window_js toggle "$id1" pinned "")
 expect "toggle to Edit: fades out the web view" "$(print -r -- $update | json - 'JSON.stringify(d.update.ids.web)')" '{"opacity":0}'
 expect "toggle to Edit: shows the editor with the file's text and focus" "$(print -r -- $update | json - '[d.update.ids.editor.hidden, d.update.ids.editor.focus, d.update.ids.editor.text].join(" ")')" "false true Buy oat milk"
-expect_exact "toggle to Edit: the button shows View" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip].join(" ")')" "$workflow/icons/lucide/button/eye-light.svg View (⌘E)"
+expect_exact "toggle to Edit: the button shows View" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip].join(" ")')" "$workflow/icons/lucide/eye-light.svg View (⌘E)"
 expect "edit in Edit: nothing" "$(window_js edit "$id1" pinned "")" ""
 update=$(window_js view "$id1" pinned "Buy oat milk!")
 src1=$(print -r -- $update | json - d.update.ids.web.src)
@@ -418,8 +418,8 @@ expect "a new note closed blank: its sidecar goes too" "$(ls -A $notes/.scratchn
 print -rn -- $'Icons\n' > "$notes/icons.md"
 iconbtn=$(byid icon)
 ui=$(open_note quick icons)/ui.json
-expect_exact "no icon: the icon button is the placeholder button icon, before the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/button/smile-plus-light.svg 20x20 Icon (⌘I) icon,colour"
-expect_exact "the actions are button icons too: Edit (the note opens in View), and Pin" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/button/pencil-light.svg 16x16,icons/lucide/button/pin-light.svg 16x16"
+expect_exact "no icon: the icon button is the placeholder button icon, before the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/smile-plus-light.svg 20x20 Icon (⌘I) icon,colour"
+expect_exact "the actions are button icons too: Edit (the note opens in View), and Pin" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/pencil-light.svg 16x16,icons/lucide/pin-light.svg 16x16"
 expect "the icon button and ⌘I run picker.sh toggle icon" "$(json $ui '[('$iconbtn').events[0].action.src].concat(('$iconbtn').events[0].action.args, d.window.root.shortcuts.find(s => s.shortcut === "⌘I").action.args).join(" ")')" "$scripts/picker.sh toggle icons quick icon toggle icons quick icon"
 expect "the catcher: hidden, filling the window, a mouse-down running picker.sh close" "$(json $ui '[('$catcher').hidden, ('$catcher').constraints.stretch, ('$catcher').events[0].triggers, ('$catcher').events[0].action.src].concat(('$catcher').events[0].action.args).join(" ")')" "true both mousedown $scripts/picker.sh close icons quick"
 expect "the icon picker: a box, 8 pt in and 34 pt down, with its shadow around it" "$(json $ui '[('$iconpickerv').hidden, JSON.stringify(('$iconpickerv').constraints), ('$iconpickerv').components.map(c => c.id).join(","), JSON.stringify(('$iconpickerbox').constraints)].join(" ")')" 'true {"position":"topleft","insets":{"top":26,"left":0},"size":{"width":215,"height":107}} iconpickershadow,iconpickerbox {"position":"topleft","insets":{"top":8,"left":8},"size":{"width":199,"height":91}}'
@@ -427,8 +427,8 @@ expect "the drop-down's box: the window's background, rounded, with a hairline b
 expect "the icon picker's shadow is an image its size, which exists" "$(json $ui 'JSON.stringify(('$iconpickerv').components[0].image.size) + " " + ('$iconpickerv').components[0].image.src') $(sips -g pixelWidth -g pixelHeight $workflow/icons/shadow-icon-picker.png | awk '/pixel/ {printf "%s ", $2}')" "{\"width\":215,\"height\":107} $workflow/icons/shadow-icon-picker.png 430 214 "
 expect "the drop-downs' buttons have a fixed size, so their boxes' are known" "$(json $ui '[...new Set([('$iconpickerbox'), ('$colourpickerbox')].flatMap(x => x.components).flatMap(r => r.components).map(b => JSON.stringify(b.constraints.size)))].join(" ")')" '{"width":25,"height":25}'
 expect "the icon picker: None and the 20 icons, in rows of 7" "$(json $ui '('$iconpickerbox').components.map(r => r.components.length).join(" ")')" "7 7 7"
-expect_exact "the icon picker: None first, bordered for a note without an icon" "$(json $ui $buttons | head -1)" "icon-none | true | icons/lucide/button/ban-light.svg 20x20 | No icon | No icon | icon icons quick none"
-expect_exact "the icon picker: an icon's button icon, light without a theme, at 20 pt" "$(json $ui $buttons | sed -n 2p)" "icon-sticky-note | false | icons/lucide/button/sticky-note-light.svg 20x20 | Note | Note | icon icons quick sticky-note"
+expect_exact "the icon picker: None first, bordered for a note without an icon" "$(json $ui $buttons | head -1)" "icon-none | true | icons/lucide/ban-light.svg 20x20 | No icon | No icon | icon icons quick none"
+expect_exact "the icon picker: an icon's button icon, light without a theme, at 20 pt" "$(json $ui $buttons | sed -n 2p)" "icon-sticky-note | false | icons/lucide/sticky-note-light.svg 20x20 | Note | Note | icon icons quick sticky-note"
 expect_exact "the icon picker: the icons in order, none of them bordered" "$(json $ui $buttons | tail -n +2 | cut -d'|' -f1,2 | tr -d ' ' | tr '\n' ' ')" "icon-sticky-note|false icon-list-todo|false icon-shopping-cart|false icon-lightbulb|false icon-book-open|false icon-bookmark|false icon-briefcase|false icon-calendar|false icon-phone|false icon-users|false icon-house|false icon-utensils|false icon-plane|false icon-gift|false icon-wallet|false icon-code|false icon-music|false icon-heart|false icon-star|false icon-flag|false "
 expect "every file the window names exists" "$(missing_files $ui)" ""
 expect "no icon: a pinned window's app icon is ScratchNotes'" "$(json "$(open_note pin icons)/ui.json" d.iconpath)" "$workflow/ui/appicon.png"
@@ -447,7 +447,7 @@ expect "button icons: a theme's appearanceMode 2 wins over a light colour" "$(ap
 expect "button icons: a theme's appearanceMode 1 wins over a dark colour" "$(appearance_of alfred_preferences=$tmp/prefs alfred_theme=dark2light alfred_theme_background='rgba(16,16,16,1.00)')" "light"
 expect "button icons: a theme without one goes by its colour" "$(appearance_of alfred_preferences=$tmp/prefs alfred_theme=plain alfred_theme_background='rgba(16,16,16,1.00)')" "dark"
 expect "button icons: a missing theme goes by its colour" "$(appearance_of alfred_preferences=$tmp/prefs alfred_theme=gone alfred_theme_background='rgba(16,16,16,1.00)')" "dark"
-expect "button icons: the dark button icons in a dark quick view's picker" "$(json $cache/quick/icons.alfredui/ui.json $buttons | sed -n 2p | cut -d'|' -f3)" " icons/lucide/button/sticky-note-dark.svg 20x20 "
+expect "button icons: the dark button icons in a dark quick view's picker" "$(json $cache/quick/icons.alfredui/ui.json $buttons | sed -n 2p | cut -d'|' -f3)" " icons/lucide/sticky-note-dark.svg 20x20 "
 expect "button icons: a pinned window's are light, whatever the theme" "$(json "$(open_note alfred_theme_background='rgba(16,16,16,1.00)' pin icons)/context.json" d.appearance)" "light"
 
 # Opening and closing the drop-downs, and choosing an icon.
@@ -471,14 +471,14 @@ action=$(window_js icon icons pinned shopping-cart)
 expect "icon: every file the replace names exists" "$(print -r -- $action | missing_files -)" ""
 expect "icon: recorded in the sidecar and the window's context" "$(json $notes/.scratchnotes/icons.json d.icon) $(json $bundle/context.json d.icon)" "shopping-cart shopping-cart"
 expect "icon: replaces the customise group and the icon picker, and hides the rest" "$(print -r -- $action | json - 'Object.keys(d.replace.ids).join(" ") + " " + JSON.stringify(d.update.ids)')" 'customise iconpicker {"colourpicker":{"hidden":true},"pickercatcher":{"hidden":true}}'
-expect "icon: the icon button shows its button icon, light in a pinned window" "$(print -r -- $action | json - ''$image'('$iconbtn')')" "icons/lucide/button/shopping-cart-light.svg 20x20"
+expect "icon: the icon button shows its button icon, light in a pinned window" "$(print -r -- $action | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
 expect "icon: the icon picker marks it, and comes back hidden" "$(print -r -- $action | json - 'd.replace.ids.iconpicker.hidden') $(print -r -- $action | json - $buttons | grep '| true |' | cut -d'|' -f1)" "true icon-shopping-cart "
 expect "icon: the picker closed in the state" "$([[ -e $cache/state/icons.picker ]] && print open || print closed)" "closed"
 expect "icon: the window's actions make no badge (only open.js does, for the app icon)" "$(ls $cache/icons 2>/dev/null | grep -c badge-shopping-cart || true)" "0"
 expect "icon: the next pinned window's app icon is its badge in its colour, made in the cache" "$(json "$(open_note pin icons)/ui.json" d.iconpath)" "$cache/icons/badge-shopping-cart-FEF49C-DBC503-1.72.0-*.svg"
-expect "icon: the next window's icon button and picker show it" "$(json $bundle/ui.json ''$image'('$iconbtn')') $(json $bundle/ui.json $buttons | grep -c 'icon-shopping-cart | true')" "icons/lucide/button/shopping-cart-light.svg 20x20 1"
+expect "icon: the next window's icon button and picker show it" "$(json $bundle/ui.json ''$image'('$iconbtn')') $(json $bundle/ui.json $buttons | grep -c 'icon-shopping-cart | true')" "icons/lucide/shopping-cart-light.svg 20x20 1"
 expect "every file the pinned window names exists, its badge too" "$(missing_files $bundle/ui.json)" ""
-expect "colour: the customise group keeps the icon" "$(window_js colour icons pinned green | json - ''$image'('$iconbtn')')" "icons/lucide/button/shopping-cart-light.svg 20x20"
+expect "colour: the customise group keeps the icon" "$(window_js colour icons pinned green | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
 expect "colour: makes no badge in the new colour" "$(ls $cache/icons | grep -c 'badge-shopping-cart-B2FFA1' || true)" "0"
 expect "icon: an unknown icon is an error, and nothing changes" "$(window_js icon icons pinned rocket 2>&1 >/dev/null | grep -c 'Unknown icon') $(json $notes/.scratchnotes/icons.json d.icon)" "1 shopping-cart"
 # In View, as in Edit.
@@ -486,7 +486,7 @@ window_js toggle icons pinned "Icons" >/dev/null
 expect_exact "toggle icon in View: shows it, leaving the page as it is" "$(picker toggle icons pinned icon)" "$OPEN_ICON"
 action=$(window_js icon icons pinned none)
 expect "icon none: removes the key, keeping the others" "$(json $notes/.scratchnotes/icons.json '[String(d.icon), "icon" in d, d.colour].join(" ")') $(json $bundle/context.json 'String(d.icon)')" "undefined false green null"
-expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/button/smile-plus-light.svg 20x20  true "
+expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/smile-plus-light.svg 20x20  true "
 picker toggle icons pinned colour >/dev/null
 expect "the Edit / View switch closes the open picker" "$(window_js toggle icons pinned "" | json - '[d.update.ids.iconpicker.hidden, d.update.ids.colourpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "true true true closed"
 expect "a switch with none open leaves them alone" "$(window_js toggle icons pinned "Icons" | json - 'String(d.update.ids.pickercatcher)')" "undefined"

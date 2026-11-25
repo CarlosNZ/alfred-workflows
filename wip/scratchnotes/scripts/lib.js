@@ -872,7 +872,7 @@ function noteDefaultColour(variable = workflowVariable) {
 // the picker's order, each with the label of its tooltip. A note stores its
 // icon's name in its sidecar (`icon`); a note without one has no icon, and
 // there's no default. Each is shipped as a button icon in each appearance, in
-// icons/lucide/button/ (drawn by dev/make-icons.js), for the window, and made
+// icons/lucide/ (drawn by dev/make-icons.js), for the window, and made
 // into a badge in a note's colour when one is needed (noteBadgeFile), for its
 // result and its pinned window's app icon. Adding one adds a button to the
 // icon picker's grid (NOTE_WINDOW_LAYOUT.iconPicker), whose shadow
@@ -964,7 +964,7 @@ function macosMajorVersion() {
 // "dark"), as a path in the workflow folder. Shipped with the workflow, drawn
 // by dev/make-icons.js.
 function noteButtonIconFile(name, appearance) {
-  return `icons/lucide/button/${name}-${appearance === "dark" ? "dark" : "light"}.svg`;
+  return `icons/lucide/${name}-${appearance === "dark" ? "dark" : "light"}.svg`;
 }
 
 // ---------------------------------------------------------------------------

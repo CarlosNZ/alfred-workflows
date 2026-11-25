@@ -141,11 +141,11 @@ before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
 expect "a note's icon shows as its badge in its colour, named for its colours, Lucide's release and its code" "$(icons milk)" "Shopping badge-shopping-cart-FFC7C7-F87F7F-1.72.0-*.svg"
 badge=$(print $cache/icons/badge-shopping-cart-FFC7C7-F87F7F-*.svg)
 expect "the badge: the icon from its button icon, in dark text colour, on the tint's square ringed in the control colour" "$(grep -c '<rect x="6" y="6" width="116" height="116" rx="26" fill="#FFC7C7" stroke="#F87F7F"' $badge) $(grep -c 'stroke="#1D1D1F"><path d="m2.05 2.05 ' $badge)" "1 1"
-expect "an icon change rewrites the note's quick bundle with its button icon (button and picker)" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c 'button/shopping-cart-light.svg' $(ui shopping))" "rewritten 2"
+expect "an icon change rewrites the note's quick bundle with its button icon (button and picker)" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c 'lucide/shopping-cart-light.svg' $(ui shopping))" "rewritten 2"
 before_shopping=$(mtime shopping)
 icons '' >/dev/null
 expect "a list with nothing changed rewrites nothing" "$(mtime shopping) $(mtime cafe)" "$before_shopping $before_cafe"
-expect "a dark theme rewrites every quick bundle once, with the dark button icons" "$(icons alfred_theme_background='rgba(16,16,16,1.00)' '' >/dev/null; [[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c 'button/shopping-cart-dark.svg' $(ui shopping))" "rewritten 2"
+expect "a dark theme rewrites every quick bundle once, with the dark button icons" "$(icons alfred_theme_background='rgba(16,16,16,1.00)' '' >/dev/null; [[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c 'lucide/shopping-cart-dark.svg' $(ui shopping))" "rewritten 2"
 before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
 icons alfred_theme_background='rgba(20,20,20,0.9)' '' >/dev/null
 expect "another dark theme rewrites nothing" "$(mtime shopping) $(mtime cafe)" "$before_shopping $before_cafe"
@@ -190,7 +190,7 @@ expect "a list that makes an icon sweeps out the stale ones and old temporary fi
 # symbols for the actions. A Mac upgraded from 12 rebuilds them once.
 before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
 expect "macOS 12: a note with an icon shows its dot" "$(icons scratchnotes_macos_version=12 '' | grep Shopping)" "Shopping dot-FEEA3D-DBC503-*.png"
-expect "macOS 12: every quick bundle rebuilt once, without the icon button, the picker or any button icon" "$([[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c -E '"id": "(icon|iconpicker)"|lucide/button' $(ui shopping) || true) $(grep -c '"src": "eye"\|"src": "pencil"' $(ui shopping))" "rewritten 0 1"
+expect "macOS 12: every quick bundle rebuilt once, without the icon button, the picker or any button icon" "$([[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c -E '"id": "(icon|iconpicker)"|icons/lucide/' $(ui shopping) || true) $(grep -c '"src": "eye"\|"src": "pencil"' $(ui shopping))" "rewritten 0 1"
 before_shopping=$(mtime shopping)
 icons scratchnotes_macos_version=12 '' >/dev/null
 expect "macOS 12: a list with nothing changed rewrites nothing" "$(mtime shopping)" "$before_shopping"
