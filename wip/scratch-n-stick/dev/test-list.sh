@@ -264,11 +264,40 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     return `${files.length} ${missing.join(" ") || "none missing"}`;
   }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "56 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
-# A sticky note's result (no arg, `sticky` set) needs a live Alfred UI helper,
-# so it's checked in Alfred; a sticky state whose process isn't one is ignored.
+# A note is sticky only while its state's process is a live Alfred UI helper;
+# a sticky state whose process isn't one is ignored.
 print -r -- '{"form":"sticky","pid":'$$',"mode":"edit"}' > "$cache/state/shopping.json"
 expect "a sticky state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago • milk, eggs | $quick/shopping.alfredui "
 rm "$cache/state/shopping.json"
+
+# Sticky notes, given by scratchnstick_sticky_ids in place of live windows
+# (see stickyIds in list.js). In the notes list, a sticky note's result has no
+# arg and says it's sticky.
+expect "notes list: a sticky note says so, with no arg; ⌘ still sticks it" "$(scratchnstick_sticky_ids=shopping items "$notes" milk)" "Shopping | Sticky • Edited 3h ago • milk, eggs |  |  | shopping | shopping | $notes/shopping.md | "
+
+# The sticky notes list (list.js's second argument, "stickies"): only the
+# sticky notes, last edited first, each with its ID as the arg of ↩ and ⌘
+# (Close), then Close all sticky notes, whose keys do nothing but ↩. No New
+# note, and no "Sticky" in the subtitles.
+stickies() { scratchnstick_sticky_ids=$1 items "$notes" "${2:-}" stickies }
+closeall2="Close all sticky notes | Close the 2 sticky notes on the desktop |  |  | - | - | - | "
+expect_exact "stickies: the sticky notes, then Close all" "$(stickies $'shopping\ncafe')" "Café ideas | $(items "$notes" cafe | cut -d'|' -f2 | sed 's/^ //;s/ $//') | cafe |  | cafe | cafe | $notes/cafe.md | "$'\n'"Shopping | Edited 3h ago • milk, eggs | shopping |  | shopping | shopping | $notes/shopping.md | "$'\n'"$closeall2"
+expect "stickies: ⌘ closes the note" "$(scratchnstick_sticky_ids=cafe notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" stickies | grep -o '"cmd":{[^}]*}' | head -1)" '"cmd":{"subtitle":"Close this sticky note","arg":"cafe"}'
+expect "stickies: only Close all sets close_all, for the Conditional" "$(scratchnstick_sticky_ids=cafe notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" stickies | grep -o '"variables":{[^}]*}' | tr '\n' ' ')" '"variables":{"close_all":"1"} '
+expect_exact "stickies: a query narrows the notes, and Close all stays last" "$(stickies $'shopping\ncafe' MILK | cut -d'|' -f1)" $'Shopping \nClose all sticky notes '
+expect_exact "stickies: a query that matches none says so, then Close all" "$(stickies $'shopping\ncafe' bread)" $'No sticky notes match “bread” | Search all your notes with “scratch” |  | \n'"$closeall2"
+expect_exact "stickies: one sticky note" "$(stickies cafe | sed -n 2p | cut -d'|' -f1-2)" "Close all sticky notes | Close the sticky note on the desktop "
+expect_exact "stickies: a sticky note not saved yet has no result" "$(stickies $'cafe\nunsaved' | cut -d'|' -f1)" $'Café ideas \nClose all sticky notes '
+expect_exact "stickies: … and Close all counts it" "$(stickies $'cafe\nunsaved' | sed -n 2p | cut -d'|' -f2)" " Close the 2 sticky notes on the desktop "
+expect_exact "stickies: none, with or without a query: only a result saying so" "$(stickies '' ; stickies '' milk)" $'No sticky notes | Stick a note to the desktop with ⌘↩ in “scratch” |  | \nNo sticky notes | Stick a note to the desktop with ⌘↩ in “scratch” |  | '
+expect_exact "stickies: names the notes list's keyword" "$(keyword=notes stickies '' | cut -d'|' -f2)" " Stick a note to the desktop with ⌘↩ in “notes” "
+before=$(ls "$quick" | sort)
+stickies cafe >/dev/null
+expect_exact "stickies: leaves the quick bundles alone" "$(ls "$quick" | sort)" "$before"
+
+# close.js with no sticky windows: nothing to close, for one note or all.
+expect_exact "close.js: no sticky window to close" "$(alfred_workflow_cache=$cache ${here:h}/scripts/close.js cafe && alfred_workflow_cache=$cache ${here:h}/scripts/close.js '' && print done)" "done"
+expect_exact "close.js: not a note ID" "$(alfred_workflow_cache=$cache ${here:h}/scripts/close.js .hidden 2>&1 >/dev/null | grep -o 'Not a note ID.*')" 'Not a note ID: ".hidden" (-2700)'
 
 # The theme stylesheet for quick views' pages, from Alfred's theme background.
 # The stylesheet list.js writes with alfred_theme_background set to $1 (unset
@@ -328,6 +357,12 @@ args=$(new_json 'd.items.map((i) => i.arg.split("/").pop()).join(" ")')
 blank=${args% *} fromclip=${args#* }
 expect "new: the two new notes have their own IDs and bundles, the second's with the clipboard's text" "${blank%.alfredui}-2.alfredui $(grep -c '"text": "# Plan' $quick/$fromclip/ui.json) $(grep -c '"text": "# Plan' $quick/$blank/ui.json || true)" "$fromclip 1 0"
 expect "new: text typed after the keyword leaves out the clipboard" "$(new_items "$notes" x | cut -d'|' -f1)" "New note: x "
+# The new sticky note keyword (new.js's second argument, "sticky"): the same
+# results, as sticky notes, with ↩ and ⌘ swapped: ↩'s arg is the text, with
+# new=1, for the stick route, and ⌘'s the quick bundle, with `new` cleared.
+expect "newsticky: New sticky note, then from clipboard; ↩ sticks, ⌘ the quick view" "$(new_items "$notes" "" sticky)" "New sticky note | Create a blank sticky note |  | 1 | $quick/20*.alfredui | - | - | "$'\n'"New sticky note from clipboard | # Plan - one | # Plan"$'\n\n'"  - one  "$'\n'" | 1 | $quick/20*-2.alfredui | - | - | "
+expect "newsticky: with text" "$(new_items "$notes" "  buy milk " sticky)" "New sticky note: buy milk | Create a sticky note with this heading | buy milk | 1 | $quick/20*.alfredui | - | - | "
+expect_exact "newsticky: ⌘'s subtitle" "$(cd "$tmp" && notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache scratchnstick_pasteboard=$pasteboard "$new" x sticky | grep -o '"cmd":{"subtitle":"[^"]*"')" '"cmd":{"subtitle":"Create it in Alfred instead"'
 clip $text $' \n\t '
 expect "new: a clipboard of whitespace: no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
 clip public.file-url "file:///tmp/a.txt" $text "a.txt"

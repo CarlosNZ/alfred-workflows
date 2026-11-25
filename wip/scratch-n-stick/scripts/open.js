@@ -67,6 +67,12 @@ function run(argv) {
   // from its quick view before anything was typed, or one that has gone
   // since the results were shown; both open blank.
   const text = isNew ? newNoteText(argv[1] || "") : note ? note.text : "";
+  // A new sticky note is saved with its starting text as it opens, so it's in
+  // the results and sticky notes lists while its window is open, as a note
+  // stuck from a quick view is (Stick saves first). store.save writes nothing
+  // for blank text. A new quick view's note is saved by its window, as no
+  // list shows while it's open.
+  if (isNew && form === "sticky") store.save(id, text);
   const mode = stickNote ? workflowVariable("stick_mode") : "";
   const bundle = writeNoteWindow({ store, workflowFolder, id, form, note, text, mode });
   if (form === "sticky") startStickyWindowPlacement(workflowFolder, bundle);

@@ -10,6 +10,10 @@
 // written here before the results are shown, so the view replaces the results
 // seamlessly; ⌘↩ sticks it (open.js).
 //
+// With argv[1] "sticky", for the new sticky note keyword, the results are
+// "New sticky note", and so on, and ↩ and ⌘↩ swap: ↩ sticks the new note and
+// ⌘↩ opens its quick view.
+//
 // The variable `scratchnstick_pasteboard` names a pasteboard to read instead of
 // the clipboard, for dev/test-list.sh.
 
@@ -19,6 +23,8 @@ function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   loadLib(argv, "titles.js");
   const text = (argv[0] || "").trim();
+  const sticky = argv[1] === "sticky";
+  const noun = sticky ? "sticky note" : "note";
   // A colour in User Configuration that can't be read shows what's wrong in
   // place of the results, as a new note's window needs the palette.
   const paletteProblems = notePaletteProblemItems();
@@ -36,16 +42,18 @@ function run(argv) {
   // gives a Script Filter (see noteThemeStylesheet in lib.js).
   attempt(() => writeNoteTheme(workflowVariable("alfred_theme_background")));
   const bundle = (text) => attempt(() => quick.bundleForNew(text)) || "";
-  if (text) return output([newNoteResult(`New note: ${text}`, newNoteSubtitle(text), text, bundle(text))]);
-  const items = [newNoteResult("New note", "Create a blank note", "", bundle(""))];
+  const result = (title, subtitle, text) => newNoteResult(title, subtitle, text, bundle(text), { sticky });
+  if (text) return output([result(`New ${noun}: ${text}`, newNoteSubtitle(text, noun), text)]);
+  const items = [result(`New ${noun}`, `Create a blank ${noun}`, "")];
   const clipboard = attempt(() => clipboardText(workflowVariable("scratchnstick_pasteboard")));
-  if (clipboard) items.push(newNoteResult("New note from clipboard", truncateText(clipboard.trim().replace(/\s+/g, " "), 100), clipboard, bundle(clipboard)));
+  if (clipboard) items.push(result(`New ${noun} from clipboard`, truncateText(clipboard.trim().replace(/\s+/g, " "), 100), clipboard));
   return output(items);
 }
 
 // What `fn` returns, or null if it throws, logging the error (to Alfred's
-// debugger). A quick bundle that can't be written leaves its result's arg
-// empty, so ↩ does nothing, while ⌘↩ still works.
+// debugger). A quick bundle that can't be written leaves the quick view's arg
+// empty, so that key (↩, or ⌘↩ for a sticky note) does nothing, while the
+// other still sticks the note.
 function attempt(fn) {
   try {
     return fn();

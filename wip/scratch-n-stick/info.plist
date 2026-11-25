@@ -229,6 +229,110 @@
 				<false/>
 			</dict>
 		</array>
+		<key>82E5ABD0-A4CF-4CD4-854D-449A747CB630</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>8957C450-FFC2-4DAE-88CC-3A3B18792A63</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
+				<key>modifiers</key>
+				<integer>262144</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>C2AE9D95-B129-45AB-8A55-12E926133EA7</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>91A91A8B-8C71-432E-9668-448E6ADEE0F5</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>8957C450-FFC2-4DAE-88CC-3A3B18792A63</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>42668848-8394-4F81-B068-68F3AEE18377</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
@@ -256,23 +360,25 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>lastpathcomponent</key>
+				<key>concurrently</key>
 				<false/>
-				<key>onlyshowifquerypopulated</key>
-				<false/>
-				<key>removeextension</key>
-				<false/>
-				<key>text</key>
-				<string>{query}</string>
-				<key>title</key>
-				<string>Scratch'n'Stick</string>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>scripts/trash.js</string>
+				<key>type</key>
+				<integer>8</integer>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.output.notification</string>
+			<string>alfred.workflow.action.script</string>
 			<key>uid</key>
-			<string>2AAC74E0-969A-4500-A412-97376F3EDD5B</string>
+			<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
 			<key>version</key>
-			<integer>1</integer>
+			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -326,6 +432,27 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>Scratch'n'Stick</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>2AAC74E0-969A-4500-A412-97376F3EDD5B</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>action</key>
 				<integer>0</integer>
 				<key>argument</key>
@@ -357,25 +484,19 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
+				<key>launchmode</key>
 				<integer>0</integer>
-				<key>script</key>
-				<string></string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string>scripts/trash.js</string>
-				<key>type</key>
-				<integer>8</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<false/>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.action.script</string>
+			<string>alfred.workflow.userinterface.alfredui</string>
 			<key>uid</key>
-			<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
 			<key>version</key>
-			<integer>2</integer>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -425,23 +546,6 @@
 			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</string>
 			<key>version</key>
 			<integer>3</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>0</integer>
-				<key>path</key>
-				<string>{query}</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
-			<key>version</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -645,6 +749,21 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>availableviaurlhandler</key>
+				<false/>
+				<key>triggerid</key>
+				<string>notify</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.external</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D30</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>lastpathcomponent</key>
 				<false/>
 				<key>onlyshowifquerypopulated</key>
@@ -666,17 +785,184 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>availableviaurlhandler</key>
+				<key>concurrently</key>
 				<false/>
-				<key>triggerid</key>
-				<string>notify</string>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>scripts/close.js</string>
+				<key>type</key>
+				<integer>8</integer>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.trigger.external</string>
+			<string>alfred.workflow.action.script</string>
 			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D30</string>
+			<string>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:close_all}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>1</string>
+						<key>outputlabel</key>
+						<string>Close all</string>
+						<key>uid</key>
+						<string>42668848-8394-4F81-B068-68F3AEE18377</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>else</string>
+				<key>hideelse</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>C2AE9D95-B129-45AB-8A55-12E926133EA7</string>
 			<key>version</key>
 			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>hotkey</key>
+				<integer>0</integer>
+				<key>hotmod</key>
+				<integer>0</integer>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>91A91A8B-8C71-432E-9668-448E6ADEE0F5</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>{var:keyword_sticky}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>2</integer>
+				<key>runningsubtext</key>
+				<string>Loading sticky notes...</string>
+				<key>script</key>
+				<string>exec ./scripts/list.js "$1" stickies</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string>Search your sticky notes</string>
+				<key>title</key>
+				<string>Scratch'n'Stick sticky notes</string>
+				<key>type</key>
+				<integer>5</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>8957C450-FFC2-4DAE-88CC-3A3B18792A63</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>{var:keyword_new_sticky}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>2</integer>
+				<key>runningsubtext</key>
+				<string></string>
+				<key>script</key>
+				<string>exec ./scripts/new.js "$1" sticky</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string>Create a sticky note, from text or the clipboard</string>
+				<key>title</key>
+				<string>New Scratch'n'Stick sticky note</string>
+				<key>type</key>
+				<integer>5</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>82E5ABD0-A4CF-4CD4-854D-449A747CB630</string>
+			<key>version</key>
+			<integer>3</integer>
 		</dict>
 	</array>
 	<key>readme</key>
@@ -742,7 +1028,7 @@
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</key>
 		<dict>
 			<key>xpos</key>
-			<real>180</real>
+			<real>200</real>
 			<key>ypos</key>
 			<real>700</real>
 		</dict>
@@ -756,7 +1042,7 @@
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</key>
 		<dict>
 			<key>xpos</key>
-			<real>170</real>
+			<real>210</real>
 			<key>ypos</key>
 			<real>330</real>
 		</dict>
@@ -765,7 +1051,7 @@
 			<key>note</key>
 			<string>Optional: set a hotkey for a new sticky note</string>
 			<key>xpos</key>
-			<real>180</real>
+			<real>200</real>
 			<key>ypos</key>
 			<real>840</real>
 		</dict>
@@ -790,7 +1076,7 @@
 			<key>note</key>
 			<string>Notifications posted by scripts outside the flow (move.js, lib.js postNotesNotification)</string>
 			<key>xpos</key>
-			<real>180</real>
+			<real>200</real>
 			<key>ypos</key>
 			<real>1010</real>
 		</dict>
@@ -800,6 +1086,45 @@
 			<real>960</real>
 			<key>ypos</key>
 			<real>1010</real>
+		</dict>
+		<key>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</key>
+		<dict>
+			<key>xpos</key>
+			<real>490</real>
+			<key>ypos</key>
+			<real>1185</real>
+		</dict>
+		<key>82E5ABD0-A4CF-4CD4-854D-449A747CB630</key>
+		<dict>
+			<key>xpos</key>
+			<real>200</real>
+			<key>ypos</key>
+			<real>1330</real>
+		</dict>
+		<key>8957C450-FFC2-4DAE-88CC-3A3B18792A63</key>
+		<dict>
+			<key>xpos</key>
+			<real>200</real>
+			<key>ypos</key>
+			<real>1195</real>
+		</dict>
+		<key>91A91A8B-8C71-432E-9668-448E6ADEE0F5</key>
+		<dict>
+			<key>note</key>
+			<string>Optional: set a hotkey to show your sticky notes</string>
+			<key>xpos</key>
+			<real>30</real>
+			<key>ypos</key>
+			<real>1195</real>
+		</dict>
+		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
+		<dict>
+			<key>note</key>
+			<string>Close all sticky notes, or a sticky note to bring to the front</string>
+			<key>xpos</key>
+			<real>368</real>
+			<key>ypos</key>
+			<real>1195</real>
 		</dict>
 		<key>CEC2F155-08CF-4B0A-8AC9-268E023173CA</key>
 		<dict>
@@ -852,6 +1177,48 @@
 			<string>textfield</string>
 			<key>variable</key>
 			<string>keyword_new</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>sticky</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Lists your sticky notes, the notes open on the desktop, last edited first. Type after it to search them.</string>
+			<key>label</key>
+			<string>Sticky notes keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>keyword_sticky</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>newsticky</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Creates a sticky note on the desktop. Type text after it to start the note with that text, or leave it blank for a blank note or one from the clipboard.</string>
+			<key>label</key>
+			<string>New sticky note keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>keyword_new_sticky</string>
 		</dict>
 		<dict>
 			<key>config</key>

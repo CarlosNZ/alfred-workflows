@@ -181,6 +181,13 @@ expect_exact "a new note opens in Edit with its text, as a heading" "$(json $cac
 id5=$(basename "$(open_note new=1 quick $'Line one\n  Line two  \n')" .alfredui)
 expect_exact "a new note from text that isn't a heading keeps it exactly" "$(json $cache/quick/$id5.alfredui/ui.json '[Boolean('$editor'.hidden), JSON.stringify('$editor'.text)].join(" ")')" 'false "Line one\n  Line two  \n"'
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md script.md vars.md "
+# A new sticky note is saved with its starting text as it opens, so the lists
+# show it while its window is open; a blank one isn't written.
+idst=$(basename "$(open_note new=1 stick 'Sticky from a keyword')" .alfredui)
+expect_exact "a new sticky note with text is saved as it opens, with a sidecar" "$(<$notes/$idst.md) $([[ -e $notes/.scratchnstick/$idst.json ]] && print sidecar)" "# Sticky from a keyword sidecar"
+idsb=$(basename "$(open_note new=1 stick '')" .alfredui)
+expect "a new blank sticky note isn't written" "$(ls -A $notes $notes/.scratchnstick | grep -c $idsb || true)" "0"
+rm -rf -- $notes/$idst.md $notes/.scratchnstick/$idst.json $cache/windows/$idst.alfredui $cache/windows/$idsb.alfredui
 expect "open.js sets open_window, clears new and stick_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","stick_note":"","stick_mode":"","close_view":""}'
 
 # window.js: launched, save, toggle, edit, view, quit.
@@ -281,7 +288,7 @@ expect_exact "menu, quick view: Stick to Desktop sticks, as ⌘P does" "$(window
 expect_exact "menu, quick view: Close finishes with close_view" "$(window_js menu quickmenu quick | json - 'JSON.stringify(d.popupmenu.menu[2].action.src)')" '{"finish":{"variables":{"close_view":"1"}}}'
 expect_exact "open.js with close_view: opens nothing" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache close_view=1 $scripts/open.js stick quickmenu | json - 'JSON.stringify([d.alfredworkflow.arg, d.alfredworkflow.variables.open_window, d.alfredworkflow.variables.close_view])')" '["","",""]'
 window_js quit quickmenu quick "Quick menu"
-idt=$(basename "$(open_note new=1 stick 'Never saved')" .alfredui)
+idt=$(basename "$(open_note new=1 stick '')" .alfredui)
 window_js launched "$idt" sticky edit
 expect_exact "trash, a note never saved: deleted outright, and the window closes" "$(window_js trash "$idt" sticky "  ") $(ls -A $notes $notes/.scratchnstick | grep -c $idt || true) $(json $cache/state/$idt.json d.trashed)" '{"finish":{}} 0 true'
 window_js quit "$idt" sticky "Typed after"

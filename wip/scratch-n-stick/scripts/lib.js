@@ -246,13 +246,21 @@ function noteStore(folder = notesFolder()) {
     return fm.fileExistsAtPath(`${folder}/${fileName}`) ? readFile(id, fileName) : null;
   }
 
-  // Every note in the folder, last edited first.
-  function list() {
+  // Every note in the folder, or, given `ids`, the notes with those IDs that
+  // exist, last edited first.
+  function list({ ids = null } = {}) {
     const notes = [];
-    for (const name of folderEntries()) {
-      const id = noteIdFromFileName(name);
-      const note = id === null ? null : readFile(id, name);
-      if (note) notes.push(note);
+    if (ids) {
+      for (const id of ids) {
+        const note = read(id);
+        if (note) notes.push(note);
+      }
+    } else {
+      for (const name of folderEntries()) {
+        const id = noteIdFromFileName(name);
+        const note = id === null ? null : readFile(id, name);
+        if (note) notes.push(note);
+      }
     }
     return notes.sort((a, b) => b.modified - a.modified || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
   }
@@ -663,15 +671,16 @@ function removeMoveFailure(variable = workflowVariable) {
   if ($.NSFileManager.defaultManager.fileExistsAtPath(path)) removeFile(path);
 }
 
-// Asks every sticky window to quit, as its close button does, so its `quit`
-// event saves its note, and waits for each one's process to exit, which it
-// does once the note is saved. One still running after `timeout` ms is
-// force-quit. Quitting another app goes through Apple events, so this runs
-// as Alfred (in a process Alfred started). `isTerminated` doesn't change
-// while a script runs, as nothing runs the run loop that updates it, so the
-// wait checks the processes themselves.
-function quitStickyNoteWindows(variable = workflowVariable, timeout = 5000) {
-  const windows = [...stickyNoteIds(variable)]
+// Asks the sticky windows of the notes with `ids` (by default, every sticky
+// window) to quit, as a window's close button does, so its `quit` event saves
+// its note, and waits for each one's process to exit, which it does once the
+// note is saved. One still running after `timeout` ms is force-quit. A note
+// with no sticky window is skipped. Quitting another app goes through Apple
+// events, so this runs as Alfred (in a process Alfred started).
+// `isTerminated` doesn't change while a script runs, as nothing runs the run
+// loop that updates it, so the wait checks the processes themselves.
+function quitStickyNoteWindows({ ids = null, variable = workflowVariable, timeout = 5000 } = {}) {
+  const windows = [...(ids || stickyNoteIds(variable))]
     .map((id) => ({ id, pid: stickyNotePid(id, variable) }))
     .filter((w) => w.pid !== null);
   for (const { pid } of windows) {
@@ -2380,14 +2389,22 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
 // the variable `new`, so open.js knows it isn't a note's ID, and sticks the
 // new note. ⌥ and ⌃ do nothing: in the results list their actions take a
 // note's ID or path.
-function newNoteResult(title, subtitle, text, bundle) {
-  const variables = { new: "1" };
+//
+// With `sticky` (the new sticky note keyword's results), ↩ and ⌘ swap: ↩
+// sticks the new note, its Script Filter's ↩ being connected to the stick
+// route, and ⌘↩ opens the quick view, ⌘ being connected to the quick view's
+// Alfred UI object. ⌘ clears `new`, which would otherwise carry on from the
+// result into the quick view.
+function newNoteResult(title, subtitle, text, bundle, { sticky = false } = {}) {
+  const stick = { arg: text, variables: { new: "1" } };
   return {
     title,
     subtitle,
-    arg: bundle,
+    ...(sticky ? stick : { arg: bundle }),
     mods: {
-      cmd: { subtitle: "Create it as a sticky note", arg: text, variables },
+      cmd: sticky
+        ? { subtitle: "Create it in Alfred instead", arg: bundle, variables: { new: "" } }
+        : { subtitle: "Create it as a sticky note", ...stick },
       alt: { subtitle, valid: false },
       ctrl: { subtitle, valid: false },
     },
@@ -2396,9 +2413,9 @@ function newNoteResult(title, subtitle, text, bundle) {
 
 // The subtitle of a New note result for text typed after a keyword, which
 // says whether the text starts the note as its heading (seedHeading in
-// titles.js).
-function newNoteSubtitle(text) {
-  return seedHeading(text) === null ? "Create a note with this text" : "Create a note with this heading";
+// titles.js). `noun` is what's created: "note", or "sticky note".
+function newNoteSubtitle(text, noun = "note") {
+  return seedHeading(text) === null ? `Create a ${noun} with this text` : `Create a ${noun} with this heading`;
 }
 
 // A short hash of a string (cyrb53, 53 bits, in base 36), for fingerprints:
