@@ -13,7 +13,7 @@
   bar of its background along the top, under the window's buttons, so that
   scrolled text doesn't run under them. Its colours are the system's, on a
   panel the colour of Alfred's theme (from the theme stylesheet, which list.js
-  writes). In a pinned window the page starts below the top row (see
+  writes). In a sticky window the page starts below the top row (see
   ui/content.json), so the window can still be dragged by the strip under its
   title bar (a web view takes the mouse), and it has dark text on the note's
   tint, as in Edit and the window around it.
@@ -26,7 +26,7 @@
     --text-done: -apple-system-secondary-label;
     --link: -apple-system-control-accent;
   }
-  html.pinned {
+  html.sticky {
     color-scheme: light;
     --panel: var(--tint, #FEF49C);
     --text: #1D1D1F;
@@ -36,8 +36,8 @@
   html { background: var(--panel); }
   body { margin: 0; padding: 40px 12px 14px 16px; font: @fontSize@px -apple-system, sans-serif; line-height: 1.35; color: var(--text); -webkit-user-select: text; }
   #bar { position: fixed; top: 0; left: 0; right: 0; height: 34px; background: var(--panel); z-index: 1; }
-  html.pinned body { padding-top: 8px; }
-  html.pinned #bar { display: none; }
+  html.sticky body { padding-top: 8px; }
+  html.sticky #bar { display: none; }
   h1, h2, h3, h4, h5, h6 { line-height: 1.2; margin: 0.7em 0 0.35em; }
   h1 { font-size: 1.45em; }
   h2 { font-size: 1.2em; }

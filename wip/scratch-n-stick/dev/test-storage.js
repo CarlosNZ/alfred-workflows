@@ -22,7 +22,7 @@ function run(argv) {
   const [command, ...args] = argv;
   if (command === "loader") return print(`loaded ${libPath} (noteStore: ${typeof noteStore})`);
   if (command === "save") return print(noteStore(args[0]).save(args[1], readText(args[2])));
-  if (!args[0] || !args[0].includes("scratchnotes-test.")) throw new Error("Give the temporary folder test-storage.sh made");
+  if (!args[0] || !args[0].includes("scratchnstick-test.")) throw new Error("Give the temporary folder test-storage.sh made");
   if (command === "test") {
     testConfiguration(args[0]);
     testIds(freshStore(args[0], "ids"));
@@ -74,7 +74,7 @@ function testConfiguration(root) {
   eq("default is notes/ in the data folder", notesFolder(variables({ alfred_workflow_data: data, notes_folder: "  " })), `${data}/notes`);
   check("default folder is created with its parents", isFolder(`${data}/notes`));
   throws("no notes_folder and no data folder", () => notesFolder(variables({})), /neither/);
-  eq("~ is expanded", expandPath("~/ScratchNotes"), `${$.NSHomeDirectory().js}/ScratchNotes`);
+  eq("~ is expanded", expandPath("~/ScratchnStick"), `${$.NSHomeDirectory().js}/ScratchnStick`);
 }
 
 function testIds(store) {
@@ -89,8 +89,8 @@ function testIds(store) {
   eq("free ID is the time", store.newId({ date }), "20261120-150302");
   writeRaw(`${store.folder}/20261120-150302.md`, "x");
   eq("taken by a note: -2", store.newId({ date }), "20261120-150302-2");
-  makeFolder(`${store.folder}/.scratchnotes`);
-  writeRaw(`${store.folder}/.scratchnotes/20261120-150302-2.json`, "{}");
+  makeFolder(`${store.folder}/.scratchnstick`);
+  writeRaw(`${store.folder}/.scratchnstick/20261120-150302-2.json`, "{}");
   eq("taken by a sidecar (trashed note): -3", store.newId({ date }), "20261120-150302-3");
   eq("taken by isTaken (open, unsaved): -4", store.newId({ date, isTaken: (id) => id.endsWith("-3") }), "20261120-150302-4");
   const other = new Date(2026, 10, 21, 9, 0, 0);
@@ -104,7 +104,7 @@ function testSave(store) {
   const path = `${store.folder}/${id}.md`;
   eq("blank new note isn't written", store.save(id, "  \n\t"), "blank");
   check("…no file", !exists(path));
-  check("…no sidecar", !exists(`${store.folder}/.scratchnotes/${id}.json`));
+  check("…no sidecar", !exists(`${store.folder}/.scratchnstick/${id}.json`));
 
   const before = Date.now();
   eq("new note", store.save(id, "# Hello\n"), "created");
@@ -138,7 +138,7 @@ function testSave(store) {
   writeRaw(`${store.folder}/hand.md`, "added by hand");
   const handBirth = new Date(2022, 5, 1, 8, 30, 0);
   setDate(`${store.folder}/hand.md`, "NSFileCreationDate", handBirth);
-  check("note added by hand has no sidecar yet", !exists(`${store.folder}/.scratchnotes/hand.json`));
+  check("note added by hand has no sidecar yet", !exists(`${store.folder}/.scratchnstick/hand.json`));
   eq("…created is its birth time", store.read("hand").created.getTime(), handBirth.getTime());
   eq("…first read records the birth time in a sidecar", store.readMeta("hand").created, formatLocalIsoDate(handBirth));
   store.save("hand", "edited");
@@ -157,7 +157,7 @@ function testMeta(store) {
   section("Metadata sidecars");
   const id = "meta-test";
   const path = `${store.folder}/${id}.md`;
-  const sidecar = `${store.folder}/.scratchnotes/${id}.json`;
+  const sidecar = `${store.folder}/.scratchnstick/${id}.json`;
   writeRaw(path, "# Note\n");
   eq("no sidecar: readMeta is {}", store.readMeta(id), {});
   const birth = formatLocalIsoDate(fileDate(path, "NSFileCreationDate"));
@@ -180,7 +180,7 @@ function testMeta(store) {
   check("removing the last key removes the sidecar", !exists(sidecar));
 
   store.updateMeta("not-saved-yet", { colour: "green" });
-  check("sidecar for a note not saved yet", exists(`${store.folder}/.scratchnotes/not-saved-yet.json`));
+  check("sidecar for a note not saved yet", exists(`${store.folder}/.scratchnstick/not-saved-yet.json`));
 
   writeRaw(sidecar, "{not json");
   eq("corrupt sidecar reads as {}", store.readMeta(id), {});
@@ -269,11 +269,11 @@ function testEmpty(store) {
   store.updateMeta("emptied", { colour: "blue" });
   eq("whitespace-only note is deleted", store.deleteIfEmpty("emptied"), true);
   check("…file gone", !store.exists("emptied"));
-  check("…sidecar gone", !exists(`${store.folder}/.scratchnotes/emptied.json`));
+  check("…sidecar gone", !exists(`${store.folder}/.scratchnstick/emptied.json`));
 
   store.updateMeta("never-saved", { colour: "green" });
   eq("never-saved note with a colour: deleted", store.deleteIfEmpty("never-saved"), true);
-  check("…sidecar gone", !exists(`${store.folder}/.scratchnotes/never-saved.json`));
+  check("…sidecar gone", !exists(`${store.folder}/.scratchnstick/never-saved.json`));
   eq("nothing at all: counts as deleted", store.deleteIfEmpty("nothing"), true);
 }
 
@@ -295,7 +295,7 @@ function testList(store) {
   store.updateMeta("a", { colour: "yellow" });
   eq("only top-level, non-hidden .md files, last edited first", store.list().map((n) => n.id), ["b", "Upper", "c", "a"]);
   eq("note objects carry meta", store.list().find((n) => n.id === "a").meta, { colour: "yellow" });
-  eq("listing gave the notes without sidecars one, and nothing else", entries(`${store.folder}/.scratchnotes`).sort(), ["Upper.json", "a.json", "b.json", "c.json"]);
+  eq("listing gave the notes without sidecars one, and nothing else", entries(`${store.folder}/.scratchnstick`).sort(), ["Upper.json", "a.json", "b.json", "c.json"]);
   check("…recording created", typeof store.readMeta("b").created === "string");
   const b = store.read("b");
   check(
@@ -322,18 +322,18 @@ function timeList(store) {
 
 function testTrash(store) {
   section("Trash");
-  const id = `scratchnotes-test-${$.NSUUID.UUID.UUIDString.js}`;
-  store.save(id, `Created by ScratchNotes' test-storage.sh, which moved it to the Trash.\n`);
+  const id = `scratchnstick-test-${$.NSUUID.UUID.UUIDString.js}`;
+  store.save(id, `Created by Scratch'n'Stick's test-storage.sh, which moved it to the Trash.\n`);
   store.updateMeta(id, { colour: "blue" });
   const trashed = store.trash(id);
   check("note is gone from the folder", !store.exists(id));
-  check("its sidecar stays (for Put Back)", exists(`${store.folder}/.scratchnotes/${id}.json`));
+  check("its sidecar stays (for Put Back)", exists(`${store.folder}/.scratchnstick/${id}.json`));
   const trashFolder = `${$.NSHomeDirectory().js}/.Trash/`;
   check("Finder says it's in the Trash", typeof trashed === "string" && trashed.startsWith(trashFolder), trashed);
   eq("trashing a missing note returns null", store.trash("missing"), null);
   // Removes only the file this test put in the Trash.
   const name = trashed ? $(trashed).lastPathComponent.js : "";
-  if (trashed && trashed.startsWith(trashFolder) && name.startsWith("scratchnotes-test-") && !name.includes("/")) {
+  if (trashed && trashed.startsWith(trashFolder) && name.startsWith("scratchnstick-test-") && !name.includes("/")) {
     const removed = $.NSFileManager.defaultManager.removeItemAtPathError(trashed, null);
     print(removed ? `info removed ${trashed} from the Trash` : `info couldn't remove ${trashed} from the Trash; delete it by hand`);
   }
@@ -344,12 +344,12 @@ function testMoveNotes(root) {
   const from = `${root}/move/from`;
   const to = `${root}/move/to`;
   makeFolder(from);
-  makeFolder(`${to}/.scratchnotes`);
+  makeFolder(`${to}/.scratchnstick`);
   const note = (folder, name, text, meta) => {
     writeRaw(`${folder}/${name}`, text);
-    if (meta) writeRaw(`${folder}/.scratchnotes/${noteIdFromFileName(name)}.json`, JSON.stringify(meta));
+    if (meta) writeRaw(`${folder}/.scratchnstick/${noteIdFromFileName(name)}.json`, JSON.stringify(meta));
   };
-  makeFolder(`${from}/.scratchnotes`);
+  makeFolder(`${from}/.scratchnstick`);
   note(from, "plain.md", "Plain", { colour: "blue" });
   note(from, "bare.md", "No sidecar");
   note(from, "Upper.MD", "Upper case extension", { colour: "green" });
@@ -360,7 +360,7 @@ function testMoveNotes(root) {
   note(from, "sidecar.md", "Its ID is taken by a sidecar alone", { colour: "purple" });
   note(from, "resumed.md", "Its sidecar was copied by a move that stopped", { colour: "blue" });
   note(from, "Café.md".normalize("NFD"), "Decomposed name");
-  writeRaw(`${from}/.scratchnotes/orphan.json`, JSON.stringify({ colour: "grey" }));
+  writeRaw(`${from}/.scratchnstick/orphan.json`, JSON.stringify({ colour: "grey" }));
   writeRaw(`${from}/notes.txt`, "Not a note");
   writeRaw(`${from}/.hidden.md`, "Hidden");
   makeFolder(`${from}/sub`);
@@ -377,13 +377,13 @@ function testMoveNotes(root) {
   note(to, "same.md", "Same text");
   note(to, "same2.md", "Same text 2", { colour: "yellow" });
   note(to, "Café.md".normalize("NFC"), "Composed name");
-  writeRaw(`${to}/.scratchnotes/sidecar.json`, JSON.stringify({ colour: "red" }));
-  writeRaw(`${to}/.scratchnotes/resumed.json`, JSON.stringify({ colour: "blue" }));
-  writeRaw(`${to}/.scratchnotes-move-stopped.tmp`, "A partial copy");
-  writeRaw(`${to}/.scratchnotes/.scratchnotes-move-stopped.tmp`, "A partial copy");
+  writeRaw(`${to}/.scratchnstick/sidecar.json`, JSON.stringify({ colour: "red" }));
+  writeRaw(`${to}/.scratchnstick/resumed.json`, JSON.stringify({ colour: "blue" }));
+  writeRaw(`${to}/.scratchnstick-move-stopped.tmp`, "A partial copy");
+  writeRaw(`${to}/.scratchnstick/.scratchnstick-move-stopped.tmp`, "A partial copy");
 
   const result = moveNotes(from, to);
-  eq("only other files, hidden files and subfolders are left behind, without .scratchnotes", entries(from).sort(), [".hidden.md", "notes.txt", "sub"]);
+  eq("only other files, hidden files and subfolders are left behind, without .scratchnstick", entries(from).sort(), [".hidden.md", "notes.txt", "sub"]);
   const notes = entries(to).filter((name) => !name.startsWith(".")).map((name) => name.normalize("NFC")).sort();
   eq(
     "the new folder's notes",
@@ -391,7 +391,7 @@ function testMoveNotes(root) {
     ["Café-2.md", "Café.md", "Upper-2.MD", "bare.md", "clash-2-2.md", "clash-2.md", "clash-3.md", "clash.md", "plain.md", "resumed.md", "same.md", "same2.md", "sidecar-2.md", "upper.md"],
   );
   const text = (name) => readText(`${to}/${name}`);
-  const meta = (id) => readJsonObject(`${to}/.scratchnotes/${id}.json`);
+  const meta = (id) => readJsonObject(`${to}/.scratchnstick/${id}.json`);
   eq("a clash takes the next free suffix: clash-3, past the new folder's clash-2", [text("clash-3.md"), meta("clash-3")], ["From clash", { colour: "green" }]);
   eq("a suffixed ID clashing gets its own suffix: clash-2-2", text("clash-2-2.md"), "From clash-2");
   eq("the new folder's own notes are untouched", [text("clash.md"), text("clash-2.md"), meta("clash")], ["To clash", "To clash-2", null]);
@@ -401,21 +401,21 @@ function testMoveNotes(root) {
   eq("same text: the new folder's sidecar is kept", meta("same2"), { colour: "yellow" });
   eq("an ID taken by a sidecar alone: renamed with its own sidecar", [text("sidecar-2.md"), meta("sidecar-2"), meta("sidecar")], ["Its ID is taken by a sidecar alone", { colour: "purple" }, { colour: "red" }]);
   eq("a sidecar a stopped move copied doesn't take the ID", [text("resumed.md"), meta("resumed")], ["Its sidecar was copied by a move that stopped", { colour: "blue" }]);
-  eq("a note without a sidecar moves without one", [text("bare.md"), exists(`${to}/.scratchnotes/bare.json`)], ["No sidecar", false]);
-  eq("a sidecar without a note isn't moved", exists(`${to}/.scratchnotes/orphan.json`), false);
+  eq("a note without a sidecar moves without one", [text("bare.md"), exists(`${to}/.scratchnstick/bare.json`)], ["No sidecar", false]);
+  eq("a sidecar without a note isn't moved", exists(`${to}/.scratchnstick/orphan.json`), false);
   eq("modification and birth times, and Finder tags, are kept", [fileDate(`${to}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${to}/plain.md`, "NSFileCreationDate").getTime(), tags(`${to}/plain.md`)], [modified.getTime(), birth.getTime(), ["Red"]]);
-  eq("a stopped move's temporary files are deleted", entries(to).concat(entries(`${to}/.scratchnotes`)).filter((name) => name.startsWith(".scratchnotes-move-")), []);
+  eq("a stopped move's temporary files are deleted", entries(to).concat(entries(`${to}/.scratchnstick`)).filter((name) => name.startsWith(".scratchnstick-move-")), []);
   eq("moved and duplicates", [result.moved, result.duplicates], [8, 2]);
   eq("renamed", result.renamed.map(([a, b]) => `${a.normalize("NFC")}→${b.normalize("NFC")}`).sort(), ["Café→Café-2", "Upper→Upper-2", "clash-2→clash-2-2", "clash→clash-3", "sidecar→sidecar-2"]);
   eq("running it again moves nothing", moveNotes(from, to), { moved: 0, renamed: [], duplicates: 0 });
 
   // A move stopped after a note was copied but before the old one was deleted.
   note(from, "copied.md", "Copied, not yet deleted");
-  makeFolder(`${from}/.scratchnotes`);
-  writeRaw(`${from}/.scratchnotes/copied.json`, JSON.stringify({ colour: "orange" }));
+  makeFolder(`${from}/.scratchnstick`);
+  writeRaw(`${from}/.scratchnstick/copied.json`, JSON.stringify({ colour: "orange" }));
   note(to, "copied.md", "Copied, not yet deleted");
-  writeRaw(`${to}/.scratchnotes/copied.json`, JSON.stringify({ colour: "orange" }));
-  eq("a stopped move is finished: the copy left behind is deleted", [moveNotes(from, to).duplicates, exists(`${from}/copied.md`), exists(`${from}/.scratchnotes`), meta("copied")], [1, false, false, { colour: "orange" }]);
+  writeRaw(`${to}/.scratchnstick/copied.json`, JSON.stringify({ colour: "orange" }));
+  eq("a stopped move is finished: the copy left behind is deleted", [moveNotes(from, to).duplicates, exists(`${from}/copied.md`), exists(`${from}/.scratchnstick`), meta("copied")], [1, false, false, { colour: "orange" }]);
 
   const before = entries(to).sort();
   note(from, "taken.md", "Can't move");
@@ -509,16 +509,16 @@ function timeMove(root) {
   section("Timing a move");
   const from = `${root}/timing-move/from`;
   const to = `${root}/timing-move/to`;
-  makeFolder(`${from}/.scratchnotes`);
+  makeFolder(`${from}/.scratchnstick`);
   makeFolder(to);
   for (let i = 0; i < 1000; i++) {
     writeRaw(`${from}/note-${i}.md`, `# Note ${i}\nSome text.\n`);
-    writeRaw(`${from}/.scratchnotes/note-${i}.json`, JSON.stringify({ created: "2026-11-25T12:00:00+13:00", colour: "blue" }));
+    writeRaw(`${from}/.scratchnstick/note-${i}.json`, JSON.stringify({ created: "2026-11-25T12:00:00+13:00", colour: "blue" }));
   }
   const start = Date.now();
   const result = moveNotes(from, to);
   const ms = Date.now() - start;
-  eq("1,000 notes with sidecars moved", [result.moved, entries(to).length, entries(`${to}/.scratchnotes`).length], [1000, 1001, 1000]);
+  eq("1,000 notes with sidecars moved", [result.moved, entries(to).length, entries(`${to}/.scratchnstick`).length], [1000, 1001, 1000]);
   print(`info moveNotes of 1,000 notes with sidecars, within a volume: ${ms} ms`);
 }
 
@@ -528,11 +528,11 @@ function testMoveVolume(root, volume) {
   section("Moving notes to another volume");
   const from = `${root}/volume-from`;
   const to = `${volume}/notes`;
-  makeFolder(`${from}/.scratchnotes`);
+  makeFolder(`${from}/.scratchnstick`);
   makeFolder(to);
   check("the two folders are on different volumes", volumeIdentity(from) !== volumeIdentity(to));
   writeRaw(`${from}/plain.md`, "Plain");
-  writeRaw(`${from}/.scratchnotes/plain.json`, JSON.stringify({ colour: "blue" }));
+  writeRaw(`${from}/.scratchnstick/plain.json`, JSON.stringify({ colour: "blue" }));
   writeRaw(`${from}/clash.md`, "From clash");
   writeRaw(`${to}/clash.md`, "To clash");
   const birth = new Date(2021, 0, 1, 12, 0, 0);
@@ -542,9 +542,9 @@ function testMoveVolume(root, volume) {
   setTags(`${from}/plain.md`, ["Red"]);
   eq("moved", moveNotes(from, to), { moved: 2, renamed: [["clash", "clash-2"]], duplicates: 0 });
   eq("the old folder is empty", entries(from), []);
-  eq("the notes and sidecar are there", [readText(`${to}/plain.md`), readText(`${to}/clash-2.md`), readJsonObject(`${to}/.scratchnotes/plain.json`)], ["Plain", "From clash", { colour: "blue" }]);
+  eq("the notes and sidecar are there", [readText(`${to}/plain.md`), readText(`${to}/clash-2.md`), readJsonObject(`${to}/.scratchnstick/plain.json`)], ["Plain", "From clash", { colour: "blue" }]);
   eq("modification and birth times, and Finder tags, are kept", [fileDate(`${to}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${to}/plain.md`, "NSFileCreationDate").getTime(), tags(`${to}/plain.md`)], [modified.getTime(), birth.getTime(), ["Red"]]);
-  eq("no temporary files are left", entries(to).concat(entries(`${to}/.scratchnotes`)).filter((name) => name.startsWith(".scratchnotes-move-")), []);
+  eq("no temporary files are left", entries(to).concat(entries(`${to}/.scratchnstick`)).filter((name) => name.startsWith(".scratchnstick-move-")), []);
   eq("and back again", moveNotes(to, from).moved, 3);
   eq("…with the times kept", [fileDate(`${from}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${from}/plain.md`, "NSFileCreationDate").getTime()], [modified.getTime(), birth.getTime()]);
 }
@@ -612,8 +612,8 @@ function entries(folder) {
 }
 
 function leftoverTemps(folder) {
-  const names = entries(folder).concat(exists(`${folder}/.scratchnotes`) ? entries(`${folder}/.scratchnotes`) : []);
-  return names.filter((name) => name.startsWith(".scratchnotes-save-"));
+  const names = entries(folder).concat(exists(`${folder}/.scratchnstick`) ? entries(`${folder}/.scratchnstick`) : []);
+  return names.filter((name) => name.startsWith(".scratchnstick-save-"));
 }
 
 function setDate(path, key, date) {

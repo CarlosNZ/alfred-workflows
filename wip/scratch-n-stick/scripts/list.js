@@ -1,6 +1,6 @@
 #!/usr/bin/osascript -l JavaScript
 
-// Script Filter for the ScratchNotes keyword: lists the notes, last edited
+// Script Filter for the Scratch'n'Stick keyword: lists the notes, last edited
 // first, narrowed by argv[0], the text typed after the keyword.
 //
 // Every word of the query must appear somewhere in a note (its title or any
@@ -12,8 +12,8 @@
 // with nothing in between, so the view replaces the results seamlessly. The
 // bundles are written here, before the results are shown, and only rebuilt
 // when out of date (see quickWindows in lib.js), and so is the stylesheet that
-// gives their pages the colour of Alfred's theme. ↩ on a note that's pinned
-// brings its pinned window to the front instead (see noteItem). ⌘↩ pins the note (open.js;
+// gives their pages the colour of Alfred's theme. ↩ on a note that's sticky
+// brings its sticky window to the front instead (see noteItem). ⌘↩ sticks the note (open.js;
 // that modifier's arg is the note's ID), ⌥↩ moves it to the Trash (trash.js),
 // ⌃↩ reveals it in Finder (its path is that modifier's arg), and Quick Look
 // shows the file.
@@ -41,11 +41,11 @@ function run(argv) {
   const words = searchWords(query);
   const matches = notes.filter((note) => words.every((word) => searchText(note).includes(word)));
   const now = new Date();
-  const pinned = attempt(pinnedNoteIds) || new Set();
+  const sticky = attempt(stickyNoteIds) || new Set();
   // Each variable is read once (see cachedVariables in lib.js).
   const variable = cachedVariables();
   const icon = (note) => attempt(() => noteResultIcon(workflowFolder, note, noteColour(note.meta, variable), variable));
-  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), pinned.has(note.id), icon(note)));
+  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), sticky.has(note.id), icon(note)));
   if (!query) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
   else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
   if (quick) attempt(() => quick.finish(notes));
@@ -67,19 +67,19 @@ function attempt(fn) {
 
 // Its icon is `icon`, the note's result icon (its badge, or its dot; see
 // noteResultIcon in lib.js), or none if that couldn't be made. A note that's
-// pinned gets no arg, so ↩ shows no quick view, and the variable `pinned`,
-// which takes ↩ down the pin route instead (with `pin_note` naming the note,
-// as Pin in a quick view does), where open.js brings the pinned window to the
+// sticky gets no arg, so ↩ shows no quick view, and the variable `sticky`,
+// which takes ↩ down the stick route instead (with `stick_note` naming the note,
+// as Stick in a quick view does), where open.js brings the sticky window to the
 // front.
-function noteItem(note, now, bundle, pinned, icon) {
+function noteItem(note, now, bundle, sticky, icon) {
   const edited = `Edited ${formatEditedTime(note.modified, now)}`;
   const subtitle = note.preview ? `${edited} · ${note.preview}` : edited;
   return {
     title: note.title,
-    subtitle: pinned ? `Sticky · ${subtitle}` : subtitle,
-    arg: pinned ? "" : bundle,
+    subtitle: sticky ? `Sticky · ${subtitle}` : subtitle,
+    arg: sticky ? "" : bundle,
     icon: icon ? { path: icon } : undefined,
-    variables: pinned ? { pinned: "1", pin_note: escapeForAlfredUi(note.id) } : undefined,
+    variables: sticky ? { sticky: "1", stick_note: escapeForAlfredUi(note.id) } : undefined,
     quicklookurl: note.path,
     action: { file: note.path },
     text: { copy: note.text, largetype: note.text },

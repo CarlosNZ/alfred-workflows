@@ -1,5 +1,5 @@
 {
-  "@pinned": { "iconpath": "@iconPath" },
+  "@sticky": { "iconpath": "@iconPath" },
   "window": {
     "title": "@title",
     "titlevisibility": false,
@@ -16,13 +16,13 @@
       "id": "note",
       "type": "view",
       "layout": "stack",
-      "@pinned": { "appearance": "light", "background": "@tint" },
+      "@sticky": { "appearance": "light", "background": "@tint" },
       "shortcuts": [
         { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "shortcut": "⌘↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["view", "@note", "@form", "{value:editor.text}"] } },
-        { "@form": "quick", "shortcut": "⌘P", "action": { "type": "script", "src": "scripts/window.js", "args": ["pin", "@note", "@form", "{value:editor.text}"] } },
+        { "@form": "quick", "shortcut": "⌘P", "action": { "type": "script", "src": "scripts/window.js", "args": ["stick", "@note", "@form", "{value:editor.text}"] } },
         { "@needs": "icons", "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },
-        { "@form": "pinned", "shortcut": "⎋", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["escape", "@note", "@form"] } },
+        { "@form": "sticky", "shortcut": "⎋", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["escape", "@note", "@form"] } },
         "@colourShortcuts"
       ],
       "events": [

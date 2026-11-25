@@ -50,7 +50,7 @@ function noteTaskRule(state) {
   }
 }
 
-// Gives a pinned note's page its colour, from note.js, so it changes with the
+// Gives a sticky note's page its colour, from note.js, so it changes with the
 // note's colour without view.html being rewritten. Run in the page's head,
 // before anything is drawn.
 function showNoteTint() {
@@ -59,7 +59,7 @@ function showNoteTint() {
 
 // Renders the note, keeps the scroll position across reloads, sends task
 // ticks, and says when the note has been drawn. `form` is "quick" or
-// "pinned".
+// "sticky".
 function startNotePage(form) {
   if (typeof NOTE !== "string") return;
   let messages = 0;
@@ -76,7 +76,7 @@ function startNotePage(form) {
   }
 
   // The page reloads when a tick is refused, after a switch from Edit, and
-  // when a pinned note's colour changes: each time it opens where it was.
+  // when a sticky note's colour changes: each time it opens where it was.
   try {
     const saved = sessionStorage.getItem("scrollY");
     if (saved !== null) scrollTo(0, Number(saved));
@@ -94,15 +94,15 @@ function startNotePage(form) {
 
   // Two animation frames after rendering, the note has been drawn. Shown any
   // sooner (one frame after rendering), the web view showed WebKit's own
-  // fill for a moment in a pinned window.
+  // fill for a moment in a sticky window.
   requestAnimationFrame(() => requestAnimationFrame(() => send(`ready-${notePageOpacity(form)}`)));
 }
 
-// The opacity to show the web view at: 1 when pinned; in a quick view, the
+// The opacity to show the web view at: 1 when sticky; in a quick view, the
 // theme stylesheet's --opacity (see noteThemeStylesheet in lib.js), or 1
 // without one.
 function notePageOpacity(form) {
-  if (form === "pinned") return 1;
+  if (form === "sticky") return 1;
   const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--opacity"));
   return isFinite(value) ? Math.round(Math.min(1, Math.max(0, value)) * 100) / 100 : 1;
 }

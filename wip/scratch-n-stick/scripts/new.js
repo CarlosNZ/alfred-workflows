@@ -8,9 +8,9 @@
 // The results work as the results list's New note does (see newNoteResult in
 // lib.js): ↩ opens the new note in a quick view inside Alfred, from a bundle
 // written here before the results are shown, so the view replaces the results
-// seamlessly; ⌘↩ pins it (open.js).
+// seamlessly; ⌘↩ sticks it (open.js).
 //
-// The variable `scratchnotes_pasteboard` names a pasteboard to read instead of
+// The variable `scratchnstick_pasteboard` names a pasteboard to read instead of
 // the clipboard, for dev/test-list.sh.
 
 ObjC.import("Foundation");
@@ -33,7 +33,7 @@ function run(argv) {
   const bundle = (text) => attempt(() => quick.bundleForNew(text)) || "";
   if (text) return output([newNoteResult(`New note: ${text}`, "Create a note with this text", text, bundle(text))]);
   const items = [newNoteResult("New note", "Create a blank note", "", bundle(""))];
-  const clipboard = attempt(() => clipboardText(workflowVariable("scratchnotes_pasteboard")));
+  const clipboard = attempt(() => clipboardText(workflowVariable("scratchnstick_pasteboard")));
   if (clipboard) items.push(newNoteResult("New note from clipboard", truncateText(clipboard.trim().replace(/\s+/g, " "), 100), clipboard, bundle(clipboard)));
   return output(items);
 }

@@ -1,4 +1,4 @@
-// ScratchNotes shared code, loaded by every script with loadLib (see "Loading
+// Scratch'n'Stick shared code, loaded by every script with loadLib (see "Loading
 // lib.js" in DESIGN.md). It runs in the global scope through an indirect eval:
 // its function declarations become globals for the loading script, while its
 // top-level const and let stay private to this file. Don't add "use strict",
@@ -13,7 +13,7 @@
 ObjC.import("Foundation");
 
 const NOTE_EXTENSION = ".md";
-const META_FOLDER = ".scratchnotes";
+const META_FOLDER = ".scratchnstick";
 const TITLE_MAX_LENGTH = 80;
 const PREVIEW_MAX_LENGTH = 100;
 const UNTITLED = "Untitled";
@@ -141,7 +141,7 @@ function noteIdFromFileName(name) {
 // folder is a note, with or without a sidecar: one without is given one when
 // it's first read or listed (recordNewNote).
 //
-// Metadata lives in a hidden sidecar per note, `.scratchnotes/<id>.json` in the
+// Metadata lives in a hidden sidecar per note, `.scratchnstick/<id>.json` in the
 // notes folder, so the note itself stays plain Markdown and changing its colour
 // doesn't change its modification time.
 
@@ -363,11 +363,11 @@ function noteStore(folder = notesFolder()) {
 // setting (list.js, new.js, open.js) call checkNotesFolderMove first. It
 // compares the folder the notes were last in, recorded per Mac in the data
 // folder, with the folder the setting gives, and when they differ starts
-// scripts/move.js in the background, which closes the pinned windows and
+// scripts/move.js in the background, which closes the sticky windows and
 // moves the notes (moveNotes). A move holds a lock, <cache>/move.lock/, while
 // it runs, and one that fails leaves <cache>/move-failure.json saying why.
 
-const MOVE_TEMP_PREFIX = ".scratchnotes-move-";
+const MOVE_TEMP_PREFIX = ".scratchnstick-move-";
 const MOVE_RERUN_SECONDS = 0.5;
 
 // Whether the notes can be used in the folder the settings give, starting a
@@ -607,15 +607,15 @@ function removeMoveFailure(variable = workflowVariable) {
   if ($.NSFileManager.defaultManager.fileExistsAtPath(path)) removeFile(path);
 }
 
-// Asks every pinned window to quit, as its close button does, so its `quit`
+// Asks every sticky window to quit, as its close button does, so its `quit`
 // event saves its note, and waits for each one's process to exit, which it
 // does once the note is saved. One still running after `timeout` ms is
 // force-quit. Quitting another app goes through Apple events, so this runs
 // as Alfred (in a process Alfred started). `isTerminated` doesn't change
 // while a script runs, as nothing runs the run loop that updates it, so the
 // wait checks the processes themselves.
-function quitPinnedNoteWindows(variable = workflowVariable, timeout = 5000) {
-  const windows = [...pinnedNoteIds(variable)].map((id) => ({ id, pid: pinnedNotePid(id, variable) })).filter((w) => w.pid !== null);
+function quitStickyNoteWindows(variable = workflowVariable, timeout = 5000) {
+  const windows = [...stickyNoteIds(variable)].map((id) => ({ id, pid: stickyNotePid(id, variable) })).filter((w) => w.pid !== null);
   for (const { pid } of windows) {
     const app = runningApp(pid);
     if (app) app.terminate;
@@ -643,7 +643,7 @@ function quitPinnedNoteWindows(variable = workflowVariable, timeout = 5000) {
 // - A note with the same text as the note of the same ID in `to` is only
 //   deleted from `from`; its sidecar moves if that note has none.
 // - Sidecars without a note are deleted, with the rest of `from`'s
-//   .scratchnotes, once every note has moved.
+//   .scratchnstick, once every note has moved.
 //
 // It works one note at a time, copying the sidecar, then moving the note,
 // then deleting the old sidecar, so it can be stopped at any point and run
@@ -788,16 +788,16 @@ function isRegularFile(path) {
 //
 // A note opens in a window built from the templates in the workflow's ui/
 // folder, written as its own bundle: <cache>/quick/<id>.alfredui for a quick
-// view, <cache>/windows/<id>.alfredui for a pinned window, so each pinned note
+// view, <cache>/windows/<id>.alfredui for a sticky window, so each sticky note
 // keeps its own saved position (AppKit saves a window's frame under a hash of
 // its bundle's path). The window is in one of two forms, "quick" (inside
-// Alfred's window) or "pinned" (its own window on the desktop), and one of two
+// Alfred's window) or "sticky" (its own window on the desktop), and one of two
 // modes, "edit" (a textarea) or "view" (the note rendered in a web view).
 //
 // Both modes have the same layout, a stack filling the window: the web view,
 // the textarea over it, the icon picker over them (a box under the icon
 // button, hidden until it's opened; see scripts/picker.sh), and the top row's
-// two groups of buttons, over the top-left corner (after a pinned window's
+// two groups of buttons, over the top-left corner (after a sticky window's
 // traffic lights) and the top-right corner.
 // The web view stays in the window for its whole life (a new one takes
 // 100–250 ms to show anything): Edit fades it out and shows the textarea, and
@@ -806,12 +806,12 @@ function isRegularFile(path) {
 //
 // The templates are ui.json as Alfred UI reads it, with directives that
 // resolveNoteTemplate resolves and removes:
-//   "@form": "quick" | "pinned"   on an array element: kept in that form only
+//   "@form": "quick" | "sticky"   on an array element: kept in that form only
 //   "@mode": "edit" | "view"      on an array element: kept in that mode only
 //   "@needs": "icons"             on an array element: kept only in a window
 //                                 that can show note icons (macOS 13 or
 //                                 later; see noteIconsSupported)
-//   "@quick", "@pinned", "@edit", "@view": { … }
+//   "@quick", "@sticky", "@edit", "@view": { … }
 //                                 properties merged into the object in that
 //                                 form or mode
 //   "@note", "@text", …           a whole string that's a token is replaced by
@@ -830,7 +830,7 @@ const FONT_SIZE = { min: 11, max: 20, default: 13 };
 const WORD_JOINER = "⁠";
 
 // The palette: Stickies' colours, from its asset catalogue. Each colour has a
-// pale `tint` for a pinned note's background (always with dark text), a
+// pale `tint` for a sticky note's background (always with dark text), a
 // stronger `spine` (Stickies' menu swatches) and a `control` colour, for the
 // window's colour swatches. A note's result icon is drawn from them: its dot
 // from the spine and control colours, its badge from the tint and control
@@ -874,7 +874,7 @@ function noteDefaultColour(variable = workflowVariable) {
 // there's no default. Each is shipped as a button icon in each appearance, in
 // icons/lucide/ (drawn by dev/make-icons.js), for the window, and made
 // into a badge in a note's colour when one is needed (noteBadgeFile), for its
-// result and its pinned window's app icon. Adding one adds a button to the
+// result and its sticky window's app icon. Adding one adds a button to the
 // icon picker's grid (NOTE_WINDOW_LAYOUT.iconPicker), whose shadow
 // dev/make-icons.js then redraws.
 const NOTE_ICONS = [
@@ -945,11 +945,11 @@ function noteIcon(meta, variable = workflowVariable) {
 // and badges are SVGs, which macOS 12 can't read, and an image Alfred UI can't
 // read makes it reject the whole window there (see "Note icons" in DESIGN.md).
 // So on macOS 12 a window has no icon button, icon picker or ⌘I, its actions
-// are SF Symbols, results show dots, and a pinned window keeps the ScratchNotes
-// app icon. The variable `scratchnotes_macos_version` overrides the version,
+// are SF Symbols, results show dots, and a sticky window keeps the Scratch'n'Stick
+// app icon. The variable `scratchnstick_macos_version` overrides the version,
 // for tests, and to see macOS 12's window on a newer Mac.
 function noteIconsSupported(variable = workflowVariable) {
-  const override = parseInt(variable("scratchnotes_macos_version"), 10);
+  const override = parseInt(variable("scratchnstick_macos_version"), 10);
   return (isNaN(override) ? macosMajorVersion() : override) >= 13;
 }
 
@@ -982,7 +982,7 @@ function noteButtonIconFile(name, appearance) {
 // A process that makes a file then deletes the badges and dots whose names
 // aren't current (sweepNoteResultIcons). Nothing a window opens from names
 // one: quick views have no app icon, results name theirs afresh on every run,
-// and an open pinned window read its app icon when it opened.
+// and an open sticky window read its app icon when it opened.
 
 // The badge's look, at its size in pixels.
 const NOTE_BADGE_STYLE = { size: 128, text: "#1D1D1F", square: { inset: 6, radius: 26, ring: 4 }, icon: { inset: 30 } };
@@ -1082,7 +1082,7 @@ function sweepNoteResultIcons(folder) {
   const minuteAgo = Date.now() - 60000;
   for (const name of names) {
     const path = `${folder}/${name}`;
-    const stale = /^(badge|dot)-.*\.(svg|png)$/.test(name) ? !current.has(name) : name.startsWith(".scratchnotes-save-") && (fileDate(path, "NSFileModificationDate") || 0) < minuteAgo;
+    const stale = /^(badge|dot)-.*\.(svg|png)$/.test(name) ? !current.has(name) : name.startsWith(".scratchnstick-save-") && (fileDate(path, "NSFileModificationDate") || 0) < minuteAgo;
     if (stale) $.NSFileManager.defaultManager.removeItemAtPathError(path, null);
   }
 }
@@ -1094,7 +1094,7 @@ function noteBadgeSvg(workflowFolder, icon, colour) {
   const iconSize = size - 2 * place.inset;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
-    `<!-- Lucide's ${icon} (see the workflow's icons/lucide/LICENSE), on ScratchNotes' ${colour.name} -->`,
+    `<!-- Lucide's ${icon} (see the workflow's icons/lucide/LICENSE), on Scratch'n'Stick's ${colour.name} -->`,
     `<rect x="${square.inset}" y="${square.inset}" width="${side}" height="${side}" rx="${square.radius}" fill="${colour.tint}" stroke="${colour.control}" stroke-width="${square.ring}"/>`,
     `<svg x="${place.inset}" y="${place.inset}" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" ${LUCIDE_STROKE} stroke="${text}">${noteButtonIconElements(workflowFolder, icon)}</svg>`,
     `</svg>`,
@@ -1211,8 +1211,8 @@ function noteFontSize(variable = workflowVariable) {
 
 // The folder of a form's window bundles in the workflow's cache folder:
 // quick/ for quick views (kept up to date by list.js, see quickWindows) and
-// windows/ for pinned windows. Separate folders keep list.js from ever
-// rewriting an open pinned window's bundle, and each pinned window's saved
+// windows/ for sticky windows. Separate folders keep list.js from ever
+// rewriting an open sticky window's bundle, and each sticky window's saved
 // position is keyed on its own bundle's path.
 function noteWindowsFolder(form, variable = workflowVariable) {
   const cache = variable("alfred_workflow_cache");
@@ -1240,16 +1240,16 @@ function readNoteTemplate(workflowFolder, name) {
 // these through functions.
 const NOTE_WINDOW_LAYOUT = {
   // The top row's two groups: the note's own look (its icon, then its colour)
-  // at the top left, after a pinned window's traffic lights, and the actions
-  // (Edit / View, then Pin in the quick view) at the top right. `top`, `left`
+  // at the top left, after a sticky window's traffic lights, and the actions
+  // (Edit / View, then Stick in the quick view) at the top right. `top`, `left`
   // and `right` are each group's distance from the window's edges, in each
   // form, and `spacing` the space between its buttons. A group's buttons are
   // centred in it, and it's as tall as its tallest, so the customise group,
   // whose note icon is 4 pt larger than the actions' button icons, is 2 pt
   // higher, which keeps the buttons' centres level, with each other and with
-  // a pinned window's traffic lights.
-  customise: { quick: { top: 6, left: 12 }, pinned: { top: 6, left: 82 }, spacing: 12 },
-  actions: { quick: { top: 8, right: 10 }, pinned: { top: 8, right: 10 }, spacing: 12 },
+  // a sticky window's traffic lights.
+  customise: { quick: { top: 6, left: 12 }, sticky: { top: 6, left: 82 }, spacing: 12 },
+  actions: { quick: { top: 8, right: 10 }, sticky: { top: 8, right: 10 }, spacing: 12 },
   // The size of the note's icon in the customise group, of the actions'
   // button icons, and of the colour button's swatch (a symbol, whose size is
   // its button's font size).
@@ -1261,7 +1261,7 @@ const NOTE_WINDOW_LAYOUT = {
   // its left, with corners of `radius`, `padding` inside, and a shadow around
   // them, `margin` wide. Alfred UI has no shadow, so it's an image drawn by
   // dev/make-icons.js: black at `opacity`, blurred by `blur`, `offset` down.
-  dropdown: { top: { quick: 34, pinned: 32 }, left: 8, radius: 10, padding: 6, margin: 8, shadow: { blur: 6, offset: 2, opacity: 0.3 } },
+  dropdown: { top: { quick: 34, sticky: 32 }, left: 8, radius: 10, padding: 6, margin: 8, shadow: { blur: 6, offset: 2, opacity: 0.3 } },
   // Each drop-down's grid: how many buttons in a row, their size (fixed, so
   // the box's size, and its shadow's, is known), the size of their images
   // (the colour picker's swatches are symbols, sized by their font size), and
@@ -1309,7 +1309,7 @@ function noteDropdownShadowFile(name) {
 //   workflowFolder, id, form, mode, text, fontSize, colour (a palette name),
 //   icon (an icon's name, or null for none), appearance (the appearance the
 //   window's button icons are drawn for, "light" or "dark": always "light"
-//   when pinned, as a pinned note's root view is always in light appearance),
+//   when sticky, as a sticky note's root view is always in light appearance),
 //   icons (whether the window can show note icons; see noteIconsSupported)
 // Each of NOTE_WINDOW_BUTTON_ICONS is a token too, "@buttonIcon:<name>", its
 // button icon as a button's image at the actions' size, or its SF Symbol in a
@@ -1319,7 +1319,7 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
   const currentIcon = icons ? noteIconByName(icon) : null;
   const note = escapeForAlfredUi(id);
   const layout = NOTE_WINDOW_LAYOUT;
-  const place = (group, position) => ({ position, insets: Object.assign({}, layout[group][form === "quick" ? "quick" : "pinned"]) });
+  const place = (group, position) => ({ position, insets: Object.assign({}, layout[group][form === "quick" ? "quick" : "sticky"]) });
   const tokens = {
     "@note": note,
     "@form": form,
@@ -1349,13 +1349,13 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
   };
   for (const name of Object.keys(NOTE_WINDOW_BUTTON_ICONS)) tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, layout.actionIcon, icons);
   // The app icon is worked out only when a template names it, which only
-  // window.json does, in a pinned window: so its badge is made when open.js
-  // writes the pinned window's bundle, and never by the window's own actions,
+  // window.json does, in a sticky window: so its badge is made when open.js
+  // writes the sticky window's bundle, and never by the window's own actions,
   // which build only its parts (a colour change would otherwise make a badge
   // for every colour tried).
   Object.defineProperty(tokens, "@iconPath", {
     enumerable: true,
-    get: () => (form === "pinned" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null),
+    get: () => (form === "sticky" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null),
   });
   return tokens;
 }
@@ -1368,9 +1368,9 @@ function noteButtonIconImage(workflowFolder, name, appearance, size, icons = tru
   return { type: "file", src: `${workflowFolder}/${noteButtonIconFile(name, appearance)}`, size: { width: size, height: size } };
 }
 
-// A pinned window's app icon (`iconpath`), for ⌘-Tab and the Dock: the badge
+// A sticky window's app icon (`iconpath`), for ⌘-Tab and the Dock: the badge
 // of its note's icon (a note icon, or null) in its colour (a palette colour),
-// or the ScratchNotes icon for a note without an icon.
+// or the Scratch'n'Stick icon for a note without an icon.
 function noteAppIconPath({ workflowFolder, icon, colour }, variable = workflowVariable) {
   return icon ? noteBadgeFile(workflowFolder, icon.name, colour.name, variable) : `${workflowFolder}/ui/appicon.png`;
 }
@@ -1393,7 +1393,7 @@ function noteDropdown({ workflowFolder, form, name, buttons }) {
     type: "view",
     layout: "stack",
     hidden: true,
-    constraints: { position: "topleft", insets: { top: top[form === "quick" ? "quick" : "pinned"] - margin, left: left - margin }, size: outer },
+    constraints: { position: "topleft", insets: { top: top[form === "quick" ? "quick" : "sticky"] - margin, left: left - margin }, size: outer },
     components: [
       { id: `${name}pickershadow`, type: "imageview", image: { type: "file", src: `${workflowFolder}/${noteDropdownShadowFile(name)}`, size: outer }, constraints: { position: "topleft" } },
       {
@@ -1487,12 +1487,12 @@ function noteColourPickerButtons({ workflowFolder, note, form, colour }) {
 
 // The action that gives a window's note colour `colour` (a palette colour),
 // for its button in the colour picker and its shortcut: window.js colour,
-// which records it and updates the top row. A pinned window's tint is updated
+// which records it and updates the top row. A sticky window's tint is updated
 // first, so it changes at once rather than after the script. `note` is the
 // escaped ID.
 function noteColourAction({ workflowFolder, note, form, colour }) {
   const script = { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["colour", note, form, colour.name] };
-  if (form !== "pinned") return script;
+  if (form !== "sticky") return script;
   return [{ type: "json", src: { update: { ids: { note: { background: colour.tint } } } } }, script];
 }
 
@@ -1530,7 +1530,7 @@ function resolveNoteTemplate(template, { form, mode, icons = true, tokens, workf
 // ({ "id": "content" } is filled with content.json): the note (the web view,
 // the editor and the icon picker), and the top row's two groups of buttons,
 // the note's own look (its icon and colour) at the left and the actions (Edit /
-// View and Pin) at the right.
+// View and Stick) at the right.
 const NOTE_WINDOW_PARTS = ["content", "customise", "actions"];
 
 // A note window's whole ui.json: window.json, with its placeholders filled
@@ -1571,10 +1571,10 @@ function noteOpenMode(note, text) {
 }
 
 // Writes the window bundle of a note in `store` for a form ("quick" or
-// "pinned") and returns its path. `note` is the note as the store read it, or
+// "sticky") and returns its path. `note` is the note as the store read it, or
 // null for a new note; `text` is the text the window opens with. `mode`
 // ("edit" or "view"), if given, is the mode to open in, as when a quick view
-// is pinned and its window carries on in the same mode; otherwise it's
+// is sticky and its window carries on in the same mode; otherwise it's
 // noteOpenMode's. A blank note opens in Edit either way. `appearance`, if
 // given, is the appearance a quick view's button icons are drawn for
 // (quickWindows works it out once for all its bundles); otherwise it's
@@ -1586,7 +1586,7 @@ function writeNoteWindow({ store, workflowFolder, id, form, note, text, mode: re
   const icons = noteIconsSupported(variable);
   const iconOf = noteIcon(note ? note.meta : {}, variable);
   const icon = iconOf ? iconOf.name : null;
-  const appearance = form === "pinned" ? "light" : quickAppearance || noteQuickAppearance(variable);
+  const appearance = form === "sticky" ? "light" : quickAppearance || noteQuickAppearance(variable);
   const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, colour, icon, appearance, icons }, variable);
   const script = notePageScript(mode === "view" ? text : null, colour);
   const page = notePageHtml({ workflowFolder, form, fontSize, noteVersion: textHash(script) }, variable);
@@ -1641,11 +1641,11 @@ function updateNoteContext(id, form, changes, variable = workflowVariable) {
   writeFileAtomically(`${noteBundlePath(id, form, variable)}/context.json`, JSON.stringify(Object.assign(context, changes), null, 2) + "\n");
 }
 
-// Deletes a note's window bundles, quick and pinned, if it has them: for a
+// Deletes a note's window bundles, quick and sticky, if it has them: for a
 // note that's gone (deleted on close, or moved to the Trash). Its saved window
 // position goes with them, as nothing will open from that path again.
 function removeNoteBundle(id, variable = workflowVariable) {
-  for (const form of ["quick", "pinned"]) {
+  for (const form of ["quick", "sticky"]) {
     const bundle = noteBundlePath(id, form, variable);
     if ($.NSFileManager.defaultManager.fileExistsAtPath(bundle)) removeFile(bundle);
   }
@@ -1659,7 +1659,7 @@ const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/customise.json", "ui/actions.
 // Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
 // from the Script Filter, with nothing in between: a Run Script or Conditional
 // there makes Alfred hide its window and fade the view in (see "Quick notes
-// and pinned notes" in DESIGN.md). So each note's quick bundle has to be ready
+// and sticky notes" in DESIGN.md). So each note's quick bundle has to be ready
 // before the results are shown.
 //
 // A bundle's fingerprint is a hash of everything it's built from: the note's
@@ -1745,7 +1745,7 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
 // New note, and new.js's results). Its arg is `bundle`, the quick view of the
 // new note (quickWindows' bundleForNew), which ↩ opens inside Alfred. ⌘'s arg
 // is the text itself, with the variable `new`, so open.js knows it isn't a
-// note's ID, and pins the new note. ⌥ and ⌃ do nothing: in the results list
+// note's ID, and sticks the new note. ⌥ and ⌃ do nothing: in the results list
 // their actions take a note's ID or path.
 function newNoteResult(title, subtitle, text, bundle) {
   const variables = { new: "1" };
@@ -1796,7 +1796,7 @@ function textHash(text) {
 
 const MARKDOWN_IT = "vendor/markdown-it/markdown-it.umd.min.js";
 
-// A note's view.html, from ui/view.html: `form` ("quick" or "pinned"),
+// A note's view.html, from ui/view.html: `form` ("quick" or "sticky"),
 // `fontSize` (points), and `noteVersion`, the version of the bundle's note.js
 // it was written with (the page uses it when its own URL has no ?v=).
 function notePageHtml({ workflowFolder, form, fontSize, noteVersion }, variable = workflowVariable) {
@@ -1822,7 +1822,7 @@ function notePageHtml({ workflowFolder, form, fontSize, noteVersion }, variable 
 
 // A note's note.js: its `text` for the page (null for a window that opens in
 // Edit, whose page shows nothing until it's switched to View) and the tint of
-// the colour named `colour`, for a pinned window's page.
+// the colour named `colour`, for a sticky window's page.
 function notePageScript(text, colour) {
   const tint = (notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR)).tint;
   return `window.NOTE = ${JSON.stringify(text)};\nwindow.NOTE_TINT = ${JSON.stringify(tint)};\n`;
@@ -1936,12 +1936,12 @@ function escapeHtml(text) {
 // Window state
 //
 // Each open window's state is in <cache>/state/<id>.json, { form, pid, mode }:
-// its form ("quick" or "pinned"), the process it runs in (its Alfred UI
-// helper's when pinned, Alfred's own when quick) and its mode ("edit" or
+// its form ("quick" or "sticky"), the process it runs in (its Alfred UI
+// helper's when sticky, Alfred's own when quick) and its mode ("edit" or
 // "view"). The window's `launched` event writes it, the Edit / View toggle
 // updates the mode, and `quit` removes it. A window whose process is killed
-// leaves its state behind, so a pinned note counts as open only while its
-// process is alive (pinnedNotePid).
+// leaves its state behind, so a sticky note counts as open only while its
+// process is alive (stickyNotePid).
 //
 // Beside it, <id>.picker holds the name of the window's open drop-down ("icon"
 // or "colour"), and exists only while one is open: it's written by
@@ -1984,24 +1984,24 @@ function closeNotePickerState(id, variable = workflowVariable) {
   return true;
 }
 
-// The process ID of the note's pinned window, or null if it has none: its
-// state says pinned, and that process is still an Alfred UI helper (so a
+// The process ID of the note's sticky window, or null if it has none: its
+// state says sticky, and that process is still an Alfred UI helper (so a
 // process ID reused by another app doesn't count).
-function pinnedNotePid(id, variable = workflowVariable) {
+function stickyNotePid(id, variable = workflowVariable) {
   const state = readNoteState(id, variable);
-  if (!state || state.form !== "pinned" || !Number.isInteger(state.pid)) return null;
+  if (!state || state.form !== "sticky" || !Number.isInteger(state.pid)) return null;
   const app = runningApp(state.pid);
   if (!app || app.isTerminated) return null;
   const executable = app.executableURL.isNil() ? "" : app.executableURL.path.js;
   return executable.endsWith("/Alfred UI") ? state.pid : null;
 }
 
-// The IDs of the notes that have a pinned window (see pinnedNotePid), from
+// The IDs of the notes that have a sticky window (see stickyNotePid), from
 // the state folder, listed once.
-function pinnedNoteIds(variable = workflowVariable) {
+function stickyNoteIds(variable = workflowVariable) {
   const names = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(noteStateFolder(variable), null)) || [];
   const ids = names.filter((name) => name.endsWith(".json")).map((name) => name.slice(0, -".json".length));
-  return new Set(ids.filter((id) => isNoteId(id) && pinnedNotePid(id, variable) !== null));
+  return new Set(ids.filter((id) => isNoteId(id) && stickyNotePid(id, variable) !== null));
 }
 
 // Brings the window of the Alfred UI process `pid` to the front.
@@ -2018,11 +2018,11 @@ function runningApp(pid) {
   return app.isNil() ? null : app;
 }
 
-// Ends the process of a note's pinned window, if it has one, without its
+// Ends the process of a note's sticky window, if it has one, without its
 // `quit` event, so nothing writes the note back (for moving it to the
 // Trash). Returns whether there was one.
-function closePinnedNoteWindow(id, variable = workflowVariable) {
-  const pid = pinnedNotePid(id, variable);
+function closeStickyNoteWindow(id, variable = workflowVariable) {
+  const pid = stickyNotePid(id, variable);
   if (pid === null) return false;
   runningApp(pid).forceTerminate;
   removeNoteState(id, variable);
@@ -2030,12 +2030,12 @@ function closePinnedNoteWindow(id, variable = workflowVariable) {
 }
 
 // Whether `id` is in use by a note that's open but may not be saved yet: it
-// has a pinned window bundle or a window state. For noteStore's newId. A
+// has a sticky window bundle or a window state. For noteStore's newId. A
 // quick bundle alone doesn't count: list.js writes one for each new note it
 // offers, and reuses its ID within the same second.
 function isNoteIdInUse(id, variable = workflowVariable) {
   const fm = $.NSFileManager.defaultManager;
-  return fm.fileExistsAtPath(noteBundlePath(id, "pinned", variable)) || fm.fileExistsAtPath(noteStatePath(id, variable));
+  return fm.fileExistsAtPath(noteBundlePath(id, "sticky", variable)) || fm.fileExistsAtPath(noteStatePath(id, variable));
 }
 
 // The clipboard's text, for a new note, or null if it has none worth offering:
@@ -2093,7 +2093,7 @@ function writeFileAtomically(path, text) {
 function writeDataAtomically(path, data) {
   const fm = $.NSFileManager.defaultManager;
   const folder = $(path).stringByDeletingLastPathComponent.js;
-  const temp = `${folder}/.scratchnotes-save-${$.NSUUID.UUID.UUIDString.js}.tmp`;
+  const temp = `${folder}/.scratchnstick-save-${$.NSUUID.UUID.UUIDString.js}.tmp`;
   if (!data.writeToFileAtomically(temp, false)) throw new Error(`Can't write ${temp}`);
   const error = $();
   let done = false;

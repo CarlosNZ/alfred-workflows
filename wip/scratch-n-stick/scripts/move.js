@@ -9,7 +9,7 @@
 // stops a Script Filter's run by signalling its whole process group, which
 // would stop the move with it. A keystroke before that stops it too, and the
 // next run starts it again. Then it takes the move lock, or exits if another
-// move holds it; closes the pinned windows, which saves their notes into the
+// move holds it; closes the sticky windows, which saves their notes into the
 // old folder; moves the notes (moveNotes); and records the new folder as the
 // one the notes are in. If the move fails, it records why, for the results
 // list to show, and the record still names the old folder, so the next run
@@ -30,7 +30,7 @@ function run(argv) {
   try {
     // Another move may have finished this one since it was started.
     if (readLastNotesFolder() !== from) return;
-    quitPinnedNoteWindows();
+    quitStickyNoteWindows();
     const result = moveNotes(from, to);
     writeLastNotesFolder(to);
     removeMoveFailure();

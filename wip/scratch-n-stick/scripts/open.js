@@ -1,21 +1,21 @@
 #!/usr/bin/osascript -l JavaScript
 
 // Opens a note in a window: argv[0] is the form, "quick" (inside Alfred's
-// window) or "pin" (its own window on the desktop), and argv[1] the note's ID,
+// window) or "stick" (its own window on the desktop), and argv[1] the note's ID,
 // or, with the variable `new` set to "1" (the New note result), the text a new
-// note starts with. After Pin in a quick view, or ↩ on a pinned note in the
-// results, the variable `pin_note` names the note instead (escaped as in its
-// window; see escapeForAlfredUi). After Pin, `pin_mode` is the quick view's
-// mode, which the pinned window opens in.
+// note starts with. After Stick in a quick view, or ↩ on a sticky note in the
+// results, the variable `stick_note` names the note instead (escaped as in its
+// window; see escapeForAlfredUi). After Stick, `stick_mode` is the quick view's
+// mode, which the sticky window opens in.
 //
 // It writes the note's window bundle (see "Note windows" in lib.js) and
 // prints it as the arg, for the Alfred UI object that follows, with the
-// variable `open_window` set to "1". If the note is already pinned, it brings
+// variable `open_window` set to "1". If the note is already sticky, it brings
 // that window to the front instead and leaves `open_window` empty, so the
 // Conditional after it stops, and a note is never open in two windows at once.
 //
-// The workflow runs it for pinning (⌘↩, and Pin in a quick view) and for ↩
-// on a pinned note. ↩ on any other note opens a quick bundle that list.js has
+// The workflow runs it for sticking (⌘↩, and Stick in a quick view) and for ↩
+// on a sticky note. ↩ on any other note opens a quick bundle that list.js has
 // already written (see quickWindows in lib.js); `open.js quick` writes one the
 // same way, for testing.
 //
@@ -32,34 +32,34 @@ ObjC.import("Foundation");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
-  const form = argv[0] === "pin" ? "pinned" : "quick";
+  const form = argv[0] === "stick" ? "sticky" : "quick";
   if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");
   const store = noteStore();
-  const pinNote = workflowVariable("pin_note");
-  const isNew = !pinNote && workflowVariable("new") === "1";
-  const id = pinNote ? unescapeFromAlfredUi(pinNote) : isNew ? store.newId({ isTaken: (id) => isNoteIdInUse(id) }) : argv[1] || "";
+  const stickNote = workflowVariable("stick_note");
+  const isNew = !stickNote && workflowVariable("new") === "1";
+  const id = stickNote ? unescapeFromAlfredUi(stickNote) : isNew ? store.newId({ isTaken: (id) => isNoteIdInUse(id) }) : argv[1] || "";
   if (!isNoteId(id)) throw new Error(`Not a note ID: ${JSON.stringify(id)}`);
 
-  const pid = pinnedNotePid(id);
+  const pid = stickyNotePid(id);
   if (pid !== null) {
     activateWindowProcess(pid);
     return output("");
   }
 
   const note = isNew ? null : store.read(id);
-  // A note that doesn't exist and isn't new is either a new note pinned from
-  // its quick view before anything was typed, or one that has gone since the
-  // results were shown; both open blank.
+  // A note that doesn't exist and isn't new is either a new note made sticky
+  // from its quick view before anything was typed, or one that has gone
+  // since the results were shown; both open blank.
   const text = isNew ? argv[1] || "" : note ? note.text : "";
-  const mode = pinNote ? workflowVariable("pin_mode") : "";
+  const mode = stickNote ? workflowVariable("stick_mode") : "";
   return output(writeNoteWindow({ store, workflowFolder, id, form, note, text, mode }));
 }
 
 // The output for the next objects: the bundle to open, if any, and the
 // variables, clearing those that chose the note, so they don't carry on to a
-// note pinned from the window this opens.
+// note made sticky from the window this opens.
 function output(bundle) {
-  return JSON.stringify({ alfredworkflow: { arg: bundle, variables: { open_window: bundle ? "1" : "", new: "", pin_note: "", pin_mode: "" } } });
+  return JSON.stringify({ alfredworkflow: { arg: bundle, variables: { open_window: bundle ? "1" : "", new: "", stick_note: "", stick_mode: "" } } });
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from

@@ -424,7 +424,7 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>script</key>
-				<string>./scripts/open.js pin "$1"</string>
+				<string>./scripts/open.js stick "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -446,7 +446,7 @@
 				<array>
 					<dict>
 						<key>inputstring</key>
-						<string>{var:pinned}</string>
+						<string>{var:sticky}</string>
 						<key>matchcasesensitive</key>
 						<false/>
 						<key>matchmode</key>
@@ -454,7 +454,7 @@
 						<key>matchstring</key>
 						<string>1</string>
 						<key>outputlabel</key>
-						<string>Pinned</string>
+						<string>Sticky</string>
 						<key>uid</key>
 						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
 					</dict>
@@ -486,7 +486,7 @@
 						<key>matchstring</key>
 						<string>1</string>
 						<key>outputlabel</key>
-						<string>Open pinned window</string>
+						<string>Open sticky window</string>
 						<key>uid</key>
 						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0A</string>
 					</dict>

@@ -9,8 +9,8 @@ setopt err_return pipe_fail no_unset
 here=${0:A:h}
 workflow=${here:h}
 scripts=$workflow/scripts
-tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnotes-test.XXXXXX")
-trap '[[ $tmp == */scratchnotes-test.* ]] && rm -rf -- "$tmp"' EXIT
+tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnstick-test.XXXXXX")
+trap '[[ $tmp == */scratchnstick-test.* ]] && rm -rf -- "$tmp"' EXIT
 notes=$tmp/notes
 cache=$tmp/cache
 mkdir -p "$notes" "$cache"
@@ -66,7 +66,7 @@ page_note() {
 }
 # Sets the mode in a note's sidecar, as its window records it.
 note_mode() {
-  local sidecar=$notes/.scratchnotes/$1.json
+  local sidecar=$notes/.scratchnstick/$1.json
   if [[ -e $sidecar ]]; then plutil -replace mode -string "$2" "$sidecar"; else mkdir -p "${sidecar:h}"; print -rn -- "{\"mode\":\"$2\"}" > "$sidecar"; fi
 }
 
@@ -97,7 +97,7 @@ print -rn -- $'Vars: {var:x} and {const:y}\n' > "$notes/vars.md"
 bundle=$(open_note quick meeting)
 expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" "$cache/quick/meeting.alfredui"
 ui=$bundle/ui.json
-expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button actions:view toggle:button pin:button"
+expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button actions:view toggle:button stick:button"
 expect "quick: the root and content are stacks filling the window" "$(json $ui 'd.window.root.layout + " " + d.window.root.components[0].layout + " " + d.window.root.components[0].constraints.stretch')" "stack stack both"
 expect "quick: the icon and colour at the top left, the actions at the top right" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":6,"left":12} topright {"top":8,"right":10}'
 expect "quick: the web view shows view.html, from opacity 0, links in the browser" "$(json $ui '['$web'.src, '$web'.opacity, '$web'.openlinksexternally].join(" ")')" "view.html 0 true"
@@ -128,22 +128,22 @@ expect "page: note.js's version, for a load without ?v=" "$(grep -o '"?v=[0-9a-z
 expect "page: view.js is inlined, and every token filled" "$(grep -c 'function startNotePage' $html) $(grep -c '@[A-Za-z]*@' $html || true)" "1 0"
 expect "page: note.js has the tint" "$(page_note $bundle | json - d.NOTE_TINT)" "#FEF49C"
 
-# Pinned, with settings.
+# Sticky, with settings.
 note_mode meeting edit
-bundle=$(open_note font_size=17 pin meeting)
-expect "pinned: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
+bundle=$(open_note font_size=17 stick meeting)
+expect "sticky: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
 ui=$bundle/ui.json
-expect "pinned: the same layout, without Pin" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button actions:view toggle:button"
-expect "pinned: the icon and colour after the traffic lights, level with the actions" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":6,"left":82} topright {"top":8,"right":10}'
-expect "pinned: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FEF49C light"
-expect "pinned: ⌘E, ⌘↩, ⌘I, ⎋ and ⌘1-⌘6, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6"
-expect "pinned: the font size is a number" "$(json $ui 'typeof '$editor'.font.size + " " + '$editor'.font.size')" "number 17"
-expect "pinned: the editor's insets clear the top row" "$(json $ui ''$editor'.constraints.insets.top')" "34"
-expect "pinned: the page starts below the top row, so the window drags by the strip above" "$(json $ui '('$page').constraints.insets.top')" "28"
-expect "pinned: Edit (the sidecar's mode): the editor shown with the text and focus" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.focus, '$editor'.text].join(" ")')" $'false true # Team meeting\n- Ship it'
-expect "pinned: Edit: the page has no note, so it shows nothing" "$(page_text $bundle)" "null"
-expect "pinned: the page is pinned, at the font size, without the theme" "$(grep -c '<html class="pinned">' $bundle/view.html) $(grep -o 'font: [0-9]*px' $bundle/view.html) $(grep -o 'const theme = .*;' $bundle/view.html)" "1 font: 17px const theme = null;"
-expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 pin meeting)/context.json" 'd.fontSize')" "20"
+expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button actions:view toggle:button"
+expect "sticky: the icon and colour after the traffic lights, level with the actions" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":6,"left":82} topright {"top":8,"right":10}'
+expect "sticky: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FEF49C light"
+expect "sticky: ⌘E, ⌘↩, ⌘I, ⎋ and ⌘1-⌘6, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6"
+expect "sticky: the font size is a number" "$(json $ui 'typeof '$editor'.font.size + " " + '$editor'.font.size')" "number 17"
+expect "sticky: the editor's insets clear the top row" "$(json $ui ''$editor'.constraints.insets.top')" "34"
+expect "sticky: the page starts below the top row, so the window drags by the strip above" "$(json $ui '('$page').constraints.insets.top')" "28"
+expect "sticky: Edit (the sidecar's mode): the editor shown with the text and focus" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.focus, '$editor'.text].join(" ")')" $'false true # Team meeting\n- Ship it'
+expect "sticky: Edit: the page has no note, so it shows nothing" "$(page_text $bundle)" "null"
+expect "sticky: the page is sticky, at the font size, without the theme" "$(grep -c '<html class="sticky">' $bundle/view.html) $(grep -o 'font: [0-9]*px' $bundle/view.html) $(grep -o 'const theme = .*;' $bundle/view.html)" "1 font: 17px const theme = null;"
+expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 stick meeting)/context.json" 'd.fontSize')" "20"
 
 # Placeholders in a note's text are escaped in the window, but not in the page.
 note_mode vars edit
@@ -157,15 +157,15 @@ expect "the page's text keeps </script>, quotes and U+2028" "$(page_text "$(open
 # New notes.
 id1=$(basename "$(open_note new=1 quick 'Buy milk')" .alfredui)
 expect "a new note's ID is the time" "$id1" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]"
-# A new note that's open but not saved may have only its pinned bundle: an ID
+# A new note that's open but not saved may have only its sticky bundle: an ID
 # with one is taken. Bundles for the next few seconds' IDs make the next new
 # note -2.
 for s in {0..9}; do mkdir -p "$cache/windows/$(date -v+${s}S +%Y%m%d-%H%M%S).alfredui"; done
 id2=$(basename "$(open_note new=1 quick '')" .alfredui)
-expect "an ID whose pinned bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
+expect "an ID whose sticky bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
 expect "a new note opens in Edit with its text" "$(json $cache/quick/$id1.alfredui/ui.json '[Boolean('$editor'.hidden), '$editor'.text].join(" ")') $(page_text $cache/quick/$id1.alfredui)" "false Buy milk null"
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md script.md vars.md "
-expect "open.js sets open_window, clears new and pin_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","pin_note":"","pin_mode":""}'
+expect "open.js sets open_window, clears new and stick_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","stick_note":"","stick_mode":""}'
 
 # window.js: launched, save, toggle, edit, view, quit.
 bundle1=$cache/quick/$id1.alfredui
@@ -180,7 +180,7 @@ expect "toggle to View: hides the editor" "$(print -r -- $update | json - 'JSON.
 expect "toggle to View: reloads the page by its absolute URL, with a version" "$(print -r -- $update | json - 'Object.keys(d.update.ids.web).join(" ") + " " + d.update.ids.web.src')" "src file://$bundle1/view.html?v=*.*"
 expect "toggle to View: the page's note.js has the saved text" "$(page_text $bundle1)" "Buy oat milk"
 expect_exact "toggle to View: the button shows Edit" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip, d.update.ids.toggle.accessibility.label].join(" ")')" "$workflow/icons/lucide/pencil-light.svg Edit (⌘E) Edit"
-expect "toggle: the mode is in the state and the sidecar" "$(json $cache/state/$id1.json d.mode) $(json $notes/.scratchnotes/$id1.json d.mode)" "view view"
+expect "toggle: the mode is in the state and the sidecar" "$(json $cache/state/$id1.json d.mode) $(json $notes/.scratchnstick/$id1.json d.mode)" "view view"
 window_js save "$id1" quick "Buy oat"
 expect "save in View (typing stopped after the switch): nothing saved" "$(cat $notes/$id1.md)" "Buy oat milk"
 window_js quit "$id1" quick "Buy oat"
@@ -189,60 +189,60 @@ expect "quit removes the state" "$([[ -e $cache/state/$id1.json ]] && print ther
 expect "toggle with no state: nothing, and nothing saved" "$(window_js toggle "$id1" quick "") $(cat $notes/$id1.md)" " Buy oat milk"
 window_js save "$id1" quick ""
 expect "save with no state: blank text isn't saved" "$(cat $notes/$id1.md)" "Buy oat milk"
-bundle1=$(open_note pin "$id1")
-update=$(window_js launched "$id1" pinned view; window_js toggle "$id1" pinned "")
+bundle1=$(open_note stick "$id1")
+update=$(window_js launched "$id1" sticky view; window_js toggle "$id1" sticky "")
 expect "toggle to Edit: fades out the web view" "$(print -r -- $update | json - 'JSON.stringify(d.update.ids.web)')" '{"opacity":0}'
 expect "toggle to Edit: shows the editor with the file's text and focus" "$(print -r -- $update | json - '[d.update.ids.editor.hidden, d.update.ids.editor.focus, d.update.ids.editor.text].join(" ")')" "false true Buy oat milk"
 expect_exact "toggle to Edit: the button shows View" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip].join(" ")')" "$workflow/icons/lucide/eye-light.svg View (⌘E)"
-expect "edit in Edit: nothing" "$(window_js edit "$id1" pinned "")" ""
-update=$(window_js view "$id1" pinned "Buy oat milk!")
+expect "edit in Edit: nothing" "$(window_js edit "$id1" sticky "")" ""
+update=$(window_js view "$id1" sticky "Buy oat milk!")
 src1=$(print -r -- $update | json - d.update.ids.web.src)
 expect "view in Edit: saves, then reloads the page with the saved text" "$(cat $notes/$id1.md) $src1 $(page_text $bundle1) $(json $cache/state/$id1.json d.mode)" "Buy oat milk! file://$bundle1/view.html?v=* Buy oat milk! view"
-expect "view in View: nothing, and nothing saved" "$(window_js view "$id1" pinned "") $(cat $notes/$id1.md)" " Buy oat milk!"
-update=$(window_js edit "$id1" pinned "")
+expect "view in View: nothing, and nothing saved" "$(window_js view "$id1" sticky "") $(cat $notes/$id1.md)" " Buy oat milk!"
+update=$(window_js edit "$id1" sticky "")
 expect "edit in View: the editor with the file's text" "$(print -r -- $update | json - 'd.update.ids.editor.text') $(json $cache/state/$id1.json d.mode)" "Buy oat milk! edit"
-src2=$(window_js view "$id1" pinned "Buy oat milk!" | json - d.update.ids.web.src)
+src2=$(window_js view "$id1" sticky "Buy oat milk!" | json - d.update.ids.web.src)
 expect "view again with the same text: a new URL, so the page reloads" "$([[ $src1 != $src2 ]] && print different)" "different"
-window_js edit "$id1" pinned "" >/dev/null
-window_js quit "$id1" pinned "Buy oat milk and bread"
+window_js edit "$id1" sticky "" >/dev/null
+window_js quit "$id1" sticky "Buy oat milk and bread"
 expect "quit in Edit: saves" "$(cat $notes/$id1.md)" "Buy oat milk and bread"
-expect "quit records the window's mode in the sidecar" "$(json $notes/.scratchnotes/$id1.json d.mode)" "edit"
+expect "quit records the window's mode in the sidecar" "$(json $notes/.scratchnstick/$id1.json d.mode)" "edit"
 expect "the next open uses the remembered mode" "$(json "$(open_note quick $id1)/ui.json" 'Boolean('$editor'.hidden)')" "false"
 
 window_js launched "$id2" quick edit
 window_js quit "$id2" quick "  "
-expect "quit with a blank new note: nothing saved, no sidecar, bundle removed" "$(ls -A $notes $notes/.scratchnotes | grep -c $id2 || true) $([[ -e $cache/quick/$id2.alfredui ]] && print there || print gone)" "0 gone"
+expect "quit with a blank new note: nothing saved, no sidecar, bundle removed" "$(ls -A $notes $notes/.scratchnstick | grep -c $id2 || true) $([[ -e $cache/quick/$id2.alfredui ]] && print there || print gone)" "0 gone"
 id4=$(basename "$(open_note new=1 quick 'Never switched')" .alfredui)
 window_js launched "$id4" quick edit
 window_js quit "$id4" quick "Never switched"
-expect "quit of a new note never switched: Edit recorded, and it reopens in Edit" "$(json $notes/.scratchnotes/$id4.json d.mode) $(json "$(open_note quick $id4)/ui.json" 'Boolean('$editor'.hidden)')" "edit false"
+expect "quit of a new note never switched: Edit recorded, and it reopens in Edit" "$(json $notes/.scratchnstick/$id4.json d.mode) $(json "$(open_note quick $id4)/ui.json" 'Boolean('$editor'.hidden)')" "edit false"
 print -rn -- "From another app" > "$notes/elsewhere.md"
-expect "a note never open in a window opens in View, quick and pinned" "$(json "$(open_note quick elsewhere)/ui.json" 'Boolean('$editor'.hidden)') $(json "$(open_note pin elsewhere)/ui.json" 'Boolean('$editor'.hidden)')" "true true"
+expect "a note never open in a window opens in View, quick and sticky" "$(json "$(open_note quick elsewhere)/ui.json" 'Boolean('$editor'.hidden)') $(json "$(open_note stick elsewhere)/ui.json" 'Boolean('$editor'.hidden)')" "true true"
 window_js quit elsewhere quick ""
-expect "quit with no state: no mode recorded" "$(json $notes/.scratchnotes/elsewhere.json '"mode" in d')" "false"
+expect "quit with no state: no mode recorded" "$(json $notes/.scratchnstick/elsewhere.json '"mode" in d')" "false"
 
-# pin: Pin or ⌘P in a quick view saves before finishing, so the pin route
-# finds the text on disk without waiting for the view's quit, and the pinned
+# stick: Stick or ⌘P in a quick view saves before finishing, so the stick route
+# finds the text on disk without waiting for the view's quit, and the sticky
 # window carries on in the view's mode.
-id3=$(basename "$(open_note new=1 quick 'Pinned straight away')" .alfredui)
+id3=$(basename "$(open_note new=1 quick 'Sticky straight away')" .alfredui)
 window_js launched "$id3" quick edit
-pinbutton=$(byid pin)
-expect "quick: ⌘P and the Pin button run window.js pin with the editor's text" "$(json $cache/quick/$id3.alfredui/ui.json '[d.window.root.shortcuts.find(s => s.shortcut === "⌘P").action, ('$pinbutton').events[0].action].map(a => [a.src].concat(a.args).join(" ")).join(" | ")')" "$scripts/window.js pin $id3 quick {value:editor.text} | $scripts/window.js pin $id3 quick {value:editor.text}"
-finish=$(window_js pin "$id3" quick "Pinned straight away {${wj}var:x}")
-expect "pin in Edit: saves the editor's text, unescaped, before finishing" "$(cat $notes/$id3.md)" "Pinned straight away {var:x}"
-expect "pin: finishes with pin_note, the escaped ID, and pin_mode, the view's mode" "$(print -r -- $finish | json - 'JSON.stringify(d)')" '{"finish":{"variables":{"pin_note":"'$id3'","pin_mode":"edit"}}}'
-window_js quit "$id3" quick "Pinned straight away {${wj}var:x}"
-ui=$(open_note pin_note=$id3 pin_mode=edit pin '')/ui.json
-expect "pin: open.js pins the saved text, in Edit" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.text].join(" ")')" "false Pinned straight away {${wj}var:x}"
-expect "pin: without pin_mode, the pinned window opens in the sidecar's mode, recorded by quit" "$(json $notes/.scratchnotes/$id3.json d.mode) $(json "$(open_note pin_note=$id3 pin '')/ui.json" 'Boolean('$editor'.hidden)')" "edit false"
+stickbutton=$(byid stick)
+expect "quick: ⌘P and the Stick button run window.js stick with the editor's text" "$(json $cache/quick/$id3.alfredui/ui.json '[d.window.root.shortcuts.find(s => s.shortcut === "⌘P").action, ('$stickbutton').events[0].action].map(a => [a.src].concat(a.args).join(" ")).join(" | ")')" "$scripts/window.js stick $id3 quick {value:editor.text} | $scripts/window.js stick $id3 quick {value:editor.text}"
+finish=$(window_js stick "$id3" quick "Sticky straight away {${wj}var:x}")
+expect "stick in Edit: saves the editor's text, unescaped, before finishing" "$(cat $notes/$id3.md)" "Sticky straight away {var:x}"
+expect "stick: finishes with stick_note, the escaped ID, and stick_mode, the view's mode" "$(print -r -- $finish | json - 'JSON.stringify(d)')" '{"finish":{"variables":{"stick_note":"'$id3'","stick_mode":"edit"}}}'
+window_js quit "$id3" quick "Sticky straight away {${wj}var:x}"
+ui=$(open_note stick_note=$id3 stick_mode=edit stick '')/ui.json
+expect "stick: open.js sticks the saved text, in Edit" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.text].join(" ")')" "false Sticky straight away {${wj}var:x}"
+expect "stick: without stick_mode, the sticky window opens in the sidecar's mode, recorded by quit" "$(json $notes/.scratchnstick/$id3.json d.mode) $(json "$(open_note stick_note=$id3 stick '')/ui.json" 'Boolean('$editor'.hidden)')" "edit false"
 note_mode $id3 view
-expect "pin_mode only applies after Pin, with pin_note" "$(json "$(open_note pin_mode=edit pin $id3)/ui.json" 'Boolean('$editor'.hidden)')" "true"
-expect "pin_mode=view: a blank note still opens in Edit" "$(json "$(open_note pin_note=$id2 pin_mode=view pin '')/ui.json" 'Boolean('$editor'.hidden)')" "false"
-finish=$(window_js launched meeting quick view >/dev/null; window_js pin meeting quick "stale")
-expect "pin in View: nothing saved from the hidden editor, pin_mode view" "$(head -1 $notes/meeting.md) $(print -r -- $finish | json - d.finish.variables.pin_mode)" "# Team meeting view"
+expect "stick_mode only applies after Stick, with stick_note" "$(json "$(open_note stick_mode=edit stick $id3)/ui.json" 'Boolean('$editor'.hidden)')" "true"
+expect "stick_mode=view: a blank note still opens in Edit" "$(json "$(open_note stick_note=$id2 stick_mode=view stick '')/ui.json" 'Boolean('$editor'.hidden)')" "false"
+finish=$(window_js launched meeting quick view >/dev/null; window_js stick meeting quick "stale")
+expect "stick in View: nothing saved from the hidden editor, stick_mode view" "$(head -1 $notes/meeting.md) $(print -r -- $finish | json - d.finish.variables.stick_mode)" "# Team meeting view"
 window_js quit meeting quick ""
-window_js launched "$id3" quick edit >/dev/null; window_js toggle "$id3" quick "Pinned straight away" >/dev/null; window_js quit "$id3" quick ""
-expect "pin: the view's mode carries over, not the sidecar's" "$(json $notes/.scratchnotes/$id3.json d.mode) $(json "$(open_note pin_note=$id3 pin_mode=edit pin '')/ui.json" 'Boolean('$editor'.hidden)')" "view false"
+window_js launched "$id3" quick edit >/dev/null; window_js toggle "$id3" quick "Sticky straight away" >/dev/null; window_js quit "$id3" quick ""
+expect "stick: the view's mode carries over, not the sidecar's" "$(json $notes/.scratchnstick/$id3.json d.mode) $(json "$(open_note stick_note=$id3 stick_mode=edit stick '')/ui.json" 'Boolean('$editor'.hidden)')" "view false"
 
 # launched in a quick view: the note as it is now, if it changed after its
 # bundle was written.
@@ -261,62 +261,62 @@ window_js quit meeting quick $'# Team meeting\n- Ship it now {'$wj'var:x}'
 print -rn -- $'# Team meeting\n- Ship it today\n' > "$notes/meeting.md"
 
 # quit with another form's state: a quick view that handed over to the note's
-# pinned window leaves the note and the pinned window's state alone.
-print -r -- '{"form":"pinned","pid":1,"mode":"edit"}' > $cache/state/meeting.json
+# sticky window leaves the note and the sticky window's state alone.
+print -r -- '{"form":"sticky","pid":1,"mode":"edit"}' > $cache/state/meeting.json
 window_js quit meeting quick "stale text"
-expect "quit with the other form's state: no save, state kept" "$(head -1 $notes/meeting.md) $(json $cache/state/meeting.json d.form)" "# Team meeting pinned"
+expect "quit with the other form's state: no save, state kept" "$(head -1 $notes/meeting.md) $(json $cache/state/meeting.json d.form)" "# Team meeting sticky"
 rm $cache/state/meeting.json
 
 window_js launched meeting quick edit >/dev/null
 window_js quit meeting quick ""
-expect "quit with an existing note emptied: deleted with its sidecar" "$(ls -A $notes | grep -c meeting || true) $(ls -A $notes/.scratchnotes | grep -c meeting || true)" "0 0"
+expect "quit with an existing note emptied: deleted with its sidecar" "$(ls -A $notes | grep -c meeting || true) $(ls -A $notes/.scratchnstick | grep -c meeting || true)" "0 0"
 
 # Ticking task boxes in View.
 tasks=$'# Tasks\n- [ ] one\n- [x] two\n1. [ ] three\n> * [X] quoted\n  - [ ] nested\nnot a task\n'
 print -rn -- $tasks > "$notes/tasks.md"
-bundle=$(open_note pin tasks)
-window_js launched tasks pinned view
+bundle=$(open_note stick tasks)
+window_js launched tasks sticky view
 line() { sed -n "$(( $1 + 1 ))p" $notes/tasks.md }
-expect_exact "tick: ticks the line, prints nothing" "$(window_js tick tasks pinned 1 x) $(line 1)" " - [x] one"
+expect_exact "tick: ticks the line, prints nothing" "$(window_js tick tasks sticky 1 x) $(line 1)" " - [x] one"
 expect_exact "tick: the page's note.js follows, so a reload shows it" "$(page_text $bundle | sed -n 2p)" "- [x] one"
-expect_exact "untick" "$(window_js tick tasks pinned 2 o) $(line 2)" " - [ ] two"
-expect_exact "tick a numbered task" "$(window_js tick tasks pinned 3 x) $(line 3)" " 1. [x] three"
-expect_exact "untick a quoted task with [X]" "$(window_js tick tasks pinned 4 o) $(line 4)" " > * [ ] quoted"
-expect_exact "tick a nested task" "$(window_js tick tasks pinned 5 x) $(line 5)" "   - [x] nested"
+expect_exact "untick" "$(window_js tick tasks sticky 2 o) $(line 2)" " - [ ] two"
+expect_exact "tick a numbered task" "$(window_js tick tasks sticky 3 x) $(line 3)" " 1. [x] three"
+expect_exact "untick a quoted task with [X]" "$(window_js tick tasks sticky 4 o) $(line 4)" " > * [ ] quoted"
+expect_exact "tick a nested task" "$(window_js tick tasks sticky 5 x) $(line 5)" "   - [x] nested"
 before=$(cat $notes/tasks.md)
-update=$(window_js tick tasks pinned 6 x)
+update=$(window_js tick tasks sticky 6 x)
 expect "tick a line that isn't a task: reloads the page, note unchanged" "$(print -r -- $update | json - d.update.ids.web.src) $([[ $(cat $notes/tasks.md) == $before ]] && print unchanged)" "file://$bundle/view.html?v=* unchanged"
-update=$(window_js tick tasks pinned 1 x)
+update=$(window_js tick tasks sticky 1 x)
 expect "tick a task that's already ticked: reloads the page" "$(print -r -- $update | json - d.update.ids.web.src) $(line 1)" "file://$bundle/view.html?v=* - \\[x\\] one"
 print -rn -- $'# Tasks\n- [ ] one, changed elsewhere\n- [ ] two\n' > "$notes/tasks.md"
-update=$(window_js tick tasks pinned 2 x)
+update=$(window_js tick tasks sticky 2 x)
 expect "tick with the note changed under the page: reloads it, note unchanged" "$(print -r -- $update | json - d.update.ids.web.src) $(line 2) $(page_text $bundle | sed -n 2p)" "file://$bundle/view.html?v=* - \\[ \\] two - \\[ \\] one, changed elsewhere"
-expect_exact "tick after that reload: ticks" "$(window_js tick tasks pinned 2 x) $(line 2)" " - [x] two"
-expect "tick out of range: reloads the page" "$(window_js tick tasks pinned 99 x | json - 'd.update.ids.web.src')" "file://$bundle/view.html?v=*"
-window_js toggle tasks pinned "" >/dev/null
-expect_exact "tick in Edit: nothing" "$(window_js tick tasks pinned 1 x) $(line 1)" " - [ ] one, changed elsewhere"
-window_js quit tasks pinned "$(cat $notes/tasks.md)"
-expect_exact "tick with no state: nothing" "$(window_js tick tasks pinned 1 x) $(line 1)" " - [ ] one, changed elsewhere"
+expect_exact "tick after that reload: ticks" "$(window_js tick tasks sticky 2 x) $(line 2)" " - [x] two"
+expect "tick out of range: reloads the page" "$(window_js tick tasks sticky 99 x | json - 'd.update.ids.web.src')" "file://$bundle/view.html?v=*"
+window_js toggle tasks sticky "" >/dev/null
+expect_exact "tick in Edit: nothing" "$(window_js tick tasks sticky 1 x) $(line 1)" " - [ ] one, changed elsewhere"
+window_js quit tasks sticky "$(cat $notes/tasks.md)"
+expect_exact "tick with no state: nothing" "$(window_js tick tasks sticky 1 x) $(line 1)" " - [ ] one, changed elsewhere"
 
 # changed.sh: the web view's changed event.
 print -rn -- $'- [ ] a\n- [ ] b\n' > "$notes/tasks.md"
-bundle=$(open_note pin tasks)
-window_js launched tasks pinned view
+bundle=$(open_note stick tasks)
+window_js launched tasks sticky view
 url=$(fileurl() { osascript -l JavaScript -e 'ObjC.import("Foundation"); function run(argv) { return $.NSURL.fileURLWithPath(argv[0]).absoluteString.js; }' "$1" }; fileurl $bundle/view.html)
-expect "changed: the page starting to load: nothing" "$(changed "$url" tasks pinned)" ""
-expect "changed: a reload: nothing" "$(changed "$url?v=abc.def" tasks pinned)" ""
+expect "changed: the page starting to load: nothing" "$(changed "$url" tasks sticky)" ""
+expect "changed: a reload: nothing" "$(changed "$url?v=abc.def" tasks sticky)" ""
 expect "changed: ready, quick: shows the web view at its opacity" "$(changed "$url?v=1#ready-0.8-1" tasks quick)" '{"update":{"ids":{"web":{"opacity":0.8}}}}'
-expect "changed: ready, pinned: at full opacity" "$(changed "$url#ready-1-3" tasks pinned)" '{"update":{"ids":{"web":{"opacity":1}}}}'
-expect "changed: ready with an opacity that isn't one: nothing" "$(changed "$url#ready-2-1" tasks pinned)$(changed "$url#ready-0.8" tasks pinned)$(changed "$url#ready-x-1" tasks pinned)" ""
-window_js toggle tasks pinned "" >/dev/null
-expect "changed: ready in Edit (a page that finished loading after ⌘E): nothing" "$(changed "$url?v=1#ready-1-1" tasks pinned)" ""
+expect "changed: ready, sticky: at full opacity" "$(changed "$url#ready-1-3" tasks sticky)" '{"update":{"ids":{"web":{"opacity":1}}}}'
+expect "changed: ready with an opacity that isn't one: nothing" "$(changed "$url#ready-2-1" tasks sticky)$(changed "$url#ready-0.8" tasks sticky)$(changed "$url#ready-x-1" tasks sticky)" ""
+window_js toggle tasks sticky "" >/dev/null
+expect "changed: ready in Edit (a page that finished loading after ⌘E): nothing" "$(changed "$url?v=1#ready-1-1" tasks sticky)" ""
 expect "changed: ready in Edit, but the state is another form's: shown" "$(changed "$url?v=1#ready-1-1" tasks quick)" '{"update":{"ids":{"web":{"opacity":1}}}}'
-window_js toggle tasks pinned "$(cat $notes/tasks.md)" >/dev/null
+window_js toggle tasks sticky "$(cat $notes/tasks.md)" >/dev/null
 expect "changed: ready with no state (a window opening in View): shown" "$(changed "$url#ready-0.8-1" palette quick)" '{"update":{"ids":{"web":{"opacity":0.8}}}}'
-expect_exact "changed: a tick: ticks the note through window.js" "$(changed "$url?v=1#t-1-x-2" tasks pinned) $(line 1)" " - [x] b"
-expect_exact "changed: a tick that doesn't parse: nothing" "$(changed "$url#t-0-q-2" tasks pinned)$(changed "$url#t--x-2" tasks pinned) $(line 0)" " - [ ] a"
-expect "changed: another fragment: nothing" "$(changed "$url#t" tasks pinned)$(changed "$url#n-hello" tasks pinned)" ""
-window_js quit tasks pinned ""
+expect_exact "changed: a tick: ticks the note through window.js" "$(changed "$url?v=1#t-1-x-2" tasks sticky) $(line 1)" " - [x] b"
+expect_exact "changed: a tick that doesn't parse: nothing" "$(changed "$url#t-0-q-2" tasks sticky)$(changed "$url#t--x-2" tasks sticky) $(line 0)" " - [ ] a"
+expect "changed: another fragment: nothing" "$(changed "$url#t" tasks sticky)$(changed "$url#n-hello" tasks sticky)" ""
+window_js quit tasks sticky ""
 
 # The page's task rule, with the vendored markdown-it in JXA, and window.js's
 # task line agreeing with it.
@@ -348,12 +348,12 @@ picker() { env alfred_workflow_cache=$cache "$scripts/picker.sh" "$@" }
 image='(b => b.image.type === "file" ? b.image.src.replace(/^.*\/icons\//, "icons/") + " " + b.image.size.width + "x" + b.image.size.height : b.image.type + " " + b.image.src)'
 # A drop-down's buttons (in a ui.json, or a replace action's picker), one per
 # line: id | bordered | image | tooltip | accessibility label | the script's
-# arguments (a pinned colour's tint update first).
+# arguments (a sticky colour's tint update first).
 buttons_of() { print -r -- '(function find(c) { if (c.id === "'$1'") return c; for (const x of c.components || []) { const f = find(x); if (f) return f; } })(d.window ? d.window.root : d.replace.ids.'${1%box}').components.flatMap(r => r.components).map(b => [b.id, b.bordered, '$image'(b), b.tooltip, b.accessibility.label, [].concat(b.events[0].action).map(a => a.type === "json" ? a.src.update.ids.note.background : a.args.join(" ")).join(" | ")].join(" | ")).join("\n")' }
 buttons=$(buttons_of iconpickerbox)
 # The colour picker's swatches, one per line: id | its mark's background (or
 # -) | bordered | symbol and font size | tint | tooltip | accessibility label |
-# the script's arguments (a pinned colour's tint update first).
+# the script's arguments (a sticky colour's tint update first).
 colours='(function find(c) { if (c.id === "colourpickerbox") return c; for (const x of c.components || []) { const f = find(x); if (f) return f; } })(d.window ? d.window.root : d.replace.ids.colourpicker).components.flatMap(r => r.components).map(m => { const b = m.components[0]; return [b.id, m.background || "-", b.bordered, b.image.type + " " + b.image.src + " " + b.font.size, b.contenttintcolour, b.tooltip, b.accessibility.label, [].concat(b.events[0].action).map(a => a.type === "json" ? a.src.update.ids.note.background : a.args.join(" ")).join(" | ")].join(" | "); }).join("\n")'
 iconpickerv=$(byid iconpicker)
 iconpickerbox=$(byid iconpickerbox)
@@ -376,43 +376,43 @@ expect "the colour picker's shadow is an image its size, which exists" "$(json $
 expect_exact "quick: the colour picker's swatches, borderless, the note's colour marked, each running window.js colour" "$(json $ui $colours)" $'colour-yellow | unemphasizedSelectedContentBackgroundColor | false | symbol circle.fill 14 | #DBC503 | Yellow (⌘1) | Yellow | colour palette quick yellow\ncolour-blue | - | false | symbol circle.fill 14 | #24D0E9 | Blue (⌘2) | Blue | colour palette quick blue\ncolour-green | - | false | symbol circle.fill 14 | #51BB51 | Green (⌘3) | Green | colour palette quick green\ncolour-pink | - | false | symbol circle.fill 14 | #F87F7F | Pink (⌘4) | Pink | colour palette quick pink\ncolour-purple | - | false | symbol circle.fill 14 | #7D9BEB | Purple (⌘5) | Purple | colour palette quick purple\ncolour-grey | - | false | symbol circle.fill 14 | #A8A8A8 | Grey (⌘6) | Grey | colour palette quick grey'
 expect "the colour picker: each swatch and its mark 25 pt, the mark rounded" "$(json $ui '[...new Set(('$colourpickerbox').components.flatMap(r => r.components).map(m => [JSON.stringify(m.constraints.size), JSON.stringify(m.components[0].constraints.size), m.cornerradius].join(" ")))].join(", ")')" '{"width":25,"height":25} {"width":25,"height":25} 5'
 expect "quick: ⌘2 runs window.js colour blue" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⌘2").action.args.join(" ")')" "colour palette quick blue"
-ui=$(open_note pin palette)/ui.json
-expect_exact "pinned: a colour's button updates the tint, then runs window.js" "$(json $ui $colours | sed -n 4p)" "colour-pink | - | false | symbol circle.fill 14 | #F87F7F | Pink (⌘4) | Pink | #FFC7C7 | colour palette pinned pink"
-expect "pinned: ⌘6 updates the tint, then runs window.js" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⌘6").action.map(a => a.type === "json" ? a.src.update.ids.note.background : a.args.join(" ")).join(" | ")')" "#EEEEEE | colour palette pinned grey"
-expect "default_colour sets a note's colour when it has none" "$(json "$(open_note default_colour=purple pin palette)/ui.json" 'd.window.root.background') $(json $cache/windows/palette.alfredui/context.json d.colour) $(page_note $cache/windows/palette.alfredui | json - d.NOTE_TINT)" "#B6CAFF purple #B6CAFF"
-expect "an unknown default_colour is yellow" "$(json "$(open_note default_colour=orange pin palette)/ui.json" 'd.window.root.background')" "#FEF49C"
-print -r -- '{"colour":"green"}' > $notes/.scratchnotes/palette.json
-expect "a note's own colour wins over default_colour" "$(json "$(open_note default_colour=purple pin palette)/ui.json" 'd.window.root.background')" "#B2FFA1"
-print -r -- '{"colour":"orange"}' > $notes/.scratchnotes/palette.json
-expect "a note's unknown colour gets default_colour" "$(json "$(open_note default_colour=pink pin palette)/ui.json" 'd.window.root.background')" "#FFC7C7"
-rm $notes/.scratchnotes/palette.json
+ui=$(open_note stick palette)/ui.json
+expect_exact "sticky: a colour's button updates the tint, then runs window.js" "$(json $ui $colours | sed -n 4p)" "colour-pink | - | false | symbol circle.fill 14 | #F87F7F | Pink (⌘4) | Pink | #FFC7C7 | colour palette sticky pink"
+expect "sticky: ⌘6 updates the tint, then runs window.js" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⌘6").action.map(a => a.type === "json" ? a.src.update.ids.note.background : a.args.join(" ")).join(" | ")')" "#EEEEEE | colour palette sticky grey"
+expect "default_colour sets a note's colour when it has none" "$(json "$(open_note default_colour=purple stick palette)/ui.json" 'd.window.root.background') $(json $cache/windows/palette.alfredui/context.json d.colour) $(page_note $cache/windows/palette.alfredui | json - d.NOTE_TINT)" "#B6CAFF purple #B6CAFF"
+expect "an unknown default_colour is yellow" "$(json "$(open_note default_colour=orange stick palette)/ui.json" 'd.window.root.background')" "#FEF49C"
+print -r -- '{"colour":"green"}' > $notes/.scratchnstick/palette.json
+expect "a note's own colour wins over default_colour" "$(json "$(open_note default_colour=purple stick palette)/ui.json" 'd.window.root.background')" "#B2FFA1"
+print -r -- '{"colour":"orange"}' > $notes/.scratchnstick/palette.json
+expect "a note's unknown colour gets default_colour" "$(json "$(open_note default_colour=pink stick palette)/ui.json" 'd.window.root.background')" "#FFC7C7"
+rm $notes/.scratchnstick/palette.json
 
-bundle=$(open_note pin palette)
-expect "colour with no state: nothing, and nothing recorded" "$(window_js colour palette pinned blue) $([[ -e $notes/.scratchnotes/palette.json ]] && json $notes/.scratchnotes/palette.json 'd.colour || "none"' || print none)" " none"
-window_js launched palette pinned view
-picker toggle palette pinned colour >/dev/null
-action=$(window_js colour palette pinned blue)
-expect "colour: recorded in the sidecar and the window's context" "$(json $notes/.scratchnotes/palette.json d.colour) $(json $bundle/context.json d.colour)" "blue blue"
+bundle=$(open_note stick palette)
+expect "colour with no state: nothing, and nothing recorded" "$(window_js colour palette sticky blue) $([[ -e $notes/.scratchnstick/palette.json ]] && json $notes/.scratchnstick/palette.json 'd.colour || "none"' || print none)" " none"
+window_js launched palette sticky view
+picker toggle palette sticky colour >/dev/null
+action=$(window_js colour palette sticky blue)
+expect "colour: recorded in the sidecar and the window's context" "$(json $notes/.scratchnstick/palette.json d.colour) $(json $bundle/context.json d.colour)" "blue blue"
 expect "colour: replaces the customise group and the colour picker, leaving the actions (and the mode) alone" "$(print -r -- $action | json - 'Object.keys(d.replace.ids).join(" ")')" "customise colourpicker"
 expect "colour: the swatch shows the new colour, and the picker marks it, hidden" "$(print -r -- $action | json - '('$colourbtn').contenttintcolour + " " + d.replace.ids.colourpicker.hidden') $(print -r -- $action | json - $colours | grep '| unemphasizedSelectedContentBackgroundColor |' | cut -d'|' -f1)" "#24D0E9 true colour-blue "
 expect "colour: closes the open picker" "$(print -r -- $action | json - '[d.update.ids.iconpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/palette.picker ]] && print open || print closed)" "true true closed"
-expect "colour, pinned in View: reloads the page with the new tint" "$(print -r -- $action | json - 'd.update.ids.web.src') $(page_note $bundle | json - d.NOTE_TINT)" "file://$bundle/view.html?v=* #ADF4FF"
-window_js toggle palette pinned "" >/dev/null
-expect "colour, pinned in Edit: no reload" "$(window_js colour palette pinned green | json - 'String(d.update.ids.web)')" "undefined"
-window_js toggle palette pinned "Palette" >/dev/null
+expect "colour, sticky in View: reloads the page with the new tint" "$(print -r -- $action | json - 'd.update.ids.web.src') $(page_note $bundle | json - d.NOTE_TINT)" "file://$bundle/view.html?v=* #ADF4FF"
+window_js toggle palette sticky "" >/dev/null
+expect "colour, sticky in Edit: no reload" "$(window_js colour palette sticky green | json - 'String(d.update.ids.web)')" "undefined"
+window_js toggle palette sticky "Palette" >/dev/null
 expect "the switch to View gives the page the new tint" "$(page_note $bundle | json - d.NOTE_TINT)" "#B2FFA1"
 expect "the note's next window has its colour" "$(json "$(open_note quick palette)/ui.json" '('$colourbtn').contenttintcolour')" "#51BB51"
-expect "colour: an unknown colour is an error" "$(window_js colour palette pinned orange 2>&1 >/dev/null | grep -c 'Unknown colour')" "1"
-window_js quit palette pinned ""
+expect "colour: an unknown colour is an error" "$(window_js colour palette sticky orange 2>&1 >/dev/null | grep -c 'Unknown colour')" "1"
+window_js quit palette sticky ""
 window_js launched palette quick view
 expect "colour, quick in View: no reload (the page has no tint)" "$(window_js colour palette quick blue | json - 'String(d.update.ids.web)')" "undefined"
 window_js quit palette quick ""
 new=$(basename "$(open_note new=1 quick '')" .alfredui)
 window_js launched "$new" quick edit
 window_js colour "$new" quick pink >/dev/null
-expect "colour on a new note before it's saved: recorded" "$(json $notes/.scratchnotes/$new.json d.colour)" "pink"
+expect "colour on a new note before it's saved: recorded" "$(json $notes/.scratchnstick/$new.json d.colour)" "pink"
 window_js quit "$new" quick ""
-expect "a new note closed blank: its sidecar goes too" "$(ls -A $notes/.scratchnotes | grep -c $new || true)" "0"
+expect "a new note closed blank: its sidecar goes too" "$(ls -A $notes/.scratchnstick | grep -c $new || true)" "0"
 
 # Icons.
 print -rn -- $'Icons\n' > "$notes/icons.md"
@@ -431,10 +431,10 @@ expect_exact "the icon picker: None first, bordered for a note without an icon" 
 expect_exact "the icon picker: an icon's button icon, light without a theme, at 20 pt" "$(json $ui $buttons | sed -n 2p)" "icon-sticky-note | false | icons/lucide/sticky-note-light.svg 20x20 | Note | Note | icon icons quick sticky-note"
 expect_exact "the icon picker: the icons in order, none of them bordered" "$(json $ui $buttons | tail -n +2 | cut -d'|' -f1,2 | tr -d ' ' | tr '\n' ' ')" "icon-sticky-note|false icon-list-todo|false icon-shopping-cart|false icon-lightbulb|false icon-book-open|false icon-bookmark|false icon-briefcase|false icon-calendar|false icon-phone|false icon-users|false icon-house|false icon-utensils|false icon-plane|false icon-gift|false icon-wallet|false icon-code|false icon-music|false icon-heart|false icon-star|false icon-flag|false "
 expect "every file the window names exists" "$(missing_files $ui)" ""
-expect "no icon: a pinned window's app icon is ScratchNotes'" "$(json "$(open_note pin icons)/ui.json" d.iconpath)" "$workflow/ui/appicon.png"
+expect "no icon: a sticky window's app icon is Scratch'n'Stick's" "$(json "$(open_note stick icons)/ui.json" d.iconpath)" "$workflow/ui/appicon.png"
 
 # The quick view's button icons follow the appearance Alfred gives its window: a
-# theme's own appearanceMode, or else its background colour. Pinned windows are
+# theme's own appearanceMode, or else its background colour. Sticky windows are
 # always light.
 mkdir -p $tmp/prefs/themes/light2dark $tmp/prefs/themes/dark2light $tmp/prefs/themes/plain
 print -r -- '{"alfredtheme":{"appearanceMode":2,"window":{"color":"#FFFFFF0A"}}}' > $tmp/prefs/themes/light2dark/theme.json
@@ -448,50 +448,50 @@ expect "button icons: a theme's appearanceMode 1 wins over a dark colour" "$(app
 expect "button icons: a theme without one goes by its colour" "$(appearance_of alfred_preferences=$tmp/prefs alfred_theme=plain alfred_theme_background='rgba(16,16,16,1.00)')" "dark"
 expect "button icons: a missing theme goes by its colour" "$(appearance_of alfred_preferences=$tmp/prefs alfred_theme=gone alfred_theme_background='rgba(16,16,16,1.00)')" "dark"
 expect "button icons: the dark button icons in a dark quick view's picker" "$(json $cache/quick/icons.alfredui/ui.json $buttons | sed -n 2p | cut -d'|' -f3)" " icons/lucide/sticky-note-dark.svg 20x20 "
-expect "button icons: a pinned window's are light, whatever the theme" "$(json "$(open_note alfred_theme_background='rgba(16,16,16,1.00)' pin icons)/context.json" d.appearance)" "light"
+expect "button icons: a sticky window's are light, whatever the theme" "$(json "$(open_note alfred_theme_background='rgba(16,16,16,1.00)' stick icons)/context.json" d.appearance)" "light"
 
 # Opening and closing the drop-downs, and choosing an icon.
 bundle=$cache/windows/icons.alfredui
-expect "picker with no state: nothing; Esc closes the window" "$(picker toggle icons pinned icon)|$(picker close icons pinned)|$(picker escape icons pinned)" '||{"finish":{}}'
-expect "icon with no state: nothing, and nothing recorded" "$(window_js icon icons pinned star) $([[ -e $notes/.scratchnotes/icons.json ]] && json $notes/.scratchnotes/icons.json 'd.icon || "none"' || print none)" " none"
-window_js launched icons pinned edit
-expect_exact "toggle icon: shows the icon picker and the catcher" "$(picker toggle icons pinned icon) $(<$cache/state/icons.picker)" "$OPEN_ICON icon"
-expect_exact "toggle colour with the icon picker open: switches to the colour picker" "$(picker toggle icons pinned colour) $(<$cache/state/icons.picker)" "$OPEN_COLOUR colour"
-expect_exact "toggle colour again: closes it" "$(picker toggle icons pinned colour) $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "$CLOSED closed"
-picker toggle icons pinned icon >/dev/null
-expect_exact "a click elsewhere (the catcher): closes the open picker" "$(picker close icons pinned) $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "$CLOSED closed"
-expect_exact "a click elsewhere with none open: nothing" "$(picker close icons pinned)" ""
-picker toggle icons pinned icon >/dev/null
-expect_exact "Esc with a picker open: closes it, not the window" "$(picker escape icons pinned)" "$CLOSED"
-expect_exact "Esc with none open: closes the window" "$(picker escape icons pinned)" '{"finish":{}}'
+expect "picker with no state: nothing; Esc closes the window" "$(picker toggle icons sticky icon)|$(picker close icons sticky)|$(picker escape icons sticky)" '||{"finish":{}}'
+expect "icon with no state: nothing, and nothing recorded" "$(window_js icon icons sticky star) $([[ -e $notes/.scratchnstick/icons.json ]] && json $notes/.scratchnstick/icons.json 'd.icon || "none"' || print none)" " none"
+window_js launched icons sticky edit
+expect_exact "toggle icon: shows the icon picker and the catcher" "$(picker toggle icons sticky icon) $(<$cache/state/icons.picker)" "$OPEN_ICON icon"
+expect_exact "toggle colour with the icon picker open: switches to the colour picker" "$(picker toggle icons sticky colour) $(<$cache/state/icons.picker)" "$OPEN_COLOUR colour"
+expect_exact "toggle colour again: closes it" "$(picker toggle icons sticky colour) $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "$CLOSED closed"
+picker toggle icons sticky icon >/dev/null
+expect_exact "a click elsewhere (the catcher): closes the open picker" "$(picker close icons sticky) $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "$CLOSED closed"
+expect_exact "a click elsewhere with none open: nothing" "$(picker close icons sticky)" ""
+picker toggle icons sticky icon >/dev/null
+expect_exact "Esc with a picker open: closes it, not the window" "$(picker escape icons sticky)" "$CLOSED"
+expect_exact "Esc with none open: closes the window" "$(picker escape icons sticky)" '{"finish":{}}'
 expect "picker with another form's state: nothing" "$(picker toggle icons quick icon)" ""
-expect "picker toggle without a picker's name: an error" "$(picker toggle icons pinned || print failed $?)" "failed 1"
-picker toggle icons pinned icon >/dev/null
-action=$(window_js icon icons pinned shopping-cart)
+expect "picker toggle without a picker's name: an error" "$(picker toggle icons sticky || print failed $?)" "failed 1"
+picker toggle icons sticky icon >/dev/null
+action=$(window_js icon icons sticky shopping-cart)
 expect "icon: every file the replace names exists" "$(print -r -- $action | missing_files -)" ""
-expect "icon: recorded in the sidecar and the window's context" "$(json $notes/.scratchnotes/icons.json d.icon) $(json $bundle/context.json d.icon)" "shopping-cart shopping-cart"
+expect "icon: recorded in the sidecar and the window's context" "$(json $notes/.scratchnstick/icons.json d.icon) $(json $bundle/context.json d.icon)" "shopping-cart shopping-cart"
 expect "icon: replaces the customise group and the icon picker, and hides the rest" "$(print -r -- $action | json - 'Object.keys(d.replace.ids).join(" ") + " " + JSON.stringify(d.update.ids)')" 'customise iconpicker {"colourpicker":{"hidden":true},"pickercatcher":{"hidden":true}}'
-expect "icon: the icon button shows its button icon, light in a pinned window" "$(print -r -- $action | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
+expect "icon: the icon button shows its button icon, light in a sticky window" "$(print -r -- $action | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
 expect "icon: the icon picker marks it, and comes back hidden" "$(print -r -- $action | json - 'd.replace.ids.iconpicker.hidden') $(print -r -- $action | json - $buttons | grep '| true |' | cut -d'|' -f1)" "true icon-shopping-cart "
 expect "icon: the picker closed in the state" "$([[ -e $cache/state/icons.picker ]] && print open || print closed)" "closed"
 expect "icon: the window's actions make no badge (only open.js does, for the app icon)" "$(ls $cache/icons 2>/dev/null | grep -c badge-shopping-cart || true)" "0"
-expect "icon: the next pinned window's app icon is its badge in its colour, made in the cache" "$(json "$(open_note pin icons)/ui.json" d.iconpath)" "$cache/icons/badge-shopping-cart-FEF49C-DBC503-1.72.0-*.svg"
+expect "icon: the next sticky window's app icon is its badge in its colour, made in the cache" "$(json "$(open_note stick icons)/ui.json" d.iconpath)" "$cache/icons/badge-shopping-cart-FEF49C-DBC503-1.72.0-*.svg"
 expect "icon: the next window's icon button and picker show it" "$(json $bundle/ui.json ''$image'('$iconbtn')') $(json $bundle/ui.json $buttons | grep -c 'icon-shopping-cart | true')" "icons/lucide/shopping-cart-light.svg 20x20 1"
-expect "every file the pinned window names exists, its badge too" "$(missing_files $bundle/ui.json)" ""
-expect "colour: the customise group keeps the icon" "$(window_js colour icons pinned green | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
+expect "every file the sticky window names exists, its badge too" "$(missing_files $bundle/ui.json)" ""
+expect "colour: the customise group keeps the icon" "$(window_js colour icons sticky green | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
 expect "colour: makes no badge in the new colour" "$(ls $cache/icons | grep -c 'badge-shopping-cart-B2FFA1' || true)" "0"
-expect "icon: an unknown icon is an error, and nothing changes" "$(window_js icon icons pinned rocket 2>&1 >/dev/null | grep -c 'Unknown icon') $(json $notes/.scratchnotes/icons.json d.icon)" "1 shopping-cart"
+expect "icon: an unknown icon is an error, and nothing changes" "$(window_js icon icons sticky rocket 2>&1 >/dev/null | grep -c 'Unknown icon') $(json $notes/.scratchnstick/icons.json d.icon)" "1 shopping-cart"
 # In View, as in Edit.
-window_js toggle icons pinned "Icons" >/dev/null
-expect_exact "toggle icon in View: shows it, leaving the page as it is" "$(picker toggle icons pinned icon)" "$OPEN_ICON"
-action=$(window_js icon icons pinned none)
-expect "icon none: removes the key, keeping the others" "$(json $notes/.scratchnotes/icons.json '[String(d.icon), "icon" in d, d.colour].join(" ")') $(json $bundle/context.json 'String(d.icon)')" "undefined false green null"
+window_js toggle icons sticky "Icons" >/dev/null
+expect_exact "toggle icon in View: shows it, leaving the page as it is" "$(picker toggle icons sticky icon)" "$OPEN_ICON"
+action=$(window_js icon icons sticky none)
+expect "icon none: removes the key, keeping the others" "$(json $notes/.scratchnstick/icons.json '[String(d.icon), "icon" in d, d.colour].join(" ")') $(json $bundle/context.json 'String(d.icon)')" "undefined false green null"
 expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/smile-plus-light.svg 20x20  true "
-picker toggle icons pinned colour >/dev/null
-expect "the Edit / View switch closes the open picker" "$(window_js toggle icons pinned "" | json - '[d.update.ids.iconpicker.hidden, d.update.ids.colourpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "true true true closed"
-expect "a switch with none open leaves them alone" "$(window_js toggle icons pinned "Icons" | json - 'String(d.update.ids.pickercatcher)')" "undefined"
-picker toggle icons pinned icon >/dev/null
-window_js quit icons pinned ""
+picker toggle icons sticky colour >/dev/null
+expect "the Edit / View switch closes the open picker" "$(window_js toggle icons sticky "" | json - '[d.update.ids.iconpicker.hidden, d.update.ids.colourpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "true true true closed"
+expect "a switch with none open leaves them alone" "$(window_js toggle icons sticky "Icons" | json - 'String(d.update.ids.pickercatcher)')" "undefined"
+picker toggle icons sticky icon >/dev/null
+window_js quit icons sticky ""
 expect "quit removes the picker file" "$(ls $cache/state | grep -c '^icons\.' || true)" "0"
 print -rn -- icon > $cache/state/icons.picker
 window_js launched icons quick view >/dev/null
@@ -501,36 +501,36 @@ window_js quit icons quick ""
 new=$(basename "$(open_note new=1 quick '')" .alfredui)
 window_js launched "$new" quick edit
 window_js icon "$new" quick heart >/dev/null
-expect "icon on a new note before it's saved: recorded" "$(json $notes/.scratchnotes/$new.json d.icon)" "heart"
+expect "icon on a new note before it's saved: recorded" "$(json $notes/.scratchnstick/$new.json d.icon)" "heart"
 window_js quit "$new" quick ""
-expect "a new note with an icon closed blank: its sidecar goes too" "$(ls -A $notes/.scratchnotes | grep -c $new || true)" "0"
+expect "a new note with an icon closed blank: its sidecar goes too" "$(ls -A $notes/.scratchnstick | grep -c $new || true)" "0"
 
 # macOS 12 can't read the button icons and badges (SVGs), so its windows have
 # no note icons: no icon button, icon picker or ⌘I, the actions as SF Symbols,
-# and ScratchNotes' app icon. A note's icon stays in its sidecar.
-print -r -- '{"icon":"heart"}' > $notes/.scratchnotes/icons.json
-bundle=$(open_note scratchnotes_macos_version=12 quick icons)
+# and Scratch'n'Stick's app icon. A note's icon stays in its sidecar.
+print -r -- '{"icon":"heart"}' > $notes/.scratchnstick/icons.json
+bundle=$(open_note scratchnstick_macos_version=12 quick icons)
 ui=$bundle/ui.json
-expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * customise:view colour:button actions:view toggle:button pin:button"
+expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * customise:view colour:button actions:view toggle:button stick:button"
 expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6"
 expect_exact "macOS 12: the actions are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "symbol pencil,symbol note.text"
 expect "macOS 12: the context says so, without the note's icon" "$(json $bundle/context.json '[d.icons, d.icon].join(" ")')" "false "
 expect "macOS 12: no SVG at all, and every file it names exists" "$(grep -c '\.svg' $ui || true) $(missing_files $ui)" "0 "
-bundle=$(open_note scratchnotes_macos_version=12 pin icons)
+bundle=$(open_note scratchnstick_macos_version=12 stick icons)
 ui=$bundle/ui.json
-expect "macOS 12, pinned: ScratchNotes' app icon, though the note has an icon" "$(json $ui d.iconpath)" "$workflow/ui/appicon.png"
-window_js launched icons pinned view
-action=$(window_js colour icons pinned blue)
-expect "macOS 12: a colour change gives no icon button, and keeps the icon in the sidecar" "$(print -r -- $action | json - '('$customise').components.map(c => c.id).join(",")') $(json $notes/.scratchnotes/icons.json '[d.icon, d.colour].join(" ")')" "colour heart blue"
-expect "macOS 12: switching to Edit gives the symbol" "$(window_js toggle icons pinned "" | json - '[d.update.ids.toggle.image.type, d.update.ids.toggle.image.src].join(" ")')" "symbol eye"
-expect_exact "macOS 12: picker.sh still opens the colour picker" "$(picker toggle icons pinned colour)" "$OPEN_COLOUR"
-window_js quit icons pinned $'Icons\n'
-rm $notes/.scratchnotes/icons.json
+expect "macOS 12, sticky: Scratch'n'Stick's app icon, though the note has an icon" "$(json $ui d.iconpath)" "$workflow/ui/appicon.png"
+window_js launched icons sticky view
+action=$(window_js colour icons sticky blue)
+expect "macOS 12: a colour change gives no icon button, and keeps the icon in the sidecar" "$(print -r -- $action | json - '('$customise').components.map(c => c.id).join(",")') $(json $notes/.scratchnstick/icons.json '[d.icon, d.colour].join(" ")')" "colour heart blue"
+expect "macOS 12: switching to Edit gives the symbol" "$(window_js toggle icons sticky "" | json - '[d.update.ids.toggle.image.type, d.update.ids.toggle.image.src].join(" ")')" "symbol eye"
+expect_exact "macOS 12: picker.sh still opens the colour picker" "$(picker toggle icons sticky colour)" "$OPEN_COLOUR"
+window_js quit icons sticky $'Icons\n'
+rm $notes/.scratchnstick/icons.json
 
-# Pinned windows.
-mkdir -p $cache/state && print -r -- '{"form":"pinned","pid":'$$',"mode":"edit"}' > $cache/state/vars.json
-expect "a pinned state whose process isn't Alfred UI doesn't count" "$(open_note quick vars)" "$cache/quick/vars.alfredui"
-expect "pin_note: pins the note it names, ignoring new" "$(open_note new=1 pin_note="v{${wj}var:x}" pin 'ignored' 2>&1 | tail -1)" "$cache/windows/v{var:x}.alfredui"
+# Sticky windows.
+mkdir -p $cache/state && print -r -- '{"form":"sticky","pid":'$$',"mode":"edit"}' > $cache/state/vars.json
+expect "a sticky state whose process isn't Alfred UI doesn't count" "$(open_note quick vars)" "$cache/quick/vars.alfredui"
+expect "stick_note: sticks the note it names, ignoring new" "$(open_note new=1 stick_note="v{${wj}var:x}" stick 'ignored' 2>&1 | tail -1)" "$cache/windows/v{var:x}.alfredui"
 
 print
 if (( failures )); then print "FAILED: $failures"; exit 1; else print "All passed"; fi

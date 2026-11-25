@@ -12,15 +12,15 @@
 //   window.js icon <id> <form> <icon>       an icon, or "none", in the icon
 //                                           picker
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
-//   window.js pin <id> <form> <text>        Pin or ⌘P in a quick view: saves,
-//                                           then pins
+//   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
+//                                           then sticks
 //   window.js tick <id> <form> <line> <x|o> a task box in View: ticks (x) or
 //                                           unticks (o) the task on that line
 //                                           (from scripts/changed.sh)
 //   window.js quit <id> <form> <text>       the window closed: saves, and
 //                                           deletes the note if it's empty
 //
-// <form> is "quick" or "pinned", which says which bundle the window opened
+// <form> is "quick" or "sticky", which says which bundle the window opened
 // from (see "Note windows" in lib.js).
 //
 // <text> is the editor's text ({value:editor.text}). The editor stays in the
@@ -34,7 +34,7 @@
 // so nothing here may wait on Alfred (an AppleEvent to Alfred would deadlock).
 // The window's scripts get the alfred_* variables but not User Configuration,
 // so the notes folder and the window's look come from the context written into
-// the note's bundle (by list.js for a quick view, by open.js when pinned).
+// the note's bundle (by list.js for a quick view, by open.js when sticky).
 
 ObjC.import("Foundation");
 ObjC.import("unistd");
@@ -43,7 +43,7 @@ function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   const [command, escapedId, form, ...rest] = argv;
   const id = unescapeFromAlfredUi(escapedId || "");
-  if (form !== "quick" && form !== "pinned") throw new Error(`Unknown form: ${form}`);
+  if (form !== "quick" && form !== "sticky") throw new Error(`Unknown form: ${form}`);
   const context = readNoteContext(id, form);
   if (!context) throw new Error(`No window context for ${JSON.stringify(id)}`);
   const store = noteStore(context.folder);
@@ -60,8 +60,8 @@ function run(argv) {
     case "quit":
       quit(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
       return;
-    case "pin":
-      return pin(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
+    case "stick":
+      return stick(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "colour":
       return setColour(store, workflowFolder, context, id, form, rest[0]);
     case "icon":
@@ -74,17 +74,17 @@ function run(argv) {
 }
 
 // The window has opened. Records its state, except in a quick view of a note
-// that's already pinned: that view finishes as Pin does, carrying on to the
-// pin route, which brings the pinned window to the front, so a note is never
-// open in two windows. (↩ on a pinned note doesn't open a quick view at all,
-// so this only catches a note pinned after the results were listed; see
+// that's already sticky: that view finishes as Stick does, carrying on to the
+// stick route, which brings the sticky window to the front, so a note is never
+// open in two windows. (↩ on a sticky note doesn't open a quick view at all,
+// so this only catches a note sticky after the results were listed; see
 // noteItem in list.js.) And if a quick view's note has changed since list.js
 // wrote its bundle (an edit elsewhere just before ↩), it shows the note as it
 // is now, so a stale text can't be saved over it: in the editor, or by
 // reloading the page.
 function launched(store, workflowFolder, context, id, form, mode) {
-  if (form === "quick" && pinnedNotePid(id) !== null) {
-    return JSON.stringify({ finish: { variables: { pin_note: escapeForAlfredUi(id) } } });
+  if (form === "quick" && stickyNotePid(id) !== null) {
+    return JSON.stringify({ finish: { variables: { stick_note: escapeForAlfredUi(id) } } });
   }
   writeNoteState(id, { form, pid: $.getppid(), mode });
   closeNotePickerState(id);
@@ -116,7 +116,7 @@ function save(store, id, form, text) {
 // scripts/picker.sh). Does nothing when the window is already in mode
 // `to` (⌘↩ is a shortcut of the whole window, so it also reaches this in View
 // mode), or when it has no state of its form (its `launched` failed, or it
-// handed over to a pinned window), since then its mode is unknown.
+// handed over to a sticky window), since then its mode is unknown.
 function switchMode(store, workflowFolder, context, id, form, text, to) {
   const state = readNoteState(id);
   if (!state || state.form !== form) return;
@@ -146,7 +146,7 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
 // prints the replace action for the top row's customise group, whose dot
 // shows the colour, and for the colour picker, which marks it and comes back
 // hidden; the other drop-down and the catcher are hidden too, so choosing
-// closes the open picker. A pinned window's tint has already been updated by
+// closes the open picker. A sticky window's tint has already been updated by
 // the action that ran this (see noteColourAction in lib.js), but its page
 // covers it, so in View the page is reloaded with the new tint too. Does
 // nothing without a state of the window's form, as for switchMode.
@@ -163,7 +163,7 @@ function setColour(store, workflowFolder, context, id, form, name) {
   closeNotePickerState(id);
   const ids = noteDropdownsClosed();
   delete ids.colourpicker;
-  if (form === "pinned" && mode === "view") {
+  if (form === "sticky" && mode === "view") {
     const note = store.read(id);
     ids.web = { src: writeNotePage(id, form, note ? note.text : "") };
   }
@@ -179,8 +179,8 @@ function setColour(store, workflowFolder, context, id, form, name) {
 // picker. Does nothing without a state of the window's form, as for
 // switchMode.
 //
-// A pinned window's app icon (its badge) is set when the window opens, so it
-// changes the next time the note is pinned.
+// A sticky window's app icon (its badge) is set when the window opens, so it
+// changes the next time the note is made sticky.
 function setIcon(store, workflowFolder, context, id, form, name) {
   if (name !== "none" && !noteIconByName(name)) throw new Error(`Unknown icon: ${name}`);
   const state = readNoteState(id);
@@ -218,19 +218,19 @@ function tick(store, context, id, form, line, to) {
   writeNotePage(id, form, ticked);
 }
 
-// Pin (its button or ⌘P) in a quick view: saves the editor's text, then
-// finishes with the variables `pin_note` and `pin_mode` (the view's mode), so
-// Alfred carries on to the pin route, where open.js writes the pinned
+// Stick (its button or ⌘P) in a quick view: saves the editor's text, then
+// finishes with the variables `stick_note` and `stick_mode` (the view's mode), so
+// Alfred carries on to the stick route, where open.js writes the sticky
 // window's bundle from the note on disk, to open in the same mode. The save
-// has to come first, here: once the view finishes, Alfred runs the pin route
+// has to come first, here: once the view finishes, Alfred runs the stick route
 // without waiting for the view's `quit`, so a note whose text was only in the
 // editor (a new note with text, or typing within the last second) would open
-// blank or stale in its pinned window.
-function pin(store, id, form, text) {
+// blank or stale in its sticky window.
+function stick(store, id, form, text) {
   const state = readNoteState(id);
   save(store, id, form, text);
   const mode = state && state.form === form ? state.mode : "";
-  return JSON.stringify({ finish: { variables: { pin_note: escapeForAlfredUi(id), pin_mode: mode } } });
+  return JSON.stringify({ finish: { variables: { stick_note: escapeForAlfredUi(id), stick_mode: mode } } });
 }
 
 // The window has closed. Saves the editor's text (see isEditorText), then
@@ -238,7 +238,7 @@ function pin(store, id, form, text) {
 // and otherwise records the window's mode in the note's sidecar, so the note
 // reopens in the mode it was last in, whether or not it was ever switched.
 // A state of the other form is another window's: this was a quick view that
-// handed over to the note's pinned window (see launched), so it leaves
+// handed over to the note's sticky window (see launched), so it leaves
 // everything alone.
 function quit(store, id, form, text) {
   const state = readNoteState(id);

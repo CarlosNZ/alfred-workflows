@@ -16,10 +16,10 @@ setopt err_return pipe_fail no_unset
 here=${0:A:h}
 workflow=${here:h}
 runner=$here/test-storage.js
-tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnotes-test.XXXXXX")
+tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnstick-test.XXXXXX")
 cleanup() {
   [[ -d $tmp/volume ]] && hdiutil detach -quiet -force "$tmp/volume" 2>/dev/null
-  [[ $tmp == */scratchnotes-test.* ]] && chmod -R u+w "$tmp" && rm -rf -- "$tmp"
+  [[ $tmp == */scratchnstick-test.* ]] && chmod -R u+w "$tmp" && rm -rf -- "$tmp"
 }
 trap cleanup EXIT
 failures=0
@@ -66,7 +66,7 @@ for round in create overwrite; do
   matched=0
   for i in {1..12}; do cmp -s "$conc/notes/race.md" "$conc/text-$i" && matched=1; done
   if (( matched )); then ok "$round: the note is exactly one complete version"; else fail "$round: the note matches no version"; fi
-  leftovers=$(ls -A "$conc/notes" "$conc/notes/.scratchnotes" | grep -c '^\.scratchnotes-save-' || true)
+  leftovers=$(ls -A "$conc/notes" "$conc/notes/.scratchnstick" | grep -c '^\.scratchnstick-save-' || true)
   if (( leftovers == 0 )); then ok "$round: no temporary files left"; else fail "$round: $leftovers temporary files left"; fi
 done
 
@@ -106,7 +106,7 @@ expect "a missing notes folder: Missing notes folder" "$(listjs "$mv/missing" | 
 if [[ -n ${SKIP_VOLUME:-} ]]; then
   print "\n# Moving notes to another volume: skipped (SKIP_VOLUME)"
 else
-  hdiutil create -quiet -size 16m -fs APFS -volname ScratchNotesTest "$tmp/volume.dmg"
+  hdiutil create -quiet -size 16m -fs APFS -volname ScratchnStickTest "$tmp/volume.dmg"
   hdiutil attach -quiet -nobrowse -mountpoint "$tmp/volume" "$tmp/volume.dmg"
   "$runner" move-volume "$tmp" "$tmp/volume" || (( failures++ )) || true
   hdiutil detach -quiet "$tmp/volume"

@@ -7,7 +7,7 @@
 #                     closes it if it's open
 #   close             a click anywhere else in the window (the catcher view):
 #                     closes the open picker
-#   escape            Esc in a pinned window: closes the open picker, and
+#   escape            Esc in a sticky window: closes the open picker, and
 #                     otherwise the window
 #
 # Each picker is a box of buttons that drops down under the top row's left

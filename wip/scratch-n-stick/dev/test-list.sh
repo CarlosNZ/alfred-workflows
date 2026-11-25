@@ -12,9 +12,9 @@ here=${0:A:h}
 list=${here:h}/scripts/list.js
 new=${here:h}/scripts/new.js
 script=$list
-tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnotes-test.XXXXXX")
-pasteboard=scratchnotes-test-$$
-trap '[[ $tmp == */scratchnotes-test.* ]] && rm -rf -- "$tmp"; osascript -l JavaScript -e "ObjC.import(\"AppKit\"); \$.NSPasteboard.pasteboardWithName(\"$pasteboard\").releaseGlobally" >/dev/null' EXIT
+tmp=$(mktemp -d "${${TMPDIR:-/tmp}%/}/scratchnstick-test.XXXXXX")
+pasteboard=scratchnstick-test-$$
+trap '[[ $tmp == */scratchnstick-test.* ]] && rm -rf -- "$tmp"; osascript -l JavaScript -e "ObjC.import(\"AppKit\"); \$.NSPasteboard.pasteboardWithName(\"$pasteboard\").releaseGlobally" >/dev/null' EXIT
 notes=$tmp/notes
 cache=$tmp/cache
 quick=$cache/quick
@@ -33,7 +33,7 @@ note recent $'Just written' -10S
 # key does nothing (valid: false), and ⌘'s `new` variable. Runs $script:
 # list.js, or new.js in new_items.
 items() {
-  (cd "$tmp" && notes_folder=$1 alfred_workflow_data=$1.data alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$script" "${@:2}") | osascript -l JavaScript -e '
+  (cd "$tmp" && notes_folder=$1 alfred_workflow_data=$1.data alfred_workflow_cache=$cache scratchnstick_pasteboard=$pasteboard "$script" "${@:2}") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run() {
       const input = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js;
@@ -72,7 +72,7 @@ expect "every word must match" "$(items "$notes" "milk eggs" | cut -d'|' -f1)" "
 expect "words can match in any order and place" "$(items "$notes" "black flat" | cut -d'|' -f1)" "Café ideas "
 expect "no uid on any result, so Alfred keeps the order" "$(notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" | grep -c '"uid"' || true)" "0"
 expect "no match: New note with the query" "$(items "$notes" "buy  bread ")" "New note: buy  bread | Create a note with this text | $quick/20*.alfredui |  | buy  bread | - | - | 1"
-expect "notes without sidecars were given one" "$(ls -A "$notes/.scratchnotes" | sort | tr '\n' ' ')" "cafe.json old.json recent.json shopping.json "
+expect "notes without sidecars were given one" "$(ls -A "$notes/.scratchnstick" | sort | tr '\n' ' ')" "cafe.json old.json recent.json shopping.json "
 # Quick bundles.
 # The quick bundle's ui.json of a note, and its modification time.
 ui() { print -r -- "$quick/$1.alfredui/ui.json" }
@@ -92,7 +92,7 @@ items "$notes" >/dev/null
 expect "an edited note's bundle is rewritten, and only that one" "$([[ $(mtime cafe) != $before_cafe ]] && print rewritten) $(mtime old)" "rewritten $before_old"
 expect "the rewritten bundle has the new text" "$(text_of cafe)" $'Café ideas\nCortado'
 before_cafe=$(mtime cafe)
-print -r -- '{"mode":"edit"}' > "$notes/.scratchnotes/old.json"
+print -r -- '{"mode":"edit"}' > "$notes/.scratchnstick/old.json"
 items "$notes" >/dev/null
 expect "a changed sidecar rewrites its note's bundle" "$([[ $(mtime old) != $before_old ]] && print rewritten) $(mtime cafe)" "rewritten $before_cafe"
 before_old=$(mtime old)
@@ -128,15 +128,15 @@ expect "the workflow ships no badges or dots: Lucide's button icons and the drop
 expect "a note's result icon is its colour's dot, made in the cache, yellow by default; New note has none" "$(icons '')" $'New note -\nCafé ideas dot-FEEA3D-DBC503-*.png\nShopping dot-FEEA3D-DBC503-*.png\nOld note dot-FEEA3D-DBC503-*.png'
 expect "a dot is a 256-pixel PNG" "$(sips -g format -g pixelWidth -g pixelHeight $cache/icons/dot-FEEA3D-DBC503-*.png | awk '/format|pixel/ {printf "%s ", $2}')" "png 256 256 "
 expect "default_colour sets the icon of notes without a colour" "$(icons default_colour=purple milk)" "Shopping dot-9BB6FE-7D9BEB-*.png"
-print -r -- '{"colour":"pink"}' > "$notes/.scratchnotes/shopping.json"
+print -r -- '{"colour":"pink"}' > "$notes/.scratchnstick/shopping.json"
 before_shopping=$(mtime shopping)
 expect "a note's own colour sets its icon" "$(icons default_colour=purple milk)" "Shopping dot-FFB2B2-F87F7F-*.png"
 expect "a colour change rewrites the note's quick bundle with the new swatch (the colour button's, and the picker's)" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c '#F87F7F' $(ui shopping))" "rewritten 2"
-print -r -- '{"colour":"orange"}' > "$notes/.scratchnotes/shopping.json"
+print -r -- '{"colour":"orange"}' > "$notes/.scratchnstick/shopping.json"
 expect "an unknown colour gets the default's icon" "$(icons milk)" "Shopping dot-FEEA3D-DBC503-*.png"
 
 # Note icons: a note with an icon shows its badge in its colour.
-print -r -- '{"colour":"pink","icon":"shopping-cart"}' > "$notes/.scratchnotes/shopping.json"
+print -r -- '{"colour":"pink","icon":"shopping-cart"}' > "$notes/.scratchnstick/shopping.json"
 before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
 expect "a note's icon shows as its badge in its colour, named for its colours, Lucide's release and its code" "$(icons milk)" "Shopping badge-shopping-cart-FFC7C7-F87F7F-1.72.0-*.svg"
 badge=$(print $cache/icons/badge-shopping-cart-FFC7C7-F87F7F-*.svg)
@@ -165,9 +165,9 @@ named_files() {
 }
 named=$(named_files $quick/*.alfredui/ui.json)
 expect "every file the quick bundles name exists, and none is in the cache (no app icon)" "$(print -r -- $named | grep -c MISSING || true) $(print -r -- $named | grep -c "^$cache" || true) $(grep -l iconpath $quick/*.alfredui/ui.json | wc -l | tr -d ' ')" "0 0 0"
-print -r -- '{"colour":"pink","icon":"rocket"}' > "$notes/.scratchnotes/shopping.json"
+print -r -- '{"colour":"pink","icon":"rocket"}' > "$notes/.scratchnstick/shopping.json"
 expect "an unknown icon: the colour's dot" "$(icons milk)" "Shopping dot-FFB2B2-F87F7F-*.png"
-print -r -- '{"colour":"orange","icon":"heart"}' > "$notes/.scratchnotes/shopping.json"
+print -r -- '{"colour":"orange","icon":"heart"}' > "$notes/.scratchnstick/shopping.json"
 expect "an icon with an unknown colour: the default colour's badge" "$(icons milk)" "Shopping badge-heart-FEF49C-DBC503-1.72.0-*.svg"
 
 # The result icons' folder: emptied, its icons are made again, without
@@ -178,25 +178,25 @@ before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
 rm -rf $cache/icons
 expect "an emptied folder: the icons are made again" "$(icons '' | grep -c MISSING || true) $(ls $cache/icons | wc -l | tr -d ' ')" "0 2"
 expect "an emptied folder: no quick bundle is rebuilt" "$(mtime shopping) $(mtime cafe)" "$before_shopping $before_cafe"
-touch $cache/icons/badge-heart-FEF49C-DBC503-0.1.0-abcdef.svg $cache/icons/dot-FEEA3D-DBC503-abcdef.png $cache/icons/notes.txt $cache/icons/.scratchnotes-save-new.tmp
-touch -t 202001010000 $cache/icons/.scratchnotes-save-old.tmp
+touch $cache/icons/badge-heart-FEF49C-DBC503-0.1.0-abcdef.svg $cache/icons/dot-FEEA3D-DBC503-abcdef.png $cache/icons/notes.txt $cache/icons/.scratchnstick-save-new.tmp
+touch -t 202001010000 $cache/icons/.scratchnstick-save-old.tmp
 icons '' >/dev/null
 expect "a list that makes no icon sweeps nothing" "$(ls -A $cache/icons | wc -l | tr -d ' ')" "7"
 rm $cache/icons/dot-FEEA3D-DBC503-[^a]*.png
-expect "a list that makes an icon sweeps out the stale ones and old temporary files" "$(icons '' | grep -c MISSING || true) $(ls -A $cache/icons | sed 's/[0-9a-z]\{6\}\.\(svg\|png\)$/*/' | tr '\n' ' ')" "0 .scratchnotes-save-new.tmp badge-heart-FEF49C-DBC503-1.72.0-* dot-FEEA3D-DBC503-* notes.txt "
+expect "a list that makes an icon sweeps out the stale ones and old temporary files" "$(icons '' | grep -c MISSING || true) $(ls -A $cache/icons | sed 's/[0-9a-z]\{6\}\.\(svg\|png\)$/*/' | tr '\n' ' ')" "0 .scratchnstick-save-new.tmp badge-heart-FEF49C-DBC503-1.72.0-* dot-FEEA3D-DBC503-* notes.txt "
 
 # macOS 12 can't read the button icons and badges, so it gets no note icons:
 # results show dots, and the quick bundles have no icon button or picker, and
 # symbols for the actions. A Mac upgraded from 12 rebuilds them once.
 before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
-expect "macOS 12: a note with an icon shows its dot" "$(icons scratchnotes_macos_version=12 '' | grep Shopping)" "Shopping dot-FEEA3D-DBC503-*.png"
+expect "macOS 12: a note with an icon shows its dot" "$(icons scratchnstick_macos_version=12 '' | grep Shopping)" "Shopping dot-FEEA3D-DBC503-*.png"
 expect "macOS 12: every quick bundle rebuilt once, without the icon button, the picker or any button icon" "$([[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c -E '"id": "(icon|iconpicker)"|icons/lucide/' $(ui shopping) || true) $(grep -c '"src": "eye"\|"src": "pencil"' $(ui shopping))" "rewritten 0 1"
 before_shopping=$(mtime shopping)
-icons scratchnotes_macos_version=12 '' >/dev/null
+icons scratchnstick_macos_version=12 '' >/dev/null
 expect "macOS 12: a list with nothing changed rewrites nothing" "$(mtime shopping)" "$before_shopping"
-icons scratchnotes_macos_version=13 '' >/dev/null
+icons scratchnstick_macos_version=13 '' >/dev/null
 expect "macOS 13: rebuilt once, with the icon button" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c '"id": "icon"' $(ui shopping))" "rewritten 1"
-print -r -- '{"colour":"orange"}' > "$notes/.scratchnotes/shopping.json"
+print -r -- '{"colour":"orange"}' > "$notes/.scratchnstick/shopping.json"
 
 # The shipped button icons: each icon in each appearance, with Lucide's licence,
 # drawn from the release lib.js names.
@@ -209,10 +209,10 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     return `${files.length} ${missing.join(" ") || "none missing"}`;
   }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "48 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
-# A pinned note's result (no arg, `pinned` set) needs a live Alfred UI helper,
-# so it's checked in Alfred; a pinned state whose process isn't one is ignored.
-print -r -- '{"form":"pinned","pid":'$$',"mode":"edit"}' > "$cache/state/shopping.json"
-expect "a pinned state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago · milk, eggs | $quick/shopping.alfredui "
+# A sticky note's result (no arg, `sticky` set) needs a live Alfred UI helper,
+# so it's checked in Alfred; a sticky state whose process isn't one is ignored.
+print -r -- '{"form":"sticky","pid":'$$',"mode":"edit"}' > "$cache/state/shopping.json"
+expect "a sticky state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago · milk, eggs | $quick/shopping.alfredui "
 rm "$cache/state/shopping.json"
 
 # The theme stylesheet for quick views' pages, from Alfred's theme background.
@@ -255,7 +255,7 @@ clip $text $'# Plan
 '
 # A JavaScript expression's value, with `d` new.js's output with no text.
 new_json() {
-  (cd "$tmp" && notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache scratchnotes_pasteboard=$pasteboard "$new" "") | osascript -l JavaScript -e '
+  (cd "$tmp" && notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache scratchnstick_pasteboard=$pasteboard "$new" "") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run(argv) {
       const d = JSON.parse($.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js);
