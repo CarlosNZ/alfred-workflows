@@ -20,6 +20,10 @@
 
 ObjC.import("Foundation");
 
+// Separates the parts of a note's subtitle: "Sticky", when it was edited, and
+// its preview.
+const SUBTITLE_SEPARATOR = " • ";
+
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   loadLib(argv, "titles.js");
@@ -74,10 +78,10 @@ function attempt(fn) {
 // front.
 function noteItem(note, now, bundle, sticky, icon) {
   const edited = `Edited ${formatEditedTime(note.modified, now)}`;
-  const subtitle = note.preview ? `${edited} · ${note.preview}` : edited;
+  const subtitle = note.preview ? `${edited}${SUBTITLE_SEPARATOR}${note.preview}` : edited;
   return {
     title: note.title,
-    subtitle: sticky ? `Sticky · ${subtitle}` : subtitle,
+    subtitle: sticky ? `Sticky${SUBTITLE_SEPARATOR}${subtitle}` : subtitle,
     arg: sticky ? "" : bundle,
     icon: icon ? { path: icon } : undefined,
     variables: sticky ? { sticky: "1", stick_note: escapeForAlfredUi(note.id) } : undefined,

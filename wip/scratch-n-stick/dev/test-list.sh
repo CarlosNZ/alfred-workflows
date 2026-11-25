@@ -61,9 +61,9 @@ all=$(items "$notes")
 expect "no query: New note first, then notes last edited first" "$(print -r -- $all | cut -d'|' -f1 | sed 's/ $//')" $'New note\nJust written\nCafé ideas\nShopping\nOld note'
 expect "New note: arg a quick bundle, ⌘ arg empty with new=1, ⌥ and ⌃ do nothing" "$(print -r -- $all | head -1)" "New note | Create a blank note | $quick/20*.alfredui |  |  | - | - | 1"
 expect "subtitle: just now, no preview" "$(print -r -- $all | sed -n 2p | cut -d'|' -f2)" " Edited just now "
-expect "subtitle: minutes and preview" "$(print -r -- $all | sed -n 3p | cut -d'|' -f2)" " Edited 10m ago · Flat white, long black "
-expect "subtitle: hours, list items joined" "$(print -r -- $all | sed -n 4p | cut -d'|' -f2)" " Edited 3h ago · milk, eggs "
-expect "subtitle: a date, with the year" "$(print -r -- $all | sed -n 5p | cut -d'|' -f2)" " Edited *20[0-9][0-9] · from long ago "
+expect "subtitle: minutes and preview" "$(print -r -- $all | sed -n 3p | cut -d'|' -f2)" " Edited 10m ago • Flat white, long black "
+expect "subtitle: hours, list items joined" "$(print -r -- $all | sed -n 4p | cut -d'|' -f2)" " Edited 3h ago • milk, eggs "
+expect "subtitle: a date, with the year" "$(print -r -- $all | sed -n 5p | cut -d'|' -f2)" " Edited *20[0-9][0-9] • from long ago "
 expect "arg is the quick bundle, no new; ⌘ and ⌥ args the ID, ⌃ arg the path" "$(print -r -- $all | sed -n 4p | cut -d'|' -f3-)" " $quick/shopping.alfredui |  | shopping | shopping | $notes/shopping.md | "
 
 expect "query matches text, not just the title" "$(items "$notes" milk | cut -d'|' -f1)" "Shopping "
@@ -212,7 +212,7 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
 # A sticky note's result (no arg, `sticky` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a sticky state whose process isn't one is ignored.
 print -r -- '{"form":"sticky","pid":'$$',"mode":"edit"}' > "$cache/state/shopping.json"
-expect "a sticky state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago · milk, eggs | $quick/shopping.alfredui "
+expect "a sticky state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago • milk, eggs | $quick/shopping.alfredui "
 rm "$cache/state/shopping.json"
 
 # The theme stylesheet for quick views' pages, from Alfred's theme background.
