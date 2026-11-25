@@ -203,6 +203,19 @@
 				<false/>
 			</dict>
 		</array>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D25</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>3FDC54A5-ACE6-4C18-8675-482F2052F2DE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D30</key>
 		<array>
 			<dict>
@@ -309,6 +322,37 @@
 			<string>3FDC54A5-ACE6-4C18-8675-482F2052F2DE</string>
 			<key>version</key>
 			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>hotkey</key>
+				<integer>45</integer>
+				<key>hotmod</key>
+				<integer>393216</integer>
+				<key>hotstring</key>
+				<string>N</string>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D25</string>
+			<key>version</key>
+			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -642,77 +686,77 @@
 		<key>2AAC74E0-969A-4500-A412-97376F3EDD5B</key>
 		<dict>
 			<key>xpos</key>
-			<real>820</real>
+			<real>960</real>
 			<key>ypos</key>
 			<real>140</real>
 		</dict>
 		<key>2F740338-1573-4278-81CC-2F174BE452E7</key>
 		<dict>
 			<key>xpos</key>
-			<real>375</real>
+			<real>515</real>
 			<key>ypos</key>
 			<real>140</real>
 		</dict>
 		<key>3FDC54A5-ACE6-4C18-8675-482F2052F2DE</key>
 		<dict>
 			<key>xpos</key>
-			<real>30</real>
+			<real>205</real>
 			<key>ypos</key>
 			<real>140</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</key>
 		<dict>
 			<key>xpos</key>
-			<real>825</real>
+			<real>965</real>
 			<key>ypos</key>
 			<real>330</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D02</key>
 		<dict>
 			<key>xpos</key>
-			<real>815</real>
+			<real>955</real>
 			<key>ypos</key>
 			<real>470</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</key>
 		<dict>
 			<key>xpos</key>
-			<real>370</real>
+			<real>510</real>
 			<key>ypos</key>
 			<real>560</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</key>
 		<dict>
 			<key>xpos</key>
-			<real>625</real>
+			<real>765</real>
 			<key>ypos</key>
 			<real>590</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</key>
 		<dict>
 			<key>xpos</key>
-			<real>235</real>
+			<real>375</real>
 			<key>ypos</key>
 			<real>590</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</key>
 		<dict>
 			<key>xpos</key>
-			<real>40</real>
+			<real>180</real>
 			<key>ypos</key>
 			<real>700</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</key>
 		<dict>
 			<key>xpos</key>
-			<real>375</real>
+			<real>515</real>
 			<key>ypos</key>
 			<real>700</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</key>
 		<dict>
 			<key>xpos</key>
-			<real>30</real>
+			<real>170</real>
 			<key>ypos</key>
 			<real>330</real>
 		</dict>
@@ -721,37 +765,46 @@
 			<key>note</key>
 			<string>Optional: set a hotkey for a new sticky note</string>
 			<key>xpos</key>
-			<real>40</real>
+			<real>180</real>
 			<key>ypos</key>
 			<real>840</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</key>
 		<dict>
 			<key>xpos</key>
-			<real>200</real>
+			<real>340</real>
 			<key>ypos</key>
 			<real>870</real>
+		</dict>
+		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D25</key>
+		<dict>
+			<key>note</key>
+			<string>Optional: set a hotkey to show your notes</string>
+			<key>xpos</key>
+			<real>30</real>
+			<key>ypos</key>
+			<real>140</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D30</key>
 		<dict>
 			<key>note</key>
 			<string>Notifications posted by scripts outside the flow (move.js, lib.js postNotesNotification)</string>
 			<key>xpos</key>
-			<real>40</real>
+			<real>180</real>
 			<key>ypos</key>
 			<real>1010</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D31</key>
 		<dict>
 			<key>xpos</key>
-			<real>820</real>
+			<real>960</real>
 			<key>ypos</key>
 			<real>1010</real>
 		</dict>
 		<key>CEC2F155-08CF-4B0A-8AC9-268E023173CA</key>
 		<dict>
 			<key>xpos</key>
-			<real>370</real>
+			<real>510</real>
 			<key>ypos</key>
 			<real>15</real>
 		</dict>
@@ -799,6 +852,25 @@
 			<string>textfield</string>
 			<key>variable</key>
 			<string>keyword_new</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Show ‘New note’ in notes list</string>
+			</dict>
+			<key>description</key>
+			<string>Shows New note at the top of the notes list. Untick it if you create notes with the new note keyword or a hotkey instead. A search that matches no note still offers to create one.</string>
+			<key>label</key>
+			<string>New note in list</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>show_new_note</string>
 		</dict>
 		<dict>
 			<key>config</key>

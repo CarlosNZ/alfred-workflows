@@ -5,7 +5,7 @@
 //
 // Every word of the query must appear somewhere in a note (its title or any
 // of its text), ignoring case and accents. With no query, a "New note" result
-// comes first; with a query that matches no note, the only result is
+// comes first, unless the `show_new_note` checkbox is off; with a query that matches no note, the only result is
 // "New note: <query>", which creates a note with that text.
 //
 // Each result's arg is its quick view's bundle, which ↩ opens inside Alfred
@@ -51,10 +51,17 @@ function run(argv) {
   const variable = cachedVariables();
   const icon = (note) => attempt(() => noteResultIcon(workflowFolder, note, noteColour(note.meta, variable), variable));
   const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), sticky.has(note.id), icon(note)));
-  if (!query) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
+  if (!query && showNewNote(variable)) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
   else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, newNoteSubtitle(query), query, bundle(() => quick.bundleForNew(query))));
   if (quick) attempt(() => quick.finish(notes));
   return output(items);
+}
+
+// Whether the list starts with New note when there's no query: the
+// `show_new_note` checkbox, on unless it's unticked ("0"). A query that
+// matches no note offers New note: <query> either way, as the only result.
+function showNewNote(variable) {
+  return variable("show_new_note") !== "0";
 }
 
 // What `fn` returns, or null if it throws, logging the error (to Alfred's

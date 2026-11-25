@@ -72,6 +72,9 @@ expect "every word must match" "$(items "$notes" "milk eggs" | cut -d'|' -f1)" "
 expect "words can match in any order and place" "$(items "$notes" "black flat" | cut -d'|' -f1)" "Café ideas "
 expect "no uid on any result, so Alfred keeps the order" "$(notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" | grep -c '"uid"' || true)" "0"
 expect "no match: New note with the query, as a heading" "$(items "$notes" "buy  bread ")" "New note: buy  bread | Create a note with this heading | $quick/20*.alfredui |  | buy  bread | - | - | 1"
+expect "show_new_note off: no New note with no query" "$(show_new_note=0 items "$notes" | cut -d'|' -f1 | sed 's/ $//')" $'Just written\nCafé ideas\nShopping\nOld note'
+expect "show_new_note off: a query that matches nothing still offers New note" "$(show_new_note=0 items "$notes" "buy bread" | cut -d'|' -f1)" "New note: buy bread "
+expect "show_new_note on (1): New note first" "$(show_new_note=1 items "$notes" | head -1 | cut -d'|' -f1)" "New note "
 expect "notes without sidecars were given one" "$(ls -A "$notes/.scratchnstick" | sort | tr '\n' ' ')" "cafe.json old.json recent.json shopping.json "
 # Quick bundles.
 # The quick bundle's ui.json of a note, and its modification time.
