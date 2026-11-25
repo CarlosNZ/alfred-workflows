@@ -21,7 +21,8 @@ Every item is marked with its status:
 ## Name
 
 - The workflow is to be called **Scratch'n'Stick**: a scratch pad and sticky notes. Pinned notes become **sticky notes** in everything the user sees: the action's label and accessibility label, its description in the window, notifications, the user guide and the workflow's name. Done in step 10 (see [Steps](#steps)). **Decided** (25 Nov 2026)
-- What keeps its name: the bundle ID (`net.smithnz.carl.scratchnotes`), the `.scratchnotes` sidecar folder, the `scratchnotes_*` variables and temporary files, and the folder `wip/scratchnotes`. The default notes folder and the record of the last notes folder are in `$alfred_workflow_data`, which is named by the bundle ID, so changing it would leave the notes behind; and nobody sees these names. Whether `bin/wf` takes anything from the workflow's name is to check when it's renamed. **Decided**
+- The bundle ID is `net.smithnz.carl.scratchnstick` and the folder is `wip/scratch-n-stick`, renamed with the workflow because nobody else had installed it. `bin/wf` takes the slug from the folder and uses the bundle ID only to find duplicates and the data folders, not the workflow's name. **Decided** (25 Nov 2026)
+- What keeps its name: the `.scratchnotes` sidecar folder, and the `scratchnotes_*` variables and temporary files. Nobody sees these names. **Decided**
 - Open, for step 10:
   - **The action's verb.** "Pin" is clear as a button and as "⌘P Pin"; "Stick" is awkward as a command. Proposed: **Make sticky** (or **Stick to desktop**), with Lucide's `sticky-note` in place of `pin`.
   - **Terms in code.** `pinned` is used about 90 times in code, templates and tests (`"@form": "pinned"`, `pinnedNoteIds`). Proposed: keep it, with a row in [Terms](#terms) mapping sticky notes to `pinned`, rather than renaming it throughout.

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>bundleid</key>
-	<string>net.smithnz.carl.scratchnotes</string>
+	<string>net.smithnz.carl.scratchnstick</string>
 	<key>connections</key>
 	<dict>
 		<key>2F740338-1573-4278-81CC-2F174BE452E7</key>
@@ -220,11 +220,11 @@
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
 	<key>description</key>
-	<string>scratch notes</string>
+	<string>Scratch pad and Sticky notes</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
-	<string>ScratchNotes</string>
+	<string>Scratch'n'Stick</string>
 	<key>objects</key>
 	<array>
 		<dict>
