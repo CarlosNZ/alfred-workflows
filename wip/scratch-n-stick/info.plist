@@ -332,6 +332,18 @@
 				<key>vitoclose</key>
 				<false/>
 			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>10613DF5-A71B-4985-B69F-AE343F9CDF4D</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
 		</array>
 	</dict>
 	<key>createdby</key>
@@ -790,13 +802,13 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>script</key>
-				<string></string>
+				<string>exec ./scripts/stickies.js "$sticky_action" "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
-				<string>scripts/close.js</string>
+				<string></string>
 				<key>type</key>
-				<integer>8</integer>
+				<integer>5</integer>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.action.script</string>
@@ -812,17 +824,31 @@
 				<array>
 					<dict>
 						<key>inputstring</key>
-						<string>{var:close_all}</string>
+						<string>{var:sticky_action}</string>
 						<key>matchcasesensitive</key>
 						<false/>
 						<key>matchmode</key>
 						<integer>0</integer>
 						<key>matchstring</key>
-						<string>1</string>
+						<string>close</string>
 						<key>outputlabel</key>
 						<string>Close all</string>
 						<key>uid</key>
 						<string>42668848-8394-4F81-B068-68F3AEE18377</string>
+					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:sticky_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>show</string>
+						<key>outputlabel</key>
+						<string>Show all</string>
+						<key>uid</key>
+						<string>10613DF5-A71B-4985-B69F-AE343F9CDF4D</string>
 					</dict>
 				</array>
 				<key>elselabel</key>
@@ -1120,7 +1146,7 @@
 		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
 		<dict>
 			<key>note</key>
-			<string>Close all sticky notes, or a sticky note to bring to the front</string>
+			<string>Show all or Close all sticky notes; else a sticky note to bring to the front</string>
 			<key>xpos</key>
 			<real>368</real>
 			<key>ypos</key>

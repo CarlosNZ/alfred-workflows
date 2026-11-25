@@ -137,40 +137,45 @@ function notesListItem(note, base, bundle, sticky) {
 // A note's result in the sticky notes list, from `base` (noteItem): ↩ takes
 // the note's ID down the stick route, as ⌘↩ in the notes list does, where
 // open.js brings its window to the front (or opens it again, if it has closed
-// after the list was shown), and ⌘↩ closes its window (close.js).
+// after the list was shown), and ⌘↩ closes its window (stickies.js close).
 function stickiesListItem(note, base) {
   return {
     ...base,
     arg: note.id,
-    mods: { ...base.mods, cmd: { subtitle: "Close this sticky note", arg: note.id } },
+    mods: { ...base.mods, cmd: { subtitle: "Close this sticky note", arg: note.id, variables: { sticky_action: "close" } } },
   };
 }
 
-// The sticky notes list: `items`, the matching notes' results, then Close all
-// sticky notes, last whatever the query, which closes all `count` sticky
-// windows, not only those listed. A sticky window whose note hasn't been
-// saved yet (a blank new note, with nothing typed yet) has no result, but is
-// counted and closed. With no sticky windows, the only result says so.
+// The sticky notes list: `items`, the matching notes' results, then Show all
+// and Close all sticky notes, last whatever the query, which act on all
+// `count` sticky windows, not only those listed. A sticky window whose note
+// hasn't been saved yet (a blank new note, with nothing typed yet) has no
+// result, but is counted, shown and closed. With no sticky windows, the only
+// result says so.
 function stickiesListItems(items, query, count, variable) {
   const keyword = variable("keyword") || "scratch";
   if (count === 0) return [{ title: "No sticky notes", subtitle: `Stick a note to the desktop with ⌘↩ in “${keyword}”`, valid: false }];
   if (items.length === 0 && query) {
     items.push({ title: `No sticky notes match “${query}”`, subtitle: `Search all your notes with “${keyword}”`, valid: false });
   }
-  return items.concat(closeAllItem(count));
+  const notes = count === 1 ? "the sticky note" : `the ${count} sticky notes`;
+  return items.concat(
+    allStickiesItem("Show all sticky notes", `Bring ${notes} on the desktop to the front`, "show"),
+    allStickiesItem("Close all sticky notes", `Close ${notes} on the desktop`, "close"),
+  );
 }
 
-// Close all sticky notes: ↩ goes to close.js with an empty arg, through the
-// Conditional on `close_all` that keeps it off the stick route, where the
+// Show all or Close all sticky notes: ↩ goes to stickies.js with the command
+// `action` in the variable `sticky_action` and an empty arg, through the
+// Conditional on that variable, which keeps it off the stick route, where the
 // notes' ↩ goes. The modifiers do nothing.
-function closeAllItem(count) {
-  const subtitle = count === 1 ? "Close the sticky note on the desktop" : `Close the ${count} sticky notes on the desktop`;
+function allStickiesItem(title, subtitle, action) {
   const none = { subtitle, valid: false };
   return {
-    title: "Close all sticky notes",
+    title,
     subtitle,
     arg: "",
-    variables: { close_all: "1" },
+    variables: { sticky_action: action },
     mods: { cmd: none, alt: none, ctrl: none },
   };
 }

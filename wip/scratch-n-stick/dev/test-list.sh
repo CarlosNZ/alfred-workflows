@@ -277,27 +277,31 @@ expect "notes list: a sticky note says so, with no arg; ⌘ still sticks it" "$(
 
 # The sticky notes list (list.js's second argument, "stickies"): only the
 # sticky notes, last edited first, each with its ID as the arg of ↩ and ⌘
-# (Close), then Close all sticky notes, whose keys do nothing but ↩. No New
-# note, and no "Sticky" in the subtitles.
+# (Close), then Show all and Close all sticky notes, whose keys do nothing but
+# ↩. No New note, and no "Sticky" in the subtitles.
 stickies() { scratchnstick_sticky_ids=$1 items "$notes" "${2:-}" stickies }
-closeall2="Close all sticky notes | Close the 2 sticky notes on the desktop |  |  | - | - | - | "
-expect_exact "stickies: the sticky notes, then Close all" "$(stickies $'shopping\ncafe')" "Café ideas | $(items "$notes" cafe | cut -d'|' -f2 | sed 's/^ //;s/ $//') | cafe |  | cafe | cafe | $notes/cafe.md | "$'\n'"Shopping | Edited 3h ago • milk, eggs | shopping |  | shopping | shopping | $notes/shopping.md | "$'\n'"$closeall2"
-expect "stickies: ⌘ closes the note" "$(scratchnstick_sticky_ids=cafe notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" stickies | grep -o '"cmd":{[^}]*}' | head -1)" '"cmd":{"subtitle":"Close this sticky note","arg":"cafe"}'
-expect "stickies: only Close all sets close_all, for the Conditional" "$(scratchnstick_sticky_ids=cafe notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" stickies | grep -o '"variables":{[^}]*}' | tr '\n' ' ')" '"variables":{"close_all":"1"} '
-expect_exact "stickies: a query narrows the notes, and Close all stays last" "$(stickies $'shopping\ncafe' MILK | cut -d'|' -f1)" $'Shopping \nClose all sticky notes '
-expect_exact "stickies: a query that matches none says so, then Close all" "$(stickies $'shopping\ncafe' bread)" $'No sticky notes match “bread” | Search all your notes with “scratch” |  | \n'"$closeall2"
-expect_exact "stickies: one sticky note" "$(stickies cafe | sed -n 2p | cut -d'|' -f1-2)" "Close all sticky notes | Close the sticky note on the desktop "
-expect_exact "stickies: a sticky note not saved yet has no result" "$(stickies $'cafe\nunsaved' | cut -d'|' -f1)" $'Café ideas \nClose all sticky notes '
-expect_exact "stickies: … and Close all counts it" "$(stickies $'cafe\nunsaved' | sed -n 2p | cut -d'|' -f2)" " Close the 2 sticky notes on the desktop "
+# The list's raw JSON, for the variables.
+stickies_json() { scratchnstick_sticky_ids=$1 notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" stickies }
+all2="Show all sticky notes | Bring the 2 sticky notes on the desktop to the front |  |  | - | - | - | "$'\n'"Close all sticky notes | Close the 2 sticky notes on the desktop |  |  | - | - | - | "
+expect_exact "stickies: the sticky notes, then Show all and Close all" "$(stickies $'shopping\ncafe')" "Café ideas | $(items "$notes" cafe | cut -d'|' -f2 | sed 's/^ //;s/ $//') | cafe |  | cafe | cafe | $notes/cafe.md | "$'\n'"Shopping | Edited 3h ago • milk, eggs | shopping |  | shopping | shopping | $notes/shopping.md | "$'\n'"$all2"
+expect "stickies: ⌘ closes the note" "$(stickies_json cafe | grep -o '"cmd":{[^}]*}}' | head -1)" '"cmd":{"subtitle":"Close this sticky note","arg":"cafe","variables":{"sticky_action":"close"}}'
+expect "stickies: Show all and Close all set sticky_action, for the Conditional; ↩ on a note sets nothing" "$(stickies_json cafe | grep -o '"variables":{[^}]*}' | tr '\n' ' ')" '"variables":{"sticky_action":"close"} "variables":{"sticky_action":"show"} "variables":{"sticky_action":"close"} '
+expect_exact "stickies: a query narrows the notes, and Show all and Close all stay last" "$(stickies $'shopping\ncafe' MILK | cut -d'|' -f1)" $'Shopping \nShow all sticky notes \nClose all sticky notes '
+expect_exact "stickies: a query that matches none says so, then Show all and Close all" "$(stickies $'shopping\ncafe' bread)" $'No sticky notes match “bread” | Search all your notes with “scratch” |  | \n'"$all2"
+expect_exact "stickies: one sticky note" "$(stickies cafe | sed -n '2,3p' | cut -d'|' -f2)" $' Bring the sticky note on the desktop to the front \n Close the sticky note on the desktop '
+expect_exact "stickies: a sticky note not saved yet has no result" "$(stickies $'cafe\nunsaved' | cut -d'|' -f1)" $'Café ideas \nShow all sticky notes \nClose all sticky notes '
+expect_exact "stickies: … and Show all and Close all count it" "$(stickies $'cafe\nunsaved' | sed -n '2,3p' | cut -d'|' -f2)" $' Bring the 2 sticky notes on the desktop to the front \n Close the 2 sticky notes on the desktop '
 expect_exact "stickies: none, with or without a query: only a result saying so" "$(stickies '' ; stickies '' milk)" $'No sticky notes | Stick a note to the desktop with ⌘↩ in “scratch” |  | \nNo sticky notes | Stick a note to the desktop with ⌘↩ in “scratch” |  | '
 expect_exact "stickies: names the notes list's keyword" "$(keyword=notes stickies '' | cut -d'|' -f2)" " Stick a note to the desktop with ⌘↩ in “notes” "
 before=$(ls "$quick" | sort)
 stickies cafe >/dev/null
 expect_exact "stickies: leaves the quick bundles alone" "$(ls "$quick" | sort)" "$before"
 
-# close.js with no sticky windows: nothing to close, for one note or all.
-expect_exact "close.js: no sticky window to close" "$(alfred_workflow_cache=$cache ${here:h}/scripts/close.js cafe && alfred_workflow_cache=$cache ${here:h}/scripts/close.js '' && print done)" "done"
-expect_exact "close.js: not a note ID" "$(alfred_workflow_cache=$cache ${here:h}/scripts/close.js .hidden 2>&1 >/dev/null | grep -o 'Not a note ID.*')" 'Not a note ID: ".hidden" (-2700)'
+# stickies.js with no sticky windows: nothing to close or show.
+sj() { notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache ${here:h}/scripts/stickies.js "$@" }
+expect_exact "stickies.js: no sticky window to close or show" "$(sj close cafe && sj close '' && sj show '' && print done)" "done"
+expect_exact "stickies.js: not a note ID" "$(sj close .hidden 2>&1 >/dev/null | grep -o 'Not a note ID.*')" 'Not a note ID: ".hidden" (-2700)'
+expect_exact "stickies.js: an unknown command, or show with an ID" "$(sj open cafe 2>&1 >/dev/null | grep -o 'Unknown command.*'; sj show cafe 2>&1 >/dev/null | grep -o 'Unknown command.*')" $'Unknown command: ["open","cafe"] (-2700)\nUnknown command: ["show","cafe"] (-2700)'
 
 # The theme stylesheet for quick views' pages, from Alfred's theme background.
 # The stylesheet list.js writes with alfred_theme_background set to $1 (unset

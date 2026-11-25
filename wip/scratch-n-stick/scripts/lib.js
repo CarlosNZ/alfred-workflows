@@ -2767,35 +2767,62 @@ function noteWindowHeight(pid) {
 }
 
 // Brings the window of the Alfred UI process `pid` to the front, closing
-// Alfred's window if it's open (↩ on a sticky note in the results).
+// Alfred's window if it's open (↩ on a sticky note in the results). See
+// activateWindowProcesses.
+function activateWindowProcess(pid) {
+  return activateWindowProcesses([pid]);
+}
+
+// Brings the windows of the Alfred UI processes `pids` to the front, one after
+// another, so the last ends up on top, with the focus, closing Alfred's
+// window if it's open (Show all sticky notes). A process hidden with ⌘H is
+// shown again. Returns whether every process was there and activated.
 //
 // Alfred's window closes when Alfred loses focus, but it opens without making
 // Alfred the active app: the app that was in front stays active. So when that
-// app is the sticky note's, activating it changes nothing, and Alfred stays
+// app is a sticky note's, activating it changes nothing, and Alfred stays
 // open with its results. While Alfred has a window on screen, then, Alfred is
-// made active first, and the note's process once Alfred is (activating it
+// made active first, and the first process once Alfred is (activating it
 // sooner does nothing, as it's still active); that takes focus from Alfred,
 // which closes. With Alfred's window closed (⌘↩, Stick in a quick view) the
-// process is activated directly: making Alfred active with no window to
+// processes are activated directly: making Alfred active with no window to
 // close once left a third app in front instead of the note.
-function activateWindowProcess(pid) {
-  const app = runningApp(pid);
-  if (!app) return false;
+//
+// Each process is activated once the one before it has become active, so
+// they stack in order. A script that Alfred started can activate one process
+// after another like this, each taking about 7 ms (tested on 26 Nov 2026 with
+// three sticky windows, from behind another app's windows, with Alfred's
+// window open and closed, and with one hidden).
+function activateWindowProcesses(pids) {
+  const apps = pids.map(runningApp).filter(Boolean);
+  if (apps.length === 0) return false;
   const alfred = alfredWithWindowOnScreen();
   if (alfred) {
     alfred.activateWithOptions(0);
-    const deadline = Date.now() + ALFRED_ACTIVATION_TIMEOUT_MS;
-    while (!alfred.active && Date.now() < deadline) {
-      // NSRunningApplication updates `active` from the run loop.
-      $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(0.005));
-    }
+    waitUntilActive(alfred);
   }
-  return Boolean(app.activateWithOptions($.NSApplicationActivateAllWindows));
+  let activated = apps.length === pids.length;
+  apps.forEach((app, i) => {
+    if (app.hidden) app.unhide;
+    if (!app.activateWithOptions($.NSApplicationActivateAllWindows)) activated = false;
+    else if (i < apps.length - 1) waitUntilActive(app);
+  });
+  return activated;
 }
 
-// How long activateWindowProcess waits for Alfred to become active; it took
-// about 7 ms in tests.
-const ALFRED_ACTIVATION_TIMEOUT_MS = 500;
+// Waits until `app` is the active app, for up to ACTIVATION_TIMEOUT_MS.
+// NSRunningApplication updates `active` from the run loop, so it's run while
+// waiting.
+function waitUntilActive(app) {
+  const deadline = Date.now() + ACTIVATION_TIMEOUT_MS;
+  while (!app.active && Date.now() < deadline) {
+    $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(0.005));
+  }
+}
+
+// How long activateWindowProcesses waits for an app to become active; Alfred
+// and sticky windows took about 7 ms in tests.
+const ACTIVATION_TIMEOUT_MS = 500;
 
 // Alfred's running app if it has a window on screen (its search window, or
 // a quick view in it), or null.
