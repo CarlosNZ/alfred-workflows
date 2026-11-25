@@ -7,6 +7,27 @@
   "constraints": "@customisePlace",
   "components": [
     {
+      "id": "colourbox",
+      "type": "view",
+      "layout": "stack",
+      "constraints": "@buttonBox",
+      "components": [
+        {
+          "id": "colour",
+          "type": "button",
+          "text": "",
+          "bordered": false,
+          "constraints": "@swatchBox",
+          "font": "@swatchFont",
+          "contenttintcolour": "@swatch",
+          "image": { "type": "symbol", "src": "circle.fill" },
+          "tooltip": "Colour (⌘1–⌘6)",
+          "accessibility": { "label": "Colour" },
+          "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "colour"] } }]
+        }
+      ]
+    },
+    {
       "@needs": "icons",
       "id": "icon",
       "type": "button",
@@ -17,19 +38,6 @@
       "tooltip": "Icon (⌘I)",
       "accessibility": { "label": "Icon" },
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } }]
-    },
-    {
-      "id": "colour",
-      "type": "button",
-      "text": "",
-      "bordered": false,
-      "constraints": "@buttonBox",
-      "font": "@swatchFont",
-      "contenttintcolour": "@swatch",
-      "image": { "type": "symbol", "src": "circle.fill" },
-      "tooltip": "Colour (⌘1–⌘6)",
-      "accessibility": { "label": "Colour" },
-      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "colour"] } }]
     },
     {
       "id": "fontsize",

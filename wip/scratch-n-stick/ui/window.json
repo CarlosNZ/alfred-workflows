@@ -12,6 +12,7 @@
     "size": { "width": 360, "height": 320 },
     "minsize": { "width": 220, "height": 160 },
     "@quick": { "size": { "width": 640, "height": 400 } },
+    "@sticky": { "borderless": true, "cornerradius": 10 },
     "root": {
       "id": "note",
       "type": "view",
@@ -23,6 +24,7 @@
         { "@form": "quick", "shortcut": "⌘P", "action": { "type": "script", "src": "scripts/window.js", "args": ["stick", "@note", "@form", "{value:editor.text}"] } },
         { "@needs": "icons", "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },
         { "@form": "sticky", "shortcut": "⎋", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["escape", "@note", "@form"] } },
+        { "@form": "sticky", "shortcut": "⌘W", "action": { "type": "json", "src": { "finish": {} } } },
         "@colourShortcuts",
         "@fontSizeShortcuts"
       ],
@@ -30,7 +32,31 @@
         { "triggers": "launched", "action": { "type": "script", "src": "scripts/window.js", "args": ["launched", "@note", "@form", "@mode"] } },
         { "triggers": "quit", "action": { "type": "script", "src": "scripts/window.js", "args": ["quit", "@note", "@form", "{value:editor.text}"] } }
       ],
-      "components": [{ "id": "content" }, { "id": "customise" }, { "id": "actions" }]
+      "components": [
+        { "id": "content" },
+        { "id": "customise" },
+        { "id": "actions" },
+        {
+          "@form": "sticky",
+          "id": "closegroup",
+          "type": "view",
+          "layout": "inline",
+          "constraints": "@closePlace",
+          "components": [
+            {
+              "id": "close",
+              "type": "button",
+              "text": "",
+              "bordered": false,
+              "constraints": "@buttonBox",
+              "image": "@buttonIcon:close",
+              "tooltip": "Close (⌘W)",
+              "accessibility": { "label": "Close" },
+              "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "finish": {} } } }]
+            }
+          ]
+        }
+      ]
     }
   }
 }

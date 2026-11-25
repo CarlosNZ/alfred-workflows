@@ -80,6 +80,15 @@ expect "notes without sidecars were given one" "$(ls -A "$notes/.scratchnstick" 
 # The quick bundle's ui.json of a note, and its modification time.
 ui() { print -r -- "$quick/$1.alfredui/ui.json" }
 mtime() { stat -f %Fm "$(ui $1)" }
+# The font size of the editor in a note's quick bundle.
+editor_size() {
+  osascript -l JavaScript -e '
+    ObjC.import("Foundation");
+    function run(argv) {
+      const d = JSON.parse($.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js);
+      return String((function find(c) { if (c.id === "editor") return c; for (const x of c.components || []) { const f = find(x); if (f) return f; } })(d.window.root).font.size);
+    }' "$(ui $1)"
+}
 # The note's text in its quick bundle's page (note.js).
 text_of() {
   osascript -l JavaScript -e 'ObjC.import("Foundation"); function run(argv) { const page = {}; new Function("window", $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js)(page); return page.NOTE; }' "$quick/$1.alfredui/note.js"
@@ -101,12 +110,12 @@ expect "a changed sidecar rewrites its note's bundle" "$([[ $(mtime old) != $bef
 before_old=$(mtime old)
 print -r -- '{"mode":"edit","fontSize":24}' > "$notes/.scratchnstick/old.json"
 items "$notes" >/dev/null
-expect "a note's own font size rewrites its bundle, at that size" "$([[ $(mtime old) != $before_old ]] && print rewritten) $(grep -c '"size": 24' $(ui old))" "rewritten 1"
+expect "a note's own font size rewrites its bundle, at that size" "$([[ $(mtime old) != $before_old ]] && print rewritten) $(editor_size old)" "rewritten 24"
 before_old=$(mtime old)
 (cd "$tmp" && font_size=16 notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache "$list" "") >/dev/null
 expect "a changed setting rewrites every bundle" "$([[ $(mtime cafe) != $before_cafe ]] && print rewritten) $([[ $(mtime old) != $before_old ]] && print rewritten)" "rewritten rewritten"
 items "$notes" milk >/dev/null
-expect "with a query, only matching notes' bundles are rebuilt" "$(grep -c '"size": 16' $(ui cafe)) $(grep -c '"size": 16' $(ui shopping) || true)" "1 0"
+expect "with a query, only matching notes' bundles are rebuilt" "$(editor_size cafe) $(editor_size shopping)" "16 13"
 mkdir -p "$quick/20200101-000000.alfredui" "$quick/gone.alfredui" "$quick/open.alfredui" "$cache/state"
 print -r -- '{"form":"quick","pid":1,"mode":"edit"}' > "$cache/state/open.json"
 mv "$notes/recent.md" "$tmp/"
@@ -214,7 +223,7 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     const files = noteButtonIconNames().flatMap((name) => ["light", "dark"].map((a) => noteButtonIconFile(name, a)));
     const missing = files.concat(["icons/lucide/LICENSE"]).filter((f) => !$.NSFileManager.defaultManager.fileExistsAtPath(argv[0] + "/" + f));
     return `${files.length} ${missing.join(" ") || "none missing"}`;
-  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "50 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
+  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "52 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
 # A sticky note's result (no arg, `sticky` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a sticky state whose process isn't one is ignored.

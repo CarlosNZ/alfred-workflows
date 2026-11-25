@@ -50,7 +50,7 @@ function run(argv) {
   const written = [];
   for (const name of noteButtonIconNames()) {
     const own = isOwnButtonIcon(workflowFolder, name);
-    const elements = lucideElements(`${workflowFolder}/dev/${own ? "icons" : "lucide"}/${name}.svg`);
+    const elements = lucideElements(`${workflowFolder}/dev/${own ? "icons" : "lucide"}/${name}.svg`, own);
     for (const appearance of Object.keys(BUTTON_ICON_COLOURS)) {
       const path = noteButtonIconFile(name, appearance);
       ensureFolder($(`${workflowFolder}/${path}`).stringByDeletingLastPathComponent.js, true);
@@ -101,17 +101,20 @@ function isOwnButtonIcon(workflowFolder, name) {
 }
 
 // The elements inside a Lucide SVG's <svg> element, which draw with the root's
-// stroke="currentColor" and fill="none".
-function lucideElements(path) {
+// stroke="currentColor" and fill="none". The workflow's own icons (`own`) may
+// also fill an element with fill="currentColor", as the close icon's circle is.
+function lucideElements(path, own) {
   const svg = readText(path);
   if (svg === null) throw new Error(`Can't read ${path}`);
   const match = /<svg\b[^>]*>([\s\S]*)<\/svg>/.exec(svg);
-  if (!match || !/stroke="currentColor"/.test(svg) || /currentColor/.test(match[1])) throw new Error(`${path} isn't a Lucide icon drawn with its root's currentColor`);
+  const inner = match && (own ? match[1].replace(/fill="currentColor"/g, "") : match[1]);
+  if (!match || !/stroke="currentColor"/.test(svg) || /currentColor/.test(inner)) throw new Error(`${path} isn't a Lucide icon drawn with its root's currentColor`);
   return match[1].trim().split(/\s*\n\s*/).join("");
 }
 
 // A button icon's SVG: its elements (Lucide's, or the workflow's own when
-// `own`) in a group with the buttons' colour.
+// `own`) in a group with the buttons' colour, which also fills the elements
+// filled with currentColor.
 // The opacity is on the group, so the icon is drawn as one layer, as a symbol
 // in a translucent colour is: where two strokes overlap, it's no darker.
 // lib.js makes badges from the elements in this group (noteButtonIconElements).
@@ -119,7 +122,7 @@ function buttonIconSvg(name, own, elements, { colour, opacity }) {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`,
     own ? `<!-- Scratch'n'Stick's ${name}, in Lucide's style -->` : `<!-- Lucide's ${name} (see LICENSE) -->`,
-    `<g opacity="${opacity}" ${noteLucideStroke()} stroke="${colour}">${elements}</g>`,
+    `<g opacity="${opacity}" ${noteLucideStroke()} stroke="${colour}">${elements.replace(/fill="currentColor"/g, `fill="${colour}"`)}</g>`,
     `</svg>`,
     "",
   ].join("\n");
