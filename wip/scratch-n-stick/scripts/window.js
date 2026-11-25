@@ -14,6 +14,8 @@
 //   window.js fontsize <id> <form> <size>   a size in the Font size menu, or
 //                                           "bigger" (⌘+), "smaller" (⌘−) or
 //                                           "default" (⌘0, or Default)
+//   window.js collapse <id> <form> <text>   a sticky window's collapse button:
+//                                           collapses or expands the window
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
 //                                           then sticks
@@ -38,6 +40,17 @@
 // The window's scripts get the alfred_* variables but not User Configuration,
 // so the notes folder and the window's look come from the context written into
 // the note's bundle (by list.js for a quick view, by open.js when sticky).
+//
+// Collapsing: a sticky window's collapse button shrinks it to its top row, as
+// Stickies does, showing only its close button, the collapse button (to
+// expand) and the note's title, and expands it again. A `window` action's
+// `resize` sets the window's height, below its minimum size too, and keeps
+// its top edge where it is. While it's collapsed, the window's state says so,
+// and its note's sidecar has `collapsed`, the height it expands back to, so a
+// note closed collapsed opens collapsed the next time it's sticky (its
+// bundle's context has it too, so the parts the window's scripts give it,
+// such as the customise group after a colour change, are built hidden). The
+// Edit / View switch, the drop-downs and ↩ do nothing while it's collapsed.
 
 ObjC.import("Foundation");
 ObjC.import("unistd");
@@ -72,6 +85,8 @@ function run(argv) {
       return setIcon(store, workflowFolder, context, id, form, rest[0]);
     case "fontsize":
       return setFontSize(store, workflowFolder, context, id, form, rest[0]);
+    case "collapse":
+      return toggleCollapsed(store, workflowFolder, context, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "tick":
       return tick(store, context, id, form, Number(rest[0]), rest[1]);
     default:
@@ -88,12 +103,21 @@ function run(argv) {
 // wrote its bundle (an edit elsewhere just before ↩), it shows the note as it
 // is now, so a stale text can't be saved over it: in the editor, or by
 // reloading the page.
+//
+// A sticky window's size is saved when it closes, collapsed or not, and
+// restored when it opens (`frameautosave`), so it's set here to match: a
+// collapsed window to the collapsed height, and one that isn't collapsed but
+// opened shorter than its minimum height (closed collapsed, with its sidecar
+// changed since, by a sync from another Mac, say) to the default height.
 function launched(store, workflowFolder, context, id, form, mode) {
   if (form === "quick" && stickyNotePid(id) !== null) {
     return JSON.stringify({ finish: { variables: { stick_note: escapeForAlfredUi(id) } } });
   }
-  writeNoteState(id, { form, pid: $.getppid(), mode });
+  const pid = $.getppid();
+  const collapsed = form === "sticky" && context.collapsed != null;
+  writeNoteState(id, { form, pid, mode, collapsed });
   closeNotePickerState(id);
+  if (form === "sticky") return stickyWindowSize(workflowFolder, pid, collapsed);
   const note = form === "quick" ? store.read(id) : null;
   if (!note || textHash(note.text) === context.textHash) return;
   if (mode === "edit") {
@@ -125,7 +149,7 @@ function save(store, id, form, text) {
 // handed over to a sticky window), since then its mode is unknown.
 function switchMode(store, workflowFolder, context, id, form, text, to) {
   const state = readNoteState(id);
-  if (!state || state.form !== form) return;
+  if (!state || state.form !== form || state.collapsed) return;
   const from = state.mode === "view" ? "view" : "edit";
   if (to === from) return;
   if (from === "edit") store.save(id, text);
@@ -238,6 +262,60 @@ function setFontSize(store, workflowFolder, context, id, form, choice) {
     ids.web = { src: writeNotePage(id, form, note ? note.text : "") };
   }
   return JSON.stringify({ replace: { ids: { customise } }, update: { ids } });
+}
+
+// The size a sticky window that has just opened is given (see launched): the
+// collapsed height if it's collapsed; otherwise the default height if it
+// opened shorter than its minimum, or nothing.
+function stickyWindowSize(workflowFolder, pid, collapsed) {
+  const layout = noteCollapsedLayout();
+  if (collapsed) return JSON.stringify({ window: { resize: { height: layout.height } } });
+  const minimum = readNoteTemplate(workflowFolder, "window").window.minsize.height;
+  const height = noteWindowHeight(pid);
+  if (height !== null && height < minimum) return JSON.stringify({ window: { resize: { height: layout.defaultHeight } } });
+}
+
+// The collapse button of a sticky window: collapses it, or expands it if it's
+// collapsed (see "Collapsing" above). Collapsing saves the editor's text in
+// Edit, records the window's height (or the default height, if it can't be
+// measured), closes the open drop-down, and prints the update that hides the
+// note and the top row's groups, shows the note's title and turns the button
+// into Expand, with the resize to the collapsed height. Expanding prints the
+// reverse, with the resize back to the recorded height, and puts the caret
+// back in the editor in Edit. Does nothing without a state of the window's
+// form, as for switchMode, or in a quick view.
+function toggleCollapsed(store, workflowFolder, context, id, form, text) {
+  const state = readNoteState(id);
+  if (form !== "sticky" || !state || state.form !== form) return;
+  const mode = state.mode === "view" ? "view" : "edit";
+  const layout = noteCollapsedLayout();
+  const collapsing = !state.collapsed;
+  let expandTo = null;
+  if (collapsing) {
+    if (mode === "edit") store.save(id, text);
+    const height = noteWindowHeight(state.pid);
+    expandTo = height !== null && height > layout.height ? height : layout.defaultHeight;
+  }
+  const height = collapsing ? layout.height : noteCollapsedHeight({ collapsed: context.collapsed }) || layout.defaultHeight;
+  store.updateMeta(id, { collapsed: expandTo });
+  updateNoteContext(id, form, { collapsed: expandTo });
+  writeNoteState(id, Object.assign(state, { collapsed: collapsing }));
+  const note = store.read(id);
+  const options = noteWindowOptions(Object.assign(context, { collapsed: expandTo }), { workflowFolder, id, form, mode });
+  options.text = note ? note.text : "";
+  const { image, tooltip, accessibility } = findNoteComponent(noteWindowPart(options, "windowbuttons"), "collapse");
+  const ids = { content: { hidden: collapsing }, customise: { hidden: collapsing }, actions: { hidden: collapsing } };
+  ids.collapse = { image, tooltip, accessibility };
+  if (closeNotePickerState(id)) Object.assign(ids, noteDropdownsClosed());
+  if (!collapsing) {
+    ids.collapsedtitle = { hidden: true };
+    if (mode === "edit") ids.editor = { focus: true };
+  }
+  const actions = { update: { ids }, window: { resize: { height } } };
+  // The title is replaced rather than updated, so it's laid out with its
+  // text: Alfred UI doesn't measure a label again when an update changes it.
+  if (collapsing) actions.replace = { ids: { collapsedtitle: noteWindowPart(options, "collapsedtitle") } };
+  return JSON.stringify(actions);
 }
 
 // A task box was clicked in the page: ticks the task on `line` (counting from

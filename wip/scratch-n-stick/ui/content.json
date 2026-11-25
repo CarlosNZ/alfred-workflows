@@ -1,6 +1,7 @@
 {
   "id": "content",
   "type": "view",
+  "@collapsed": { "hidden": true },
   "layout": "stack",
   "constraints": { "stretch": "both" },
   "components": [

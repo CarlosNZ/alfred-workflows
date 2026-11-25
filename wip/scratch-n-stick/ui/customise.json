@@ -1,6 +1,7 @@
 {
   "id": "customise",
   "type": "view",
+  "@collapsed": { "hidden": true },
   "layout": "inline",
   "direction": "horizontal",
   "spacing": "@customiseSpacing",

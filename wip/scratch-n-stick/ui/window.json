@@ -36,26 +36,8 @@
         { "id": "content" },
         { "id": "customise" },
         { "id": "actions" },
-        {
-          "@form": "sticky",
-          "id": "closegroup",
-          "type": "view",
-          "layout": "inline",
-          "constraints": "@closePlace",
-          "components": [
-            {
-              "id": "close",
-              "type": "button",
-              "text": "",
-              "bordered": false,
-              "constraints": "@buttonBox",
-              "image": "@buttonIcon:close",
-              "tooltip": "Close (⌘W)",
-              "accessibility": { "label": "Close" },
-              "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "finish": {} } } }]
-            }
-          ]
-        }
+        { "@form": "sticky", "id": "collapsedtitle" },
+        { "@form": "sticky", "id": "windowbuttons" }
       ]
     }
   }

@@ -1,0 +1,10 @@
+{
+  "id": "collapsedtitle",
+  "type": "label",
+  "text": "@title",
+  "linebreak": "truncatetail",
+  "font": "@collapsedTitleFont",
+  "constraints": "@collapsedTitlePlace",
+  "hidden": true,
+  "@collapsed": { "hidden": false }
+}

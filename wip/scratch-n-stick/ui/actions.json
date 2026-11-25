@@ -1,6 +1,7 @@
 {
   "id": "actions",
   "type": "view",
+  "@collapsed": { "hidden": true },
   "layout": "inline",
   "direction": "horizontal",
   "spacing": "@actionsSpacing",

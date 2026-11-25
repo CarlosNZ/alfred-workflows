@@ -19,7 +19,8 @@
 #
 # The open picker's name is in <cache>/state/<id>.picker, beside the window's
 # state (see "Window state" in lib.js). A window without a state of its form
-# is left alone, though Esc still closes it.
+# is left alone, though Esc still closes it. A collapsed sticky window opens
+# no picker (collapsing closes the open one; see window.js).
 #
 # Alfred waits for a window's actions (in a quick view, inside its own
 # process), so this is zsh with builtins only, as changed.sh is.
@@ -37,6 +38,7 @@ finish() { [[ $1 == escape ]] && print -r -- '{"finish":{}}'; exit 0 }
 state_path=$alfred_workflow_cache/state/$id
 state=$(<$state_path.json) 2>/dev/null || finish "$1"
 [[ $state == *'"form":"'$form'"'* ]] || finish "$1"
+[[ $1 == toggle && $state == *'"collapsed":true'* ]] && exit 0
 
 open=
 [[ -e $state_path.picker ]] && open=$(<$state_path.picker)

@@ -853,6 +853,9 @@ function isRegularFile(path) {
 //   "@quick", "@sticky", "@edit", "@view": { … }
 //                                 properties merged into the object in that
 //                                 form or mode
+//   "@collapsed": { … }           properties merged into the object in a
+//                                 collapsed sticky window (see "Collapsing"
+//                                 in window.js)
 //   "@note", "@text", …           a whole string that's a token is replaced by
 //                                 its value (see noteWindowTokens); an array
 //                                 element whose token's value is an array is
@@ -946,10 +949,11 @@ const NOTE_ICONS = [
 // (`sticky-note`, which is a note icon too), the icon button's for a note
 // without an icon (`smile-plus`), the picker's None (`ban`), and the Font
 // size button's (`text-size`, the workflow's own, in Lucide's style; see
-// dev/make-icons.js), and a sticky window's close button's (`close`, the
-// workflow's own too: a filled circle with an X cut out of it). Each has an
-// SF Symbol for windows that can't show the button icons (macOS 12; see
-// noteIconsSupported), which follows the appearance by itself.
+// dev/make-icons.js), a sticky window's close button's (`close`, the
+// workflow's own too: a filled circle with an X cut out of it), and its
+// collapse button's (`arrow-up-to-line` to collapse, `arrow-down-to-line` to
+// expand). Each has an SF Symbol for windows that can't show the button icons
+// (macOS 12; see noteIconsSupported), which follows the appearance by itself.
 const NOTE_WINDOW_BUTTON_ICONS = {
   eye: "eye",
   pencil: "pencil",
@@ -958,6 +962,8 @@ const NOTE_WINDOW_BUTTON_ICONS = {
   ban: "nosign",
   "text-size": "textformat.size",
   close: "xmark.circle.fill",
+  "arrow-up-to-line": "arrow.up.to.line",
+  "arrow-down-to-line": "arrow.down.to.line",
 };
 
 // The release of lucide-static that the button icons were drawn from, as
@@ -1351,35 +1357,48 @@ function readNoteTemplate(workflowFolder, name) {
 // drop-down's size. Top-level consts are private to lib.js, so scripts get
 // these through functions.
 const NOTE_WINDOW_LAYOUT = {
-  // The top row: a sticky window's close button at the top left, where a
-  // window's own close button would be (a sticky window is borderless, with
-  // no traffic lights), and two groups, the note's own look (its colour, its
-  // icon and its font size) at the top left, after the close button, and
-  // the actions (Edit / View, then Stick in the quick view) at the top right.
-  // `top`, `left` and `right` are each one's distance from the window's
-  // edges, in each form, and `spacing` the space between a group's buttons.
-  // Every button in the row is a box `button` points square, its image
-  // centred in it, so both groups are the same height whatever they show,
-  // and the buttons' centres are level, 16 pt down (so `top` is 16 less half
-  // a button), where a window's traffic lights are.
-  close: { top: 5, left: 9 },
-  customise: { quick: { top: 5, left: 12 }, sticky: { top: 5, left: 44 }, spacing: 10 },
+  // The top row: a sticky window's own buttons at the top left, its close
+  // button, where a window's close button would be (a sticky window is
+  // borderless, with no traffic lights), and its collapse button beside it;
+  // and two groups, the note's own look (its colour, its icon and its font
+  // size) at the top left, after a sticky window's buttons, and the actions
+  // (Edit / View, then Stick in the quick view) at the top right. `top`,
+  // `left` and `right` are each one's distance from the window's edges, in
+  // each form, and `spacing` the space between a group's buttons. Every
+  // button in the row is a box `button` points square, its image centred in
+  // it, so both groups are the same height whatever they show, and the
+  // buttons' centres are level, 16 pt down (so `top` is 16 less half a
+  // button), where a window's traffic lights are.
+  windowButtons: { top: 5, left: 9, spacing: 0 },
+  customise: { quick: { top: 5, left: 12 }, sticky: { top: 5, left: 66 }, spacing: 10 },
   actions: { quick: { top: 5, right: 10 }, sticky: { top: 5, right: 10 }, spacing: 10 },
   button: 22,
   // The size of the row's button icons: the note's icon, the Font size
   // button's and the actions', all the same so that their strokes match.
   // `buttonIconSizes` overrides it for glyphs that look small at that size,
   // being short or wide (Aa, the eye), so they look as large as the rest, and
-  // for the close button's circle, about the size of a window's own close
-  // button. And the size of the colour button's swatch (a symbol, whose size
+  // for a sticky window's own buttons, smaller: the close button's circle,
+  // about the size of a window's own close button, and the collapse button's
+  // arrows. And the size of the colour button's swatch (a symbol, whose size
   // is its button's font size), and how far it's raised to be level with the
   // button icons' centres, as a symbol sits on its font's baseline, a little
   // low: the button is twice that much shorter than its box, at the top of
   // it, so the swatch's centre is that much higher.
   buttonIcon: 18,
-  buttonIconSizes: { "text-size": 19, eye: 20, close: 15 },
+  buttonIconSizes: { "text-size": 19, eye: 20, close: 15, "arrow-up-to-line": 16, "arrow-down-to-line": 16 },
   swatch: 16,
   swatchRaise: 1,
+  // A collapsed sticky window (see "Collapsing" in window.js): its height,
+  // the top row's, and its title, a label after the window's buttons,
+  // `top`, `left` and `right` from the window's edges, with its font.
+  // `defaultHeight` is the height a window expands to when its height before
+  // collapsing isn't known, the height a sticky window opens at.
+  collapsed: {
+    height: 32,
+    title: { top: 8, left: 61, right: 10 },
+    titleFont: { size: 13, weight: "semibold" },
+    defaultHeight: 288,
+  },
   // The drop-downs, the icon and colour pickers: boxes of buttons under the
   // customise group, `top` from the window's top in each form and `left` from
   // its left, with corners of `radius`, `padding` inside, and a shadow around
@@ -1458,7 +1477,8 @@ function noteDropdownShadowFile(name) {
 //   null for none), appearance (the appearance the window's button icons are
 //   drawn for, "light" or "dark": always "light" when sticky, as a sticky
 //   note's root view is always in light appearance), icons (whether the
-//   window can show note icons; see noteIconsSupported)
+//   window can show note icons; see noteIconsSupported), collapsed (whether
+//   a sticky window is collapsed; see noteCollapsedHeight)
 // Each of NOTE_WINDOW_BUTTON_ICONS is a token too, "@buttonIcon:<name>", its
 // button icon as a button's image at its size in the top row, or its SF Symbol
 // in a window without note icons.
@@ -1518,7 +1538,13 @@ function noteWindowTokens(
       icons,
     ),
     "@buttonBox": { size: { width: layout.button, height: layout.button } },
-    "@closePlace": { position: "topleft", insets: Object.assign({}, layout.close) },
+    "@windowButtonsPlace": {
+      position: "topleft",
+      insets: { top: layout.windowButtons.top, left: layout.windowButtons.left },
+    },
+    "@windowButtonsSpacing": layout.windowButtons.spacing,
+    "@collapsedTitlePlace": { stretch: "horizontal", insets: Object.assign({}, layout.collapsed.title) },
+    "@collapsedTitleFont": Object.assign({}, layout.collapsed.titleFont),
     "@customisePlace": place("customise", "topleft"),
     "@customiseSpacing": layout.customise.spacing,
     "@actionsPlace": place("actions", "topright"),
@@ -1767,8 +1793,9 @@ function noteFontSizeAction({ workflowFolder, note, form, choice }) {
 }
 
 // A template with its directives resolved for a form and mode (see above),
-// and `icons`, whether the window can show note icons.
-function resolveNoteTemplate(template, { form, mode, icons = true, tokens, workflowFolder }) {
+// `icons`, whether the window can show note icons, and `collapsed`, whether
+// it's a collapsed sticky window.
+function resolveNoteTemplate(template, { form, mode, icons = true, collapsed = false, tokens, workflowFolder }) {
   const isToken = (value) => typeof value === "string" && Object.prototype.hasOwnProperty.call(tokens, value);
   const leftOut = (item) =>
     item &&
@@ -1787,7 +1814,7 @@ function resolveNoteTemplate(template, { form, mode, icons = true, tokens, workf
         .flatMap((item) => (isToken(item) && Array.isArray(tokens[item]) ? tokens[item] : [resolve(item, inArgs)]));
     }
     if (value === null || typeof value !== "object") return value;
-    const merged = Object.assign({}, value, value[`@${form}`], value[`@${mode}`]);
+    const merged = Object.assign({}, value, value[`@${form}`], value[`@${mode}`], collapsed ? value["@collapsed"] : null);
     const result = {};
     for (const [key, item] of Object.entries(merged)) {
       if (key.startsWith("@")) continue;
@@ -1803,10 +1830,12 @@ function resolveNoteTemplate(template, { form, mode, icons = true, tokens, workf
 
 // The templates that window.json's root view takes as placeholders, by id
 // ({ "id": "content" } is filled with content.json): the note (the web view,
-// the editor and the icon picker), and the top row's two groups of buttons,
-// the note's own look (its colour, icon and font size) at the left and the
-// actions (Edit / View and Stick) at the right.
-const NOTE_WINDOW_PARTS = ["content", "customise", "actions"];
+// the editor and the icon picker), the top row's two groups of buttons, the
+// note's own look (its colour, icon and font size) at the left and the
+// actions (Edit / View and Stick) at the right, and, in a sticky window, the
+// note's title, shown while it's collapsed, and the window's own buttons
+// (close and collapse) at the top left.
+const NOTE_WINDOW_PARTS = ["content", "customise", "actions", "collapsedtitle", "windowbuttons"];
 
 // A note window's whole ui.json: window.json, with its placeholders filled
 // (NOTE_WINDOW_PARTS). `options` as for noteWindowTokens.
@@ -1823,7 +1852,8 @@ function noteWindowUi(options, variable = workflowVariable) {
 // replace action after a colour change. `options` as for noteWindowTokens.
 function noteWindowPart(options, name, variable = workflowVariable) {
   const { workflowFolder, form, mode, icons = true } = options;
-  const settings = { form, mode, icons, tokens: noteWindowTokens(options, variable), workflowFolder };
+  const collapsed = form === "sticky" && Boolean(options.collapsed);
+  const settings = { form, mode, icons, collapsed, tokens: noteWindowTokens(options, variable), workflowFolder };
   return resolveNoteTemplate(readNoteTemplate(workflowFolder, name), settings);
 }
 
@@ -1855,7 +1885,8 @@ function noteOpenMode(note, text) {
 // noteOpenMode's. A blank note opens in Edit either way. `appearance`, if
 // given, is the appearance a quick view's button icons are drawn for
 // (quickWindows works it out once for all its bundles); otherwise it's
-// noteQuickAppearance's.
+// noteQuickAppearance's. A sticky window opens collapsed if its note was
+// collapsed when its window last closed (see noteCollapsedHeight).
 function writeNoteWindow(
   { store, workflowFolder, id, form, note, text, mode: requestedMode, appearance: quickAppearance },
   variable = workflowVariable,
@@ -1872,8 +1903,22 @@ function writeNoteWindow(
   const iconOf = noteIcon(meta, variable);
   const icon = iconOf ? iconOf.name : null;
   const appearance = form === "sticky" ? "light" : quickAppearance || noteQuickAppearance(variable);
+  const collapsed = form === "sticky" ? noteCollapsedHeight(meta) : null;
   const ui = noteWindowUi(
-    { workflowFolder, id, form, mode, text, ownFontSize, defaultFontSize, colour, icon, appearance, icons },
+    {
+      workflowFolder,
+      id,
+      form,
+      mode,
+      text,
+      ownFontSize,
+      defaultFontSize,
+      colour,
+      icon,
+      appearance,
+      icons,
+      collapsed: collapsed !== null,
+    },
     variable,
   );
   const script = notePageScript(
@@ -1890,6 +1935,7 @@ function writeNoteWindow(
     icon,
     appearance,
     icons,
+    collapsed,
     textHash: textHash(text),
   };
   return writeNoteBundle(id, form, { ui, context, page, script }, variable);
@@ -1905,8 +1951,21 @@ function noteWindowOptions(context, { workflowFolder, id, form, mode }) {
     icon = null,
     appearance = "light",
     icons = true,
+    collapsed = null,
   } = context;
-  return { workflowFolder, id, form, mode, ownFontSize, defaultFontSize, colour, icon, appearance, icons };
+  return {
+    workflowFolder,
+    id,
+    form,
+    mode,
+    ownFontSize,
+    defaultFontSize,
+    colour,
+    icon,
+    appearance,
+    icons,
+    collapsed: collapsed !== null,
+  };
 }
 
 // Writes a note's window bundle and returns its path. Its files:
@@ -1915,11 +1974,13 @@ function noteWindowOptions(context, { workflowFolder, id, form, mode }) {
 //                  them (the UI's scripts only get the alfred_* variables, not
 //                  User Configuration): { folder, ownFontSize,
 //                  defaultFontSize, colour, icon, appearance, icons,
-//                  textHash }, the notes folder, the window's look (the
-//                  note's own font size or null, the `font_size` setting's,
-//                  the note's colour's and icon's names, the appearance its
-//                  button icons are drawn for, and whether it can show note
-//                  icons; see noteWindowTokens) and a hash of the note's text
+//                  collapsed, textHash }, the notes folder, the window's look
+//                  (the note's own font size or null, the `font_size`
+//                  setting's, the note's colour's and icon's names, the
+//                  appearance its button icons are drawn for, whether it can
+//                  show note icons, see noteWindowTokens, and, for a
+//                  collapsed sticky window, the height it expands to, or
+//                  null) and a hash of the note's text
 //                  as the window last had it (see textHash): the text it
 //                  opened with, and then the text its page was last given
 //                  (writeNotePage), so the window can tell when the note has
@@ -1972,6 +2033,8 @@ const NOTE_WINDOW_SOURCES = [
   "ui/customise.json",
   "ui/actions.json",
   "ui/content.json",
+  "ui/windowbuttons.json",
+  "ui/collapsedtitle.json",
   "ui/view.html",
   "ui/view.js",
   "scripts/lib.js",
@@ -2295,11 +2358,13 @@ function escapeHtml(text) {
 // ---------------------------------------------------------------------------
 // Window state
 //
-// Each open window's state is in <cache>/state/<id>.json, { form, pid, mode }:
-// its form ("quick" or "sticky"), the process it runs in (its Alfred UI
-// helper's when sticky, Alfred's own when quick) and its mode ("edit" or
-// "view"). The window's `launched` event writes it, the Edit / View toggle
-// updates the mode, and `quit` removes it. A window whose process is killed
+// Each open window's state is in <cache>/state/<id>.json, { form, pid, mode,
+// collapsed }: its form ("quick" or "sticky"), the process it runs in (its
+// Alfred UI helper's when sticky, Alfred's own when quick), its mode ("edit"
+// or "view") and whether it's collapsed (a sticky window only; see
+// "Collapsing" in window.js). The window's `launched` event writes it, the
+// Edit / View toggle updates the mode, collapsing and expanding update
+// `collapsed`, and `quit` removes it. A window whose process is killed
 // leaves its state behind, so a sticky note counts as open only while its
 // process is alive (stickyNotePid).
 //
@@ -2364,6 +2429,33 @@ function stickyNoteIds(variable = workflowVariable) {
     [];
   const ids = names.filter((name) => name.endsWith(".json")).map((name) => name.slice(0, -".json".length));
   return new Set(ids.filter((id) => isNoteId(id) && stickyNotePid(id, variable) !== null));
+}
+
+// The height in points that a note's collapsed sticky window expands back to,
+// from its sidecar's `collapsed` (see "Collapsing" in window.js), or null if
+// it isn't collapsed.
+function noteCollapsedHeight(meta) {
+  const height = meta && meta.collapsed;
+  return typeof height === "number" && isFinite(height) && height > 0 ? Math.round(height) : null;
+}
+
+// A collapsed sticky window's sizes, as a copy: { height, title, titleFont,
+// defaultHeight } (see NOTE_WINDOW_LAYOUT).
+function noteCollapsedLayout() {
+  return JSON.parse(JSON.stringify(NOTE_WINDOW_LAYOUT.collapsed));
+}
+
+// The height in points of the window of the process `pid` that's on screen,
+// or null if it has none. CoreGraphics gives a window's bounds without any
+// permission (only its title needs Screen Recording). A sticky window is
+// borderless, so its height is its content's, as a `window` action's
+// `resize` sets it.
+function noteWindowHeight(pid) {
+  ObjC.import("CoreGraphics");
+  const onScreenOnly = 1;
+  const windows = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(onScreenOnly, 0))) || [];
+  const window = windows.find((w) => w.kCGWindowOwnerPID === pid && w.kCGWindowLayer === 0 && w.kCGWindowBounds);
+  return window ? Math.round(window.kCGWindowBounds.Height) : null;
 }
 
 // Brings the window of the Alfred UI process `pid` to the front.
