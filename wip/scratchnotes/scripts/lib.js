@@ -1266,9 +1266,10 @@ const NOTE_WINDOW_LAYOUT = {
   // (the colour picker's swatches are symbols, sized by their font size), and
   // the space between them. A bordered button doesn't tint its symbol, so the
   // colour picker marks the note's colour with `mark`, a rounded background
-  // behind its swatch that looks like the icon picker's bezel.
+  // behind its swatch in a colour that looks like the icon picker's bezel in
+  // both appearances (quaternaryLabelColor is barely visible in dark).
   iconPicker: { columns: 7, button: 25, image: 20, spacing: 2 },
-  colourPicker: { columns: 6, button: 25, image: 14, spacing: 2, mark: { background: "quaternaryLabelColor", radius: 5 } },
+  colourPicker: { columns: 6, button: 25, image: 14, spacing: 2, mark: { background: "unemphasizedSelectedContentBackgroundColor", radius: 5 } },
 };
 
 // The drop-downs, by name: the icon picker (None and the icons) and the colour
@@ -1332,8 +1333,6 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
       action: noteColourAction({ workflowFolder, note, form, colour: c }),
     })),
     "@fontSize": fontSize,
-    // Only a pinned window has an app icon, so only its bundle names one.
-    "@iconPath": form === "pinned" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null,
     "@iconImage": noteButtonIconImage(workflowFolder, currentIcon ? currentIcon.name : "smile-plus", appearance, layout.noteIcon, icons),
     "@customisePlace": place("customise", "topleft"),
     "@customiseSpacing": layout.customise.spacing,
@@ -1348,6 +1347,15 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
     ],
   };
   for (const name of Object.keys(NOTE_WINDOW_BUTTON_ICONS)) tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, layout.actionIcon, icons);
+  // The app icon is worked out only when a template names it, which only
+  // window.json does, in a pinned window: so its badge is made when open.js
+  // writes the pinned window's bundle, and never by the window's own actions,
+  // which build only its parts (a colour change would otherwise make a badge
+  // for every colour tried).
+  Object.defineProperty(tokens, "@iconPath", {
+    enumerable: true,
+    get: () => (form === "pinned" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null),
+  });
   return tokens;
 }
 
