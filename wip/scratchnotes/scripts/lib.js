@@ -336,7 +336,10 @@ function noteStore(folder = notesFolder()) {
 // modes, "edit" (a textarea) or "view" (the note rendered in a web view).
 //
 // Both modes have the same layout, a stack filling the window: the web view,
-// the textarea over it, and the top row's buttons over the top-right corner.
+// the textarea over it, the icon picker over them (a box under the icon
+// button, hidden until it's opened; see scripts/picker.sh), and the top row's
+// two groups of buttons, over the top-left corner (after a pinned window's
+// traffic lights) and the top-right corner.
 // The web view stays in the window for its whole life (a new one takes
 // 100–250 ms to show anything): Edit fades it out and shows the textarea, and
 // View hides the textarea and reloads the web view's page with the note (see
@@ -367,22 +370,22 @@ const WORD_JOINER = "⁠";
 // The palette: Stickies' colours, from its asset catalogue. Each colour has a
 // pale `tint` for a pinned note's background (always with dark text), a
 // stronger `spine` (Stickies' menu swatches) and a `control` colour, for the
-// colour button's dot; the results list's icons use the spine and control
-// colours (dev/make-icons.js). In menu order, which is also ⌘1 to ⌘6. A note
+// colour button's dot; the dots of the results list and the colour picker use
+// the spine and control colours (dev/make-icons.js). In the colour picker's
+// order, which is also ⌘1 to ⌘6. A note
 // stores its colour's name, so the colours can be re-tuned without rewriting
 // notes.
 const NOTE_PALETTE = [
-  { name: "yellow", label: "Yellow", heart: "💛", tint: "#FEF49C", spine: "#FEEA3D", control: "#DBC503" },
-  { name: "blue", label: "Blue", heart: "🩵", tint: "#ADF4FF", spine: "#89F0FF", control: "#24D0E9" },
-  { name: "green", label: "Green", heart: "💚", tint: "#B2FFA1", spine: "#83FE83", control: "#51BB51" },
-  { name: "pink", label: "Pink", heart: "🩷", tint: "#FFC7C7", spine: "#FFB2B2", control: "#F87F7F" },
-  { name: "purple", label: "Purple", heart: "💜", tint: "#B6CAFF", spine: "#9BB6FE", control: "#7D9BEB" },
-  { name: "grey", label: "Grey", heart: "🩶", tint: "#EEEEEE", spine: "#DADADA", control: "#A8A8A8" },
+  { name: "yellow", label: "Yellow", tint: "#FEF49C", spine: "#FEEA3D", control: "#DBC503" },
+  { name: "blue", label: "Blue", tint: "#ADF4FF", spine: "#89F0FF", control: "#24D0E9" },
+  { name: "green", label: "Green", tint: "#B2FFA1", spine: "#83FE83", control: "#51BB51" },
+  { name: "pink", label: "Pink", tint: "#FFC7C7", spine: "#FFB2B2", control: "#F87F7F" },
+  { name: "purple", label: "Purple", tint: "#B6CAFF", spine: "#9BB6FE", control: "#7D9BEB" },
+  { name: "grey", label: "Grey", tint: "#EEEEEE", spine: "#DADADA", control: "#A8A8A8" },
 ];
 const DEFAULT_COLOUR = "yellow";
 
-// The palette, as copies of its colours: { name, label, heart, tint, spine,
-// control }.
+// The palette, as copies of its colours: { name, label, tint, spine, control }.
 function notePalette() {
   return NOTE_PALETTE.map((colour) => Object.assign({}, colour));
 }
@@ -401,6 +404,116 @@ function noteColour(meta, variable = workflowVariable) {
 
 function noteDefaultColour(variable = workflowVariable) {
   return notePaletteColour(variable("default_colour")) || notePaletteColour(DEFAULT_COLOUR);
+}
+
+// The icons a note can have, from Lucide (vendored in dev/lucide/), in the
+// picker's order, each with the label of its tooltip. A note stores its icon's
+// name in its sidecar (`icon`); a note without one has no icon, and there's no
+// default. dev/make-icons.js draws each icon as a badge in each palette colour
+// (for the results list and a pinned window's app icon) and as a glyph in the
+// buttons' colour in each appearance (for the window), in icons/lucide/.
+const NOTE_ICONS = [
+  { name: "sticky-note", label: "Note" },
+  { name: "list-todo", label: "To-do" },
+  { name: "shopping-cart", label: "Shopping" },
+  { name: "lightbulb", label: "Idea" },
+  { name: "book-open", label: "Reading" },
+  { name: "bookmark", label: "Bookmark" },
+  { name: "briefcase", label: "Work" },
+  { name: "calendar", label: "Calendar" },
+  { name: "phone", label: "Call" },
+  { name: "users", label: "People" },
+  { name: "house", label: "Home" },
+  { name: "utensils", label: "Food" },
+  { name: "plane", label: "Travel" },
+  { name: "gift", label: "Gift" },
+  { name: "wallet", label: "Money" },
+  { name: "code", label: "Code" },
+  { name: "music", label: "Music" },
+  { name: "heart", label: "Heart" },
+  { name: "star", label: "Star" },
+  { name: "flag", label: "Flag" },
+];
+
+// The other Lucide icons in a note's window, drawn as glyphs only, so every
+// icon in the top row and the picker is drawn the same way (in the buttons'
+// colour for the window's appearance): the Edit / View switch's (`eye` to
+// switch to View, `pencil` to Edit), Pin's, the icon button's for a note
+// without an icon (`smile-plus`), and the picker's None (`ban`).
+const NOTE_WINDOW_GLYPHS = ["eye", "pencil", "pin", "smile-plus", "ban"];
+
+// The icons' file format, the extension of every icon file: SVG while their
+// look is being settled, PNG to ship, since NSImage reading SVG isn't
+// documented, and Alfred 6 supports macOS versions where it hasn't been
+// tested (see "Note icons" in DESIGN.md). dev/make-icons.js --png draws the
+// PNGs from the SVGs.
+const NOTE_ICON_FORMAT = "svg";
+
+// The icons, as copies: { name, label }.
+function noteIcons() {
+  return NOTE_ICONS.map((icon) => Object.assign({}, icon));
+}
+
+// The names of every icon drawn as a glyph: the note icons and
+// NOTE_WINDOW_GLYPHS.
+function noteGlyphNames() {
+  return NOTE_ICONS.map((icon) => icon.name).concat(NOTE_WINDOW_GLYPHS);
+}
+
+// The icon named `name`, or null if there's none.
+function noteIconByName(name) {
+  const icon = NOTE_ICONS.find((i) => i.name === name);
+  return icon ? Object.assign({}, icon) : null;
+}
+
+// The icon of a note with metadata `meta`, or null if it has none, or one
+// that isn't in the set (which is kept in its sidecar as it is).
+function noteIcon(meta) {
+  return noteIconByName(meta && meta.icon);
+}
+
+// The badge of the icon named `icon` in the palette colour named `colour`, as
+// a path in the workflow folder. These, and noteGlyphFile, are the only places
+// that name an icon file.
+function noteBadgeFile(icon, colour) {
+  return `icons/lucide/badge/${icon}-${colour}.${NOTE_ICON_FORMAT}`;
+}
+
+// The glyph of the icon named `icon` in the buttons' colour in `appearance`
+// ("light" or "dark"), as a path in the workflow folder.
+function noteGlyphFile(icon, appearance) {
+  return `icons/lucide/glyph/${icon}-${appearance === "dark" ? "dark" : "light"}.${NOTE_ICON_FORMAT}`;
+}
+
+// The appearance, "light" or "dark", that Alfred gives its window, and so a
+// quick view, with its current theme. A file image in Alfred UI keeps its own
+// colours (it can't be tinted, or follow the appearance), so the quick view's
+// glyphs are drawn for one or the other. A theme can set it: its theme.json's
+// appearanceMode (in its top-level object), taken as 2 for dark and 1 for
+// light. Otherwise it
+// comes from the theme's background colour ($alfred_theme_background): dark
+// when its luminance is below half. Without a theme (a script run by hand),
+// "light". Both come from the variables Alfred gives a Script Filter.
+function noteQuickAppearance(variable = workflowVariable) {
+  const mode = noteThemeAppearanceMode(variable);
+  if (mode === 2) return "dark";
+  if (mode === 1) return "light";
+  const match = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(variable("alfred_theme_background") || "");
+  if (!match) return "light";
+  const [r, g, b] = match.slice(1, 4).map((c) => Math.min(255, Number(c)) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5 ? "dark" : "light";
+}
+
+// The current theme's appearanceMode, from its theme.json in Alfred's
+// preferences ({ "alfredtheme": { "appearanceMode": 2, … } }), or null.
+function noteThemeAppearanceMode(variable = workflowVariable) {
+  const preferences = variable("alfred_preferences");
+  const theme = variable("alfred_theme");
+  if (!preferences || !theme || theme.includes("/")) return null;
+  const file = readJsonObject(`${expandPath(preferences)}/themes/${theme}/theme.json`);
+  const root = file && Object.values(file).find((value) => value && typeof value === "object");
+  const mode = root ? root.appearanceMode : undefined;
+  return Number.isInteger(mode) ? mode : null;
 }
 
 // The text with a word joiner after the "{" of each {var:, {const:, {value:
@@ -444,12 +557,90 @@ function readNoteTemplate(workflowFolder, name) {
   return JSON.parse(text);
 }
 
+// The sizes and positions of the top row's buttons and of the drop-downs, in
+// points, gathered here to be tuned by hand. The templates take them as
+// tokens (see noteWindowTokens), and dev/make-icons.js draws the drop-downs'
+// shadows from them (noteDropdownGeometry), so run it after changing a
+// drop-down's size. Top-level consts are private to lib.js, so scripts get
+// these through functions.
+const NOTE_WINDOW_LAYOUT = {
+  // The top row's two groups: the note's own look (its icon, then its colour)
+  // at the top left, after a pinned window's traffic lights, and the actions
+  // (Edit / View, then Pin in the quick view) at the top right. `top`, `left`
+  // and `right` are each group's distance from the window's edges, in each
+  // form, and `spacing` the space between its buttons. A group's buttons are
+  // centred in it, and it's as tall as its tallest, so the customise group,
+  // whose note icon is 4 pt larger than the actions' glyphs, is 2 pt higher,
+  // which keeps the buttons' centres level, with each other and with a pinned
+  // window's traffic lights.
+  customise: { quick: { top: 6, left: 12 }, pinned: { top: 6, left: 82 }, spacing: 12 },
+  actions: { quick: { top: 8, right: 10 }, pinned: { top: 8, right: 10 }, spacing: 12 },
+  // The size of the note's icon in the customise group, of the actions'
+  // glyphs, and of the colour button's dot (a symbol, whose size is its
+  // button's font size).
+  noteIcon: 20,
+  actionIcon: 16,
+  colourDot: 13,
+  // The drop-downs, the icon and colour pickers: boxes of buttons under the
+  // customise group, `top` from the window's top in each form and `left` from
+  // its left, with corners of `radius`, `padding` inside, and a shadow around
+  // them, `margin` wide. Alfred UI has no shadow, so it's an image drawn by
+  // dev/make-icons.js: black at `opacity`, blurred by `blur`, `offset` down.
+  dropdown: { top: { quick: 34, pinned: 32 }, left: 8, radius: 10, padding: 6, margin: 8, shadow: { blur: 6, offset: 2, opacity: 0.3 } },
+  // Each drop-down's grid: how many buttons in a row, their size (fixed, so
+  // the box's size, and its shadow's, is known), the size of their images,
+  // and the space between them.
+  iconPicker: { columns: 7, button: 25, image: 20, spacing: 2 },
+  colourPicker: { columns: 6, button: 25, image: 18, spacing: 2 },
+};
+
+// The drop-downs, by name: the icon picker (None and the icons) and the colour
+// picker (the palette), each with its grid in NOTE_WINDOW_LAYOUT and how many
+// buttons it has.
+const NOTE_DROPDOWNS = {
+  icon: { layout: "iconPicker", count: () => NOTE_ICONS.length + 1 },
+  colour: { layout: "colourPicker", count: () => NOTE_PALETTE.length },
+};
+
+// The drop-downs' names: "icon" and "colour".
+function noteDropdownNames() {
+  return Object.keys(NOTE_DROPDOWNS);
+}
+
+// A drop-down's sizes, in points: `box`, its box of buttons, and `outer`, the
+// box with the shadow's margin around it, the size of the shadow image, with
+// the box's corner radius and the shadow's settings.
+function noteDropdownGeometry(name) {
+  const { columns, button, spacing } = NOTE_WINDOW_LAYOUT[NOTE_DROPDOWNS[name].layout];
+  const { padding, margin, radius, shadow } = NOTE_WINDOW_LAYOUT.dropdown;
+  const count = NOTE_DROPDOWNS[name].count();
+  const across = Math.min(columns, count);
+  const rows = Math.ceil(count / columns);
+  const box = { width: across * button + (across - 1) * spacing + 2 * padding, height: rows * button + (rows - 1) * spacing + 2 * padding };
+  return { box, outer: { width: box.width + 2 * margin, height: box.height + 2 * margin }, margin, radius, shadow: Object.assign({}, shadow) };
+}
+
+// A drop-down's shadow, drawn by dev/make-icons.js, as a path in the workflow
+// folder. A PNG whatever NOTE_ICON_FORMAT is: it's drawn with AppKit's shadow,
+// not from an SVG.
+function noteDropdownShadowFile(name) {
+  return `icons/shadow-${name}-picker.png`;
+}
+
 // The values of the templates' tokens for a window, given:
-//   workflowFolder, id, form, mode, text, fontSize, colour (a palette name)
-function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize = FONT_SIZE.default, colour = DEFAULT_COLOUR }) {
+//   workflowFolder, id, form, mode, text, fontSize, colour (a palette name),
+//   icon (an icon's name, or null for none), glyphs (the appearance the
+//   window's glyphs are drawn for, "light" or "dark": always "light" when
+//   pinned, as a pinned note's root view is always in light appearance)
+// Each of NOTE_WINDOW_GLYPHS is a token too, "@glyph:<name>", its glyph as a
+// button's image at the actions' size.
+function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize = FONT_SIZE.default, colour = DEFAULT_COLOUR, icon = null, glyphs = "light" }) {
   const current = notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR);
+  const currentIcon = noteIconByName(icon);
   const note = escapeForAlfredUi(id);
-  return {
+  const layout = NOTE_WINDOW_LAYOUT;
+  const place = (group, position) => ({ position, insets: Object.assign({}, layout[group][form === "quick" ? "quick" : "pinned"]) });
+  const tokens = {
     "@note": note,
     "@form": form,
     "@mode": mode,
@@ -457,40 +648,138 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
     "@title": escapeForAlfredUi(noteSummary(text).title),
     "@tint": current.tint,
     "@colourDot": current.control,
-    "@colourMenu": NOTE_PALETTE.map((c) => ({
-      text: noteColourMenuText(c),
-      state: c.name === current.name ? "on" : "off",
-      action: noteColourAction({ workflowFolder, note, form, colour: c }),
-    })),
+    "@colourDotFont": { size: layout.colourDot },
     "@colourShortcuts": NOTE_PALETTE.map((c, i) => ({
       shortcut: `⌘${i + 1}`,
       action: noteColourAction({ workflowFolder, note, form, colour: c }),
     })),
     "@fontSize": fontSize,
-    "@iconPath": `${workflowFolder}/ui/appicon.png`,
+    "@iconPath": currentIcon ? `${workflowFolder}/${noteBadgeFile(currentIcon.name, current.name)}` : `${workflowFolder}/ui/appicon.png`,
+    "@iconImage": noteGlyphImage(workflowFolder, currentIcon ? currentIcon.name : "smile-plus", glyphs, layout.noteIcon),
+    "@customisePlace": place("customise", "topleft"),
+    "@customiseSpacing": layout.customise.spacing,
+    "@actionsPlace": place("actions", "topright"),
+    "@actionsSpacing": layout.actions.spacing,
+    "@dropdowns": [
+      noteDropdownCatcher({ workflowFolder, note, form }),
+      noteDropdown({ workflowFolder, form, name: "icon", buttons: noteIconPickerButtons({ workflowFolder, note, form, icon: currentIcon, glyphs }) }),
+      noteDropdown({ workflowFolder, form, name: "colour", buttons: noteColourPickerButtons({ workflowFolder, note, form, colour: current }) }),
+    ],
+  };
+  for (const name of NOTE_WINDOW_GLYPHS) tokens[`@glyph:${name}`] = noteGlyphImage(workflowFolder, name, glyphs, layout.actionIcon);
+  return tokens;
+}
+
+// A button's image: the glyph of the icon named `name` drawn for `glyphs`
+// ("light" or "dark") at `size` points.
+function noteGlyphImage(workflowFolder, name, glyphs, size) {
+  return { type: "file", src: `${workflowFolder}/${noteGlyphFile(name, glyphs)}`, size: { width: size, height: size } };
+}
+
+// A drop-down (see NOTE_WINDOW_LAYOUT): a view, `<name>picker`, hidden until
+// it's opened (scripts/picker.sh), holding its shadow image and, over it, its
+// box of `buttons`, with the window's background colour, rounded corners and a
+// hairline border, in rows. Its buttons get their fixed size here.
+function noteDropdown({ workflowFolder, form, name, buttons }) {
+  const { box, outer, margin, radius } = noteDropdownGeometry(name);
+  const { top, left, padding } = NOTE_WINDOW_LAYOUT.dropdown;
+  const { columns, button: size, spacing } = NOTE_WINDOW_LAYOUT[NOTE_DROPDOWNS[name].layout];
+  const sized = buttons.map((button) => Object.assign(button, { constraints: { size: { width: size, height: size } } }));
+  const rows = [];
+  for (let i = 0; i < sized.length; i += columns) {
+    rows.push({ type: "view", layout: "inline", direction: "horizontal", spacing, components: sized.slice(i, i + columns) });
+  }
+  return {
+    id: `${name}picker`,
+    type: "view",
+    layout: "stack",
+    hidden: true,
+    constraints: { position: "topleft", insets: { top: top[form === "quick" ? "quick" : "pinned"] - margin, left: left - margin }, size: outer },
+    components: [
+      { id: `${name}pickershadow`, type: "imageview", image: { type: "file", src: `${workflowFolder}/${noteDropdownShadowFile(name)}`, size: outer }, constraints: { position: "topleft" } },
+      {
+        id: `${name}pickerbox`,
+        type: "view",
+        layout: "inline",
+        direction: "vertical",
+        spacing,
+        padding,
+        background: "windowBackgroundColor",
+        cornerradius: radius,
+        border: { width: 1, colour: "separatorColor" },
+        constraints: { position: "topleft", insets: { top: margin, left: margin }, size: box },
+        components: rows,
+      },
+    ],
   };
 }
 
+// The ids of an update that hides the drop-downs and the catcher, as
+// picker.sh close does.
+function noteDropdownsClosed() {
+  return { iconpicker: { hidden: true }, colourpicker: { hidden: true }, pickercatcher: { hidden: true } };
+}
+
+// The view that closes a drop-down when the window is clicked anywhere else:
+// it covers the note, under the drop-downs and the top row, shown while a
+// drop-down is open, and a mouse-down on it runs picker.sh close. Alfred UI
+// has no event for a click outside a view. The click goes no further, as
+// with a menu.
+function noteDropdownCatcher({ workflowFolder, note, form }) {
+  return {
+    id: "pickercatcher",
+    type: "view",
+    layout: "stack",
+    hidden: true,
+    constraints: { stretch: "both" },
+    events: [{ triggers: "mousedown", action: { type: "script", src: `${workflowFolder}/scripts/picker.sh`, args: ["close", note, form] } }],
+  };
+}
+
+// The icon picker's buttons: None, then the icons, as glyphs. The note's
+// current choice is bordered, so its bezel marks it. Each runs window.js icon,
+// with the icon's name or "none". `note` is the escaped ID.
+function noteIconPickerButtons({ workflowFolder, note, form, icon, glyphs }) {
+  const { image } = NOTE_WINDOW_LAYOUT.iconPicker;
+  return [{ name: "none", label: "No icon" }].concat(NOTE_ICONS).map((choice) => ({
+    id: `icon-${choice.name}`,
+    type: "button",
+    text: "",
+    bordered: choice.name === (icon ? icon.name : "none"),
+    image: noteGlyphImage(workflowFolder, choice.name === "none" ? "ban" : choice.name, glyphs, image),
+    tooltip: choice.label,
+    accessibility: { label: choice.label },
+    events: [{ triggers: "actioned", action: { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["icon", note, form, choice.name] } }],
+  }));
+}
+
+// The colour picker's buttons: the palette, in order, each as its dot (the
+// results list's, icons/<colour>.png), with ⌘1 to ⌘6 in its tooltip. The
+// note's colour is bordered, so its bezel marks it. Each runs the colour's
+// action (noteColourAction), as its shortcut does.
+function noteColourPickerButtons({ workflowFolder, note, form, colour }) {
+  const { image } = NOTE_WINDOW_LAYOUT.colourPicker;
+  return NOTE_PALETTE.map((c, i) => ({
+    id: `colour-${c.name}`,
+    type: "button",
+    text: "",
+    bordered: c.name === colour.name,
+    image: { type: "file", src: `${workflowFolder}/icons/${c.name}.png`, size: { width: image, height: image } },
+    tooltip: `${c.label} (⌘${i + 1})`,
+    accessibility: { label: c.label },
+    events: [{ triggers: "actioned", action: noteColourAction({ workflowFolder, note, form, colour: c }) }],
+  }));
+}
+
 // The action that gives a window's note colour `colour` (a palette colour),
-// for its menu item and shortcut: window.js colour, which records it and
-// updates the top row. A pinned window's tint is updated first, so it changes
-// at once rather than after the script. `note` is the escaped ID.
+// for its button in the colour picker and its shortcut: window.js colour,
+// which records it and updates the top row. A pinned window's tint is updated
+// first, so it changes at once rather than after the script. `note` is the
+// escaped ID.
 function noteColourAction({ workflowFolder, note, form, colour }) {
   const script = { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["colour", note, form, colour.name] };
   if (form !== "pinned") return script;
   return [{ type: "json", src: { update: { ids: { note: { background: colour.tint } } } } }, script];
-}
-
-// A colour's menu item text: its heart and name. Three of the hearts are
-// Emoji 15, which macOS has from 13.3; before that, just the name.
-let hasEmoji15 = null;
-function noteColourMenuText(colour) {
-  if (hasEmoji15 === null) {
-    const version = $.NSProcessInfo.processInfo.operatingSystemVersion;
-    const [major, minor] = [Number(version.majorVersion), Number(version.minorVersion)];
-    hasEmoji15 = major > 13 || (major === 13 && minor >= 3);
-  }
-  return hasEmoji15 ? `${colour.heart} ${colour.label}` : colour.label;
 }
 
 // A template with its directives resolved for a form and mode (see above).
@@ -521,18 +810,24 @@ function resolveNoteTemplate(template, { form, mode, tokens, workflowFolder }) {
   return resolve(template, false);
 }
 
-// A note window's whole ui.json: window.json, with its { "id": "content" }
-// and { "id": "toprow" } placeholders filled. `options` as for
-// noteWindowTokens.
+// The templates that window.json's root view takes as placeholders, by id
+// ({ "id": "content" } is filled with content.json): the note (the web view,
+// the editor and the icon picker), and the top row's two groups of buttons,
+// the note's own look (its icon and colour) at the left and the actions (Edit /
+// View and Pin) at the right.
+const NOTE_WINDOW_PARTS = ["content", "customise", "actions"];
+
+// A note window's whole ui.json: window.json, with its placeholders filled
+// (NOTE_WINDOW_PARTS). `options` as for noteWindowTokens.
 function noteWindowUi(options) {
   const ui = noteWindowPart(options, "window");
-  ui.window.root.components = ui.window.root.components.map((c) => (c.id === "content" || c.id === "toprow" ? noteWindowPart(options, c.id) : c));
+  ui.window.root.components = ui.window.root.components.map((c) => (NOTE_WINDOW_PARTS.includes(c.id) ? noteWindowPart(options, c.id) : c));
   return ui;
 }
 
-// One of a window's templates ("window", "toprow" or "content"), resolved for
-// its form and mode: the top row, for instance, for a replace action after a
-// colour change. `options` as for noteWindowTokens.
+// One of a window's templates ("window", or one of NOTE_WINDOW_PARTS),
+// resolved for its form and mode: the customise group, for instance, for a
+// replace action after a colour change. `options` as for noteWindowTokens.
 function noteWindowPart(options, name) {
   const { workflowFolder, form, mode } = options;
   const settings = { form, mode, tokens: noteWindowTokens(options), workflowFolder };
@@ -564,25 +859,39 @@ function noteOpenMode(note, text) {
 // null for a new note; `text` is the text the window opens with. `mode`
 // ("edit" or "view"), if given, is the mode to open in, as when a quick view
 // is pinned and its window carries on in the same mode; otherwise it's
-// noteOpenMode's. A blank note opens in Edit either way.
-function writeNoteWindow({ store, workflowFolder, id, form, note, text, mode: requestedMode }, variable = workflowVariable) {
+// noteOpenMode's. A blank note opens in Edit either way. `glyphs`, if given,
+// is the appearance a quick view's glyphs are drawn for (quickWindows works it
+// out once for all its bundles); otherwise it's noteQuickAppearance's.
+function writeNoteWindow({ store, workflowFolder, id, form, note, text, mode: requestedMode, glyphs: quickGlyphs }, variable = workflowVariable) {
   const mode = (requestedMode === "edit" || requestedMode === "view") && !isBlankText(text) ? requestedMode : noteOpenMode(note, text);
   const fontSize = noteFontSize(variable);
   const colour = noteColour(note ? note.meta : {}, variable).name;
-  const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, colour });
+  const iconOf = noteIcon(note ? note.meta : {});
+  const icon = iconOf ? iconOf.name : null;
+  const glyphs = form === "pinned" ? "light" : quickGlyphs || noteQuickAppearance(variable);
+  const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, colour, icon, glyphs });
   const script = notePageScript(mode === "view" ? text : null, colour);
   const page = notePageHtml({ workflowFolder, form, fontSize, noteVersion: textHash(script) }, variable);
-  const context = { folder: store.folder, fontSize, colour, textHash: textHash(text) };
+  const context = { folder: store.folder, fontSize, colour, icon, glyphs, textHash: textHash(text) };
   return writeNoteBundle(id, form, { ui, context, page, script }, variable);
+}
+
+// The options for noteWindowPart of an open window, from its bundle's
+// context, so the parts it's given match its look.
+function noteWindowOptions(context, { workflowFolder, id, form, mode }) {
+  const { fontSize, colour, icon = null, glyphs = "light" } = context;
+  return { workflowFolder, id, form, mode, fontSize, colour, icon, glyphs };
 }
 
 // Writes a note's window bundle and returns its path. Its files:
 //   ui.json        the window (`ui`)
 //   context.json   what the window's scripts need that Alfred doesn't give
 //                  them (the UI's scripts only get the alfred_* variables, not
-//                  User Configuration): { folder, fontSize, colour, textHash },
-//                  the notes folder, the window's look (the font size and the
-//                  note's colour's name) and a hash of the note's text as the
+//                  User Configuration): { folder, fontSize, colour, icon,
+//                  glyphs, textHash }, the notes folder, the window's look
+//                  (the font size, the note's colour's and icon's names, and
+//                  the appearance its glyphs are drawn for; see
+//                  noteWindowTokens) and a hash of the note's text as the
 //                  window last had it (see textHash): the text it opened with,
 //                  and then the text its page was last given (writeNotePage),
 //                  so the window can tell when the note has changed since
@@ -626,7 +935,7 @@ function removeNoteBundle(id, variable = workflowVariable) {
 // The files a window bundle is built from, besides the note: the templates,
 // and this file, which builds them. A change to any (a workflow update) makes
 // every quick bundle out of date.
-const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/toprow.json", "ui/content.json", "ui/view.html", "ui/view.js", "scripts/lib.js"];
+const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/customise.json", "ui/actions.json", "ui/content.json", "ui/view.html", "ui/view.js", "scripts/lib.js"];
 
 // Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
 // from the Script Filter, with nothing in between: a Run Script or Conditional
@@ -635,9 +944,10 @@ const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/toprow.json", "ui/content.jso
 // before the results are shown.
 //
 // A bundle's fingerprint is a hash of everything it's built from: the note's
-// text, its mode and colour (from its sidecar and the settings), the font size,
-// the notes and workflow folders, and the modification times of
-// NOTE_WINDOW_SOURCES. The fingerprints are kept in quick/.index.json, read
+// text, its mode, colour and icon (from its sidecar and the settings), the font
+// size, the appearance of the quick view's glyphs (from Alfred's theme; see
+// noteQuickAppearance), the notes and workflow folders, and the modification
+// times of NOTE_WINDOW_SOURCES. The fingerprints are kept in quick/.index.json, read
 // once per run, so a bundle is only rebuilt when its fingerprint changes:
 // usually none, one after a note is edited, every one after a setting or the
 // workflow changes.
@@ -667,27 +977,31 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
     const date = fileDate(`${workflowFolder}/${path}`, "NSFileModificationDate");
     return date ? date.getTime() : 0;
   });
-  const base = JSON.stringify([workflowFolder, store.folder, noteFontSize(variable), sources]);
+  const glyphs = noteQuickAppearance(variable);
+  const base = JSON.stringify([workflowFolder, store.folder, noteFontSize(variable), glyphs, sources]);
   let changed = false;
   const newIds = new Set();
 
   function bundleFor(note) {
-    const fingerprint = textHash([base, noteOpenMode(note, note.text), noteColour(note.meta, variable).name, note.text].join("\0"));
+    const icon = noteIcon(note.meta);
+    const fingerprint = textHash([base, noteOpenMode(note, note.text), noteColour(note.meta, variable).name, icon ? icon.name : "", note.text].join("\0"));
     if (index.get(note.id) === fingerprint && bundles.has(`${note.id}.alfredui`)) return `${folder}/${note.id}.alfredui`;
-    const bundle = writeNoteWindow({ store, workflowFolder, id: note.id, form: "quick", note, text: note.text }, variable);
+    const bundle = writeNoteWindow({ store, workflowFolder, id: note.id, form: "quick", note, text: note.text, glyphs }, variable);
     index.set(note.id, fingerprint);
     changed = true;
     return bundle;
   }
 
-  // A new note's ID is the time, so on each run within the same second it's
-  // the same ID and bundle; a bundle from an earlier second is removed by the
-  // next finish. A second new note in the same run (New note from the
-  // clipboard, beside New note) gets the next ID, -2.
+  // A new note's ID is the time the run started, so on each run within the
+  // same second it's the same ID and bundle; a bundle from an earlier second
+  // is removed by the next finish. A second new note in the same run (New note
+  // from the clipboard, beside New note) gets the next ID, -2, even if writing
+  // the first bundle took the clock into the next second.
+  const started = new Date();
   function bundleForNew(text) {
-    const id = store.newId({ isTaken: (id) => newIds.has(id) || isNoteIdInUse(id, variable) });
+    const id = store.newId({ date: started, isTaken: (id) => newIds.has(id) || isNoteIdInUse(id, variable) });
     newIds.add(id);
-    return writeNoteWindow({ store, workflowFolder, id, form: "quick", note: null, text }, variable);
+    return writeNoteWindow({ store, workflowFolder, id, form: "quick", note: null, text, glyphs }, variable);
   }
 
   function finish(notes) {
@@ -914,6 +1228,11 @@ function escapeHtml(text) {
 // updates the mode, and `quit` removes it. A window whose process is killed
 // leaves its state behind, so a pinned note counts as open only while its
 // process is alive (pinnedNotePid).
+//
+// Beside it, <id>.picker holds the name of the window's open drop-down ("icon"
+// or "colour"), and exists only while one is open: it's written by
+// scripts/picker.sh, which reads the state with zsh builtins but doesn't
+// rewrite JSON. `launched` and `quit` remove it.
 
 function noteStateFolder(variable = workflowVariable) {
   const cache = variable("alfred_workflow_cache");
@@ -939,6 +1258,16 @@ function writeNoteState(id, state, variable = workflowVariable) {
 function removeNoteState(id, variable = workflowVariable) {
   const path = noteStatePath(id, variable);
   if ($.NSFileManager.defaultManager.fileExistsAtPath(path)) removeFile(path);
+  closeNotePickerState(id, variable);
+}
+
+// Closes a window's open drop-down in its state (see above), and returns
+// whether one was open.
+function closeNotePickerState(id, variable = workflowVariable) {
+  const path = `${noteStatePath(id, variable).slice(0, -".json".length)}.picker`;
+  if (!$.NSFileManager.defaultManager.fileExistsAtPath(path)) return false;
+  removeFile(path);
+  return true;
 }
 
 // The process ID of the note's pinned window, or null if it has none: its

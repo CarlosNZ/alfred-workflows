@@ -1,0 +1,30 @@
+{
+  "id": "actions",
+  "type": "view",
+  "layout": "inline",
+  "direction": "horizontal",
+  "spacing": "@actionsSpacing",
+  "constraints": "@actionsPlace",
+  "components": [
+    {
+      "id": "toggle",
+      "type": "button",
+      "text": "",
+      "bordered": false,
+      "@edit": { "image": "@glyph:eye", "tooltip": "View (⌘E)", "accessibility": { "label": "View" } },
+      "@view": { "image": "@glyph:pencil", "tooltip": "Edit (⌘E)", "accessibility": { "label": "Edit" } },
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } }]
+    },
+    {
+      "@form": "quick",
+      "id": "pin",
+      "type": "button",
+      "text": "",
+      "bordered": false,
+      "image": "@glyph:pin",
+      "tooltip": "Pin to the desktop (⌘P)",
+      "accessibility": { "label": "Pin" },
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["pin", "@note", "@form", "{value:editor.text}"] } }]
+    }
+  ]
+}

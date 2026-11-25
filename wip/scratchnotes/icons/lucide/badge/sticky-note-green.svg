@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<!-- Lucide's sticky-note (see LICENSE), on ScratchNotes' green -->
+<rect x="6" y="6" width="116" height="116" rx="26" fill="#B2FFA1" stroke="#51BB51" stroke-width="4"/>
+<svg x="30" y="30" width="68" height="68" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#1D1D1F"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" /><path d="M15 3v5a1 1 0 0 0 1 1h5" /></svg>
+</svg>

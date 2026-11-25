@@ -121,7 +121,7 @@ icons() {
       return JSON.parse(input).items.map((i) => `${i.title} ${i.icon ? i.icon.path : "-"}`).join("\n");
     }'
 }
-expect "the workflow has an icon for each palette colour" "$(ls ${here:h}/icons | tr '\n' ' ')" "blue.png green.png grey.png pink.png purple.png yellow.png "
+expect "the workflow has a dot for each palette colour, Lucide's icons and the drop-downs' shadows" "$(ls ${here:h}/icons | tr '\n' ' ')" "blue.png green.png grey.png lucide pink.png purple.png shadow-colour-picker.png shadow-icon-picker.png yellow.png "
 expect "a note's icon is its colour's dot, yellow by default; New note has none" "$(icons '')" $'New note -\nCafé ideas icons/yellow.png\nShopping icons/yellow.png\nOld note icons/yellow.png'
 expect "default_colour sets the icon of notes without a colour" "$(icons default_colour=purple milk)" "Shopping icons/purple.png"
 print -r -- '{"colour":"pink"}' > "$notes/.scratchnotes/shopping.json"
@@ -130,6 +130,34 @@ expect "a note's own colour sets its icon" "$(icons default_colour=purple milk)"
 expect "a colour change rewrites the note's quick bundle with the new dot" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c '#F87F7F' $(ui shopping))" "rewritten 1"
 print -r -- '{"colour":"orange"}' > "$notes/.scratchnotes/shopping.json"
 expect "an unknown colour gets the default's icon" "$(icons milk)" "Shopping icons/yellow.png"
+
+# Note icons: a note with an icon shows its badge in its colour.
+print -r -- '{"colour":"pink","icon":"shopping-cart"}' > "$notes/.scratchnotes/shopping.json"
+before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
+expect "a note's icon shows as its badge in its colour" "$(icons milk)" "Shopping icons/lucide/badge/shopping-cart-pink.svg"
+expect "an icon change rewrites the note's quick bundle with its glyph (button and picker)" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c 'glyph/shopping-cart-light.svg' $(ui shopping))" "rewritten 2"
+before_shopping=$(mtime shopping)
+icons '' >/dev/null
+expect "a list with nothing changed rewrites nothing" "$(mtime shopping) $(mtime cafe)" "$before_shopping $before_cafe"
+expect "a dark theme rewrites every quick bundle once, with the dark glyphs" "$(icons alfred_theme_background='rgba(16,16,16,1.00)' '' >/dev/null; [[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c 'glyph/shopping-cart-dark.svg' $(ui shopping))" "rewritten 2"
+before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
+icons alfred_theme_background='rgba(20,20,20,0.9)' '' >/dev/null
+expect "another dark theme rewrites nothing" "$(mtime shopping) $(mtime cafe)" "$before_shopping $before_cafe"
+print -r -- '{"colour":"pink","icon":"rocket"}' > "$notes/.scratchnotes/shopping.json"
+expect "an unknown icon: the colour's dot" "$(icons milk)" "Shopping icons/pink.png"
+print -r -- '{"colour":"orange","icon":"heart"}' > "$notes/.scratchnotes/shopping.json"
+expect "an icon with an unknown colour: the default colour's badge" "$(icons milk)" "Shopping icons/lucide/badge/heart-yellow.svg"
+print -r -- '{"colour":"orange"}' > "$notes/.scratchnotes/shopping.json"
+# Every badge and glyph lib.js can name, for each icon in each colour and
+# appearance, exists, with Lucide's licence.
+expect "every badge and glyph exists, with Lucide's licence" "$(osascript -l JavaScript -e '
+  ObjC.import("Foundation");
+  function run(argv) {
+    (0, eval)($.NSString.stringWithContentsOfFileEncodingError(argv[0] + "/scripts/lib.js", $.NSUTF8StringEncoding, null).js);
+    const files = noteIcons().flatMap((i) => notePalette().map((c) => noteBadgeFile(i.name, c.name)).concat(["light", "dark"].map((a) => noteGlyphFile(i.name, a))));
+    const missing = files.concat(["icons/lucide/LICENSE"]).filter((f) => !$.NSFileManager.defaultManager.fileExistsAtPath(argv[0] + "/" + f));
+    return `${files.length} ${missing.join(" ") || "none missing"}`;
+  }' ${here:h})" "160 none missing"
 
 # A pinned note's result (no arg, `pinned` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a pinned state whose process isn't one is ignored.

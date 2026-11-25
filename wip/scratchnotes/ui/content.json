@@ -36,6 +36,7 @@
       "@edit": { "text": "@text", "focus": true },
       "@view": { "hidden": true },
       "events": [{ "triggers": "typingstopped", "action": { "type": "script", "src": "scripts/window.js", "args": ["save", "@note", "@form", "{value:editor.text}"] } }]
-    }
+    },
+    "@dropdowns"
   ]
 }

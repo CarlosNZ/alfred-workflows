@@ -1,0 +1,32 @@
+{
+  "id": "customise",
+  "type": "view",
+  "layout": "inline",
+  "direction": "horizontal",
+  "spacing": "@customiseSpacing",
+  "constraints": "@customisePlace",
+  "components": [
+    {
+      "id": "icon",
+      "type": "button",
+      "text": "",
+      "bordered": false,
+      "image": "@iconImage",
+      "tooltip": "Icon (⌘I)",
+      "accessibility": { "label": "Icon" },
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } }]
+    },
+    {
+      "id": "colour",
+      "type": "button",
+      "text": "",
+      "bordered": false,
+      "font": "@colourDotFont",
+      "contenttintcolour": "@colourDot",
+      "image": { "type": "symbol", "src": "circle.fill" },
+      "tooltip": "Colour (⌘1–⌘6)",
+      "accessibility": { "label": "Colour" },
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "colour"] } }]
+    }
+  ]
+}

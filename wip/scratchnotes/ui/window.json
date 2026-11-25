@@ -21,14 +21,15 @@
         { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "shortcut": "⌘↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["view", "@note", "@form", "{value:editor.text}"] } },
         { "@form": "quick", "shortcut": "⌘P", "action": { "type": "script", "src": "scripts/window.js", "args": ["pin", "@note", "@form", "{value:editor.text}"] } },
-        { "@form": "pinned", "shortcut": "⎋", "action": { "type": "json", "src": { "finish": {} } } },
+        { "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },
+        { "@form": "pinned", "shortcut": "⎋", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["escape", "@note", "@form"] } },
         "@colourShortcuts"
       ],
       "events": [
         { "triggers": "launched", "action": { "type": "script", "src": "scripts/window.js", "args": ["launched", "@note", "@form", "@mode"] } },
         { "triggers": "quit", "action": { "type": "script", "src": "scripts/window.js", "args": ["quit", "@note", "@form", "{value:editor.text}"] } }
       ],
-      "components": [{ "id": "content" }, { "id": "toprow" }]
+      "components": [{ "id": "content" }, { "id": "customise" }, { "id": "actions" }]
     }
   }
 }

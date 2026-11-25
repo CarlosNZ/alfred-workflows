@@ -62,8 +62,8 @@ function attempt(fn) {
   }
 }
 
-// Its icon is its colour's dot (icons/, from dev/make-icons.js). A note that's
-// pinned gets no arg, so ↩ shows no quick view, and the variable `pinned`,
+// Its icon is its badge, its icon in its colour, or, without an icon, its
+// colour's dot (both from dev/make-icons.js). A note that's pinned gets no arg, so ↩ shows no quick view, and the variable `pinned`,
 // which takes ↩ down the pin route instead (with `pin_note` naming the note,
 // as Pin in a quick view does), where open.js brings the pinned window to the
 // front.
@@ -74,7 +74,7 @@ function noteItem(note, now, bundle, pinned, colour) {
     title: note.title,
     subtitle: pinned ? `Pinned · ${subtitle}` : subtitle,
     arg: pinned ? "" : bundle,
-    icon: { path: `icons/${colour.name}.png` },
+    icon: { path: noteIcon(note.meta) ? noteBadgeFile(noteIcon(note.meta).name, colour.name) : `icons/${colour.name}.png` },
     variables: pinned ? { pinned: "1", pin_note: escapeForAlfredUi(note.id) } : undefined,
     quicklookurl: note.path,
     action: { file: note.path },

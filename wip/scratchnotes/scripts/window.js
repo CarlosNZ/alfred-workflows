@@ -7,7 +7,11 @@
 //   window.js toggle <id> <form> <text>     ⌘E or the Edit / View button
 //   window.js edit <id> <form> <text>       ↩ in View: to Edit
 //   window.js view <id> <form> <text>       ⌘↩ in Edit: saves, to View
-//   window.js colour <id> <form> <colour>   the colour menu or ⌘1 to ⌘6
+//   window.js colour <id> <form> <colour>   a colour in the colour picker, or
+//                                           ⌘1 to ⌘6
+//   window.js icon <id> <form> <icon>       an icon, or "none", in the icon
+//                                           picker
+// (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js pin <id> <form> <text>        Pin or ⌘P in a quick view: saves,
 //                                           then pins
 //   window.js tick <id> <form> <line> <x|o> a task box in View: ticks (x) or
@@ -60,6 +64,8 @@ function run(argv) {
       return pin(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "colour":
       return setColour(store, workflowFolder, context, id, form, rest[0]);
+    case "icon":
+      return setIcon(store, workflowFolder, context, id, form, rest[0]);
     case "tick":
       return tick(store, context, id, form, Number(rest[0]), rest[1]);
     default:
@@ -81,6 +87,7 @@ function launched(store, workflowFolder, context, id, form, mode) {
     return JSON.stringify({ finish: { variables: { pin_note: escapeForAlfredUi(id) } } });
   }
   writeNoteState(id, { form, pid: $.getppid(), mode });
+  closeNotePickerState(id);
   const note = form === "quick" ? store.read(id) : null;
   if (!note || textHash(note.text) === context.textHash) return;
   if (mode === "edit") {
@@ -105,7 +112,8 @@ function save(store, id, form, text) {
 // reloads the web view's page with the file's text (the page has the web view
 // shown once it has drawn; see scripts/changed.sh). The toggle button changes
 // its symbol and tooltip. It also remembers the mode in the note's sidecar, so
-// the note reopens in it. Does nothing when the window is already in mode
+// the note reopens in it. The icon picker closes, if it's open (see
+// scripts/picker.sh). Does nothing when the window is already in mode
 // `to` (⌘↩ is a shortcut of the whole window, so it also reaches this in View
 // mode), or when it has no state of its form (its `launched` failed, or it
 // handed over to a pinned window), since then its mode is unknown.
@@ -118,9 +126,10 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
   const mode = from === "edit" ? "view" : "edit";
   const note = store.read(id);
   const current = note ? note.text : "";
-  const toprow = noteWindowPart({ workflowFolder, id, form, mode, fontSize: context.fontSize, colour: context.colour }, "toprow");
-  const { image, tooltip, accessibility } = findNoteComponent(toprow, "toggle");
+  const actions = noteWindowPart(noteWindowOptions(context, { workflowFolder, id, form, mode }), "actions");
+  const { image, tooltip, accessibility } = findNoteComponent(actions, "toggle");
   const ids = { toggle: { image, tooltip, accessibility } };
+  if (closeNotePickerState(id)) Object.assign(ids, noteDropdownsClosed());
   if (mode === "edit") {
     Object.assign(ids, { web: { opacity: 0 }, editor: { hidden: false, text: escapeForAlfredUi(current), focus: true } });
   } else {
@@ -134,12 +143,13 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
 // Gives the note the palette colour named `name`: records it in the note's
 // sidecar (which works for a new note that isn't saved yet) and in the
 // window's context, so what the window's scripts give it later matches, and
-// prints the replace action for the top row, whose dot and menu show the
-// colour. A pinned window's tint has already been updated by the action that
-// ran this (see noteColourAction in lib.js), but its page covers it, so in
-// View the page is reloaded with the new tint too. Does nothing without a
-// state of the window's form, as for switchMode, since the top row depends on
-// the mode.
+// prints the replace action for the top row's customise group, whose dot
+// shows the colour, and for the colour picker, which marks it and comes back
+// hidden; the other drop-down and the catcher are hidden too, so choosing
+// closes the open picker. A pinned window's tint has already been updated by
+// the action that ran this (see noteColourAction in lib.js), but its page
+// covers it, so in View the page is reloaded with the new tint too. Does
+// nothing without a state of the window's form, as for switchMode.
 function setColour(store, workflowFolder, context, id, form, name) {
   if (!notePaletteColour(name)) throw new Error(`Unknown colour: ${name}`);
   const state = readNoteState(id);
@@ -147,13 +157,45 @@ function setColour(store, workflowFolder, context, id, form, name) {
   store.updateMeta(id, { colour: name });
   updateNoteContext(id, form, { colour: name });
   const mode = state.mode === "view" ? "view" : "edit";
-  const toprow = noteWindowPart({ workflowFolder, id, form, mode, fontSize: context.fontSize, colour: name }, "toprow");
-  const action = { replace: { ids: { toprow } } };
+  const options = noteWindowOptions(Object.assign(context, { colour: name }), { workflowFolder, id, form, mode });
+  const customise = noteWindowPart(options, "customise");
+  const colourpicker = findNoteComponent(noteWindowPart(options, "content"), "colourpicker");
+  closeNotePickerState(id);
+  const ids = noteDropdownsClosed();
+  delete ids.colourpicker;
   if (form === "pinned" && mode === "view") {
     const note = store.read(id);
-    action.update = { ids: { web: { src: writeNotePage(id, form, note ? note.text : "") } } };
+    ids.web = { src: writeNotePage(id, form, note ? note.text : "") };
   }
-  return JSON.stringify(action);
+  return JSON.stringify({ replace: { ids: { customise, colourpicker } }, update: { ids } });
+}
+
+// Gives the note the icon named `name`, or no icon for "none": records it in
+// the note's sidecar (removing the key for none; this works for a new note
+// that isn't saved yet) and in the window's context, and prints the replace
+// action for the top row's customise group, whose icon button shows it, and
+// for the icon picker, which marks it and comes back hidden; the other
+// drop-down and the catcher are hidden too, so choosing closes the open
+// picker. Does nothing without a state of the window's form, as for
+// switchMode.
+//
+// A pinned window's app icon (its badge) is set when the window opens, so it
+// changes the next time the note is pinned.
+function setIcon(store, workflowFolder, context, id, form, name) {
+  if (name !== "none" && !noteIconByName(name)) throw new Error(`Unknown icon: ${name}`);
+  const state = readNoteState(id);
+  if (!state || state.form !== form) return;
+  const icon = name === "none" ? null : name;
+  store.updateMeta(id, { icon });
+  updateNoteContext(id, form, { icon });
+  const mode = state.mode === "view" ? "view" : "edit";
+  const options = noteWindowOptions(Object.assign(context, { icon }), { workflowFolder, id, form, mode });
+  const customise = noteWindowPart(options, "customise");
+  const iconpicker = findNoteComponent(noteWindowPart(options, "content"), "iconpicker");
+  closeNotePickerState(id);
+  const ids = noteDropdownsClosed();
+  delete ids.iconpicker;
+  return JSON.stringify({ replace: { ids: { customise, iconpicker } }, update: { ids } });
 }
 
 // A task box was clicked in the page: ticks the task on `line` (counting from
