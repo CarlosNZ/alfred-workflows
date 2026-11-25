@@ -11,6 +11,7 @@
       "type": "button",
       "text": "",
       "bordered": false,
+      "constraints": "@buttonBox",
       "@edit": { "image": "@buttonIcon:eye", "tooltip": "View (⌘E)", "accessibility": { "label": "View" } },
       "@view": { "image": "@buttonIcon:pencil", "tooltip": "Edit (⌘E)", "accessibility": { "label": "Edit" } },
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } }]
@@ -21,6 +22,7 @@
       "type": "button",
       "text": "",
       "bordered": false,
+      "constraints": "@buttonBox",
       "image": "@buttonIcon:sticky-note",
       "tooltip": "Stick to the desktop (⌘P)",
       "accessibility": { "label": "Make sticky" },

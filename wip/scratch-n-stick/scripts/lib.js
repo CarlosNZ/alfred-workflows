@@ -945,16 +945,17 @@ const NOTE_ICONS = [
 // (`eye` to switch to View, `pencil` to Edit), Stick to the desktop's
 // (`sticky-note`, which is a note icon too), the icon button's for a note
 // without an icon (`smile-plus`), the picker's None (`ban`), and the Font
-// size button's (`a-large-small`). Each has an SF Symbol for windows that
-// can't show the button icons (macOS 12; see noteIconsSupported), which
-// follows the appearance by itself.
+// size button's (`text-size`, the workflow's own, in Lucide's style; see
+// dev/make-icons.js). Each has an SF Symbol for windows that can't show the
+// button icons (macOS 12; see noteIconsSupported), which follows the
+// appearance by itself.
 const NOTE_WINDOW_BUTTON_ICONS = {
   eye: "eye",
   pencil: "pencil",
   "sticky-note": "note.text",
   "smile-plus": "face.smiling",
   ban: "nosign",
-  "a-large-small": "textformat.size",
+  "text-size": "textformat.size",
 };
 
 // The release of lucide-static that the button icons were drawn from, as
@@ -1349,22 +1350,27 @@ function readNoteTemplate(workflowFolder, name) {
 // these through functions.
 const NOTE_WINDOW_LAYOUT = {
   // The top row's two groups: the note's own look (its icon, its colour and
-  // its font size) at the top left, after a sticky window's traffic lights, and the actions
-  // (Edit / View, then Stick in the quick view) at the top right. `top`, `left`
-  // and `right` are each group's distance from the window's edges, in each
-  // form, and `spacing` the space between its buttons. A group's buttons are
-  // centred in it, and it's as tall as its tallest, so the customise group,
-  // whose note icon is 4 pt larger than the actions' button icons, is 2 pt
-  // higher, which keeps the buttons' centres level, with each other and with
-  // a sticky window's traffic lights.
-  customise: { quick: { top: 6, left: 12 }, sticky: { top: 6, left: 82 }, spacing: 12 },
-  actions: { quick: { top: 8, right: 10 }, sticky: { top: 8, right: 10 }, spacing: 12 },
-  // The size of the note's icon in the customise group, of the actions'
-  // button icons, and of the colour button's swatch (a symbol, whose size is
-  // its button's font size).
-  noteIcon: 20,
-  actionIcon: 16,
-  swatch: 13,
+  // its font size) at the top left, after a sticky window's traffic lights,
+  // and the actions (Edit / View, then Stick in the quick view) at the top
+  // right. `top`, `left` and `right` are each group's distance from the
+  // window's edges, in each form, and `spacing` the space between its
+  // buttons. Every button in the row is a box `button` points square, its
+  // image centred in it, so both groups are the same height whatever they
+  // show, and the buttons' centres are level, with each other and with a
+  // sticky window's traffic lights (16 pt down, so `top` is 16 less half a
+  // button).
+  customise: { quick: { top: 5, left: 12 }, sticky: { top: 5, left: 82 }, spacing: 10 },
+  actions: { quick: { top: 5, right: 10 }, sticky: { top: 5, right: 10 }, spacing: 10 },
+  button: 22,
+  // The size of the row's button icons: the note's icon, the Font size
+  // button's and the actions', all the same so that their strokes match.
+  // `buttonIconSizes` overrides it for glyphs that look small at that size,
+  // being short or wide (Aa, the eye), so they look as large as the rest.
+  // And the size of the colour button's swatch (a symbol, whose size is its
+  // button's font size), large enough not to look like a traffic light.
+  buttonIcon: 18,
+  buttonIconSizes: { "text-size": 19, eye: 20 },
+  swatch: 14,
   // The drop-downs, the icon and colour pickers: boxes of buttons under the
   // customise group, `top` from the window's top in each form and `left` from
   // its left, with corners of `radius`, `padding` inside, and a shadow around
@@ -1445,8 +1451,8 @@ function noteDropdownShadowFile(name) {
 //   note's root view is always in light appearance), icons (whether the
 //   window can show note icons; see noteIconsSupported)
 // Each of NOTE_WINDOW_BUTTON_ICONS is a token too, "@buttonIcon:<name>", its
-// button icon as a button's image at the actions' size, or its SF Symbol in a
-// window without note icons.
+// button icon as a button's image at its size in the top row, or its SF Symbol
+// in a window without note icons.
 function noteWindowTokens(
   {
     workflowFolder,
@@ -1494,9 +1500,10 @@ function noteWindowTokens(
       workflowFolder,
       currentIcon ? currentIcon.name : "smile-plus",
       appearance,
-      layout.noteIcon,
+      noteTopRowIconSize(currentIcon ? currentIcon.name : "smile-plus"),
       icons,
     ),
+    "@buttonBox": { size: { width: layout.button, height: layout.button } },
     "@customisePlace": place("customise", "topleft"),
     "@customiseSpacing": layout.customise.spacing,
     "@actionsPlace": place("actions", "topright"),
@@ -1524,7 +1531,7 @@ function noteWindowTokens(
     ],
   };
   for (const name of Object.keys(NOTE_WINDOW_BUTTON_ICONS))
-    tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, layout.actionIcon, icons);
+    tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, noteTopRowIconSize(name), icons);
   // The app icon is worked out only when a template names it, which only
   // window.json does, in a sticky window: so its badge is made when open.js
   // writes the sticky window's bundle, and never by the window's own actions,
@@ -1536,6 +1543,13 @@ function noteWindowTokens(
       form === "sticky" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null,
   });
   return tokens;
+}
+
+// The size, in points, of the button icon named `name` in the top row (see
+// NOTE_WINDOW_LAYOUT).
+function noteTopRowIconSize(name) {
+  const { buttonIcon, buttonIconSizes } = NOTE_WINDOW_LAYOUT;
+  return Object.prototype.hasOwnProperty.call(buttonIconSizes, name) ? buttonIconSizes[name] : buttonIcon;
 }
 
 // A button's image: the button icon of the icon named `name` drawn for

@@ -99,7 +99,7 @@ expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" 
 ui=$bundle/ui.json
 expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button fontsize:button actions:view toggle:button stick:button"
 expect "quick: the root and content are stacks filling the window" "$(json $ui 'd.window.root.layout + " " + d.window.root.components[0].layout + " " + d.window.root.components[0].constraints.stretch')" "stack stack both"
-expect "quick: the icon and colour at the top left, the actions at the top right" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":6,"left":12} topright {"top":8,"right":10}'
+expect "quick: the icon and colour at the top left, the actions at the top right" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":5,"left":12} topright {"top":5,"right":10}'
 expect "quick: the web view shows view.html, from opacity 0, links in the browser" "$(json $ui '['$web'.src, '$web'.opacity, '$web'.openlinksexternally].join(" ")')" "view.html 0 true"
 expect "quick: the web view's changed runs changed.sh with its URL" "$(json $ui '['$web'.events[0].triggers, '$web'.events[0].action.src].concat('$web'.events[0].action.args).join(" ")')" "changed $scripts/changed.sh {value:web.src} meeting quick"
 expect "quick: View's editor is hidden and empty, without focus" "$(json $ui '['$editor'.hidden, JSON.stringify('$editor'.text), Boolean('$editor'.focus)].join(" ")')" 'true "" false'
@@ -134,7 +134,7 @@ bundle=$(open_note font_size=17 stick meeting)
 expect "sticky: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
 ui=$bundle/ui.json
 expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button fontsize:button actions:view toggle:button"
-expect "sticky: the icon and colour after the traffic lights, level with the actions" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":6,"left":82} topright {"top":8,"right":10}'
+expect "sticky: the icon and colour after the traffic lights, level with the actions" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":5,"left":82} topright {"top":5,"right":10}'
 expect "sticky: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FEF49C light"
 expect "sticky: ⌘E, ⌘↩, ⌘I, ⎋, ⌘1-⌘6 and the font size's, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect "sticky: the font size is a number" "$(json $ui 'typeof '$editor'.font.size + " " + '$editor'.font.size')" "number 17"
@@ -370,7 +370,7 @@ CLOSED='{"update":{"ids":{"iconpicker":{"hidden":true},"colourpicker":{"hidden":
 print -rn -- $'Palette\n' > "$notes/palette.md"
 colourbtn=$(byid colour)
 ui=$(open_note quick palette)/ui.json
-expect "quick: the colour button's swatch is the colour's control colour" "$(json $ui '('$colourbtn').contenttintcolour + " " + ('$colourbtn').image.src + " " + ('$colourbtn').font.size')" "#DBC503 circle.fill 13"
+expect "quick: the colour button's swatch is the colour's control colour" "$(json $ui '('$colourbtn').contenttintcolour + " " + ('$colourbtn').image.src + " " + ('$colourbtn').font.size')" "#DBC503 circle.fill 14"
 expect "quick: the colour button runs picker.sh toggle colour" "$(json $ui '[('$colourbtn').events[0].action.src].concat(('$colourbtn').events[0].action.args).join(" ")')" "$scripts/picker.sh toggle palette quick colour"
 expect "the colour picker starts hidden, after the catcher and the icon picker, in the content stack" "$(json $ui '[('$colourpickerv').hidden, d.window.root.components[0].components.map(c => c.id).join(",")].join(" ")')" "true page,editor,pickercatcher,iconpicker,colourpicker"
 expect "the colour picker: a box of one row, 8 pt in and 34 pt down, with its shadow around it" "$(json $ui '[JSON.stringify(('$colourpickerv').constraints), ('$colourpickerv').components.map(c => c.id).join(","), JSON.stringify(('$colourpickerbox').constraints), ('$colourpickerbox').components.length].join(" ")')" '{"position":"topleft","insets":{"top":26,"left":0},"size":{"width":188,"height":53}} colourpickershadow,colourpickerbox {"position":"topleft","insets":{"top":8,"left":8},"size":{"width":172,"height":37}} 1'
@@ -425,7 +425,7 @@ sizemenu='('$sizebtn').events[0].action.src.popupmenu.menu.map(i => i.type === "
 # The ✓ items of the Font size menu.
 sizeticked='('$sizebtn').events[0].action.src.popupmenu.menu.filter(i => i.state === "on").map(i => i.text).join(",")'
 ui=$(open_note quick sizes)/ui.json
-expect_exact "the Font size button: after the colour, a button icon, with its tooltip" "$(json $ui '[('$customise').components.map(c => c.id).join(","), '$image'('$sizebtn'), ('$sizebtn').bordered, ('$sizebtn').tooltip, ('$sizebtn').accessibility.label].join(" | ")')" "icon,colour,fontsize | icons/lucide/a-large-small-light.svg 16x16 | false | Font size (⌘+, ⌘−) | Font size"
+expect_exact "the Font size button: after the colour, a button icon, with its tooltip" "$(json $ui '[('$customise').components.map(c => c.id).join(","), '$image'('$sizebtn'), ('$sizebtn').bordered, ('$sizebtn').tooltip, ('$sizebtn').accessibility.label].join(" | ")')" "icon,colour,fontsize | icons/lucide/text-size-light.svg 19x19 | false | Font size (⌘+, ⌘−) | Font size"
 expect "the Font size button pops up its menu" "$(json $ui '[('$sizebtn').events[0].triggers, ('$sizebtn').events[0].action.type, ('$sizebtn').events[0].action.src.popupmenu.src].join(" ")')" "actioned json fontsize"
 expect_exact "the Font size menu: Default (the setting) ticked, then the sizes" "$(json $ui $sizemenu | head -4)" $'Default (13 pt) | on | fontsize sizes quick default\n-\n10 pt | off | fontsize sizes quick 10\n11 pt | off | fontsize sizes quick 11'
 expect_exact "the Font size menu: the default size is ticked too" "$(json $ui $sizeticked)" "Default (13 pt),13 pt"
@@ -472,8 +472,12 @@ window_js quit sizes sticky ""
 print -rn -- $'Icons\n' > "$notes/icons.md"
 iconbtn=$(byid icon)
 ui=$(open_note quick icons)/ui.json
-expect_exact "no icon: the icon button is the placeholder button icon, before the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/smile-plus-light.svg 20x20 Icon (⌘I) icon,colour,fontsize"
-expect_exact "the actions are button icons too: Edit (the note opens in View), and Stick to the desktop" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/pencil-light.svg 16x16,icons/lucide/sticky-note-light.svg 16x16"
+expect_exact "no icon: the icon button is the placeholder button icon, before the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/smile-plus-light.svg 18x18 Icon (⌘I) icon,colour,fontsize"
+expect_exact "the actions are button icons too: Edit (the note opens in View), and Stick to the desktop" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/pencil-light.svg 18x18,icons/lucide/sticky-note-light.svg 18x18"
+expect_exact "every button in the top row is a 22 pt box, so the groups' heights don't change" "$(json $ui '[...new Set(['$customise', '$actions'].flatMap(g => g.components).map(b => JSON.stringify(b.constraints)))].join(" ")')" '{"size":{"width":22,"height":22}}'
+note_mode icons edit
+expect_exact "the eye is drawn larger than the other button icons, as it looks small" "$(json "$(open_note stick icons)/ui.json" ''$image'(('$actions').components[0])')" "icons/lucide/eye-light.svg 20x20"
+note_mode icons view
 expect "the icon button and ⌘I run picker.sh toggle icon" "$(json $ui '[('$iconbtn').events[0].action.src].concat(('$iconbtn').events[0].action.args, d.window.root.shortcuts.find(s => s.shortcut === "⌘I").action.args).join(" ")')" "$scripts/picker.sh toggle icons quick icon toggle icons quick icon"
 expect "the catcher: hidden, filling the window, a mouse-down running picker.sh close" "$(json $ui '[('$catcher').hidden, ('$catcher').constraints.stretch, ('$catcher').events[0].triggers, ('$catcher').events[0].action.src].concat(('$catcher').events[0].action.args).join(" ")')" "true both mousedown $scripts/picker.sh close icons quick"
 expect "the icon picker: a box, 8 pt in and 34 pt down, with its shadow around it" "$(json $ui '[('$iconpickerv').hidden, JSON.stringify(('$iconpickerv').constraints), ('$iconpickerv').components.map(c => c.id).join(","), JSON.stringify(('$iconpickerbox').constraints)].join(" ")')" 'true {"position":"topleft","insets":{"top":26,"left":0},"size":{"width":215,"height":107}} iconpickershadow,iconpickerbox {"position":"topleft","insets":{"top":8,"left":8},"size":{"width":199,"height":91}}'
@@ -525,14 +529,14 @@ action=$(window_js icon icons sticky shopping-cart)
 expect "icon: every file the replace names exists" "$(print -r -- $action | missing_files -)" ""
 expect "icon: recorded in the sidecar and the window's context" "$(json $notes/.scratchnstick/icons.json d.icon) $(json $bundle/context.json d.icon)" "shopping-cart shopping-cart"
 expect "icon: replaces the customise group and the icon picker, and hides the rest" "$(print -r -- $action | json - 'Object.keys(d.replace.ids).join(" ") + " " + JSON.stringify(d.update.ids)')" 'customise iconpicker {"colourpicker":{"hidden":true},"pickercatcher":{"hidden":true}}'
-expect "icon: the icon button shows its button icon, light in a sticky window" "$(print -r -- $action | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
+expect "icon: the icon button shows its button icon, light in a sticky window" "$(print -r -- $action | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 18x18"
 expect "icon: the icon picker marks it, and comes back hidden" "$(print -r -- $action | json - 'd.replace.ids.iconpicker.hidden') $(print -r -- $action | json - $buttons | grep '| true |' | cut -d'|' -f1)" "true icon-shopping-cart "
 expect "icon: the picker closed in the state" "$([[ -e $cache/state/icons.picker ]] && print open || print closed)" "closed"
 expect "icon: the window's actions make no badge (only open.js does, for the app icon)" "$(ls $cache/icons 2>/dev/null | grep -c badge-shopping-cart || true)" "0"
 expect "icon: the next sticky window's app icon is its badge in its colour, made in the cache" "$(json "$(open_note stick icons)/ui.json" d.iconpath)" "$cache/icons/badge-shopping-cart-FEF49C-DBC503-1.72.0-*.svg"
-expect "icon: the next window's icon button and picker show it" "$(json $bundle/ui.json ''$image'('$iconbtn')') $(json $bundle/ui.json $buttons | grep -c 'icon-shopping-cart | true')" "icons/lucide/shopping-cart-light.svg 20x20 1"
+expect "icon: the next window's icon button and picker show it" "$(json $bundle/ui.json ''$image'('$iconbtn')') $(json $bundle/ui.json $buttons | grep -c 'icon-shopping-cart | true')" "icons/lucide/shopping-cart-light.svg 18x18 1"
 expect "every file the sticky window names exists, its badge too" "$(missing_files $bundle/ui.json)" ""
-expect "colour: the customise group keeps the icon" "$(window_js colour icons sticky green | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 20x20"
+expect "colour: the customise group keeps the icon" "$(window_js colour icons sticky green | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 18x18"
 expect "colour: makes no badge in the new colour" "$(ls $cache/icons | grep -c 'badge-shopping-cart-B2FFA1' || true)" "0"
 expect "icon: an unknown icon is an error, and nothing changes" "$(window_js icon icons sticky rocket 2>&1 >/dev/null | grep -c 'Unknown icon') $(json $notes/.scratchnstick/icons.json d.icon)" "1 shopping-cart"
 # In View, as in Edit.
@@ -540,7 +544,7 @@ window_js toggle icons sticky "Icons" >/dev/null
 expect_exact "toggle icon in View: shows it, leaving the page as it is" "$(picker toggle icons sticky icon)" "$OPEN_ICON"
 action=$(window_js icon icons sticky none)
 expect "icon none: removes the key, keeping the others" "$(json $notes/.scratchnstick/icons.json '[String(d.icon), "icon" in d, d.colour].join(" ")') $(json $bundle/context.json 'String(d.icon)')" "undefined false green null"
-expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/smile-plus-light.svg 20x20  true "
+expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/smile-plus-light.svg 18x18  true "
 picker toggle icons sticky colour >/dev/null
 expect "the Edit / View switch closes the open picker" "$(window_js toggle icons sticky "" | json - '[d.update.ids.iconpicker.hidden, d.update.ids.colourpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "true true true closed"
 expect "a switch with none open leaves them alone" "$(window_js toggle icons sticky "Icons" | json - 'String(d.update.ids.pickercatcher)')" "undefined"

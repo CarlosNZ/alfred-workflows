@@ -1,7 +1,8 @@
 #!/usr/bin/osascript -l JavaScript
 
 // Makes the images that ship with the workflow, from Lucide's sources in
-// dev/lucide/, the note icons (noteIcons in scripts/lib.js), the window's
+// dev/lucide/ and the workflow's own icons in Lucide's style in dev/icons/,
+// the note icons (noteIcons in scripts/lib.js), the window's
 // other icons (NOTE_WINDOW_BUTTON_ICONS, through noteButtonIconNames) and the
 // drop-downs' sizes (NOTE_WINDOW_LAYOUT). Run after changing any of them:
 //
@@ -15,7 +16,7 @@
 //                                            every note icon and the window's
 //                                            other icons
 //   icons/lucide/LICENSE                     Lucide's licence, which covers
-//                                            the button icons and the badges
+//                                            its button icons and the badges
 //                                            made from them
 //   icons/shadow-<picker>-picker.png         each drop-down's shadow (the
 //                                            icon and colour pickers), at
@@ -48,11 +49,12 @@ function run(argv) {
 
   const written = [];
   for (const name of noteButtonIconNames()) {
-    const elements = lucideElements(`${workflowFolder}/dev/lucide/${name}.svg`);
+    const own = isOwnButtonIcon(workflowFolder, name);
+    const elements = lucideElements(`${workflowFolder}/dev/${own ? "icons" : "lucide"}/${name}.svg`);
     for (const appearance of Object.keys(BUTTON_ICON_COLOURS)) {
       const path = noteButtonIconFile(name, appearance);
       ensureFolder($(`${workflowFolder}/${path}`).stringByDeletingLastPathComponent.js, true);
-      writeFileAtomically(`${workflowFolder}/${path}`, buttonIconSvg(name, elements, BUTTON_ICON_COLOURS[appearance]));
+      writeFileAtomically(`${workflowFolder}/${path}`, buttonIconSvg(name, own, elements, BUTTON_ICON_COLOURS[appearance]));
       written.push(path);
     }
   }
@@ -91,6 +93,13 @@ function reviewResultIcons(workflowFolder, folder, png) {
   return `${count} files written to ${folder}`;
 }
 
+// Whether the button icon named `name` is one of the workflow's own, drawn in
+// Lucide's style, with its source in dev/icons/, rather than Lucide's, in
+// dev/lucide/.
+function isOwnButtonIcon(workflowFolder, name) {
+  return $.NSFileManager.defaultManager.fileExistsAtPath(`${workflowFolder}/dev/icons/${name}.svg`);
+}
+
 // The elements inside a Lucide SVG's <svg> element, which draw with the root's
 // stroke="currentColor" and fill="none".
 function lucideElements(path) {
@@ -101,14 +110,15 @@ function lucideElements(path) {
   return match[1].trim().split(/\s*\n\s*/).join("");
 }
 
-// A button icon's SVG: Lucide's elements in a group with the buttons' colour.
+// A button icon's SVG: its elements (Lucide's, or the workflow's own when
+// `own`) in a group with the buttons' colour.
 // The opacity is on the group, so the icon is drawn as one layer, as a symbol
 // in a translucent colour is: where two strokes overlap, it's no darker.
 // lib.js makes badges from the elements in this group (noteButtonIconElements).
-function buttonIconSvg(name, elements, { colour, opacity }) {
+function buttonIconSvg(name, own, elements, { colour, opacity }) {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`,
-    `<!-- Lucide's ${name} (see LICENSE) -->`,
+    own ? `<!-- Scratch'n'Stick's ${name}, in Lucide's style -->` : `<!-- Lucide's ${name} (see LICENSE) -->`,
     `<g opacity="${opacity}" ${noteLucideStroke()} stroke="${colour}">${elements}</g>`,
     `</svg>`,
     "",
