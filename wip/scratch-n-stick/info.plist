@@ -838,9 +838,9 @@
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>The size of a note's text, in points, when editing and when viewing it.</string>
+			<string>The font size for new notes, in points</string>
 			<key>label</key>
-			<string>Font size</string>
+			<string>Default font size</string>
 			<key>type</key>
 			<string>slider</string>
 			<key>variable</key>

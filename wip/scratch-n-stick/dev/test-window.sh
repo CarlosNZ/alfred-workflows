@@ -97,7 +97,7 @@ print -rn -- $'Vars: {var:x} and {const:y}\n' > "$notes/vars.md"
 bundle=$(open_note quick meeting)
 expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" "$cache/quick/meeting.alfredui"
 ui=$bundle/ui.json
-expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button actions:view toggle:button stick:button"
+expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button fontsize:button actions:view toggle:button stick:button"
 expect "quick: the root and content are stacks filling the window" "$(json $ui 'd.window.root.layout + " " + d.window.root.components[0].layout + " " + d.window.root.components[0].constraints.stretch')" "stack stack both"
 expect "quick: the icon and colour at the top left, the actions at the top right" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":6,"left":12} topright {"top":8,"right":10}'
 expect "quick: the web view shows view.html, from opacity 0, links in the browser" "$(json $ui '['$web'.src, '$web'.opacity, '$web'.openlinksexternally].join(" ")')" "view.html 0 true"
@@ -108,21 +108,21 @@ expect "quick: the page fills the window" "$(json $ui 'JSON.stringify(('$page').
 expect "quick: the page's view has ↩ (to Edit)" "$(json $ui '('$page').shortcuts.map(s => s.shortcut + " " + s.action.args[0]).join(" ")')" "↩ edit"
 expect "quick: the page's note.js has the note" "$(page_text $bundle)" $'# Team meeting\n- Ship it'
 expect "quick: the title is the note's" "$(json $ui 'd.window.title')" "Team meeting"
-expect "quick: ⌘E, ⌘↩, ⌘P, ⌘I and ⌘1-⌘6, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘I ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6"
+expect "quick: ⌘E, ⌘↩, ⌘P, ⌘I, ⌘1-⌘6 and the font size's, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘I ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect "quick: the quick size" "$(json $ui 'd.window.size.width + "x" + d.window.size.height')" "640x400"
 expect "quick: no tint or appearance, so it takes Alfred's theme" "$(json $ui '"background" in d.window.root || "appearance" in d.window.root')" "false"
 expect "actions run window.js by its absolute path" "$(json $ui 'd.window.root.events[0].action.src')" "$scripts/window.js"
 expect "launched's args are strings" "$(json $ui 'd.window.root.events[0].action.args.join(" ")')" "launched meeting quick view"
 expect "no template directives are left" "$(grep -c '"@' $ui || true)" "0"
 expect "quick: no app icon, and every file it names exists" "$(json $ui '"iconpath" in d') $(missing_files $ui)" "false "
-expect "context: notes folder, font size, colour, icon, the button icons' appearance, note icons" "$(json $bundle/context.json '[d.folder, d.fontSize, d.colour, d.icon, d.appearance, d.icons].join(" ")')" "$notes 13 yellow  light true"
+expect "context: notes folder, own and default font sizes, colour, icon, the button icons' appearance, note icons" "$(json $bundle/context.json '[d.folder, d.ownFontSize, d.defaultFontSize, d.colour, d.icon, d.appearance, d.icons].join(" ")')" "$notes  13 yellow  light true"
 
 # The page.
 html=$bundle/view.html
 mdit=$(grep -o 'src="file://[^"]*markdown-it[^"]*"' $html | sed 's/^src="file:\/\///; s/"$//')
 expect "page: markdown-it from the workflow folder, which has it" "$mdit $([[ -f $mdit ]] && print exists)" "$workflow/vendor/markdown-it/markdown-it.umd.min.js exists"
 expect_exact "page: markdown-it's licence is with it" "$(head -1 $workflow/vendor/markdown-it/LICENSE)" "Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin."
-expect "page: quick, at the font size" "$(grep -c '<html class="quick">' $html) $(grep -o 'font: [0-9]*px' $html)" "1 font: 13px"
+expect_exact "page: quick, its font size from note.js" "$(grep -c '<html class="quick">' $html) $(grep -o 'font: var(--font-size, 13px)' $html) $(page_note $bundle | json - d.NOTE_FONT_SIZE)" "1 font: var(--font-size, 13px) 13"
 expect "page: links the theme stylesheet" "$(grep -o 'const theme = .*;' $html)" "const theme = \"file://$cache/theme.css\";"
 expect "page: note.js's version, for a load without ?v=" "$(grep -o '"?v=[0-9a-z]*"' $html)" '"?v=[0-9a-z]*"'
 expect "page: view.js is inlined, and every token filled" "$(grep -c 'function startNotePage' $html) $(grep -c '@[A-Za-z]*@' $html || true)" "1 0"
@@ -133,17 +133,17 @@ note_mode meeting edit
 bundle=$(open_note font_size=17 stick meeting)
 expect "sticky: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
 ui=$bundle/ui.json
-expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button actions:view toggle:button"
+expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view icon:button colour:button fontsize:button actions:view toggle:button"
 expect "sticky: the icon and colour after the traffic lights, level with the actions" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":6,"left":82} topright {"top":8,"right":10}'
 expect "sticky: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FEF49C light"
-expect "sticky: ⌘E, ⌘↩, ⌘I, ⎋ and ⌘1-⌘6, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6"
+expect "sticky: ⌘E, ⌘↩, ⌘I, ⎋, ⌘1-⌘6 and the font size's, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect "sticky: the font size is a number" "$(json $ui 'typeof '$editor'.font.size + " " + '$editor'.font.size')" "number 17"
 expect "sticky: the editor's insets clear the top row" "$(json $ui ''$editor'.constraints.insets.top')" "34"
 expect "sticky: the page starts below the top row, so the window drags by the strip above" "$(json $ui '('$page').constraints.insets.top')" "28"
 expect "sticky: Edit (the sidecar's mode): the editor shown with the text and focus" "$(json $ui '[Boolean('$editor'.hidden), '$editor'.focus, '$editor'.text].join(" ")')" $'false true # Team meeting\n- Ship it'
 expect "sticky: Edit: the page has no note, so it shows nothing" "$(page_text $bundle)" "null"
-expect "sticky: the page is sticky, at the font size, without the theme" "$(grep -c '<html class="sticky">' $bundle/view.html) $(grep -o 'font: [0-9]*px' $bundle/view.html) $(grep -o 'const theme = .*;' $bundle/view.html)" "1 font: 17px const theme = null;"
-expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 stick meeting)/context.json" 'd.fontSize')" "20"
+expect "sticky: the page is sticky, without the theme, and note.js has the font size" "$(grep -c '<html class="sticky">' $bundle/view.html) $(grep -o 'const theme = .*;' $bundle/view.html) $(page_note $bundle | json - d.NOTE_FONT_SIZE)" "1 const theme = null; 17"
+expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 stick meeting)/context.json" 'd.defaultFontSize')" "20"
 
 # Placeholders in a note's text are escaped in the window, but not in the page.
 note_mode vars edit
@@ -416,11 +416,63 @@ expect "colour on a new note before it's saved: recorded" "$(json $notes/.scratc
 window_js quit "$new" quick ""
 expect "a new note closed blank: its sidecar goes too" "$(ls -A $notes/.scratchnstick | grep -c $new || true)" "0"
 
+# Font size.
+print -rn -- $'Sizes\n' > "$notes/sizes.md"
+sizebtn=$(byid fontsize)
+# The Font size menu (in a ui.json, or a replace action's customise group), one
+# item per line: text | state | the script's arguments, or "-" for a separator.
+sizemenu='('$sizebtn').events[0].action.src.popupmenu.menu.map(i => i.type === "separator" ? "-" : [i.text, i.state, i.action.args.join(" ")].join(" | ")).join("\n")'
+# The ✓ items of the Font size menu.
+sizeticked='('$sizebtn').events[0].action.src.popupmenu.menu.filter(i => i.state === "on").map(i => i.text).join(",")'
+ui=$(open_note quick sizes)/ui.json
+expect_exact "the Font size button: after the colour, a button icon, with its tooltip" "$(json $ui '[('$customise').components.map(c => c.id).join(","), '$image'('$sizebtn'), ('$sizebtn').bordered, ('$sizebtn').tooltip, ('$sizebtn').accessibility.label].join(" | ")')" "icon,colour,fontsize | icons/lucide/a-large-small-light.svg 16x16 | false | Font size (⌘+, ⌘−) | Font size"
+expect "the Font size button pops up its menu" "$(json $ui '[('$sizebtn').events[0].triggers, ('$sizebtn').events[0].action.type, ('$sizebtn').events[0].action.src.popupmenu.src].join(" ")')" "actioned json fontsize"
+expect_exact "the Font size menu: Default (the setting) ticked, then the sizes" "$(json $ui $sizemenu | head -4)" $'Default (13 pt) | on | fontsize sizes quick default\n-\n10 pt | off | fontsize sizes quick 10\n11 pt | off | fontsize sizes quick 11'
+expect_exact "the Font size menu: the default size is ticked too" "$(json $ui $sizeticked)" "Default (13 pt),13 pt"
+expect_exact "the Font size menu: every size in NOTE_FONT_SIZES" "$(json $ui $sizemenu | tail -n +3 | cut -d' ' -f1 | tr '\n' ' ')" "10 11 12 13 14 16 18 20 24 28 32 36 48 64 72 96 "
+expect "the menu's items run window.js" "$(json $ui '('$sizebtn').events[0].action.src.popupmenu.menu[0].action.src')" "$scripts/window.js"
+expect_exact "the font size shortcuts" "$(json $ui 'd.window.root.shortcuts.filter(s => /[=+0-]$/.test(s.shortcut)).map(s => s.shortcut + " " + s.action.args.join(" ")).join(", ")')" "⌘= fontsize sizes quick bigger, ⇧⌘= fontsize sizes quick bigger, ⌘+ fontsize sizes quick bigger, ⌘- fontsize sizes quick smaller, ⌘0 fontsize sizes quick default"
+expect_exact "Default shows the font_size setting" "$(json "$(open_note font_size=17 quick sizes)/ui.json" $sizeticked)" "Default (17 pt)"
+print -r -- '{"fontSize":24}' > $notes/.scratchnstick/sizes.json
+bundle=$(open_note font_size=17 stick sizes)
+expect "a note's own size: the editor, the page, the context, and ✓ on it" "$(json $bundle/ui.json ''$editor'.font.size') $(page_note $bundle | json - d.NOTE_FONT_SIZE) $(json $bundle/context.json '[d.ownFontSize, d.defaultFontSize].join(" ")') $(json $bundle/ui.json $sizeticked)" "24 24 24 17 24 pt"
+print -r -- '{"fontSize":500}' > $notes/.scratchnstick/sizes.json
+expect "a note's own size past the list is brought within it" "$(json "$(open_note stick sizes)/context.json" d.ownFontSize)" "96"
+print -r -- '{"fontSize":"big"}' > $notes/.scratchnstick/sizes.json
+expect "a note's own size that isn't a number: the default" "$(json "$(open_note font_size=15 stick sizes)/ui.json" ''$editor'.font.size')" "15"
+rm $notes/.scratchnstick/sizes.json
+
+bundle=$(open_note stick sizes)
+expect "fontsize with no state: nothing, and nothing recorded" "$(window_js fontsize sizes sticky 24) $([[ -e $notes/.scratchnstick/sizes.json ]] && json $notes/.scratchnstick/sizes.json 'd.fontSize || "none"' || print none)" " none"
+window_js launched sizes sticky view
+picker toggle sizes sticky colour >/dev/null
+action=$(window_js fontsize sizes sticky 24)
+expect "fontsize: recorded in the sidecar and the window's context" "$(json $notes/.scratchnstick/sizes.json d.fontSize) $(json $bundle/context.json d.ownFontSize)" "24 24"
+expect "fontsize: replaces the customise group, whose menu ticks the size" "$(print -r -- $action | json - 'Object.keys(d.replace.ids).join(" ")') $(print -r -- $action | json - $sizeticked)" "customise 24 pt"
+expect "fontsize: updates the editor's font, keeping it monospaced" "$(print -r -- $action | json - 'JSON.stringify(d.update.ids.editor)')" '{"font":{"size":24,"monospaced":true}}'
+expect "fontsize: closes the open picker" "$(print -r -- $action | json - '[d.update.ids.colourpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/sizes.picker ]] && print open || print closed)" "true true closed"
+expect "fontsize in View: reloads the page at the new size" "$(print -r -- $action | json - 'd.update.ids.web.src') $(page_note $bundle | json - d.NOTE_FONT_SIZE) $(page_text $bundle)" "file://$bundle/view.html?v=* 24 Sizes"
+expect "fontsize bigger: the next size in the list" "$(window_js fontsize sizes sticky bigger | json - d.update.ids.editor.font.size) $(json $notes/.scratchnstick/sizes.json d.fontSize)" "28 28"
+expect "fontsize smaller: the one before" "$(window_js fontsize sizes sticky smaller | json - d.update.ids.editor.font.size)" "24"
+window_js fontsize sizes sticky 96 >/dev/null
+expect "fontsize bigger at the largest size: nothing" "$(window_js fontsize sizes sticky bigger) $(json $notes/.scratchnstick/sizes.json d.fontSize)" " 96"
+action=$(window_js fontsize sizes sticky default)
+expect_exact "fontsize default: no size of its own, so the setting's, with ✓ on Default" "$(json $notes/.scratchnstick/sizes.json 'String(d.fontSize)') $(json $bundle/context.json 'String(d.ownFontSize)') $(print -r -- $action | json - d.update.ids.editor.font.size) $(print -r -- $action | json - $sizeticked)" "undefined null 13 Default (13 pt),13 pt"
+expect "fontsize default again: nothing" "$(window_js fontsize sizes sticky default)" ""
+expect "fontsize smaller from the default: the size below it" "$(window_js fontsize sizes sticky smaller | json - d.update.ids.editor.font.size)" "12"
+window_js toggle sizes sticky "" >/dev/null
+expect "fontsize in Edit: no reload" "$(window_js fontsize sizes sticky 18 | json - '[d.update.ids.editor.font.size, String(d.update.ids.web)].join(" ")')" "18 undefined"
+window_js toggle sizes sticky $'Sizes\n' >/dev/null
+expect "the switch to View gives the page the new size" "$(page_note $bundle | json - d.NOTE_FONT_SIZE)" "18"
+expect "the note's next window has its size" "$(json "$(open_note quick sizes)/ui.json" ''$editor'.font.size')" "18"
+expect "fontsize: an unknown size is an error" "$(window_js fontsize sizes sticky huge 2>&1 >/dev/null | grep -c 'Unknown font size')" "1"
+window_js quit sizes sticky ""
+
 # Icons.
 print -rn -- $'Icons\n' > "$notes/icons.md"
 iconbtn=$(byid icon)
 ui=$(open_note quick icons)/ui.json
-expect_exact "no icon: the icon button is the placeholder button icon, before the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/smile-plus-light.svg 20x20 Icon (⌘I) icon,colour"
+expect_exact "no icon: the icon button is the placeholder button icon, before the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/smile-plus-light.svg 20x20 Icon (⌘I) icon,colour,fontsize"
 expect_exact "the actions are button icons too: Edit (the note opens in View), and Stick to the desktop" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/pencil-light.svg 16x16,icons/lucide/sticky-note-light.svg 16x16"
 expect "the icon button and ⌘I run picker.sh toggle icon" "$(json $ui '[('$iconbtn').events[0].action.src].concat(('$iconbtn').events[0].action.args, d.window.root.shortcuts.find(s => s.shortcut === "⌘I").action.args).join(" ")')" "$scripts/picker.sh toggle icons quick icon toggle icons quick icon"
 expect "the catcher: hidden, filling the window, a mouse-down running picker.sh close" "$(json $ui '[('$catcher').hidden, ('$catcher').constraints.stretch, ('$catcher').events[0].triggers, ('$catcher').events[0].action.src].concat(('$catcher').events[0].action.args).join(" ")')" "true both mousedown $scripts/picker.sh close icons quick"
@@ -513,9 +565,9 @@ expect "a new note with an icon closed blank: its sidecar goes too" "$(ls -A $no
 print -r -- '{"icon":"heart"}' > $notes/.scratchnstick/icons.json
 bundle=$(open_note scratchnstick_macos_version=12 quick icons)
 ui=$bundle/ui.json
-expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * customise:view colour:button actions:view toggle:button stick:button"
-expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6"
-expect_exact "macOS 12: the actions are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "symbol pencil,symbol note.text"
+expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * customise:view colour:button fontsize:button actions:view toggle:button stick:button"
+expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
+expect_exact "macOS 12: the actions and the Font size button are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b)), '$image'('$sizebtn')].join(", ")')" "symbol pencil,symbol note.text, symbol textformat.size"
 expect "macOS 12: the context says so, without the note's icon" "$(json $bundle/context.json '[d.icons, d.icon].join(" ")')" "false "
 expect "macOS 12: no SVG at all, and every file it names exists" "$(grep -c '\.svg' $ui || true) $(missing_files $ui)" "0 "
 bundle=$(open_note scratchnstick_macos_version=12 stick icons)
@@ -523,7 +575,7 @@ ui=$bundle/ui.json
 expect "macOS 12, sticky: Scratch'n'Stick's app icon, though the note has an icon" "$(json $ui d.iconpath)" "$workflow/ui/appicon.png"
 window_js launched icons sticky view
 action=$(window_js colour icons sticky blue)
-expect "macOS 12: a colour change gives no icon button, and keeps the icon in the sidecar" "$(print -r -- $action | json - '('$customise').components.map(c => c.id).join(",")') $(json $notes/.scratchnstick/icons.json '[d.icon, d.colour].join(" ")')" "colour heart blue"
+expect "macOS 12: a colour change gives no icon button, and keeps the icon in the sidecar" "$(print -r -- $action | json - '('$customise').components.map(c => c.id).join(",")') $(json $notes/.scratchnstick/icons.json '[d.icon, d.colour].join(" ")')" "colour,fontsize heart blue"
 expect "macOS 12: switching to Edit gives the symbol" "$(window_js toggle icons sticky "" | json - '[d.update.ids.toggle.image.type, d.update.ids.toggle.image.src].join(" ")')" "symbol eye"
 expect_exact "macOS 12: picker.sh still opens the colour picker" "$(picker toggle icons sticky colour)" "$OPEN_COLOUR"
 window_js quit icons sticky $'Icons\n'

@@ -50,11 +50,13 @@ function noteTaskRule(state) {
   }
 }
 
-// Gives a sticky note's page its colour, from note.js, so it changes with the
-// note's colour without view.html being rewritten. Run in the page's head,
-// before anything is drawn.
-function showNoteTint() {
-  if (typeof NOTE_TINT === "string") document.documentElement.style.setProperty("--tint", NOTE_TINT);
+// Gives the page the note's font size and, when sticky, its colour, from
+// note.js, so they change with the note's without view.html being rewritten.
+// Run in the page's head, before anything is drawn.
+function showNoteLook() {
+  const root = document.documentElement.style;
+  if (typeof NOTE_TINT === "string") root.setProperty("--tint", NOTE_TINT);
+  if (typeof NOTE_FONT_SIZE === "number" && NOTE_FONT_SIZE > 0) root.setProperty("--font-size", `${NOTE_FONT_SIZE}px`);
 }
 
 // Renders the note, keeps the scroll position across reloads, sends task
@@ -76,7 +78,8 @@ function startNotePage(form) {
   }
 
   // The page reloads when a tick is refused, after a switch from Edit, and
-  // when a sticky note's colour changes: each time it opens where it was.
+  // when a sticky note's colour or the note's font size changes: each time
+  // it opens where it was.
   try {
     const saved = sessionStorage.getItem("scrollY");
     if (saved !== null) scrollTo(0, Number(saved));

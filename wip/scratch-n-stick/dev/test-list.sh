@@ -96,6 +96,10 @@ print -r -- '{"mode":"edit"}' > "$notes/.scratchnstick/old.json"
 items "$notes" >/dev/null
 expect "a changed sidecar rewrites its note's bundle" "$([[ $(mtime old) != $before_old ]] && print rewritten) $(mtime cafe)" "rewritten $before_cafe"
 before_old=$(mtime old)
+print -r -- '{"mode":"edit","fontSize":24}' > "$notes/.scratchnstick/old.json"
+items "$notes" >/dev/null
+expect "a note's own font size rewrites its bundle, at that size" "$([[ $(mtime old) != $before_old ]] && print rewritten) $(grep -c '"size": 24' $(ui old))" "rewritten 1"
+before_old=$(mtime old)
 (cd "$tmp" && font_size=16 notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache "$list" "") >/dev/null
 expect "a changed setting rewrites every bundle" "$([[ $(mtime cafe) != $before_cafe ]] && print rewritten) $([[ $(mtime old) != $before_old ]] && print rewritten)" "rewritten rewritten"
 items "$notes" milk >/dev/null
@@ -207,7 +211,7 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     const files = noteButtonIconNames().flatMap((name) => ["light", "dark"].map((a) => noteButtonIconFile(name, a)));
     const missing = files.concat(["icons/lucide/LICENSE"]).filter((f) => !$.NSFileManager.defaultManager.fileExistsAtPath(argv[0] + "/" + f));
     return `${files.length} ${missing.join(" ") || "none missing"}`;
-  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "48 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
+  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "50 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
 # A sticky note's result (no arg, `sticky` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a sticky state whose process isn't one is ignored.

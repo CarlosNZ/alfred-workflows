@@ -23,7 +23,8 @@
         { "@form": "quick", "shortcut": "⌘P", "action": { "type": "script", "src": "scripts/window.js", "args": ["stick", "@note", "@form", "{value:editor.text}"] } },
         { "@needs": "icons", "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },
         { "@form": "sticky", "shortcut": "⎋", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["escape", "@note", "@form"] } },
-        "@colourShortcuts"
+        "@colourShortcuts",
+        "@fontSizeShortcuts"
       ],
       "events": [
         { "triggers": "launched", "action": { "type": "script", "src": "scripts/window.js", "args": ["launched", "@note", "@form", "@mode"] } },

@@ -28,6 +28,16 @@
       "tooltip": "Colour (⌘1–⌘6)",
       "accessibility": { "label": "Colour" },
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "colour"] } }]
+    },
+    {
+      "id": "fontsize",
+      "type": "button",
+      "text": "",
+      "bordered": false,
+      "image": "@buttonIcon:a-large-small",
+      "tooltip": "Font size (⌘+, ⌘−)",
+      "accessibility": { "label": "Font size" },
+      "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "popupmenu": { "src": "fontsize", "menu": "@fontSizeMenu" } } } }]
     }
   ]
 }

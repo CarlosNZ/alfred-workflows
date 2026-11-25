@@ -11,6 +11,9 @@
 //                                           ⌘1 to ⌘6
 //   window.js icon <id> <form> <icon>       an icon, or "none", in the icon
 //                                           picker
+//   window.js fontsize <id> <form> <size>   a size in the Font size menu, or
+//                                           "bigger" (⌘+), "smaller" (⌘−) or
+//                                           "default" (⌘0, or Default)
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
 //                                           then sticks
@@ -67,6 +70,8 @@ function run(argv) {
       return setColour(store, workflowFolder, context, id, form, rest[0]);
     case "icon":
       return setIcon(store, workflowFolder, context, id, form, rest[0]);
+    case "fontsize":
+      return setFontSize(store, workflowFolder, context, id, form, rest[0]);
     case "tick":
       return tick(store, context, id, form, Number(rest[0]), rest[1]);
     default:
@@ -197,6 +202,42 @@ function setIcon(store, workflowFolder, context, id, form, name) {
   const ids = noteDropdownsClosed();
   delete ids.iconpicker;
   return JSON.stringify({ replace: { ids: { customise, iconpicker } }, update: { ids } });
+}
+
+// Gives the note the font size `choice`: a size in points, from the Font size
+// menu; "bigger" or "smaller" (⌘+ and ⌘−), the next size in the menu's list
+// from the size it's shown at; or "default" (⌘0, or the menu's Default), no
+// size of its own, so it takes the `font_size` setting's. Records it in the
+// note's sidecar (removing the key for the default; this works for a new note
+// that isn't saved yet) and in the window's context, and prints an update of
+// the editor's font, which keeps its text, selection and undo, even hidden in
+// View, and the replace action for the top row's customise group, whose menu
+// marks the size. In View the page is reloaded at the new size. Like choosing
+// a colour, it closes the open picker. Does nothing when the size doesn't
+// change (⌘+ at the largest size), or without a state of the window's form,
+// as for switchMode.
+function setFontSize(store, workflowFolder, context, id, form, choice) {
+  if (!/^(\d+|bigger|smaller|default)$/.test(choice || "")) throw new Error(`Unknown font size: ${choice}`);
+  const state = readNoteState(id);
+  if (!state || state.form !== form) return;
+  const mode = state.mode === "view" ? "view" : "edit";
+  const before = noteWindowOptions(context, { workflowFolder, id, form, mode });
+  let ownFontSize = null;
+  if (choice === "bigger" || choice === "smaller") ownFontSize = steppedNoteFontSize(noteShownFontSize(before), choice === "bigger" ? 1 : -1);
+  else if (choice !== "default") ownFontSize = noteOwnFontSize({ fontSize: Number(choice) });
+  if (ownFontSize === before.ownFontSize) return;
+  store.updateMeta(id, { fontSize: ownFontSize });
+  updateNoteContext(id, form, { ownFontSize });
+  const options = noteWindowOptions(Object.assign(context, { ownFontSize }), { workflowFolder, id, form, mode });
+  const customise = noteWindowPart(options, "customise");
+  const editor = findNoteComponent(noteWindowPart(options, "content"), "editor");
+  closeNotePickerState(id);
+  const ids = Object.assign(noteDropdownsClosed(), { editor: { font: editor.font } });
+  if (mode === "view") {
+    const note = store.read(id);
+    ids.web = { src: writeNotePage(id, form, note ? note.text : "") };
+  }
+  return JSON.stringify({ replace: { ids: { customise } }, update: { ids } });
 }
 
 // A task box was clicked in the page: ticks the task on `line` (counting from

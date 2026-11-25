@@ -18,6 +18,11 @@ const TITLE_MAX_LENGTH = 80;
 const PREVIEW_MAX_LENGTH = 100;
 const UNTITLED = "Untitled";
 
+// The sizes in a note window's Font size menu, in points, which ⌘+ and ⌘−
+// step through. Any order works, and a note's size outside the range of the
+// list (chosen from a longer one) is brought within it.
+const NOTE_FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72, 96];
+
 // ---------------------------------------------------------------------------
 // Configuration
 
@@ -341,7 +346,10 @@ function noteStore(folder = notesFolder()) {
     } catch (e) {
       // -1743 is errAEEventNotPermitted, for which JXA's message is only "An
       // error occurred."
-      if (e.errorNumber === -1743) throw new Error("Alfred isn't allowed to control Finder. Allow it in System Settings › Privacy & Security › Automation.");
+      if (e.errorNumber === -1743)
+        throw new Error(
+          "Alfred isn't allowed to control Finder. Allow it in System Settings › Privacy & Security › Automation.",
+        );
       throw e;
     }
     if (fm.fileExistsAtPath(path)) throw new Error(`Finder didn't move ${path} to the Trash`);
@@ -387,7 +395,13 @@ const MOVE_RERUN_SECONDS = 0.5;
 // a notification here, as nothing else says why the list is empty.
 // `start(from, to)` starts the move and `notify(text)` posts a notification;
 // both are replaceable for tests.
-function checkNotesFolderMove({ workflowFolder, showFailure = false, start = (from, to) => startNotesMove(workflowFolder, from, to), notify = (text) => postNotesNotification(text, variable), variable = workflowVariable }) {
+function checkNotesFolderMove({
+  workflowFolder,
+  showFailure = false,
+  start = (from, to) => startNotesMove(workflowFolder, from, to),
+  notify = (text) => postNotesNotification(text, variable),
+  variable = workflowVariable,
+}) {
   if (isMoveLockHeld(variable)) return { status: "moving" };
   const to = configuredNotesFolder(variable);
   if (!variable("notes_folder").trim()) ensureFolder(to, true);
@@ -399,7 +413,9 @@ function checkNotesFolderMove({ workflowFolder, showFailure = false, start = (fr
   }
   if (!isFolderPath(from)) {
     writeLastNotesFolder(to, variable);
-    notify(`Your notes are now kept in ${notesFolderName(to, variable)}. No notes were moved, as the old folder, ${notesFolderName(from, variable)}, wasn't found.`);
+    notify(
+      `Your notes are now kept in ${notesFolderName(to, variable)}. No notes were moved, as the old folder, ${notesFolderName(from, variable)}, wasn't found.`,
+    );
     return { status: "ready" };
   }
   const failure = readMoveFailure(variable);
@@ -416,7 +432,12 @@ function checkNotesFolderMove({ workflowFolder, showFailure = false, start = (fr
 // finished, or why the last try failed.
 function notesFolderMoveOutput(move) {
   if (move.status === "moving") {
-    return JSON.stringify({ rerun: MOVE_RERUN_SECONDS, items: [{ title: "Moving notes…", subtitle: "To the notes folder set in the workflow's configuration", valid: false }] });
+    return JSON.stringify({
+      rerun: MOVE_RERUN_SECONDS,
+      items: [
+        { title: "Moving notes…", subtitle: "To the notes folder set in the workflow's configuration", valid: false },
+      ],
+    });
   }
   return JSON.stringify({ items: [{ title: "Couldn't move the notes", subtitle: move.error, valid: false }] });
 }
@@ -445,9 +466,12 @@ function postNotesNotification(text, variable = workflowVariable) {
   const bundleId = variable("alfred_workflow_bundleid");
   if (!bundleId) return;
   launchInBackground("/usr/bin/osascript", [
-    "-e", "on run argv",
-    "-e", 'tell application id "com.runningwithcrayons.Alfred" to run trigger "notify" in workflow (item 1 of argv) with argument (item 2 of argv)',
-    "-e", "end run",
+    "-e",
+    "on run argv",
+    "-e",
+    'tell application id "com.runningwithcrayons.Alfred" to run trigger "notify" in workflow (item 1 of argv) with argument (item 2 of argv)',
+    "-e",
+    "end run",
     bundleId,
     text,
   ]);
@@ -526,13 +550,19 @@ function isSameFolder(a, b) {
 }
 
 function fileIdentity(path) {
-  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError($(path).stringByResolvingSymlinksInPath, null);
+  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError(
+    $(path).stringByResolvingSymlinksInPath,
+    null,
+  );
   if (attributes.isNil()) return null;
   return `${attributes.objectForKey("NSFileSystemNumber").js}:${attributes.objectForKey("NSFileSystemFileNumber").js}`;
 }
 
 function volumeIdentity(path) {
-  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError($(path).stringByResolvingSymlinksInPath, null);
+  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError(
+    $(path).stringByResolvingSymlinksInPath,
+    null,
+  );
   return attributes.isNil() ? null : attributes.objectForKey("NSFileSystemNumber").js;
 }
 
@@ -615,7 +645,9 @@ function removeMoveFailure(variable = workflowVariable) {
 // while a script runs, as nothing runs the run loop that updates it, so the
 // wait checks the processes themselves.
 function quitStickyNoteWindows(variable = workflowVariable, timeout = 5000) {
-  const windows = [...stickyNoteIds(variable)].map((id) => ({ id, pid: stickyNotePid(id, variable) })).filter((w) => w.pid !== null);
+  const windows = [...stickyNoteIds(variable)]
+    .map((id) => ({ id, pid: stickyNotePid(id, variable) }))
+    .filter((w) => w.pid !== null);
   for (const { pid } of windows) {
     const app = runningApp(pid);
     if (app) app.terminate;
@@ -664,7 +696,12 @@ function moveNotes(from, to) {
   // The IDs of the notes in `to`, in NFC, so a note whose name is in the
   // other normalization counts. fileExistsAtPath covers the rest on a
   // case-insensitive volume, where Foo.md and foo.MD are one file.
-  const targetIds = new Set(folderNames(to).map(noteIdFromFileName).filter((id) => id !== null).map((id) => id.normalize("NFC")));
+  const targetIds = new Set(
+    folderNames(to)
+      .map(noteIdFromFileName)
+      .filter((id) => id !== null)
+      .map((id) => id.normalize("NFC")),
+  );
   const noteTaken = (id) => targetIds.has(id.normalize("NFC")) || fm.fileExistsAtPath(`${to}/${id}${NOTE_EXTENSION}`);
   const freeId = (id, meta) => {
     for (let n = 1; ; n++) {
@@ -680,7 +717,8 @@ function moveNotes(from, to) {
     toMetaReady = true;
     if (!sameVolume) return copyFileTo(meta, dest);
     const error = $();
-    if (!fm.linkItemAtPathToPathError(meta, dest, error)) throw new Error(`Can't copy ${meta} to ${dest}: ${errorText(error)}`);
+    if (!fm.linkItemAtPathToPathError(meta, dest, error))
+      throw new Error(`Can't copy ${meta} to ${dest}: ${errorText(error)}`);
   };
 
   const result = { moved: 0, renamed: [], duplicates: 0 };
@@ -740,7 +778,8 @@ function copyFileTo(source, dest) {
   const fm = $.NSFileManager.defaultManager;
   const temp = `${$(dest).stringByDeletingLastPathComponent.js}/${MOVE_TEMP_PREFIX}${$.NSUUID.UUID.UUIDString.js}.tmp`;
   const error = $();
-  if (!fm.copyItemAtPathToPathError(source, temp, error)) throw new Error(`Can't copy ${source} to ${dest}: ${errorText(error)}`);
+  if (!fm.copyItemAtPathToPathError(source, temp, error))
+    throw new Error(`Can't copy ${source} to ${dest}: ${errorText(error)}`);
   const attributes = fm.attributesOfItemAtPathError(source, null);
   if (!attributes.isNil()) {
     const dates = $.NSMutableDictionary.dictionary;
@@ -905,10 +944,18 @@ const NOTE_ICONS = [
 // buttons' colour for the window's appearance): the Edit / View switch's
 // (`eye` to switch to View, `pencil` to Edit), Stick to the desktop's
 // (`sticky-note`, which is a note icon too), the icon button's for a note
-// without an icon (`smile-plus`), and the picker's None (`ban`). Each has an
-// SF Symbol for windows that can't show the button icons (macOS 12; see
-// noteIconsSupported), which follows the appearance by itself.
-const NOTE_WINDOW_BUTTON_ICONS = { eye: "eye", pencil: "pencil", "sticky-note": "note.text", "smile-plus": "face.smiling", ban: "nosign" };
+// without an icon (`smile-plus`), the picker's None (`ban`), and the Font
+// size button's (`a-large-small`). Each has an SF Symbol for windows that
+// can't show the button icons (macOS 12; see noteIconsSupported), which
+// follows the appearance by itself.
+const NOTE_WINDOW_BUTTON_ICONS = {
+  eye: "eye",
+  pencil: "pencil",
+  "sticky-note": "note.text",
+  "smile-plus": "face.smiling",
+  ban: "nosign",
+  "a-large-small": "textformat.size",
+};
 
 // The release of lucide-static that the button icons were drawn from, as
 // dev/lucide/VERSION records it (dev/test-list.sh checks they agree). It's
@@ -1007,7 +1054,11 @@ function noteResultIcon(workflowFolder, note, colour, variable = workflowVariabl
 function noteBadgeFile(workflowFolder, icon, colour, variable = workflowVariable) {
   const c = notePaletteColour(colour);
   if (!c || !noteIconByName(icon)) throw new Error(`No badge for ${icon} in ${colour}`);
-  return noteResultIconFile(noteBadgeName(icon, c), (path) => writeFileAtomically(path, noteBadgeSvg(workflowFolder, icon, c)), variable);
+  return noteResultIconFile(
+    noteBadgeName(icon, c),
+    (path) => writeFileAtomically(path, noteBadgeSvg(workflowFolder, icon, c)),
+    variable,
+  );
 }
 
 // The dot of the palette colour named `colour`, as an absolute path in the
@@ -1038,7 +1089,10 @@ const noteDrawingHashes = {};
 
 function noteDrawingHash(kind) {
   if (!noteDrawingHashes[kind]) {
-    const source = kind === "badge" ? [noteBadgeSvg, JSON.stringify(NOTE_BADGE_STYLE), LUCIDE_STROKE] : [noteDotPng, JSON.stringify(NOTE_DOT_STYLE)];
+    const source =
+      kind === "badge"
+        ? [noteBadgeSvg, JSON.stringify(NOTE_BADGE_STYLE), LUCIDE_STROKE]
+        : [noteDotPng, JSON.stringify(NOTE_DOT_STYLE)];
     noteDrawingHashes[kind] = textHash(source.join("\n")).slice(0, 6);
   }
   return noteDrawingHashes[kind];
@@ -1077,12 +1131,18 @@ function noteResultIconFile(name, make, variable) {
 // from other colours, another Lucide release or other drawing code), and
 // temporary files that a stopped process left more than a minute ago.
 function sweepNoteResultIcons(folder) {
-  const current = new Set(notePalette().flatMap((colour) => NOTE_ICONS.map((icon) => noteBadgeName(icon.name, colour)).concat(noteDotName(colour))));
+  const current = new Set(
+    notePalette().flatMap((colour) =>
+      NOTE_ICONS.map((icon) => noteBadgeName(icon.name, colour)).concat(noteDotName(colour)),
+    ),
+  );
   const names = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(folder, null)) || [];
   const minuteAgo = Date.now() - 60000;
   for (const name of names) {
     const path = `${folder}/${name}`;
-    const stale = /^(badge|dot)-.*\.(svg|png)$/.test(name) ? !current.has(name) : name.startsWith(".scratchnstick-save-") && (fileDate(path, "NSFileModificationDate") || 0) < minuteAgo;
+    const stale = /^(badge|dot)-.*\.(svg|png)$/.test(name)
+      ? !current.has(name)
+      : name.startsWith(".scratchnstick-save-") && (fileDate(path, "NSFileModificationDate") || 0) < minuteAgo;
     if (stale) $.NSFileManager.defaultManager.removeItemAtPathError(path, null);
   }
 }
@@ -1123,15 +1183,19 @@ function noteButtonIconElements(workflowFolder, name) {
 // colour.
 function noteDotPng(colour) {
   const { size, diameter, ring } = NOTE_DOT_STYLE;
-  return pngData(drawInBitmap(size, () => {
-    const inset = (size - diameter) / 2 + ring / 2;
-    const dot = $.NSBezierPath.bezierPathWithOvalInRect($.NSMakeRect(inset, inset, size - 2 * inset, size - 2 * inset));
-    hexColour(colour.spine).setFill;
-    dot.fill;
-    hexColour(colour.control).setStroke;
-    dot.lineWidth = ring;
-    dot.stroke;
-  }));
+  return pngData(
+    drawInBitmap(size, () => {
+      const inset = (size - diameter) / 2 + ring / 2;
+      const dot = $.NSBezierPath.bezierPathWithOvalInRect(
+        $.NSMakeRect(inset, inset, size - 2 * inset, size - 2 * inset),
+      );
+      hexColour(colour.spine).setFill;
+      dot.fill;
+      hexColour(colour.control).setStroke;
+      dot.lineWidth = ring;
+      dot.stroke;
+    }),
+  );
 }
 
 // A bitmap `pixels` square, or [width, height], with `draw` drawn into it
@@ -1139,9 +1203,19 @@ function noteDotPng(colour) {
 function drawInBitmap(pixels, draw) {
   ObjC.import("AppKit");
   const [width, height] = Array.isArray(pixels) ? pixels : [pixels, pixels];
-  const rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
-    $(), width, height, 8, 4, true, false, $.NSCalibratedRGBColorSpace, 0, 0,
-  );
+  const rep =
+    $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
+      $(),
+      width,
+      height,
+      8,
+      4,
+      true,
+      false,
+      $.NSCalibratedRGBColorSpace,
+      0,
+      0,
+    );
   $.NSGraphicsContext.saveGraphicsState;
   $.NSGraphicsContext.setCurrentContext($.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep));
   draw();
@@ -1203,10 +1277,45 @@ function unescapeFromAlfredUi(text) {
   return text.replace(new RegExp(`\\{${WORD_JOINER}(var|const|value|data):`, "g"), "{$1:");
 }
 
-// The font size from the `font_size` setting, in points, within FONT_SIZE.
-function noteFontSize(variable = workflowVariable) {
+// The `font_size` setting, in points, within FONT_SIZE: the size of a note's
+// text when it has no size of its own.
+function noteDefaultFontSize(variable = workflowVariable) {
   const size = parseInt(variable("font_size"), 10);
   return isNaN(size) ? FONT_SIZE.default : Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, size));
+}
+
+// The size of its own that a note with metadata `meta` has (its sidecar's
+// `fontSize`), rounded and within the range of NOTE_FONT_SIZES, or null if it
+// has none, so its text is the `font_size` setting's size.
+function noteOwnFontSize(meta) {
+  const size = meta && meta.fontSize;
+  if (typeof size !== "number" || !isFinite(size)) return null;
+  const sizes = noteFontSizes();
+  return Math.min(sizes[sizes.length - 1], Math.max(sizes[0], Math.round(size)));
+}
+
+// The size a window's text is shown at, from its options or context
+// (ownFontSize and defaultFontSize; see noteWindowTokens).
+function noteShownFontSize({ ownFontSize = null, defaultFontSize = FONT_SIZE.default }) {
+  return typeof ownFontSize === "number" ? ownFontSize : defaultFontSize;
+}
+
+// NOTE_FONT_SIZES, smallest first, each once, leaving out anything that isn't
+// a whole number of points.
+function noteFontSizes() {
+  const sizes = [...new Set(NOTE_FONT_SIZES.filter((size) => Number.isInteger(size) && size > 0))].sort(
+    (a, b) => a - b,
+  );
+  if (sizes.length === 0) throw new Error("NOTE_FONT_SIZES has no sizes");
+  return sizes;
+}
+
+// The size that ⌘+ (`step` 1) or ⌘− (-1) gives text at `size`: the next size
+// in NOTE_FONT_SIZES above or below it, or `size` itself past either end.
+function steppedNoteFontSize(size, step) {
+  const sizes = noteFontSizes();
+  const next = step > 0 ? sizes.find((s) => s > size) : sizes.filter((s) => s < size).pop();
+  return next === undefined ? size : next;
 }
 
 // The folder of a form's window bundles in the workflow's cache folder:
@@ -1239,8 +1348,8 @@ function readNoteTemplate(workflowFolder, name) {
 // drop-down's size. Top-level consts are private to lib.js, so scripts get
 // these through functions.
 const NOTE_WINDOW_LAYOUT = {
-  // The top row's two groups: the note's own look (its icon, then its colour)
-  // at the top left, after a sticky window's traffic lights, and the actions
+  // The top row's two groups: the note's own look (its icon, its colour and
+  // its font size) at the top left, after a sticky window's traffic lights, and the actions
   // (Edit / View, then Stick in the quick view) at the top right. `top`, `left`
   // and `right` are each group's distance from the window's edges, in each
   // form, and `spacing` the space between its buttons. A group's buttons are
@@ -1261,7 +1370,14 @@ const NOTE_WINDOW_LAYOUT = {
   // its left, with corners of `radius`, `padding` inside, and a shadow around
   // them, `margin` wide. Alfred UI has no shadow, so it's an image drawn by
   // dev/make-icons.js: black at `opacity`, blurred by `blur`, `offset` down.
-  dropdown: { top: { quick: 34, sticky: 32 }, left: 8, radius: 10, padding: 6, margin: 8, shadow: { blur: 6, offset: 2, opacity: 0.3 } },
+  dropdown: {
+    top: { quick: 34, sticky: 32 },
+    left: 8,
+    radius: 10,
+    padding: 6,
+    margin: 8,
+    shadow: { blur: 6, offset: 2, opacity: 0.3 },
+  },
   // Each drop-down's grid: how many buttons in a row, their size (fixed, so
   // the box's size, and its shadow's, is known), the size of their images
   // (the colour picker's swatches are symbols, sized by their font size), and
@@ -1270,7 +1386,13 @@ const NOTE_WINDOW_LAYOUT = {
   // behind its swatch in a colour that looks like the icon picker's bezel in
   // both appearances (quaternaryLabelColor is barely visible in dark).
   iconPicker: { columns: 7, button: 25, image: 20, spacing: 2 },
-  colourPicker: { columns: 6, button: 25, image: 14, spacing: 2, mark: { background: "unemphasizedSelectedContentBackgroundColor", radius: 5 } },
+  colourPicker: {
+    columns: 6,
+    button: 25,
+    image: 14,
+    spacing: 2,
+    mark: { background: "unemphasizedSelectedContentBackgroundColor", radius: 5 },
+  },
 };
 
 // The drop-downs, by name: the icon picker (None and the icons) and the colour
@@ -1295,8 +1417,17 @@ function noteDropdownGeometry(name) {
   const count = NOTE_DROPDOWNS[name].count();
   const across = Math.min(columns, count);
   const rows = Math.ceil(count / columns);
-  const box = { width: across * button + (across - 1) * spacing + 2 * padding, height: rows * button + (rows - 1) * spacing + 2 * padding };
-  return { box, outer: { width: box.width + 2 * margin, height: box.height + 2 * margin }, margin, radius, shadow: Object.assign({}, shadow) };
+  const box = {
+    width: across * button + (across - 1) * spacing + 2 * padding,
+    height: rows * button + (rows - 1) * spacing + 2 * padding,
+  };
+  return {
+    box,
+    outer: { width: box.width + 2 * margin, height: box.height + 2 * margin },
+    margin,
+    radius,
+    shadow: Object.assign({}, shadow),
+  };
 }
 
 // A drop-down's shadow, as a path in the workflow folder: a PNG drawn by
@@ -1306,20 +1437,40 @@ function noteDropdownShadowFile(name) {
 }
 
 // The values of the templates' tokens for a window, given:
-//   workflowFolder, id, form, mode, text, fontSize, colour (a palette name),
-//   icon (an icon's name, or null for none), appearance (the appearance the
-//   window's button icons are drawn for, "light" or "dark": always "light"
-//   when sticky, as a sticky note's root view is always in light appearance),
-//   icons (whether the window can show note icons; see noteIconsSupported)
+//   workflowFolder, id, form, mode, text, ownFontSize (the note's own font
+//   size, or null for none; see noteOwnFontSize), defaultFontSize (the
+//   `font_size` setting's), colour (a palette name), icon (an icon's name, or
+//   null for none), appearance (the appearance the window's button icons are
+//   drawn for, "light" or "dark": always "light" when sticky, as a sticky
+//   note's root view is always in light appearance), icons (whether the
+//   window can show note icons; see noteIconsSupported)
 // Each of NOTE_WINDOW_BUTTON_ICONS is a token too, "@buttonIcon:<name>", its
 // button icon as a button's image at the actions' size, or its SF Symbol in a
 // window without note icons.
-function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize = FONT_SIZE.default, colour = DEFAULT_COLOUR, icon = null, appearance = "light", icons = true }, variable = workflowVariable) {
+function noteWindowTokens(
+  {
+    workflowFolder,
+    id,
+    form,
+    mode,
+    text = "",
+    ownFontSize = null,
+    defaultFontSize = FONT_SIZE.default,
+    colour = DEFAULT_COLOUR,
+    icon = null,
+    appearance = "light",
+    icons = true,
+  },
+  variable = workflowVariable,
+) {
   const current = notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR);
   const currentIcon = icons ? noteIconByName(icon) : null;
   const note = escapeForAlfredUi(id);
   const layout = NOTE_WINDOW_LAYOUT;
-  const place = (group, position) => ({ position, insets: Object.assign({}, layout[group][form === "quick" ? "quick" : "sticky"]) });
+  const place = (group, position) => ({
+    position,
+    insets: Object.assign({}, layout[group][form === "quick" ? "quick" : "sticky"]),
+  });
   const tokens = {
     "@note": note,
     "@form": form,
@@ -1333,8 +1484,19 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
       shortcut: `⌘${i + 1}`,
       action: noteColourAction({ workflowFolder, note, form, colour: c }),
     })),
-    "@fontSize": fontSize,
-    "@iconImage": noteButtonIconImage(workflowFolder, currentIcon ? currentIcon.name : "smile-plus", appearance, layout.noteIcon, icons),
+    "@fontSize": noteShownFontSize({ ownFontSize, defaultFontSize }),
+    "@fontSizeMenu": noteFontSizeMenu({ workflowFolder, note, form, ownFontSize, defaultFontSize }),
+    "@fontSizeShortcuts": Object.entries(NOTE_FONT_SIZE_SHORTCUTS).map(([shortcut, choice]) => ({
+      shortcut,
+      action: noteFontSizeAction({ workflowFolder, note, form, choice }),
+    })),
+    "@iconImage": noteButtonIconImage(
+      workflowFolder,
+      currentIcon ? currentIcon.name : "smile-plus",
+      appearance,
+      layout.noteIcon,
+      icons,
+    ),
     "@customisePlace": place("customise", "topleft"),
     "@customiseSpacing": layout.customise.spacing,
     "@actionsPlace": place("actions", "topright"),
@@ -1343,11 +1505,26 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
       noteDropdownCatcher({ workflowFolder, note, form }),
       // Without note icons, update actions still name the icon picker; Alfred
       // UI ignores ids that a window doesn't have.
-      ...(icons ? [noteDropdown({ workflowFolder, form, name: "icon", buttons: noteIconPickerButtons({ workflowFolder, note, form, icon: currentIcon, appearance }) })] : []),
-      noteDropdown({ workflowFolder, form, name: "colour", buttons: noteColourPickerButtons({ workflowFolder, note, form, colour: current }) }),
+      ...(icons
+        ? [
+            noteDropdown({
+              workflowFolder,
+              form,
+              name: "icon",
+              buttons: noteIconPickerButtons({ workflowFolder, note, form, icon: currentIcon, appearance }),
+            }),
+          ]
+        : []),
+      noteDropdown({
+        workflowFolder,
+        form,
+        name: "colour",
+        buttons: noteColourPickerButtons({ workflowFolder, note, form, colour: current }),
+      }),
     ],
   };
-  for (const name of Object.keys(NOTE_WINDOW_BUTTON_ICONS)) tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, layout.actionIcon, icons);
+  for (const name of Object.keys(NOTE_WINDOW_BUTTON_ICONS))
+    tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, layout.actionIcon, icons);
   // The app icon is worked out only when a template names it, which only
   // window.json does, in a sticky window: so its badge is made when open.js
   // writes the sticky window's bundle, and never by the window's own actions,
@@ -1355,7 +1532,8 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
   // for every colour tried).
   Object.defineProperty(tokens, "@iconPath", {
     enumerable: true,
-    get: () => (form === "sticky" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null),
+    get: () =>
+      form === "sticky" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null,
   });
   return tokens;
 }
@@ -1365,7 +1543,11 @@ function noteWindowTokens({ workflowFolder, id, form, mode, text = "", fontSize 
 // note icons (`icons` false), its SF Symbol from NOTE_WINDOW_BUTTON_ICONS.
 function noteButtonIconImage(workflowFolder, name, appearance, size, icons = true) {
   if (!icons) return { type: "symbol", src: NOTE_WINDOW_BUTTON_ICONS[name] || "questionmark" };
-  return { type: "file", src: `${workflowFolder}/${noteButtonIconFile(name, appearance)}`, size: { width: size, height: size } };
+  return {
+    type: "file",
+    src: `${workflowFolder}/${noteButtonIconFile(name, appearance)}`,
+    size: { width: size, height: size },
+  };
 }
 
 // A sticky window's app icon (`iconpath`), for ⌘-Tab and the Dock: the badge
@@ -1383,19 +1565,36 @@ function noteDropdown({ workflowFolder, form, name, buttons }) {
   const { box, outer, margin, radius } = noteDropdownGeometry(name);
   const { top, left, padding } = NOTE_WINDOW_LAYOUT.dropdown;
   const { columns, button: size, spacing } = NOTE_WINDOW_LAYOUT[NOTE_DROPDOWNS[name].layout];
-  const sized = buttons.map((button) => Object.assign(button, { constraints: { size: { width: size, height: size } } }));
+  const sized = buttons.map((button) =>
+    Object.assign(button, { constraints: { size: { width: size, height: size } } }),
+  );
   const rows = [];
   for (let i = 0; i < sized.length; i += columns) {
-    rows.push({ type: "view", layout: "inline", direction: "horizontal", spacing, components: sized.slice(i, i + columns) });
+    rows.push({
+      type: "view",
+      layout: "inline",
+      direction: "horizontal",
+      spacing,
+      components: sized.slice(i, i + columns),
+    });
   }
   return {
     id: `${name}picker`,
     type: "view",
     layout: "stack",
     hidden: true,
-    constraints: { position: "topleft", insets: { top: top[form === "quick" ? "quick" : "sticky"] - margin, left: left - margin }, size: outer },
+    constraints: {
+      position: "topleft",
+      insets: { top: top[form === "quick" ? "quick" : "sticky"] - margin, left: left - margin },
+      size: outer,
+    },
     components: [
-      { id: `${name}pickershadow`, type: "imageview", image: { type: "file", src: `${workflowFolder}/${noteDropdownShadowFile(name)}`, size: outer }, constraints: { position: "topleft" } },
+      {
+        id: `${name}pickershadow`,
+        type: "imageview",
+        image: { type: "file", src: `${workflowFolder}/${noteDropdownShadowFile(name)}`, size: outer },
+        constraints: { position: "topleft" },
+      },
       {
         id: `${name}pickerbox`,
         type: "view",
@@ -1431,7 +1630,12 @@ function noteDropdownCatcher({ workflowFolder, note, form }) {
     layout: "stack",
     hidden: true,
     constraints: { stretch: "both" },
-    events: [{ triggers: "mousedown", action: { type: "script", src: `${workflowFolder}/scripts/picker.sh`, args: ["close", note, form] } }],
+    events: [
+      {
+        triggers: "mousedown",
+        action: { type: "script", src: `${workflowFolder}/scripts/picker.sh`, args: ["close", note, form] },
+      },
+    ],
   };
 }
 
@@ -1448,7 +1652,12 @@ function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance })
     image: noteButtonIconImage(workflowFolder, choice.name === "none" ? "ban" : choice.name, appearance, image),
     tooltip: choice.label,
     accessibility: { label: choice.label },
-    events: [{ triggers: "actioned", action: { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["icon", note, form, choice.name] } }],
+    events: [
+      {
+        triggers: "actioned",
+        action: { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["icon", note, form, choice.name] },
+      },
+    ],
   }));
 }
 
@@ -1491,16 +1700,53 @@ function noteColourPickerButtons({ workflowFolder, note, form, colour }) {
 // first, so it changes at once rather than after the script. `note` is the
 // escaped ID.
 function noteColourAction({ workflowFolder, note, form, colour }) {
-  const script = { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["colour", note, form, colour.name] };
+  const script = {
+    type: "script",
+    src: `${workflowFolder}/scripts/window.js`,
+    args: ["colour", note, form, colour.name],
+  };
   if (form !== "sticky") return script;
   return [{ type: "json", src: { update: { ids: { note: { background: colour.tint } } } } }, script];
+}
+
+// The font size shortcuts: ⌘+ (⌘= on a US keyboard, with or without ⇧, or a
+// + key of its own) and ⌘− make the text bigger and smaller, through
+// NOTE_FONT_SIZES, and ⌘0 gives it the default size.
+const NOTE_FONT_SIZE_SHORTCUTS = { "⌘=": "bigger", "⇧⌘=": "bigger", "⌘+": "bigger", "⌘-": "smaller", "⌘0": "default" };
+
+// The Font size button's menu: Default, the `font_size` setting's size, then
+// NOTE_FONT_SIZES, with ✓ on the size the note is shown at, and on Default
+// too when that's because it has no size of its own. Each item runs window.js
+// fontsize with its choice.
+function noteFontSizeMenu({ workflowFolder, note, form, ownFontSize, defaultFontSize }) {
+  const shown = noteShownFontSize({ ownFontSize, defaultFontSize });
+  const item = (text, on, choice) => ({
+    text,
+    state: on ? "on" : "off",
+    action: noteFontSizeAction({ workflowFolder, note, form, choice }),
+  });
+  return [item(`Default (${defaultFontSize} pt)`, ownFontSize === null, "default"), { type: "separator" }].concat(
+    noteFontSizes().map((size) => item(`${size} pt`, size === shown, String(size))),
+  );
+}
+
+// The action that gives a window's note a font size, for the Font size menu
+// and its shortcuts: window.js fontsize with `choice`, a size in points,
+// "bigger", "smaller" or "default". `note` is the escaped ID.
+function noteFontSizeAction({ workflowFolder, note, form, choice }) {
+  return { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["fontsize", note, form, choice] };
 }
 
 // A template with its directives resolved for a form and mode (see above),
 // and `icons`, whether the window can show note icons.
 function resolveNoteTemplate(template, { form, mode, icons = true, tokens, workflowFolder }) {
   const isToken = (value) => typeof value === "string" && Object.prototype.hasOwnProperty.call(tokens, value);
-  const leftOut = (item) => item && typeof item === "object" && ((item["@form"] && item["@form"] !== form) || (item["@mode"] && item["@mode"] !== mode) || (item["@needs"] === "icons" && !icons));
+  const leftOut = (item) =>
+    item &&
+    typeof item === "object" &&
+    ((item["@form"] && item["@form"] !== form) ||
+      (item["@mode"] && item["@mode"] !== mode) ||
+      (item["@needs"] === "icons" && !icons));
   function resolve(value, inArgs) {
     if (typeof value === "string") {
       if (isToken(value)) return inArgs ? String(tokens[value]) : tokens[value];
@@ -1529,15 +1775,17 @@ function resolveNoteTemplate(template, { form, mode, icons = true, tokens, workf
 // The templates that window.json's root view takes as placeholders, by id
 // ({ "id": "content" } is filled with content.json): the note (the web view,
 // the editor and the icon picker), and the top row's two groups of buttons,
-// the note's own look (its icon and colour) at the left and the actions (Edit /
-// View and Stick) at the right.
+// the note's own look (its icon, colour and font size) at the left and the
+// actions (Edit / View and Stick) at the right.
 const NOTE_WINDOW_PARTS = ["content", "customise", "actions"];
 
 // A note window's whole ui.json: window.json, with its placeholders filled
 // (NOTE_WINDOW_PARTS). `options` as for noteWindowTokens.
 function noteWindowUi(options, variable = workflowVariable) {
   const ui = noteWindowPart(options, "window", variable);
-  ui.window.root.components = ui.window.root.components.map((c) => (NOTE_WINDOW_PARTS.includes(c.id) ? noteWindowPart(options, c.id, variable) : c));
+  ui.window.root.components = ui.window.root.components.map((c) =>
+    NOTE_WINDOW_PARTS.includes(c.id) ? noteWindowPart(options, c.id, variable) : c,
+  );
   return ui;
 }
 
@@ -1579,41 +1827,74 @@ function noteOpenMode(note, text) {
 // given, is the appearance a quick view's button icons are drawn for
 // (quickWindows works it out once for all its bundles); otherwise it's
 // noteQuickAppearance's.
-function writeNoteWindow({ store, workflowFolder, id, form, note, text, mode: requestedMode, appearance: quickAppearance }, variable = workflowVariable) {
-  const mode = (requestedMode === "edit" || requestedMode === "view") && !isBlankText(text) ? requestedMode : noteOpenMode(note, text);
-  const fontSize = noteFontSize(variable);
-  const colour = noteColour(note ? note.meta : {}, variable).name;
+function writeNoteWindow(
+  { store, workflowFolder, id, form, note, text, mode: requestedMode, appearance: quickAppearance },
+  variable = workflowVariable,
+) {
+  const mode =
+    (requestedMode === "edit" || requestedMode === "view") && !isBlankText(text)
+      ? requestedMode
+      : noteOpenMode(note, text);
+  const meta = note ? note.meta : {};
+  const ownFontSize = noteOwnFontSize(meta);
+  const defaultFontSize = noteDefaultFontSize(variable);
+  const colour = noteColour(meta, variable).name;
   const icons = noteIconsSupported(variable);
-  const iconOf = noteIcon(note ? note.meta : {}, variable);
+  const iconOf = noteIcon(meta, variable);
   const icon = iconOf ? iconOf.name : null;
   const appearance = form === "sticky" ? "light" : quickAppearance || noteQuickAppearance(variable);
-  const ui = noteWindowUi({ workflowFolder, id, form, mode, text, fontSize, colour, icon, appearance, icons }, variable);
-  const script = notePageScript(mode === "view" ? text : null, colour);
-  const page = notePageHtml({ workflowFolder, form, fontSize, noteVersion: textHash(script) }, variable);
-  const context = { folder: store.folder, fontSize, colour, icon, appearance, icons, textHash: textHash(text) };
+  const ui = noteWindowUi(
+    { workflowFolder, id, form, mode, text, ownFontSize, defaultFontSize, colour, icon, appearance, icons },
+    variable,
+  );
+  const script = notePageScript(
+    mode === "view" ? text : null,
+    colour,
+    noteShownFontSize({ ownFontSize, defaultFontSize }),
+  );
+  const page = notePageHtml({ workflowFolder, form, noteVersion: textHash(script) }, variable);
+  const context = {
+    folder: store.folder,
+    ownFontSize,
+    defaultFontSize,
+    colour,
+    icon,
+    appearance,
+    icons,
+    textHash: textHash(text),
+  };
   return writeNoteBundle(id, form, { ui, context, page, script }, variable);
 }
 
 // The options for noteWindowPart of an open window, from its bundle's
 // context, so the parts it's given match its look.
 function noteWindowOptions(context, { workflowFolder, id, form, mode }) {
-  const { fontSize, colour, icon = null, appearance = "light", icons = true } = context;
-  return { workflowFolder, id, form, mode, fontSize, colour, icon, appearance, icons };
+  const {
+    ownFontSize = null,
+    defaultFontSize = FONT_SIZE.default,
+    colour,
+    icon = null,
+    appearance = "light",
+    icons = true,
+  } = context;
+  return { workflowFolder, id, form, mode, ownFontSize, defaultFontSize, colour, icon, appearance, icons };
 }
 
 // Writes a note's window bundle and returns its path. Its files:
 //   ui.json        the window (`ui`)
 //   context.json   what the window's scripts need that Alfred doesn't give
 //                  them (the UI's scripts only get the alfred_* variables, not
-//                  User Configuration): { folder, fontSize, colour, icon,
-//                  appearance, icons, textHash }, the notes folder, the
-//                  window's look (the font size, the note's colour's and
-//                  icon's names, the appearance its button icons are drawn
-//                  for, and whether it can show note icons; see
-//                  noteWindowTokens) and a hash of the note's text as the
-//                  window last had it (see textHash): the text it opened with,
-//                  and then the text its page was last given (writeNotePage),
-//                  so the window can tell when the note has changed since
+//                  User Configuration): { folder, ownFontSize,
+//                  defaultFontSize, colour, icon, appearance, icons,
+//                  textHash }, the notes folder, the window's look (the
+//                  note's own font size or null, the `font_size` setting's,
+//                  the note's colour's and icon's names, the appearance its
+//                  button icons are drawn for, and whether it can show note
+//                  icons; see noteWindowTokens) and a hash of the note's text
+//                  as the window last had it (see textHash): the text it
+//                  opened with, and then the text its page was last given
+//                  (writeNotePage), so the window can tell when the note has
+//                  changed since
 //   view.html      the page (`page`, from notePageHtml)
 //   note.js        the note for the page (`script`, from notePageScript)
 // ui.json is written last, as it's the file Alfred opens.
@@ -1633,12 +1914,15 @@ function readNoteContext(id, form, variable = workflowVariable) {
 }
 
 // Merges `changes` into the context of a note's bundle for a form, for a
-// window whose look has changed (its note's colour), so the parts it's given
+// window whose look has changed (its note's colour, say), so the parts it's given
 // later match. Its ui.json is left as it is: the window has already read it.
 function updateNoteContext(id, form, changes, variable = workflowVariable) {
   const context = readNoteContext(id, form, variable);
   if (!context) return;
-  writeFileAtomically(`${noteBundlePath(id, form, variable)}/context.json`, JSON.stringify(Object.assign(context, changes), null, 2) + "\n");
+  writeFileAtomically(
+    `${noteBundlePath(id, form, variable)}/context.json`,
+    JSON.stringify(Object.assign(context, changes), null, 2) + "\n",
+  );
 }
 
 // Deletes a note's window bundles, quick and sticky, if it has them: for a
@@ -1654,7 +1938,16 @@ function removeNoteBundle(id, variable = workflowVariable) {
 // The files a window bundle is built from, besides the note: the templates,
 // and this file, which builds them. A change to any (a workflow update) makes
 // every quick bundle out of date.
-const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/customise.json", "ui/actions.json", "ui/content.json", "ui/view.html", "ui/view.js", "scripts/lib.js", "scripts/titles.js"];
+const NOTE_WINDOW_SOURCES = [
+  "ui/window.json",
+  "ui/customise.json",
+  "ui/actions.json",
+  "ui/content.json",
+  "ui/view.html",
+  "ui/view.js",
+  "scripts/lib.js",
+  "scripts/titles.js",
+];
 
 // Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
 // from the Script Filter, with nothing in between: a Run Script or Conditional
@@ -1663,8 +1956,8 @@ const NOTE_WINDOW_SOURCES = ["ui/window.json", "ui/customise.json", "ui/actions.
 // before the results are shown.
 //
 // A bundle's fingerprint is a hash of everything it's built from: the note's
-// text, its mode, colour and icon (from its sidecar and the settings), the font
-// size, the appearance of the quick view's button icons (from Alfred's theme;
+// text, its mode, colour, icon and font size (from its sidecar and the
+// settings), the `font_size` setting (the menu's Default), the appearance of the quick view's button icons (from Alfred's theme;
 // see noteQuickAppearance), whether the Mac can show note icons
 // (noteIconsSupported), the notes and workflow folders, and the modification
 // times of NOTE_WINDOW_SOURCES. The fingerprints are kept in quick/.index.json,
@@ -1693,15 +1986,35 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
     return date ? date.getTime() : 0;
   });
   const appearance = noteQuickAppearance(variable);
-  const base = JSON.stringify([workflowFolder, store.folder, noteFontSize(variable), appearance, noteIconsSupported(variable), sources]);
+  const base = JSON.stringify([
+    workflowFolder,
+    store.folder,
+    noteDefaultFontSize(variable),
+    appearance,
+    noteIconsSupported(variable),
+    sources,
+  ]);
   let changed = false;
   const newIds = new Set();
 
   function bundleFor(note) {
     const icon = noteIcon(note.meta, variable);
-    const fingerprint = textHash([base, noteOpenMode(note, note.text), noteColour(note.meta, variable).name, icon ? icon.name : "", note.text].join("\0"));
-    if (index.get(note.id) === fingerprint && bundles.has(`${note.id}.alfredui`)) return `${folder}/${note.id}.alfredui`;
-    const bundle = writeNoteWindow({ store, workflowFolder, id: note.id, form: "quick", note, text: note.text, appearance }, variable);
+    const fingerprint = textHash(
+      [
+        base,
+        noteOpenMode(note, note.text),
+        noteColour(note.meta, variable).name,
+        icon ? icon.name : "",
+        String(noteOwnFontSize(note.meta)),
+        note.text,
+      ].join("\0"),
+    );
+    if (index.get(note.id) === fingerprint && bundles.has(`${note.id}.alfredui`))
+      return `${folder}/${note.id}.alfredui`;
+    const bundle = writeNoteWindow(
+      { store, workflowFolder, id: note.id, form: "quick", note, text: note.text, appearance },
+      variable,
+    );
     index.set(note.id, fingerprint);
     changed = true;
     return bundle;
@@ -1716,7 +2029,10 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
   function bundleForNew(seed) {
     const id = store.newId({ date: started, isTaken: (id) => newIds.has(id) || isNoteIdInUse(id, variable) });
     newIds.add(id);
-    return writeNoteWindow({ store, workflowFolder, id, form: "quick", note: null, text: newNoteText(seed), appearance }, variable);
+    return writeNoteWindow(
+      { store, workflowFolder, id, form: "quick", note: null, text: newNoteText(seed), appearance },
+      variable,
+    );
   }
 
   function finish(notes) {
@@ -1805,18 +2121,18 @@ function textHash(text) {
 
 const MARKDOWN_IT = "vendor/markdown-it/markdown-it.umd.min.js";
 
-// A note's view.html, from ui/view.html: `form` ("quick" or "sticky"),
-// `fontSize` (points), and `noteVersion`, the version of the bundle's note.js
-// it was written with (the page uses it when its own URL has no ?v=).
-function notePageHtml({ workflowFolder, form, fontSize, noteVersion }, variable = workflowVariable) {
+// A note's view.html, from ui/view.html: `form` ("quick" or "sticky") and
+// `noteVersion`, the version of the bundle's note.js it was written with (the
+// page uses it when its own URL has no ?v=).
+function notePageHtml({ workflowFolder, form, noteVersion }, variable = workflowVariable) {
   const template = readText(`${workflowFolder}/ui/view.html`);
   const script = readText(`${workflowFolder}/ui/view.js`);
   if (template === null || script === null) throw new Error(`Can't read ${workflowFolder}/ui/view.html or view.js`);
-  if (/<\/script/i.test(script)) throw new Error("ui/view.js can't contain </script, as it's inlined in a <script> element");
+  if (/<\/script/i.test(script))
+    throw new Error("ui/view.js can't contain </script, as it's inlined in a <script> element");
   const theme = form === "quick" ? fileUrl(noteThemePath(variable)) : null;
   const values = {
     form,
-    fontSize: String(Number(fontSize)),
     markdownIt: escapeHtml(fileUrl(`${workflowFolder}/${MARKDOWN_IT}`)),
     themeStylesheet: JSON.stringify(theme).replace(/</g, "\\u003c"),
     noteVersion,
@@ -1830,15 +2146,17 @@ function notePageHtml({ workflowFolder, form, fontSize, noteVersion }, variable 
 }
 
 // A note's note.js: its `text` for the page (null for a window that opens in
-// Edit, whose page shows nothing until it's switched to View) and the tint of
-// the colour named `colour`, for a sticky window's page.
-function notePageScript(text, colour) {
+// Edit, whose page shows nothing until it's switched to View), the tint of
+// the colour named `colour`, for a sticky window's page, and the size of its
+// text, `fontSize`, in points. The page's look comes from here, rather than
+// from view.html, so a change to it only needs the page reloaded.
+function notePageScript(text, colour, fontSize) {
   const tint = (notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR)).tint;
-  return `window.NOTE = ${JSON.stringify(text)};\nwindow.NOTE_TINT = ${JSON.stringify(tint)};\n`;
+  return `window.NOTE = ${JSON.stringify(text)};\nwindow.NOTE_TINT = ${JSON.stringify(tint)};\nwindow.NOTE_FONT_SIZE = ${JSON.stringify(Number(fontSize))};\n`;
 }
 
 // Gives the page of a note's open window `text`: rewrites its bundle's note.js
-// (with the colour in its context) and records the text's hash in its
+// (with the colour and font size in its context) and records the text's hash in its
 // context, as the text a tick is checked against. Returns the URL that
 // reloads the page with it, for an update of the web view's `src`: an
 // absolute file:// URL (a relative one is taken for https://), with a
@@ -1847,7 +2165,7 @@ function notePageScript(text, colour) {
 function writeNotePage(id, form, text, variable = workflowVariable) {
   const bundle = noteBundlePath(id, form, variable);
   const context = readNoteContext(id, form, variable) || {};
-  const script = notePageScript(text, context.colour);
+  const script = notePageScript(text, context.colour, noteShownFontSize(context));
   writeFileAtomically(`${bundle}/note.js`, script);
   updateNoteContext(id, form, { textHash: textHash(text) }, variable);
   return `${fileUrl(`${bundle}/view.html`)}?v=${textHash(script)}.${Date.now().toString(36)}`;
@@ -1915,8 +2233,12 @@ function noteThemeStylesheet(background) {
     const text = Math.min(1, THEME_TEXT_ALPHA / opacity);
     const done = text * 0.6;
     const rgba = (c, a) => `rgba(${c}, ${c}, ${c}, ${a.toFixed(2)})`;
-    lines.push(`@media (prefers-color-scheme: dark) { :root { --text: ${rgba(255, text)}; --text-done: ${rgba(255, done)}; --link: #4DA3FF; } }`);
-    lines.push(`@media (prefers-color-scheme: light) { :root { --text: ${rgba(0, text)}; --text-done: ${rgba(0, done)}; --link: #0058D0; } }`);
+    lines.push(
+      `@media (prefers-color-scheme: dark) { :root { --text: ${rgba(255, text)}; --text-done: ${rgba(255, done)}; --link: #4DA3FF; } }`,
+    );
+    lines.push(
+      `@media (prefers-color-scheme: light) { :root { --text: ${rgba(0, text)}; --text-done: ${rgba(0, done)}; --link: #0058D0; } }`,
+    );
   }
   return lines.join("\n") + "\n";
 }
@@ -2008,7 +2330,9 @@ function stickyNotePid(id, variable = workflowVariable) {
 // The IDs of the notes that have a sticky window (see stickyNotePid), from
 // the state folder, listed once.
 function stickyNoteIds(variable = workflowVariable) {
-  const names = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(noteStateFolder(variable), null)) || [];
+  const names =
+    ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(noteStateFolder(variable), null)) ||
+    [];
   const ids = names.filter((name) => name.endsWith(".json")).map((name) => name.slice(0, -".json".length));
   return new Set(ids.filter((id) => isNoteId(id) && stickyNotePid(id, variable) !== null));
 }
@@ -2044,7 +2368,9 @@ function closeStickyNoteWindow(id, variable = workflowVariable) {
 // offers, and reuses its ID within the same second.
 function isNoteIdInUse(id, variable = workflowVariable) {
   const fm = $.NSFileManager.defaultManager;
-  return fm.fileExistsAtPath(noteBundlePath(id, "sticky", variable)) || fm.fileExistsAtPath(noteStatePath(id, variable));
+  return (
+    fm.fileExistsAtPath(noteBundlePath(id, "sticky", variable)) || fm.fileExistsAtPath(noteStatePath(id, variable))
+  );
 }
 
 // The clipboard's text, for a new note, or null if it has none worth offering:
@@ -2055,7 +2381,9 @@ function isNoteIdInUse(id, variable = workflowVariable) {
 // instead of the general one, for testing.
 function clipboardText(pasteboardName = "") {
   ObjC.import("AppKit");
-  const pasteboard = pasteboardName ? $.NSPasteboard.pasteboardWithName(pasteboardName) : $.NSPasteboard.generalPasteboard;
+  const pasteboard = pasteboardName
+    ? $.NSPasteboard.pasteboardWithName(pasteboardName)
+    : $.NSPasteboard.generalPasteboard;
   const types = pasteboard.types.isNil() ? [] : ObjC.deepUnwrap(pasteboard.types);
   const skip = ["public.file-url", "org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType"];
   if (types.some((type) => skip.includes(type))) return null;
