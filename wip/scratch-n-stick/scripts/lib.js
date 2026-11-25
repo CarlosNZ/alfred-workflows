@@ -2749,10 +2749,48 @@ function noteWindowHeight(pid) {
   return window ? Math.round(window.kCGWindowBounds.Height) : null;
 }
 
-// Brings the window of the Alfred UI process `pid` to the front.
+// Brings the window of the Alfred UI process `pid` to the front, closing
+// Alfred's window if it's open (↩ on a sticky note in the results).
+//
+// Alfred's window closes when Alfred loses focus, but it opens without making
+// Alfred the active app: the app that was in front stays active. So when that
+// app is the sticky note's, activating it changes nothing, and Alfred stays
+// open with its results. While Alfred has a window on screen, then, Alfred is
+// made active first, and the note's process once Alfred is (activating it
+// sooner does nothing, as it's still active); that takes focus from Alfred,
+// which closes. With Alfred's window closed (⌘↩, Stick in a quick view) the
+// process is activated directly: making Alfred active with no window to
+// close once left a third app in front instead of the note.
 function activateWindowProcess(pid) {
   const app = runningApp(pid);
-  return Boolean(app && app.activateWithOptions($.NSApplicationActivateAllWindows));
+  if (!app) return false;
+  const alfred = alfredWithWindowOnScreen();
+  if (alfred) {
+    alfred.activateWithOptions(0);
+    const deadline = Date.now() + ALFRED_ACTIVATION_TIMEOUT_MS;
+    while (!alfred.active && Date.now() < deadline) {
+      // NSRunningApplication updates `active` from the run loop.
+      $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(0.005));
+    }
+  }
+  return Boolean(app.activateWithOptions($.NSApplicationActivateAllWindows));
+}
+
+// How long activateWindowProcess waits for Alfred to become active; it took
+// about 7 ms in tests.
+const ALFRED_ACTIVATION_TIMEOUT_MS = 500;
+
+// Alfred's running app if it has a window on screen (its search window, or
+// a quick view in it), or null.
+function alfredWithWindowOnScreen() {
+  ObjC.import("AppKit");
+  ObjC.import("CoreGraphics");
+  const alfred = $.NSRunningApplication.runningApplicationsWithBundleIdentifier("com.runningwithcrayons.Alfred").firstObject;
+  if (alfred.isNil()) return null;
+  const pid = alfred.processIdentifier;
+  const onScreenOnly = 1;
+  const windows = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(onScreenOnly, 0))) || [];
+  return windows.some((w) => w.kCGWindowOwnerPID === pid) ? alfred : null;
 }
 
 // The running app with process ID `pid`, or null. AppKit is imported only
