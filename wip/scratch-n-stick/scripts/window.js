@@ -17,11 +17,15 @@
 //   window.js collapse <id> <form> <text>   a double-click on a sticky
 //                                           window's top strip: collapses or
 //                                           expands the window
-//   window.js menu <id> <form>              the actions menu's button (…) or
+//   window.js menu <id> <form> <text>       the actions menu's button (…) or
 //                                           ⌘K: opens the actions menu
 //   window.js trash <id> <form> <text>      Move to Trash in the actions menu:
 //                                           moves the note to the Trash and
 //                                           closes the window
+//   window.js share <id> <form> <text>      Share… in the actions menu: the
+//                                           share menu, with the note's file
+//   window.js copyrich <id> <form> <text>   Copy as Rich Text: the note,
+//                                           rendered, on the clipboard
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
 //                                           then sticks
@@ -96,9 +100,12 @@ function run(argv) {
     case "collapse":
       return toggleCollapsed(store, workflowFolder, context, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "menu":
-      return actionsMenu(workflowFolder, id, form);
+      return actionsMenu(store, workflowFolder, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "trash":
       return trashNote(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
+    case "share":
+    case "copyrich":
+      return shareNote(store, workflowFolder, id, form, command, unescapeFromAlfredUi(rest[0] || ""));
     case "tick":
       return tick(store, context, id, form, Number(rest[0]), rest[1]);
     default:
@@ -330,15 +337,54 @@ function toggleCollapsed(store, workflowFolder, context, id, form, text) {
 
 // The actions menu's button (…) or ⌘K: prints the popupmenu action that
 // opens the actions menu (noteActionsMenu) for the window as it is now, its
-// mode and whether it's collapsed, at the point under the button
+// mode, whether it's collapsed and whether its note is blank (the editor's
+// `text` in Edit, the file's in View), at the point under the button
 // (`menuanchor`). Does nothing without a state of the window's form, as for
 // switchMode.
-function actionsMenu(workflowFolder, id, form) {
+function actionsMenu(store, workflowFolder, id, form, text) {
   const state = readNoteState(id);
   if (!state || state.form !== form) return;
   const mode = state.mode === "view" ? "view" : "edit";
-  const menu = noteActionsMenu({ workflowFolder, note: escapeForAlfredUi(id), form, mode, collapsed: Boolean(state.collapsed) });
+  const note = mode === "edit" ? null : store.read(id);
+  const blank = isBlankText(mode === "edit" ? text : note ? note.text : "");
+  const menu = noteActionsMenu({
+    workflowFolder,
+    note: escapeForAlfredUi(id),
+    form,
+    mode,
+    collapsed: Boolean(state.collapsed),
+    blank,
+  });
   return JSON.stringify({ popupmenu: { src: "menuanchor", menu } });
+}
+
+// Share… and Copy as Rich Text in the actions menu (`how` is "share" or
+// "copyrich"). Each first saves the editor's text in Edit, so it uses the
+// note as it is on screen (a new note is saved then, as sharing it makes it
+// worth keeping), and does nothing for a blank note.
+//
+// Alfred UI's `share` action opens macOS's share menu with the file at the
+// path in its `src`, so Share… shares the note's .md file, which services take
+// as an attachment (Notes does). It shares only files: any other string is
+// taken for a file named after its last path component, which doesn't exist,
+// and nothing can use it; and a .txt file of the text is an attachment in
+// Notes too, so there's no sharing the text itself. The menu opens at the top
+// centre of the window, or under it when there's no room above, whatever view
+// the action names, so it names none. Copy as Rich Text puts the note,
+// rendered as the View page renders it, on the clipboard instead
+// (copyNoteAsRichText in lib.js), for pasting with its formatting.
+// Does nothing without a state of the window's form, as for switchMode.
+function shareNote(store, workflowFolder, id, form, how, text) {
+  const state = readNoteState(id);
+  if (!state || state.form !== form) return;
+  if (state.mode !== "view") store.save(id, text);
+  const note = store.read(id);
+  if (!note || isBlankText(note.text)) return;
+  if (how === "copyrich") {
+    copyNoteAsRichText(workflowFolder, note.text);
+    return;
+  }
+  return JSON.stringify({ share: { src: store.notePath(id) } });
 }
 
 // Move to Trash in the actions menu: moves the note to the Trash through

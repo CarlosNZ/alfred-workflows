@@ -255,21 +255,25 @@ expect_exact "expand in Edit: the caret back in the editor" "$(window_js collaps
 window_js quit groceries sticky $'# Groceries\n- milk\n- eggs\n'
 
 # The actions menu (… or ⌘K), and Move to Trash from it.
-menu_items='d.popupmenu.menu.map(i => i.type === "separator" ? "—" : i.text + (i.action ? "" : " [off]")).join(" | ")'
-expect_exact "menu: the … button and ⌘K both run window.js menu" "$(json $ui '[('$menubtn').tooltip, ('$menubtn').events[0].action.args.join(","), d.window.root.shortcuts.find(s => s.shortcut === "⌘K").action.args.join(",")].join(" | ")')" "Actions (⌘K) | menu,groceries,sticky, | menu,groceries,sticky,"
+menu_items='(function items(list) { return list.map(i => i.type === "separator" ? "—" : i.submenu ? i.text + " ▸ (" + items(i.submenu).join(" / ") + ")" : i.text + (i.action ? "" : " [off]")); })(d.popupmenu.menu).join(" | ")'
+expect_exact "menu: the … button and ⌘K both run window.js menu" "$(json $ui '[('$menubtn').tooltip, ('$menubtn').events[0].action.args.join(","), d.window.root.shortcuts.find(s => s.shortcut === "⌘K").action.args.join(",")].join(" | ")')" "Actions (⌘K) | menu,groceries,sticky,{value:editor.text} | menu,groceries,sticky,{value:editor.text}"
 expect "menu with no state: nothing" "$(window_js menu groceries sticky)" ""
 window_js launched groceries sticky view
 update=$(window_js menu groceries sticky)
-expect_exact "menu, sticky in View: Collapse, Edit, Close, Move to Trash and Share, at the anchor" "$(print -r -- $update | json - 'd.popupmenu.src + " | " + '$menu_items)" "menuanchor | Collapse | Edit (⌘E) | Close (⌘W) | — | Move to Trash | — | Share…"
-expect_exact "menu: each item's action" "$(print -r -- $update | json - 'd.popupmenu.menu.filter(i => i.action).map(i => i.action.type === "script" ? i.action.args.join(",") : JSON.stringify(i.action.src)).join(" | ")')" 'collapse,groceries,sticky,{value:editor.text} | toggle,groceries,sticky,{value:editor.text} | {"finish":{}} | trash,groceries,sticky,{value:editor.text} | {}'
+expect_exact "menu, sticky in View: Collapse, Edit, Close, Move to Trash, Share and Copy as Rich Text, at the anchor" "$(print -r -- $update | json - 'd.popupmenu.src + " | " + '$menu_items)" "menuanchor | Collapse | Edit (⌘E) | Close (⌘W) | — | Move to Trash | — | Share… | Copy as Rich Text"
+expect_exact "menu: each item's action" "$(print -r -- $update | json - 'd.popupmenu.menu.flatMap(i => i.submenu || [i]).filter(i => i.action).map(i => i.action.type === "script" ? i.action.args.join(",") : JSON.stringify(i.action.src)).join(" | ")')" 'collapse,groceries,sticky,{value:editor.text} | toggle,groceries,sticky,{value:editor.text} | {"finish":{}} | trash,groceries,sticky,{value:editor.text} | share,groceries,sticky,{value:editor.text} | copyrich,groceries,sticky,{value:editor.text}'
 window_js collapse groceries sticky "" >/dev/null
-expect_exact "menu, collapsed: Expand, and Edit greyed out" "$(window_js menu groceries sticky | json - $menu_items)" "Expand | Edit (⌘E) [off] | Close (⌘W) | — | Move to Trash | — | Share…"
+expect_exact "menu, collapsed: Expand, and Edit greyed out" "$(window_js menu groceries sticky | json - $menu_items)" "Expand | Edit (⌘E) [off] | Close (⌘W) | — | Move to Trash | — | Share… | Copy as Rich Text"
 window_js collapse groceries sticky "" >/dev/null
 window_js quit groceries sticky ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
 open_note quick quickmenu >/dev/null
 window_js launched quickmenu quick edit
-expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, View, and Close with Esc" "$(window_js menu quickmenu quick | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash | — | Share…"
+expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, View, and Close with Esc" "$(window_js menu quickmenu quick "Quick menu" | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash | — | Share… | Copy as Rich Text"
+expect_exact "menu, a blank note in Edit: sharing and copying greyed out" "$(window_js menu quickmenu quick "  " | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash | — | Share… [off] | Copy as Rich Text [off]"
+expect_exact "share, in Edit: saves first, then shares the note's file" "$(window_js share quickmenu quick $'Quick menu {var:x}\n' | json - 'JSON.stringify(d)') $(cat $notes/quickmenu.md)" '{"share":{"src":"'$notes'/quickmenu.md"}} Quick menu {var:x}'
+expect "share and copy a blank note: nothing" "$(window_js share quickmenu quick "  ")$(window_js copyrich quickmenu quick "  ")" ""
+print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
 expect_exact "menu, quick view: Stick to Desktop sticks, as ⌘P does" "$(window_js menu quickmenu quick | json - 'd.popupmenu.menu[0].action.args.join(",")')" "stick,quickmenu,quick,{value:editor.text}"
 expect_exact "menu, quick view: Close finishes with close_view" "$(window_js menu quickmenu quick | json - 'JSON.stringify(d.popupmenu.menu[2].action.src)')" '{"finish":{"variables":{"close_view":"1"}}}'
 expect_exact "open.js with close_view: opens nothing" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache close_view=1 $scripts/open.js stick quickmenu | json - 'JSON.stringify([d.alfredworkflow.arg, d.alfredworkflow.variables.open_window, d.alfredworkflow.variables.close_view])')" '["","",""]'
@@ -413,6 +417,16 @@ render() {
         .join(" ");
     }' "$workflow/vendor/markdown-it/markdown-it.umd.min.js" "$workflow/ui/view.js" "$scripts/lib.js" "$@"
 }
+# Copy as Rich Text's rendering, without the clipboard.
+rich=$(osascript -l JavaScript -e '
+  ObjC.import("Foundation");
+  function run(argv) {
+    (0, eval)($.NSString.stringWithContentsOfFileEncodingError(argv[0] + "/scripts/lib.js", $.NSUTF8StringEncoding, null).js);
+    const { html, rtf } = noteRichText(argv[0], argv[1]);
+    const text = $.NSString.alloc.initWithDataEncoding(rtf, $.NSUTF8StringEncoding).js;
+    return [html.replace(/^.*<body>|<\/body>.*$/gs, "").replace(/\n/g, ""), text.startsWith("{\\rtf1"), ["Groceries", "milk", "eggs", "HYPERLINK"].every((w) => text.includes(w))].join(" | ");
+  }' "$workflow" $'# Groceries\n\n- [ ] milk\n- [x] **eggs**\n\n[the shop](https://example.com)\n')
+expect_exact "rich text: rendered as the page, tasks as ☐ and ☑, and RTF of it" "$rich" '<h1>Groceries</h1><ul><li class="task">☐ milk</li><li class="task done">☑ <strong>eggs</strong></li></ul><p><a href="https://example.com">the shop</a></p> | true | true'
 sample=$'---\ntitle: x\n---\n# Tasks\n\n- [ ] one\n- [x] two\n  - [X] nested\n\n1. [ ] numbered\n2) [x] **bold** start\n\n> - [ ] quoted\n>   - [x] quoted nested\n\n- [ ]\n- [x]no space\n- not [ ] a task\n\n[ ] not in a list\n\n* [ ] lazy\ncontinued\n'
 expect "task rule: a box per task, on its source line; window.js agrees" "$(render $sample)" "5o 6x 7x 9o 10x 12o 13x 21o"
 expect_exact "task rule: the box replaces the brackets" "$(render $'- [ ] one\n- [x] two' html | tr -d '\n')" '<ul><li class="task"><input type="checkbox" data-line="0">one</li><li class="task done"><input type="checkbox" data-line="1" checked>two</li></ul>'

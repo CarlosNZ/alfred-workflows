@@ -14,7 +14,7 @@
       "image": "@buttonIcon:ellipsis",
       "tooltip": "Actions (⌘K)",
       "accessibility": { "label": "Actions" },
-      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["menu", "@note", "@form", ""] } }]
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["menu", "@note", "@form", "{value:editor.text}"] } }]
     }
   ]
 }

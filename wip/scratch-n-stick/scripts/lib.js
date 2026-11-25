@@ -1801,31 +1801,32 @@ function noteFontSizeAction({ workflowFolder, note, form, choice }) {
 }
 
 // The actions menu (…, or ⌘K) of a window in `form` and `mode`, `collapsed`
-// or not: Collapse or Expand in a sticky window, or Stick to Desktop in a
-// quick view, then Edit or View, Close, Move to Trash and Share, each with its
-// shortcut in brackets where it has one. Edit / View
-// does nothing in a collapsed window, so it's greyed out there (an item
-// without an action). `note` is the escaped ID. Share does nothing yet.
-// TO-DO: what Share shares (the text or the .md file), through Alfred UI's
-// `share` action.
-function noteActionsMenu({ workflowFolder, note, form, mode, collapsed }) {
+// or not, whose note is `blank` or not: Collapse or Expand in a sticky window,
+// or Stick to Desktop in a quick view, then Edit or View, Close, Move to Trash,
+// Share… (the note's .md file) and Copy as Rich Text, each with its shortcut in
+// brackets where it has one. An item that does nothing is
+// greyed out (an item without an action): Edit / View in a collapsed window,
+// and sharing and copying a blank note. `note` is the escaped ID.
+function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank }) {
   const script = (command) => ({
     type: "script",
     src: `${workflowFolder}/scripts/window.js`,
     args: [command, note, form, "{value:editor.text}"],
   });
+  const item = (text, action, enabled = true) => (enabled ? { text, action } : { text });
   const sticky = form === "sticky";
   const switchTo = mode === "view" ? "Edit" : "View";
   return [
     sticky
-      ? { text: collapsed ? "Expand" : "Collapse", action: script("collapse") }
-      : { text: "Stick to Desktop (⌘P)", action: script("stick") },
-    collapsed ? { text: `${switchTo} (⌘E)` } : { text: `${switchTo} (⌘E)`, action: script("toggle") },
-    { text: sticky ? "Close (⌘W)" : "Close (⎋)", action: noteCloseAction(form) },
+      ? item(collapsed ? "Expand" : "Collapse", script("collapse"))
+      : item("Stick to Desktop (⌘P)", script("stick")),
+    item(`${switchTo} (⌘E)`, script("toggle"), !collapsed),
+    item(sticky ? "Close (⌘W)" : "Close (⎋)", noteCloseAction(form)),
     { type: "separator" },
-    { text: "Move to Trash", action: script("trash") },
+    item("Move to Trash", script("trash")),
     { type: "separator" },
-    { text: "Share…", action: { type: "json", src: {} } },
+    item("Share…", script("share"), !blank),
+    item("Copy as Rich Text", script("copyrich"), !blank),
   ];
 }
 
@@ -2308,6 +2309,66 @@ function writeNotePage(id, form, text, variable = workflowVariable) {
   writeFileAtomically(`${bundle}/note.js`, script);
   updateNoteContext(id, form, { textHash: textHash(text) }, variable);
   return `${fileUrl(`${bundle}/view.html`)}?v=${textHash(script)}.${Date.now().toString(36)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Rich text: Copy as Rich Text in the actions menu
+//
+// A note's text rendered as the View page renders it, with markdown-it and
+// ui/view.js's rule for task boxes, loaded here as the tests load them. The
+// task boxes become ☐ and ☑, as rich text has no checkboxes, and the page is
+// set in the system font at 13 pt, like a note, so pasted text looks like it.
+
+let noteMarkdownRenderer = null;
+
+// `text` (Markdown) as a whole HTML document, for rich text.
+function noteRichHtml(workflowFolder, text) {
+  if (!noteMarkdownRenderer) {
+    for (const path of [`${workflowFolder}/${MARKDOWN_IT}`, `${workflowFolder}/ui/view.js`]) {
+      const source = readText(path);
+      if (source === null) throw new Error(`Can't read ${path}`);
+      (0, eval)(source);
+    }
+    noteMarkdownRenderer = noteMarkdown(markdownit);
+  }
+  const body = noteMarkdownRenderer
+    .render(text)
+    .replace(/<input type="checkbox" data-line="\d+"( checked)?>/g, (box, checked) => (checked ? "☑ " : "☐ "));
+  return [
+    '<!doctype html><html><head><meta charset="utf-8">',
+    '<style>body { font: 13px -apple-system, "Helvetica Neue", sans-serif; } li.task { list-style: none; }</style>',
+    `</head><body>${body}</body></html>`,
+  ].join("");
+}
+
+// `text` (Markdown) rendered (noteRichHtml) as rich text: { html, rtf }, the
+// HTML and RTF data made from it by macOS's text system.
+function noteRichText(workflowFolder, text) {
+  ObjC.import("AppKit");
+  const html = noteRichHtml(workflowFolder, text);
+  const data = $(html).dataUsingEncoding($.NSUTF8StringEncoding);
+  const options = $({ DocumentType: $.NSHTMLTextDocumentType, CharacterEncoding: $.NSUTF8StringEncoding });
+  const rich = $.NSAttributedString.alloc.initWithDataOptionsDocumentAttributesError(data, options, null, null);
+  if (rich.isNil()) throw new Error("Couldn't make rich text of the note");
+  const rtf = rich.dataFromRangeDocumentAttributesError(
+    $.NSMakeRange(0, rich.length),
+    $({ DocumentType: $.NSRTFTextDocumentType }),
+    null,
+  );
+  if (rtf.isNil()) throw new Error("Couldn't make RTF of the note");
+  return { html, rtf };
+}
+
+// Puts a note on the clipboard as rich text: the RTF and HTML of its `text`
+// rendered (noteRichText), for apps that paste formatting, such as Notes, Mail
+// and Pages, and `text` itself as plain text, for those that don't.
+function copyNoteAsRichText(workflowFolder, text) {
+  const { html, rtf } = noteRichText(workflowFolder, text);
+  const pasteboard = $.NSPasteboard.generalPasteboard;
+  pasteboard.clearContents;
+  pasteboard.setDataForType(rtf, $.NSPasteboardTypeRTF);
+  pasteboard.setStringForType($(html), $.NSPasteboardTypeHTML);
+  pasteboard.setStringForType($(text), $.NSPasteboardTypeString);
 }
 
 // A task box's line in a note: optional block quote markers and indent, a
