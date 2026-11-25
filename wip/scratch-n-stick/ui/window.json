@@ -34,9 +34,10 @@
       ],
       "components": [
         { "id": "content" },
+        { "@form": "sticky", "id": "collapsedtitle" },
+        { "@form": "sticky", "id": "titlestrip" },
         { "id": "customise" },
         { "id": "actions" },
-        { "@form": "sticky", "id": "collapsedtitle" },
         { "@form": "sticky", "id": "windowbuttons" }
       ]
     }

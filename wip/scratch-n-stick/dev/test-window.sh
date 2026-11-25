@@ -92,7 +92,7 @@ actions=$(byid actions)
 content=$(byid content)
 windowbuttons=$(byid windowbuttons)
 closebtn=$(byid close)
-collapsebtn=$(byid collapse)
+titlestrip=$(byid titlestrip)
 collapsedtitle=$(byid collapsedtitle)
 # An icon button's image, as "<src> <size>" for a file (its path from icons/)
 # or "<symbol>" for a symbol.
@@ -142,9 +142,9 @@ note_mode meeting edit
 bundle=$(open_note font_size=17 stick meeting)
 expect "sticky: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
 ui=$bundle/ui.json
-expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button collapsedtitle:label windowbuttons:view close:button collapse:button"
+expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button collapsedtitle:label titlestrip:view titlestripheight:view customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button windowbuttons:view close:button"
 expect "sticky: borderless, with rounded corners" "$(json $ui '[d.window.borderless, d.window.cornerradius].join(" ")')" "true 10"
-expect "sticky: the close and collapse buttons at the top left, then the colour and icon, level with the actions" "$(json $ui '['$windowbuttons', '$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")') $(json $ui '('$windowbuttons').components.map(b => b.id).join(",") + " " + ('$windowbuttons').spacing')" 'topleft {"top":5,"left":9} topleft {"top":5,"left":66} topright {"top":5,"right":10} close,collapse 0'
+expect "sticky: the close button at the top left, then the colour and icon, level with the actions" "$(json $ui '['$windowbuttons', '$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")') $(json $ui '('$windowbuttons').components.map(b => b.id).join(",")')" 'topleft {"top":5,"left":9} topleft {"top":5,"left":44} topright {"top":5,"right":10} close'
 expect_exact "sticky: the close button shows the close icon and closes the window" "$(json $ui '['$image'('$closebtn'), '$closebtn'.tooltip, '$closebtn'.accessibility.label, JSON.stringify('$closebtn'.events)].join(" | ")')" "icons/lucide/close-light.svg 15x15 | Close (⌘W) | Close | "'[{"triggers":"actioned","action":{"type":"json","src":{"finish":{}}}}]'
 expect "sticky: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FEF49C light"
 expect "sticky: ⌘E, ⌘↩, ⌘I, ⎋, ⌘W, ⌘1-⌘6 and the font size's, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘W ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
@@ -227,12 +227,13 @@ expect "the next open uses the remembered mode" "$(json "$(open_note quick $id1)
 print -rn -- $'# Groceries\n- milk\n' > "$notes/groceries.md"
 bundle=$(open_note stick groceries)
 ui=$bundle/ui.json
-expect_exact "sticky: the title is hidden, the collapse button collapses" "$(json $ui '[('$collapsedtitle').hidden, ('$collapsedtitle').text, ('$collapsedtitle').linebreak, '$image'('$collapsebtn'), ('$collapsebtn').tooltip, ('$collapsebtn').events[0].action.args.join(",")].join(" | ")')" "true | Groceries | truncatetail | icons/lucide/arrows-to-axis-dashed-horizontal-light.svg 16x16 | Collapse | collapse,groceries,sticky,{value:editor.text}"
+expect_exact "sticky: the title is hidden, cut off at its end" "$(json $ui '[('$collapsedtitle').hidden, ('$collapsedtitle').text, ('$collapsedtitle').linebreak].join(" | ")')" "true | Groceries | truncatetail"
+expect_exact "sticky: a strip along the top, the collapsed height, over the title and under the top row, whose double-click collapses" "$(json $ui '[JSON.stringify(('$titlestrip').constraints), JSON.stringify(('$titlestrip').components[0].constraints), d.window.root.components.map(c => c.id).join(","), ('$titlestrip').events.map(e => e.triggers + " " + JSON.stringify(e.action.type === "json" ? e.action.src : e.action.args)).join(", ")].join(" | ")')" '{"position":"top","stretch":"horizontal"} | {"size":{"width":1,"height":32}} | content,collapsedtitle,titlestrip,customise,actions,windowbuttons | mousedown {}, doubleclicked ["collapse","groceries","sticky","{value:editor.text}"]'
 expect "collapse in a quick view: nothing" "$(window_js collapse meeting quick "")" ""
 window_js launched groceries sticky view
 update=$(window_js collapse groceries sticky "")
-expect_exact "collapse: hides the note and the top row's groups, the button expands, to the collapsed height" "$(print -r -- $update | json - '[["content", "customise", "actions"].map(k => d.update.ids[k].hidden).join(), '$image'(d.update.ids.collapse), d.update.ids.collapse.tooltip, JSON.stringify(d.window)].join(" | ")')" 'true,true,true | icons/lucide/arrows-from-axis-dashed-horizontal-light.svg 16x16 | Expand | {"resize":{"height":32}}'
-expect_exact "collapse: the title is replaced, shown, with the note's title, cut off at its end" "$(print -r -- $update | json - '[d.replace.ids.collapsedtitle.hidden, d.replace.ids.collapsedtitle.text, d.replace.ids.collapsedtitle.linebreak, JSON.stringify(d.replace.ids.collapsedtitle.font), JSON.stringify(d.replace.ids.collapsedtitle.constraints)].join(" | ")')" 'false | Groceries | truncatetail | {"size":13,"weight":"semibold"} | {"stretch":"horizontal","insets":{"top":8,"left":61,"right":10}}'
+expect_exact "collapse: hides the note and the top row's groups, to the collapsed height" "$(print -r -- $update | json - '[["content", "customise", "actions"].map(k => d.update.ids[k].hidden).join(), Object.keys(d.update.ids).sort().join(), JSON.stringify(d.window)].join(" | ")')" 'true,true,true | actions,content,customise | {"resize":{"height":32}}'
+expect_exact "collapse: the title is replaced, shown, with the note's title, cut off at its end" "$(print -r -- $update | json - '[d.replace.ids.collapsedtitle.hidden, d.replace.ids.collapsedtitle.text, d.replace.ids.collapsedtitle.linebreak, JSON.stringify(d.replace.ids.collapsedtitle.font), JSON.stringify(d.replace.ids.collapsedtitle.constraints)].join(" | ")')" 'false | Groceries | truncatetail | {"size":13,"weight":"semibold"} | {"stretch":"horizontal","insets":{"top":8,"left":39,"right":10}}'
 expect "collapse: in the state, the sidecar and the context, with the default height to expand to (no window to measure here)" "$(json $cache/state/groceries.json d.collapsed) $(json $notes/.scratchnstick/groceries.json d.collapsed) $(json $bundle/context.json d.collapsed)" "true 288 288"
 expect "collapsed: the Edit / View switch does nothing" "$(window_js toggle groceries sticky "") $(json $cache/state/groceries.json d.mode)" " view"
 expect "collapsed: picker.sh opens no drop-down" "$(env alfred_workflow_cache=$cache "$scripts/picker.sh" toggle groceries sticky colour) $([[ -e $cache/state/groceries.picker ]] && print open || print closed)" " closed"
@@ -240,10 +241,10 @@ expect "collapsed: Esc still closes the window" "$(env alfred_workflow_cache=$ca
 expect "collapsed: a colour change gives a hidden customise group" "$(window_js colour groceries sticky blue | json - 'd.replace.ids.customise.hidden')" "true"
 expect_exact "collapsed: launched gives it the collapsed height" "$(window_js launched groceries sticky view)" '{"window":{"resize":{"height":32}}}'
 expect "collapsed: launched keeps it collapsed in the state" "$(json $cache/state/groceries.json d.collapsed)" "true"
-expect "reopened sticky: collapsed, the note and groups hidden, the title shown, the button expands" "$(json "$(open_note stick groceries)/ui.json" '[('$content').hidden, ('$customise').hidden, ('$actions').hidden, ('$collapsedtitle').hidden, ('$collapsebtn').tooltip].join(" ")')" "true true true false Expand"
+expect "reopened sticky: collapsed, the note and groups hidden, the title shown" "$(json "$(open_note stick groceries)/ui.json" '[('$content').hidden, ('$customise').hidden, ('$actions').hidden, ('$collapsedtitle').hidden, Boolean(('$titlestrip').hidden)].join(" ")')" "true true true false false"
 expect "a quick view of a collapsed note isn't collapsed" "$(json "$(open_note quick groceries)/ui.json" '[Boolean(('$content').hidden), JSON.stringify(d).includes("collapse")].join(" ")')" "false false"
 update=$(window_js collapse groceries sticky "")
-expect_exact "expand: shows the note and the groups, hides the title, back to the recorded height" "$(print -r -- $update | json - '[["content", "customise", "actions"].map(k => d.update.ids[k].hidden).join(), d.update.ids.collapsedtitle.hidden, d.update.ids.collapse.tooltip, JSON.stringify(d.window), "replace" in d, "editor" in d.update.ids].join(" | ")')" 'false,false,false | true | Collapse | {"resize":{"height":288}} | false | false'
+expect_exact "expand: shows the note and the groups, hides the title, back to the recorded height" "$(print -r -- $update | json - '[["content", "customise", "actions"].map(k => d.update.ids[k].hidden).join(), d.update.ids.collapsedtitle.hidden, JSON.stringify(d.window), "replace" in d, "editor" in d.update.ids].join(" | ")')" 'false,false,false | true | {"resize":{"height":288}} | false | false'
 expect "expand: not collapsed in the state, the sidecar or the context" "$(json $cache/state/groceries.json d.collapsed) $(json $notes/.scratchnstick/groceries.json '"collapsed" in d') $(json $bundle/context.json d.collapsed)" "false false null"
 expect "expanded: launched leaves the size alone" "$(window_js launched groceries sticky view)" ""
 window_js edit groceries sticky "" >/dev/null
@@ -616,7 +617,7 @@ expect "macOS 12: no SVG at all, and every file it names exists" "$(grep -c '\.s
 bundle=$(open_note scratchnstick_macos_version=12 stick icons)
 ui=$bundle/ui.json
 expect "macOS 12, sticky: Scratch'n'Stick's app icon, though the note has an icon" "$(json $ui d.iconpath)" "$workflow/ui/appicon.png"
-expect_exact "macOS 12, sticky: the close and collapse buttons are SF Symbols" "$(json $ui ''$image'('$closebtn') + ", " + '$image'('$collapsebtn')')" "symbol xmark.circle.fill, symbol arrow.up.to.line"
+expect_exact "macOS 12, sticky: the close button is an SF Symbol" "$(json $ui ''$image'('$closebtn')')" "symbol xmark.circle.fill"
 window_js launched icons sticky view
 action=$(window_js colour icons sticky blue)
 expect "macOS 12: a colour change gives no icon button, and keeps the icon in the sidecar" "$(print -r -- $action | json - '('$customise').components.map(c => c.id).join(",")') $(json $notes/.scratchnstick/icons.json '[d.icon, d.colour].join(" ")')" "colourbox,fontsize heart blue"

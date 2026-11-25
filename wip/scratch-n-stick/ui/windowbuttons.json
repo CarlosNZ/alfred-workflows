@@ -3,7 +3,6 @@
   "type": "view",
   "layout": "inline",
   "direction": "horizontal",
-  "spacing": "@windowButtonsSpacing",
   "constraints": "@windowButtonsPlace",
   "components": [
     {
@@ -16,18 +15,6 @@
       "tooltip": "Close (⌘W)",
       "accessibility": { "label": "Close" },
       "events": [{ "triggers": "actioned", "action": { "type": "json", "src": { "finish": {} } } }]
-    },
-    {
-      "id": "collapse",
-      "type": "button",
-      "text": "",
-      "bordered": false,
-      "constraints": "@buttonBox",
-      "image": "@buttonIcon:arrows-to-axis-dashed-horizontal",
-      "tooltip": "Collapse",
-      "accessibility": { "label": "Collapse" },
-      "@collapsed": { "image": "@buttonIcon:arrows-from-axis-dashed-horizontal", "tooltip": "Expand", "accessibility": { "label": "Expand" } },
-      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["collapse", "@note", "@form", "{value:editor.text}"] } }]
     }
   ]
 }

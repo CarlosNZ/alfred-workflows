@@ -1,3 +1,2 @@
 lucide-static 1.72.0: icons/<name>.svg for the icons in NOTE_ICONS and NOTE_WINDOW_BUTTON_ICONS (scripts/lib.js), and LICENSE, from https://registry.npmjs.org/lucide-static/-/lucide-static-1.72.0.tgz
 (sha512-QhdZ60O7Zcs/e8gw40uMfEn055xZTHBZoNi0xb+/1R2dTd0v4FXS46VL6rKSwC+V92tLBiqsAbCcijy7Wy4j4w==)
-arrows-to-axis-dashed-horizontal.svg and arrows-from-axis-dashed-horizontal.svg from lucide-static 1.80.0 (they're not in 1.72.0), as https://unpkg.com/lucide-static@1.80.0/icons/<name>.svg, under the same LICENSE

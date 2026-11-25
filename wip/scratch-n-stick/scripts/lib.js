@@ -949,13 +949,10 @@ const NOTE_ICONS = [
 // (`sticky-note`, which is a note icon too), the icon button's for a note
 // without an icon (`smile-plus`), the picker's None (`ban`), and the Font
 // size button's (`text-size`, the workflow's own, in Lucide's style; see
-// dev/make-icons.js), a sticky window's close button's (`close`, the
-// workflow's own too: a filled circle with an X cut out of it), and its
-// collapse button's (`arrows-to-axis-dashed-horizontal` to collapse,
-// `arrows-from-axis-dashed-horizontal` to expand, from a later Lucide release
-// than the rest; see dev/lucide/VERSION). Each has an SF Symbol for windows
-// that can't show the button icons (macOS 12; see noteIconsSupported), which
-// follows the appearance by itself.
+// dev/make-icons.js), and a sticky window's close button's (`close`, the
+// workflow's own too: a filled circle with an X cut out of it). Each has an
+// SF Symbol for windows that can't show the button icons (macOS 12; see
+// noteIconsSupported), which follows the appearance by itself.
 const NOTE_WINDOW_BUTTON_ICONS = {
   eye: "eye",
   pencil: "pencil",
@@ -964,8 +961,6 @@ const NOTE_WINDOW_BUTTON_ICONS = {
   ban: "nosign",
   "text-size": "textformat.size",
   close: "xmark.circle.fill",
-  "arrows-to-axis-dashed-horizontal": "arrow.up.to.line",
-  "arrows-from-axis-dashed-horizontal": "arrow.down.to.line",
 };
 
 // The release of lucide-static that the button icons were drawn from, as
@@ -1359,51 +1354,46 @@ function readNoteTemplate(workflowFolder, name) {
 // drop-down's size. Top-level consts are private to lib.js, so scripts get
 // these through functions.
 const NOTE_WINDOW_LAYOUT = {
-  // The top row: a sticky window's own buttons at the top left, its close
-  // button, where a window's close button would be (a sticky window is
-  // borderless, with no traffic lights), and its collapse button beside it;
-  // and two groups, the note's own look (its colour, its icon and its font
-  // size) at the top left, after a sticky window's buttons, and the actions
-  // (Edit / View, then Stick in the quick view) at the top right. `top`,
-  // `left` and `right` are each one's distance from the window's edges, in
-  // each form, and `spacing` the space between a group's buttons. Every
-  // button in the row is a box `button` points square, its image centred in
-  // it, so both groups are the same height whatever they show, and the
-  // buttons' centres are level, 16 pt down (so `top` is 16 less half a
-  // button), where a window's traffic lights are.
-  windowButtons: { top: 5, left: 9, spacing: 0 },
-  customise: { quick: { top: 5, left: 12 }, sticky: { top: 5, left: 66 }, spacing: 10 },
+  // The top row: a sticky window's close button at the top left, where a
+  // window's close button would be (a sticky window is borderless, with no
+  // traffic lights), in a group of the window's own buttons; and two groups,
+  // the note's own look (its colour, its icon and its font size) at the top
+  // left, after a sticky window's close button, and the actions (Edit / View,
+  // then Stick in the quick view) at the top right. `top`, `left` and `right`
+  // are each one's distance from the window's edges, in each form, and
+  // `spacing` the space between a group's buttons. Every button in the row is
+  // a box `button` points square, its image centred in it, so both groups are
+  // the same height whatever they show, and the buttons' centres are level,
+  // 16 pt down (so `top` is 16 less half a button), where a window's traffic
+  // lights are.
+  windowButtons: { top: 5, left: 9 },
+  customise: { quick: { top: 5, left: 12 }, sticky: { top: 5, left: 44 }, spacing: 10 },
   actions: { quick: { top: 5, right: 10 }, sticky: { top: 5, right: 10 }, spacing: 10 },
   button: 22,
   // The size of the row's button icons: the note's icon, the Font size
   // button's and the actions', all the same so that their strokes match.
   // `buttonIconSizes` overrides it for glyphs that look small at that size,
   // being short or wide (Aa, the eye), so they look as large as the rest, and
-  // for a sticky window's own buttons, smaller: the close button's circle,
-  // about the size of a window's own close button, and the collapse button's
-  // arrows. And the size of the colour button's swatch (a symbol, whose size
-  // is its button's font size), and how far it's raised to be level with the
-  // button icons' centres, as a symbol sits on its font's baseline, a little
-  // low: the button is twice that much shorter than its box, at the top of
-  // it, so the swatch's centre is that much higher.
+  // for the close button's circle, smaller, about the size of a window's own
+  // close button. And the size of the colour button's swatch (a symbol, whose
+  // size is its button's font size), and how far it's raised to be level with
+  // the button icons' centres, as a symbol sits on its font's baseline, a
+  // little low: the button is twice that much shorter than its box, at the
+  // top of it, so the swatch's centre is that much higher.
   buttonIcon: 18,
-  buttonIconSizes: {
-    "text-size": 19,
-    eye: 20,
-    close: 15,
-    "arrows-to-axis-dashed-horizontal": 16,
-    "arrows-from-axis-dashed-horizontal": 16,
-  },
+  buttonIconSizes: { "text-size": 19, eye: 20, close: 15 },
   swatch: 16,
   swatchRaise: 1,
   // A collapsed sticky window (see "Collapsing" in window.js): its height,
-  // the top row's, and its title, a label after the window's buttons,
-  // `top`, `left` and `right` from the window's edges, with its font.
-  // `defaultHeight` is the height a window expands to when its height before
-  // collapsing isn't known, the height a sticky window opens at.
+  // the top row's, which is also the height of the strip along a sticky
+  // window's top that a double-click collapses or expands it from, and its
+  // title, a label after the close button, `top`, `left` and `right` from
+  // the window's edges, with its font. `defaultHeight` is the height a window
+  // expands to when its height before collapsing isn't known, the height a
+  // sticky window opens at.
   collapsed: {
     height: 32,
-    title: { top: 8, left: 61, right: 10 },
+    title: { top: 8, left: 39, right: 10 },
     titleFont: { size: 13, weight: "semibold" },
     defaultHeight: 288,
   },
@@ -1546,11 +1536,8 @@ function noteWindowTokens(
       icons,
     ),
     "@buttonBox": { size: { width: layout.button, height: layout.button } },
-    "@windowButtonsPlace": {
-      position: "topleft",
-      insets: { top: layout.windowButtons.top, left: layout.windowButtons.left },
-    },
-    "@windowButtonsSpacing": layout.windowButtons.spacing,
+    "@windowButtonsPlace": { position: "topleft", insets: Object.assign({}, layout.windowButtons) },
+    "@titleStripBox": { size: { width: 1, height: layout.collapsed.height } },
     "@collapsedTitlePlace": { stretch: "horizontal", insets: Object.assign({}, layout.collapsed.title) },
     "@collapsedTitleFont": Object.assign({}, layout.collapsed.titleFont),
     "@customisePlace": place("customise", "topleft"),
@@ -1841,9 +1828,10 @@ function resolveNoteTemplate(template, { form, mode, icons = true, collapsed = f
 // the editor and the icon picker), the top row's two groups of buttons, the
 // note's own look (its colour, icon and font size) at the left and the
 // actions (Edit / View and Stick) at the right, and, in a sticky window, the
-// note's title, shown while it's collapsed, and the window's own buttons
-// (close and collapse) at the top left.
-const NOTE_WINDOW_PARTS = ["content", "customise", "actions", "collapsedtitle", "windowbuttons"];
+// note's title, shown while it's collapsed, the strip along the window's top
+// that a double-click collapses or expands it from (under the top row's
+// buttons), and the window's own buttons (its close button) at the top left.
+const NOTE_WINDOW_PARTS = ["content", "customise", "actions", "collapsedtitle", "titlestrip", "windowbuttons"];
 
 // A note window's whole ui.json: window.json, with its placeholders filled
 // (NOTE_WINDOW_PARTS). `options` as for noteWindowTokens.
@@ -2043,6 +2031,7 @@ const NOTE_WINDOW_SOURCES = [
   "ui/content.json",
   "ui/windowbuttons.json",
   "ui/collapsedtitle.json",
+  "ui/titlestrip.json",
   "ui/view.html",
   "ui/view.js",
   "scripts/lib.js",

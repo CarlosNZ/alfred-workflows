@@ -14,8 +14,9 @@
 //   window.js fontsize <id> <form> <size>   a size in the Font size menu, or
 //                                           "bigger" (⌘+), "smaller" (⌘−) or
 //                                           "default" (⌘0, or Default)
-//   window.js collapse <id> <form> <text>   a sticky window's collapse button:
-//                                           collapses or expands the window
+//   window.js collapse <id> <form> <text>   a double-click on a sticky
+//                                           window's top strip: collapses or
+//                                           expands the window
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
 //                                           then sticks
@@ -41,16 +42,18 @@
 // so the notes folder and the window's look come from the context written into
 // the note's bundle (by list.js for a quick view, by open.js when sticky).
 //
-// Collapsing: a sticky window's collapse button shrinks it to its top row, as
-// Stickies does, showing only its close button, the collapse button (to
-// expand) and the note's title, and expands it again. A `window` action's
-// `resize` sets the window's height, below its minimum size too, and keeps
-// its top edge where it is. While it's collapsed, the window's state says so,
-// and its note's sidecar has `collapsed`, the height it expands back to, so a
-// note closed collapsed opens collapsed the next time it's sticky (its
-// bundle's context has it too, so the parts the window's scripts give it,
-// such as the customise group after a colour change, are built hidden). The
-// Edit / View switch, the drop-downs and ↩ do nothing while it's collapsed.
+// Collapsing: a double-click on a sticky window's top strip (titlestrip, a
+// view along the window's top, under the top row's buttons, which still drags
+// the window) shrinks it to that strip, as a double-click on the title bar
+// does in Stickies, showing only its close button and the note's title, and
+// expands it again. A `window` action's `resize` sets the window's height,
+// below its minimum size too, and keeps its top edge where it is. While it's
+// collapsed, the window's state says so, and its note's sidecar has
+// `collapsed`, the height it expands back to, so a note closed collapsed
+// opens collapsed the next time it's sticky (its bundle's context has it too,
+// so the parts the window's scripts give it, such as the customise group
+// after a colour change, are built hidden). The Edit / View switch, the
+// drop-downs and ↩ do nothing while it's collapsed.
 
 ObjC.import("Foundation");
 ObjC.import("unistd");
@@ -275,12 +278,12 @@ function stickyWindowSize(workflowFolder, pid, collapsed) {
   if (height !== null && height < minimum) return JSON.stringify({ window: { resize: { height: layout.defaultHeight } } });
 }
 
-// The collapse button of a sticky window: collapses it, or expands it if it's
-// collapsed (see "Collapsing" above). Collapsing saves the editor's text in
-// Edit, records the window's height (or the default height, if it can't be
-// measured), closes the open drop-down, and prints the update that hides the
-// note and the top row's groups, shows the note's title and turns the button
-// into Expand, with the resize to the collapsed height. Expanding prints the
+// A double-click on a sticky window's top strip: collapses the window, or
+// expands it if it's collapsed (see "Collapsing" above). Collapsing saves the
+// editor's text in Edit, records the window's height (or the default height,
+// if it can't be measured), closes the open drop-down, and prints the update
+// that hides the note and the top row's groups and shows the note's title,
+// with the resize to the collapsed height. Expanding prints the
 // reverse, with the resize back to the recorded height, and puts the caret
 // back in the editor in Edit. Does nothing without a state of the window's
 // form, as for switchMode, or in a quick view.
@@ -303,9 +306,7 @@ function toggleCollapsed(store, workflowFolder, context, id, form, text) {
   const note = store.read(id);
   const options = noteWindowOptions(Object.assign(context, { collapsed: expandTo }), { workflowFolder, id, form, mode });
   options.text = note ? note.text : "";
-  const { image, tooltip, accessibility } = findNoteComponent(noteWindowPart(options, "windowbuttons"), "collapse");
   const ids = { content: { hidden: collapsing }, customise: { hidden: collapsing }, actions: { hidden: collapsing } };
-  ids.collapse = { image, tooltip, accessibility };
   if (closeNotePickerState(id)) Object.assign(ids, noteDropdownsClosed());
   if (!collapsing) {
     ids.collapsedtitle = { hidden: true };
