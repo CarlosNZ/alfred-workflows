@@ -141,18 +141,57 @@ icons() {
     }' "$cache/icons"
 }
 expect "the workflow ships no badges or dots: Lucide's button icons and the drop-downs' shadows" "$(ls ${here:h}/icons | tr '\n' ' ')" "lucide shadow-colour-picker.png shadow-icon-picker.png "
-expect "a note's result icon is its colour's dot, made in the cache, yellow by default; New note has none" "$(icons '')" $'New note -\nCafé ideas dot-FEEA3D-DBC503-*.png\nShopping dot-FEEA3D-DBC503-*.png\nOld note dot-FEEA3D-DBC503-*.png'
-expect "a dot is a 256-pixel PNG" "$(sips -g format -g pixelWidth -g pixelHeight $cache/icons/dot-FEEA3D-DBC503-*.png | awk '/format|pixel/ {printf "%s ", $2}')" "png 256 256 "
-expect "default_colour sets the icon of notes without a colour" "$(icons default_colour=purple milk)" "Shopping dot-9BB6FE-7D9BEB-*.png"
-print -r -- '{"colour":"pink"}' > "$notes/.scratchnstick/shopping.json"
+expect "a note's result icon is its colour's dot (its tint, ringed in its control colour), made in the cache, yellow (slot 1) by default; New note has none" "$(icons '')" $'New note -\nCafé ideas dot-FEF49C-DBC503-*.png\nShopping dot-FEF49C-DBC503-*.png\nOld note dot-FEF49C-DBC503-*.png'
+expect "a dot is a 256-pixel PNG" "$(sips -g format -g pixelWidth -g pixelHeight $cache/icons/dot-FEF49C-DBC503-*.png | awk '/format|pixel/ {printf "%s ", $2}')" "png 256 256 "
+expect "default_colour sets the icon of notes without a colour" "$(icons default_colour=5 milk)" "Shopping dot-B6CAFF-7D9BEB-*.png"
+print -r -- '{"colour":4}' > "$notes/.scratchnstick/shopping.json"
 before_shopping=$(mtime shopping)
-expect "a note's own colour sets its icon" "$(icons default_colour=purple milk)" "Shopping dot-FFB2B2-F87F7F-*.png"
+expect "a note's own colour sets its icon" "$(icons default_colour=5 milk)" "Shopping dot-FFC7C7-F87F7F-*.png"
 expect "a colour change rewrites the note's quick bundle with the new swatch (the colour button's, and the picker's)" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c '#F87F7F' $(ui shopping))" "rewritten 2"
 print -r -- '{"colour":"orange"}' > "$notes/.scratchnstick/shopping.json"
-expect "an unknown colour gets the default's icon" "$(icons milk)" "Shopping dot-FEEA3D-DBC503-*.png"
+expect "an unknown colour gets the default's icon" "$(icons milk)" "Shopping dot-FEF49C-DBC503-*.png"
+print -r -- '{"colour":"pink"}' > "$notes/.scratchnstick/shopping.json"
+expect "a colour stored by name (not a slot) is unknown too" "$(icons default_colour=2 milk)" "Shopping dot-ADF4FF-24D0E9-*.png"
+print -r -- '{"colour":"4"}' > "$notes/.scratchnstick/shopping.json"
+expect "a slot stored as text is its slot" "$(icons milk)" "Shopping dot-FFC7C7-F87F7F-*.png"
+print -r -- '{"colour":"orange"}' > "$notes/.scratchnstick/shopping.json"
+
+# The palette from User Configuration: colour_1 to colour_6, each a name and
+# one or two hex colours. A slot that can't be read shows what's wrong in
+# place of the results.
+expect "colour_N sets a slot's tint and control colour" "$(icons colour_1='Lemon #FFFF88 #CCCC00' milk)" "Shopping dot-FFFF88-CCCC00-*.png"
+expect "a slot with one hex colour: its control colour is worked out from it" "$(icons colour_1='#FFFF88' milk)" "Shopping dot-FFFF88-*.png"
+expect "a worked-out control colour has the tint's hue, stronger and darker" "$(ls $cache/icons | grep -c '^dot-FFFF88-BDBD0D-')" "1"
+expect "an empty slot takes its default" "$(icons colour_1='' milk)" "Shopping dot-FEF49C-DBC503-*.png"
+expect "hex in lower case, without #, and #RGB, in any order with the name" "$(icons colour_1='ffff88 Lemon #cc0' milk)" "Shopping dot-FFFF88-CCCC00-*.png"
+expect_exact "a slot that can't be read: what's wrong, in place of the results" "$(icons colour_2='Blue' colour_5='Purple #12345' '')" $'Colour 2 isn\'t valid -\nColour 5 isn\'t valid -'
+problems() {
+  (cd "$tmp" && env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache "$@") | osascript -l JavaScript -e '
+    ObjC.import("Foundation");
+    function run() {
+      const input = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js;
+      return JSON.parse(input).items.map((i) => `${i.title} | ${i.subtitle} | ${i.valid}`).join("\n");
+    }'
+}
+expect_exact "palette problems: each says what's wrong, and can't be actioned" "$(problems colour_2='Blue' colour_3='#B2FFA1 #51BB51 #000000' colour_5='Purple #12345' "$list" '')" $'Colour 2 isn\'t valid | It needs a hex colour, like #FEF49C. Fix it in the workflow\'s Configuration. | false\nColour 3 isn\'t valid | It has more than two hex colours: give the note\'s colour, then optionally a stronger one for its dot and ring. Fix it in the workflow\'s Configuration. | false\nColour 5 isn\'t valid | “#12345” isn\'t a hex colour, like #FEF49C. Fix it in the workflow\'s Configuration. | false'
+expect_exact "palette problems: the new note keyword shows them too" "$(problems colour_2='Blue' ${here:h}/scripts/new.js 'some text')" "Colour 2 isn't valid | It needs a hex colour, like #FEF49C. Fix it in the workflow's Configuration. | false"
+before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
+icons colour_6='Grey #EEEEEE #999999' '' >/dev/null
+expect "a palette change rewrites every quick bundle once" "$([[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c '#999999' $(ui shopping))" "rewritten 1"
+icons '' >/dev/null
+expect_exact "info.plist's colour fields default to lib.js's palette, and Default colour lists the slots" "$(osascript -l JavaScript -e '
+  ObjC.import("Foundation");
+  function run(argv) {
+    eval($.NSString.stringWithContentsOfFileEncodingError(argv[0] + "/scripts/lib.js", $.NSUTF8StringEncoding, null).js);
+    const plist = ObjC.deepUnwrap($.NSDictionary.dictionaryWithContentsOfFile(argv[0] + "/info.plist"));
+    const config = (name) => plist.userconfigurationconfig.find((c) => c.variable === name).config;
+    const fields = noteDefaultPalette().map((c) => config(`colour_${c.slot}`).default === `${c.label} ${c.tint} ${c.control}`);
+    const pairs = config("default_colour").pairs.map(([label, value]) => `${label}=${value}`).join(", ");
+    return `${fields.join(" ")} | ${pairs} | ${config("default_colour").default}`;
+  }' ${here:h})" "true true true true true true | Colour 1 (Yellow)=1, Colour 2 (Blue)=2, Colour 3 (Green)=3, Colour 4 (Pink)=4, Colour 5 (Purple)=5, Colour 6 (Grey)=6 | 1"
 
 # Note icons: a note with an icon shows its badge in its colour.
-print -r -- '{"colour":"pink","icon":"shopping-cart"}' > "$notes/.scratchnstick/shopping.json"
+print -r -- '{"colour":4,"icon":"shopping-cart"}' > "$notes/.scratchnstick/shopping.json"
 before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
 expect "a note's icon shows as its badge in its colour, named for its colours, Lucide's release and its code" "$(icons milk)" "Shopping badge-shopping-cart-FFC7C7-F87F7F-1.72.0-*.svg"
 badge=$(print $cache/icons/badge-shopping-cart-FFC7C7-F87F7F-*.svg)
@@ -181,8 +220,8 @@ named_files() {
 }
 named=$(named_files $quick/*.alfredui/ui.json)
 expect "every file the quick bundles name exists, and none is in the cache (no app icon)" "$(print -r -- $named | grep -c MISSING || true) $(print -r -- $named | grep -c "^$cache" || true) $(grep -l iconpath $quick/*.alfredui/ui.json | wc -l | tr -d ' ')" "0 0 0"
-print -r -- '{"colour":"pink","icon":"rocket"}' > "$notes/.scratchnstick/shopping.json"
-expect "an unknown icon: the colour's dot" "$(icons milk)" "Shopping dot-FFB2B2-F87F7F-*.png"
+print -r -- '{"colour":4,"icon":"rocket"}' > "$notes/.scratchnstick/shopping.json"
+expect "an unknown icon: the colour's dot" "$(icons milk)" "Shopping dot-FFC7C7-F87F7F-*.png"
 print -r -- '{"colour":"orange","icon":"heart"}' > "$notes/.scratchnstick/shopping.json"
 expect "an icon with an unknown colour: the default colour's badge" "$(icons milk)" "Shopping badge-heart-FEF49C-DBC503-1.72.0-*.svg"
 
@@ -194,18 +233,18 @@ before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
 rm -rf $cache/icons
 expect "an emptied folder: the icons are made again" "$(icons '' | grep -c MISSING || true) $(ls $cache/icons | wc -l | tr -d ' ')" "0 2"
 expect "an emptied folder: no quick bundle is rebuilt" "$(mtime shopping) $(mtime cafe)" "$before_shopping $before_cafe"
-touch $cache/icons/badge-heart-FEF49C-DBC503-0.1.0-abcdef.svg $cache/icons/dot-FEEA3D-DBC503-abcdef.png $cache/icons/notes.txt $cache/icons/.scratchnstick-save-new.tmp
+touch $cache/icons/badge-heart-FEF49C-DBC503-0.1.0-abcdef.svg $cache/icons/dot-FEF49C-DBC503-abcdef.png $cache/icons/notes.txt $cache/icons/.scratchnstick-save-new.tmp
 touch -t 202001010000 $cache/icons/.scratchnstick-save-old.tmp
 icons '' >/dev/null
 expect "a list that makes no icon sweeps nothing" "$(ls -A $cache/icons | wc -l | tr -d ' ')" "7"
-rm $cache/icons/dot-FEEA3D-DBC503-[^a]*.png
-expect "a list that makes an icon sweeps out the stale ones and old temporary files" "$(icons '' | grep -c MISSING || true) $(ls -A $cache/icons | sed 's/[0-9a-z]\{6\}\.\(svg\|png\)$/*/' | tr '\n' ' ')" "0 .scratchnstick-save-new.tmp badge-heart-FEF49C-DBC503-1.72.0-* dot-FEEA3D-DBC503-* notes.txt "
+rm $cache/icons/dot-FEF49C-DBC503-[^a]*.png
+expect "a list that makes an icon sweeps out the stale ones and old temporary files" "$(icons '' | grep -c MISSING || true) $(ls -A $cache/icons | sed 's/[0-9a-z]\{6\}\.\(svg\|png\)$/*/' | tr '\n' ' ')" "0 .scratchnstick-save-new.tmp badge-heart-FEF49C-DBC503-1.72.0-* dot-FEF49C-DBC503-* notes.txt "
 
 # macOS 12 can't read the button icons and badges, so it gets no note icons:
 # results show dots, and the quick bundles have no icon button or picker, and
 # symbols for the actions. A Mac upgraded from 12 rebuilds them once.
 before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
-expect "macOS 12: a note with an icon shows its dot" "$(icons scratchnstick_macos_version=12 '' | grep Shopping)" "Shopping dot-FEEA3D-DBC503-*.png"
+expect "macOS 12: a note with an icon shows its dot" "$(icons scratchnstick_macos_version=12 '' | grep Shopping)" "Shopping dot-FEF49C-DBC503-*.png"
 expect "macOS 12: every quick bundle rebuilt once, without the icon button, the picker or any button icon" "$([[ $(mtime shopping) != $before_shopping && $(mtime cafe) != $before_cafe ]] && print rewritten) $(grep -c -E '"id": "(icon|iconpicker)"|icons/lucide/' $(ui shopping) || true) $(grep -c '"src": "eye"\|"src": "pencil"' $(ui shopping))" "rewritten 0 1"
 before_shopping=$(mtime shopping)
 icons scratchnstick_macos_version=12 '' >/dev/null

@@ -7,8 +7,8 @@
 //   window.js toggle <id> <form> <text>     ⌘E or the Edit / View button
 //   window.js edit <id> <form> <text>       ↩ in View: to Edit
 //   window.js view <id> <form> <text>       ⌘↩ in Edit: saves, to View
-//   window.js colour <id> <form> <colour>   a colour in the colour picker, or
-//                                           ⌘1 to ⌘6
+//   window.js colour <id> <form> <slot>     a colour in the colour picker, or
+//                                           ⌘1 to ⌘6: its slot, 1 to 6
 //   window.js icon <id> <form> <icon>       an icon, or "none", in the icon
 //                                           picker
 //   window.js fontsize <id> <form> <size>   a size in the Font size menu, or
@@ -189,7 +189,8 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
   return JSON.stringify({ update: { ids } });
 }
 
-// Gives the note the palette colour named `name`: records it in the note's
+// Gives the note the colour in the palette's slot `slot` (1 to 6, of the
+// palette in the window's context): records it in the note's
 // sidecar (which works for a new note that isn't saved yet) and in the
 // window's context, so what the window's scripts give it later matches, and
 // prints the replace action for the top row's customise group, whose dot
@@ -199,14 +200,15 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
 // the action that ran this (see noteColourAction in lib.js), but its page
 // covers it, so in View the page is reloaded with the new tint too. Does
 // nothing without a state of the window's form, as for switchMode.
-function setColour(store, workflowFolder, context, id, form, name) {
-  if (!notePaletteColour(name)) throw new Error(`Unknown colour: ${name}`);
+function setColour(store, workflowFolder, context, id, form, slot) {
+  const colour = notePaletteColour(context.palette || noteDefaultPalette(), slot);
+  if (!colour) throw new Error(`Unknown colour: ${slot}`);
   const state = readNoteState(id);
   if (!state || state.form !== form) return;
-  store.updateMeta(id, { colour: name });
-  updateNoteContext(id, form, { colour: name });
+  store.updateMeta(id, { colour: colour.slot });
+  updateNoteContext(id, form, { colour: colour.slot });
   const mode = state.mode === "view" ? "view" : "edit";
-  const options = noteWindowOptions(Object.assign(context, { colour: name }), { workflowFolder, id, form, mode });
+  const options = noteWindowOptions(Object.assign(context, { colour: colour.slot }), { workflowFolder, id, form, mode });
   const customise = noteWindowPart(options, "customise");
   const colourpicker = findNoteComponent(noteWindowPart(options, "content"), "colourpicker");
   closeNotePickerState(id);

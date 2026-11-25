@@ -106,7 +106,7 @@ print -rn -- $'Vars: {var:x} and {const:y}\n' > "$notes/vars.md"
 bundle=$(open_note quick meeting)
 expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" "$cache/quick/meeting.alfredui"
 ui=$bundle/ui.json
-expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button menuanchor:view customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
+expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * colourmark-6:view colour-6:button menuanchor:view customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
 expect "quick: the root and content are stacks filling the window" "$(json $ui 'd.window.root.layout + " " + d.window.root.components[0].layout + " " + d.window.root.components[0].constraints.stretch')" "stack stack both"
 expect "quick: the colour and icon at the top left, the actions at the top right" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":5,"left":12} topright {"top":5,"right":42}'
 expect "quick: the web view shows view.html, from opacity 0, links in the browser" "$(json $ui '['$web'.src, '$web'.opacity, '$web'.openlinksexternally].join(" ")')" "view.html 0 true"
@@ -125,7 +125,8 @@ expect "actions run window.js by its absolute path" "$(json $ui 'd.window.root.e
 expect "launched's args are strings" "$(json $ui 'd.window.root.events[0].action.args.join(" ")')" "launched meeting quick view"
 expect "no template directives are left" "$(grep -c '"@' $ui || true)" "0"
 expect "quick: no app icon, and every file it names exists" "$(json $ui '"iconpath" in d') $(missing_files $ui)" "false "
-expect "context: notes folder, own and default font sizes, colour, icon, the button icons' appearance, note icons" "$(json $bundle/context.json '[d.folder, d.ownFontSize, d.defaultFontSize, d.colour, d.icon, d.appearance, d.icons].join(" ")')" "$notes  13 yellow  light true"
+expect "context: notes folder, own and default font sizes, colour's slot, icon, the button icons' appearance, note icons" "$(json $bundle/context.json '[d.folder, d.ownFontSize, d.defaultFontSize, d.colour, d.icon, d.appearance, d.icons].join(" ")')" "$notes  13 1  light true"
+expect_exact "context: the palette, from User Configuration" "$(json $bundle/context.json 'd.palette.map(c => [c.slot, c.label, c.tint, c.control].join(" ")).join(", ")')" "1 Yellow #FEF49C #DBC503, 2 Blue #ADF4FF #24D0E9, 3 Green #B2FFA1 #51BB51, 4 Pink #FFC7C7 #F87F7F, 5 Purple #B6CAFF #7D9BEB, 6 Grey #EEEEEE #A8A8A8"
 
 # The page.
 html=$bundle/view.html
@@ -143,7 +144,7 @@ note_mode meeting edit
 bundle=$(open_note font_size=17 stick meeting)
 expect "sticky: the bundle is in the cache's windows folder" "$bundle" "$cache/windows/meeting.alfredui"
 ui=$bundle/ui.json
-expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * colourmark-grey:view colour-grey:button menuanchor:view collapsedtitle:label titlestrip:view titlestripheight:view customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button windowbuttons:view close:button menubutton:view menu:button"
+expect "sticky: the same layout, without Stick" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * colourmark-6:view colour-6:button menuanchor:view collapsedtitle:label titlestrip:view titlestripheight:view customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button windowbuttons:view close:button menubutton:view menu:button"
 expect "sticky: borderless, with rounded corners" "$(json $ui '[d.window.borderless, d.window.cornerradius].join(" ")')" "true 10"
 expect "sticky: the close button at the top left, then the colour and icon, level with the actions" "$(json $ui '['$windowbuttons', '$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")') $(json $ui '('$windowbuttons').components.map(b => b.id).join(",")')" 'topleft {"top":5,"left":9} topleft {"top":5,"left":44} topright {"top":5,"right":42} close'
 expect_exact "sticky: the close button shows the close icon and closes the window" "$(json $ui '['$image'('$closebtn'), '$closebtn'.tooltip, '$closebtn'.accessibility.label, JSON.stringify('$closebtn'.events)].join(" | ")')" "icons/lucide/close-light.svg 15x15 | Close (⌘W) | Close | "'[{"triggers":"actioned","action":{"type":"json","src":{"finish":{}}}}]'
@@ -239,7 +240,7 @@ expect "collapse: in the state, the sidecar and the context, with the default he
 expect "collapsed: the Edit / View switch does nothing" "$(window_js toggle groceries sticky "") $(json $cache/state/groceries.json d.mode)" " view"
 expect "collapsed: picker.sh opens no drop-down" "$(env alfred_workflow_cache=$cache "$scripts/picker.sh" toggle groceries sticky colour) $([[ -e $cache/state/groceries.picker ]] && print open || print closed)" " closed"
 expect "collapsed: Esc still closes the window" "$(env alfred_workflow_cache=$cache "$scripts/picker.sh" escape groceries sticky)" '{"finish":{}}'
-expect "collapsed: a colour change gives a hidden customise group" "$(window_js colour groceries sticky blue | json - 'd.replace.ids.customise.hidden')" "true"
+expect "collapsed: a colour change gives a hidden customise group" "$(window_js colour groceries sticky 2 | json - 'd.replace.ids.customise.hidden')" "true"
 expect_exact "collapsed: launched gives it the collapsed height" "$(window_js launched groceries sticky view)" '{"window":{"resize":{"height":32}}}'
 expect "collapsed: launched keeps it collapsed in the state" "$(json $cache/state/groceries.json d.collapsed)" "true"
 expect "reopened sticky: collapsed, the note and groups hidden, the title shown" "$(json "$(open_note stick groceries)/ui.json" '[('$content').hidden, ('$customise').hidden, ('$actions').hidden, ('$collapsedtitle').hidden, Boolean(('$titlestrip').hidden)].join(" ")')" "true true true false false"
@@ -462,46 +463,59 @@ expect "quick: the colour button runs picker.sh toggle colour" "$(json $ui '[('$
 expect "the colour picker starts hidden, after the catcher and the icon picker, in the content stack" "$(json $ui '[('$colourpickerv').hidden, d.window.root.components[0].components.map(c => c.id).join(",")].join(" ")')" "true page,editor,pickercatcher,iconpicker,colourpicker"
 expect "the colour picker: a box of one row, 8 pt in and 34 pt down, with its shadow around it" "$(json $ui '[JSON.stringify(('$colourpickerv').constraints), ('$colourpickerv').components.map(c => c.id).join(","), JSON.stringify(('$colourpickerbox').constraints), ('$colourpickerbox').components.length].join(" ")')" '{"position":"topleft","insets":{"top":26,"left":0},"size":{"width":188,"height":53}} colourpickershadow,colourpickerbox {"position":"topleft","insets":{"top":8,"left":8},"size":{"width":172,"height":37}} 1'
 expect "the colour picker's shadow is an image its size, which exists" "$(json $ui 'JSON.stringify(('$colourpickerv').components[0].image.size) + " " + ('$colourpickerv').components[0].image.src') $(sips -g pixelWidth -g pixelHeight $workflow/icons/shadow-colour-picker.png | awk '/pixel/ {printf "%s ", $2}')" "{\"width\":188,\"height\":53} $workflow/icons/shadow-colour-picker.png 376 106 "
-expect_exact "quick: the colour picker's swatches, borderless, the note's colour marked, each running window.js colour" "$(json $ui $colours)" $'colour-yellow | unemphasizedSelectedContentBackgroundColor | false | symbol circle.fill 14 | #DBC503 | Yellow (⌘1) | Yellow | colour palette quick yellow\ncolour-blue | - | false | symbol circle.fill 14 | #24D0E9 | Blue (⌘2) | Blue | colour palette quick blue\ncolour-green | - | false | symbol circle.fill 14 | #51BB51 | Green (⌘3) | Green | colour palette quick green\ncolour-pink | - | false | symbol circle.fill 14 | #F87F7F | Pink (⌘4) | Pink | colour palette quick pink\ncolour-purple | - | false | symbol circle.fill 14 | #7D9BEB | Purple (⌘5) | Purple | colour palette quick purple\ncolour-grey | - | false | symbol circle.fill 14 | #A8A8A8 | Grey (⌘6) | Grey | colour palette quick grey'
+expect_exact "quick: the colour picker's swatches, borderless, the note's colour marked, each running window.js colour" "$(json $ui $colours)" $'colour-1 | unemphasizedSelectedContentBackgroundColor | false | symbol circle.fill 14 | #DBC503 | Yellow (⌘1) | Yellow | colour palette quick 1\ncolour-2 | - | false | symbol circle.fill 14 | #24D0E9 | Blue (⌘2) | Blue | colour palette quick 2\ncolour-3 | - | false | symbol circle.fill 14 | #51BB51 | Green (⌘3) | Green | colour palette quick 3\ncolour-4 | - | false | symbol circle.fill 14 | #F87F7F | Pink (⌘4) | Pink | colour palette quick 4\ncolour-5 | - | false | symbol circle.fill 14 | #7D9BEB | Purple (⌘5) | Purple | colour palette quick 5\ncolour-6 | - | false | symbol circle.fill 14 | #A8A8A8 | Grey (⌘6) | Grey | colour palette quick 6'
 expect "the colour picker: each swatch and its mark 25 pt, the mark rounded" "$(json $ui '[...new Set(('$colourpickerbox').components.flatMap(r => r.components).map(m => [JSON.stringify(m.constraints.size), JSON.stringify(m.components[0].constraints.size), m.cornerradius].join(" ")))].join(", ")')" '{"width":25,"height":25} {"width":25,"height":25} 5'
-expect "quick: ⌘2 runs window.js colour blue" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⌘2").action.args.join(" ")')" "colour palette quick blue"
+expect "quick: ⌘2 runs window.js colour 2" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⌘2").action.args.join(" ")')" "colour palette quick 2"
 ui=$(open_note stick palette)/ui.json
-expect_exact "sticky: a colour's button updates the tint, then runs window.js" "$(json $ui $colours | sed -n 4p)" "colour-pink | - | false | symbol circle.fill 14 | #F87F7F | Pink (⌘4) | Pink | #FFC7C7 | colour palette sticky pink"
-expect "sticky: ⌘6 updates the tint, then runs window.js" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⌘6").action.map(a => a.type === "json" ? a.src.update.ids.note.background : a.args.join(" ")).join(" | ")')" "#EEEEEE | colour palette sticky grey"
-expect "default_colour sets a note's colour when it has none" "$(json "$(open_note default_colour=purple stick palette)/ui.json" 'd.window.root.background') $(json $cache/windows/palette.alfredui/context.json d.colour) $(page_note $cache/windows/palette.alfredui | json - d.NOTE_TINT)" "#B6CAFF purple #B6CAFF"
-expect "an unknown default_colour is yellow" "$(json "$(open_note default_colour=orange stick palette)/ui.json" 'd.window.root.background')" "#FEF49C"
-print -r -- '{"colour":"green"}' > $notes/.scratchnstick/palette.json
-expect "a note's own colour wins over default_colour" "$(json "$(open_note default_colour=purple stick palette)/ui.json" 'd.window.root.background')" "#B2FFA1"
+expect_exact "sticky: a colour's button updates the tint, then runs window.js" "$(json $ui $colours | sed -n 4p)" "colour-4 | - | false | symbol circle.fill 14 | #F87F7F | Pink (⌘4) | Pink | #FFC7C7 | colour palette sticky 4"
+expect "sticky: ⌘6 updates the tint, then runs window.js" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⌘6").action.map(a => a.type === "json" ? a.src.update.ids.note.background : a.args.join(" ")).join(" | ")')" "#EEEEEE | colour palette sticky 6"
+expect "default_colour sets a note's colour when it has none" "$(json "$(open_note default_colour=5 stick palette)/ui.json" 'd.window.root.background') $(json $cache/windows/palette.alfredui/context.json d.colour) $(page_note $cache/windows/palette.alfredui | json - d.NOTE_TINT)" "#B6CAFF 5 #B6CAFF"
+expect "an unknown default_colour is slot 1 (yellow)" "$(json "$(open_note default_colour=orange stick palette)/ui.json" 'd.window.root.background')" "#FEF49C"
+print -r -- '{"colour":3}' > $notes/.scratchnstick/palette.json
+expect "a note's own colour wins over default_colour" "$(json "$(open_note default_colour=5 stick palette)/ui.json" 'd.window.root.background')" "#B2FFA1"
 print -r -- '{"colour":"orange"}' > $notes/.scratchnstick/palette.json
-expect "a note's unknown colour gets default_colour" "$(json "$(open_note default_colour=pink stick palette)/ui.json" 'd.window.root.background')" "#FFC7C7"
+expect "a note's unknown colour gets default_colour" "$(json "$(open_note default_colour=4 stick palette)/ui.json" 'd.window.root.background')" "#FFC7C7"
 rm $notes/.scratchnstick/palette.json
 
 bundle=$(open_note stick palette)
-expect "colour with no state: nothing, and nothing recorded" "$(window_js colour palette sticky blue) $([[ -e $notes/.scratchnstick/palette.json ]] && json $notes/.scratchnstick/palette.json 'd.colour || "none"' || print none)" " none"
+expect "colour with no state: nothing, and nothing recorded" "$(window_js colour palette sticky 2) $([[ -e $notes/.scratchnstick/palette.json ]] && json $notes/.scratchnstick/palette.json 'd.colour || "none"' || print none)" " none"
 window_js launched palette sticky view
 picker toggle palette sticky colour >/dev/null
-action=$(window_js colour palette sticky blue)
-expect "colour: recorded in the sidecar and the window's context" "$(json $notes/.scratchnstick/palette.json d.colour) $(json $bundle/context.json d.colour)" "blue blue"
+action=$(window_js colour palette sticky 2)
+expect "colour: recorded in the sidecar and the window's context" "$(json $notes/.scratchnstick/palette.json d.colour) $(json $bundle/context.json d.colour)" "2 2"
 expect "colour: replaces the customise group and the colour picker, leaving the actions (and the mode) alone" "$(print -r -- $action | json - 'Object.keys(d.replace.ids).join(" ")')" "customise colourpicker"
-expect "colour: the swatch shows the new colour, and the picker marks it, hidden" "$(print -r -- $action | json - '('$colourbtn').contenttintcolour + " " + d.replace.ids.colourpicker.hidden') $(print -r -- $action | json - $colours | grep '| unemphasizedSelectedContentBackgroundColor |' | cut -d'|' -f1)" "#24D0E9 true colour-blue "
+expect "colour: the swatch shows the new colour, and the picker marks it, hidden" "$(print -r -- $action | json - '('$colourbtn').contenttintcolour + " " + d.replace.ids.colourpicker.hidden') $(print -r -- $action | json - $colours | grep '| unemphasizedSelectedContentBackgroundColor |' | cut -d'|' -f1)" "#24D0E9 true colour-2 "
 expect "colour: closes the open picker" "$(print -r -- $action | json - '[d.update.ids.iconpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/palette.picker ]] && print open || print closed)" "true true closed"
 expect "colour, sticky in View: reloads the page with the new tint" "$(print -r -- $action | json - 'd.update.ids.web.src') $(page_note $bundle | json - d.NOTE_TINT)" "file://$bundle/view.html?v=* #ADF4FF"
 window_js toggle palette sticky "" >/dev/null
-expect "colour, sticky in Edit: no reload" "$(window_js colour palette sticky green | json - 'String(d.update.ids.web)')" "undefined"
+expect "colour, sticky in Edit: no reload" "$(window_js colour palette sticky 3 | json - 'String(d.update.ids.web)')" "undefined"
 window_js toggle palette sticky "Palette" >/dev/null
 expect "the switch to View gives the page the new tint" "$(page_note $bundle | json - d.NOTE_TINT)" "#B2FFA1"
 expect "the note's next window has its colour" "$(json "$(open_note quick palette)/ui.json" '('$colourbtn').contenttintcolour')" "#51BB51"
-expect "colour: an unknown colour is an error" "$(window_js colour palette sticky orange 2>&1 >/dev/null | grep -c 'Unknown colour')" "1"
+expect "colour: an unknown colour is an error" "$(window_js colour palette sticky 7 2>&1 >/dev/null | grep -c 'Unknown colour')" "1"
 window_js quit palette sticky ""
 window_js launched palette quick view
-expect "colour, quick in View: no reload (the page has no tint)" "$(window_js colour palette quick blue | json - 'String(d.update.ids.web)')" "undefined"
+expect "colour, quick in View: no reload (the page has no tint)" "$(window_js colour palette quick 2 | json - 'String(d.update.ids.web)')" "undefined"
 window_js quit palette quick ""
 new=$(basename "$(open_note new=1 quick '')" .alfredui)
 window_js launched "$new" quick edit
-window_js colour "$new" quick pink >/dev/null
-expect "colour on a new note before it's saved: recorded" "$(json $notes/.scratchnstick/$new.json d.colour)" "pink"
+window_js colour "$new" quick 4 >/dev/null
+expect "colour on a new note before it's saved: recorded" "$(json $notes/.scratchnstick/$new.json d.colour)" "4"
 window_js quit "$new" quick ""
 expect "a new note closed blank: its sidecar goes too" "$(ls -A $notes/.scratchnstick | grep -c $new || true)" "0"
+
+# The palette from User Configuration (colour_1 to colour_6) reaches the
+# window through its context, which its scripts use, as they don't get User
+# Configuration.
+print -rn -- $'Custom\n' > "$notes/custom.md"
+bundle=$(open_note colour_2='Sea {var:x} #AADDCC' colour_3='Moss #B2FFA1 #336633' default_colour=3 stick custom)
+expect_exact "a custom palette: the window's tint and swatch, and the picker's swatches and names, escaped" "$(json $bundle/ui.json 'd.window.root.background + " " + ('$colourbtn').contenttintcolour') |$(json $bundle/ui.json $colours | sed -n 2,3p | cut -d'|' -f5,6 | tr '\n' '|')" "#B2FFA1 #336633 | #6BC7A8 | Sea {⁠var:x} (⌘2) | #336633 | Moss (⌘3) |"
+expect_exact "a custom palette: in the context" "$(json $bundle/context.json 'd.palette.slice(1, 3).map(c => [c.slot, c.label, c.tint, c.control].join(" ")).join(", ")')" "2 Sea {var:x} #AADDCC #6BC7A8, 3 Moss #B2FFA1 #336633"
+window_js launched custom sticky edit
+action=$(window_js colour custom sticky 2)
+expect "a custom palette: window.js colour takes the slot's colours from the window's context" "$(print -r -- $action | json - '('$colourbtn').contenttintcolour') $(json $notes/.scratchnstick/custom.json d.colour)" "#6BC7A8 2"
+window_js quit custom sticky "Custom"
+expect "a palette that can't be read: open.js opens nothing" "$(open_note colour_4='Pink' stick custom) $(open_note colour_4='Pink' new=1 stick 'Some text')" " "
 
 # Font size.
 print -rn -- $'Sizes\n' > "$notes/sizes.md"
@@ -623,14 +637,14 @@ expect "icon: the window's actions make no badge (only open.js does, for the app
 expect "icon: the next sticky window's app icon is its badge in its colour, made in the cache" "$(json "$(open_note stick icons)/ui.json" d.iconpath)" "$cache/icons/badge-shopping-cart-FEF49C-DBC503-1.72.0-*.svg"
 expect "icon: the next window's icon button and picker show it" "$(json $bundle/ui.json ''$image'('$iconbtn')') $(json $bundle/ui.json $buttons | grep -c 'icon-shopping-cart | true')" "icons/lucide/shopping-cart-light.svg 18x18 1"
 expect "every file the sticky window names exists, its badge too" "$(missing_files $bundle/ui.json)" ""
-expect "colour: the customise group keeps the icon" "$(window_js colour icons sticky green | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 18x18"
+expect "colour: the customise group keeps the icon" "$(window_js colour icons sticky 3 | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 18x18"
 expect "colour: makes no badge in the new colour" "$(ls $cache/icons | grep -c 'badge-shopping-cart-B2FFA1' || true)" "0"
 expect "icon: an unknown icon is an error, and nothing changes" "$(window_js icon icons sticky rocket 2>&1 >/dev/null | grep -c 'Unknown icon') $(json $notes/.scratchnstick/icons.json d.icon)" "1 shopping-cart"
 # In View, as in Edit.
 window_js toggle icons sticky "Icons" >/dev/null
 expect_exact "toggle icon in View: shows it, leaving the page as it is" "$(picker toggle icons sticky icon)" "$OPEN_ICON"
 action=$(window_js icon icons sticky none)
-expect "icon none: removes the key, keeping the others" "$(json $notes/.scratchnstick/icons.json '[String(d.icon), "icon" in d, d.colour].join(" ")') $(json $bundle/context.json 'String(d.icon)')" "undefined false green null"
+expect "icon none: removes the key, keeping the others" "$(json $notes/.scratchnstick/icons.json '[String(d.icon), "icon" in d, d.colour].join(" ")') $(json $bundle/context.json 'String(d.icon)')" "undefined false 3 null"
 expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/smile-plus-light.svg 18x18  true "
 picker toggle icons sticky colour >/dev/null
 expect "the Edit / View switch closes the open picker" "$(window_js toggle icons sticky "" | json - '[d.update.ids.iconpicker.hidden, d.update.ids.colourpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "true true true closed"
@@ -656,7 +670,7 @@ expect "a new note with an icon closed blank: its sidecar goes too" "$(ls -A $no
 print -r -- '{"icon":"heart"}' > $notes/.scratchnstick/icons.json
 bundle=$(open_note scratchnstick_macos_version=12 quick icons)
 ui=$bundle/ui.json
-expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * menuanchor:view customise:view colourbox:view colour:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
+expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * menuanchor:view customise:view colourbox:view colour:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
 expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect_exact "macOS 12: the actions and the Font size button are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b)), '$image'('$sizebtn')].join(", ")')" "symbol pencil,symbol note.text, symbol textformat.size"
 expect "macOS 12: the context says so, without the note's icon" "$(json $bundle/context.json '[d.icons, d.icon].join(" ")')" "false "
@@ -666,8 +680,8 @@ ui=$bundle/ui.json
 expect "macOS 12, sticky: Scratch'n'Stick's app icon, though the note has an icon" "$(json $ui d.iconpath)" "$workflow/ui/appicon.png"
 expect_exact "macOS 12, sticky: the close button is an SF Symbol" "$(json $ui ''$image'('$closebtn')')" "symbol xmark.circle.fill"
 window_js launched icons sticky view
-action=$(window_js colour icons sticky blue)
-expect "macOS 12: a colour change gives no icon button, and keeps the icon in the sidecar" "$(print -r -- $action | json - '('$customise').components.map(c => c.id).join(",")') $(json $notes/.scratchnstick/icons.json '[d.icon, d.colour].join(" ")')" "colourbox,fontsize heart blue"
+action=$(window_js colour icons sticky 2)
+expect "macOS 12: a colour change gives no icon button, and keeps the icon in the sidecar" "$(print -r -- $action | json - '('$customise').components.map(c => c.id).join(",")') $(json $notes/.scratchnstick/icons.json '[d.icon, d.colour].join(" ")')" "colourbox,fontsize heart 2"
 expect "macOS 12: switching to Edit gives the symbol" "$(window_js toggle icons sticky "" | json - '[d.update.ids.toggle.image.type, d.update.ids.toggle.image.src].join(" ")')" "symbol eye"
 expect_exact "macOS 12: picker.sh still opens the colour picker" "$(picker toggle icons sticky colour)" "$OPEN_COLOUR"
 window_js quit icons sticky $'Icons\n'

@@ -871,43 +871,175 @@ function isRegularFile(path) {
 const FONT_SIZE = { min: 11, max: 20, default: 13 };
 const WORD_JOINER = "⁠";
 
-// The palette: Stickies' colours, from its asset catalogue. Each colour has a
-// pale `tint` for a sticky note's background (always with dark text), a
-// stronger `spine` (Stickies' menu swatches) and a `control` colour, for the
-// window's colour swatches. A note's result icon is drawn from them: its dot
-// from the spine and control colours, its badge from the tint and control
-// colour (see noteDotFile and noteBadgeFile). In the colour picker's order,
-// which is also ⌘1 to ⌘6. A note stores its colour's name, so the colours can
-// be re-tuned without rewriting notes.
-const NOTE_PALETTE = [
-  { name: "yellow", label: "Yellow", tint: "#FEF49C", spine: "#FEEA3D", control: "#DBC503" },
-  { name: "blue", label: "Blue", tint: "#ADF4FF", spine: "#89F0FF", control: "#24D0E9" },
-  { name: "green", label: "Green", tint: "#B2FFA1", spine: "#83FE83", control: "#51BB51" },
-  { name: "pink", label: "Pink", tint: "#FFC7C7", spine: "#FFB2B2", control: "#F87F7F" },
-  { name: "purple", label: "Purple", tint: "#B6CAFF", spine: "#9BB6FE", control: "#7D9BEB" },
-  { name: "grey", label: "Grey", tint: "#EEEEEE", spine: "#DADADA", control: "#A8A8A8" },
+// The palette: six colours, in slots 1 to 6, in the colour picker's order,
+// which is also ⌘1 to ⌘6. Each colour is { slot, label, tint, control }: a
+// pale `tint` for a sticky note's background (always with dark text), and a
+// stronger `control` colour, for the window's colour swatches. A note's
+// result icon is drawn from both: its badge or dot is the tint, ringed in the
+// control colour (see noteBadgeFile and noteDotFile). A note stores its
+// colour's slot, so a slot's colours can change without rewriting notes.
+//
+// The slots are User Configuration's colour_1 to colour_6. Each is a name and
+// one or two hex colours, in any order (parseNotePaletteSlot): the tint, then
+// the control colour, worked out from the tint if it's left out
+// (noteControlColour). A slot without a name is "Colour <slot>"; an empty one
+// takes its default. These defaults are Stickies' colours, from its asset
+// catalogue, and are the fields' defaults in info.plist too (dev/test-list.sh
+// checks they agree).
+const NOTE_PALETTE_DEFAULTS = [
+  { label: "Yellow", tint: "#FEF49C", control: "#DBC503" },
+  { label: "Blue", tint: "#ADF4FF", control: "#24D0E9" },
+  { label: "Green", tint: "#B2FFA1", control: "#51BB51" },
+  { label: "Pink", tint: "#FFC7C7", control: "#F87F7F" },
+  { label: "Purple", tint: "#B6CAFF", control: "#7D9BEB" },
+  { label: "Grey", tint: "#EEEEEE", control: "#A8A8A8" },
 ];
-const DEFAULT_COLOUR = "yellow";
 
-// The palette, as copies of its colours: { name, label, tint, spine, control }.
-function notePalette() {
-  return NOTE_PALETTE.map((colour) => Object.assign({}, colour));
+// The slot of the default colour when the `default_colour` setting isn't one.
+const DEFAULT_COLOUR = 1;
+
+// The default palette, as copies of its colours.
+function noteDefaultPalette() {
+  return NOTE_PALETTE_DEFAULTS.map((colour, i) => Object.assign({ slot: i + 1 }, colour));
 }
 
-// The palette's colour named `name`, or null if there's none.
-function notePaletteColour(name) {
-  const colour = NOTE_PALETTE.find((c) => c.name === name);
+// The palette from User Configuration (colour_1 to colour_6), as copies of its
+// colours. Throws if a slot can't be read, with `paletteProblems` set to
+// notePaletteProblems'. Parsed once per process for the same settings.
+const notePalettes = new Map();
+
+function notePalette(variable = workflowVariable) {
+  const texts = NOTE_PALETTE_DEFAULTS.map((_, i) => variable(`colour_${i + 1}`) || "");
+  const key = JSON.stringify(texts);
+  if (!notePalettes.has(key)) notePalettes.set(key, readNotePalette(texts));
+  const { palette, problems } = notePalettes.get(key);
+  if (problems.length) {
+    const error = new Error(problems.map((p) => `${p.title}: ${p.message}`).join("; "));
+    error.paletteProblems = problems;
+    throw error;
+  }
+  return palette.map((colour) => Object.assign({}, colour));
+}
+
+// The slots of User Configuration's palette that can't be read, as
+// [{ slot, title, message }], or none.
+function notePaletteProblems(variable = workflowVariable) {
+  try {
+    notePalette(variable);
+    return [];
+  } catch (e) {
+    if (!e.paletteProblems) throw e;
+    return e.paletteProblems;
+  }
+}
+
+// The palette from the six slots' `texts`: { palette, problems }.
+function readNotePalette(texts) {
+  const palette = [];
+  const problems = [];
+  texts.forEach((text, i) => {
+    const slot = i + 1;
+    try {
+      palette.push(Object.assign({ slot }, text.trim() ? parseNotePaletteSlot(slot, text) : NOTE_PALETTE_DEFAULTS[i]));
+    } catch (e) {
+      problems.push({ slot, title: `Colour ${slot} isn't valid`, message: e.message });
+    }
+  });
+  return { palette, problems };
+}
+
+// A slot's colour, { label, tint, control }, from its setting's `text`: one or
+// two hex colours (#RRGGBB or #RGB; the # can be left out of six digits), the
+// tint and then the control colour, and any other words, which are its name.
+// Throws an error saying what's wrong.
+function parseNotePaletteSlot(slot, text) {
+  const hexes = [];
+  const words = [];
+  for (const word of text.trim().split(/[\s,]+/).filter(Boolean)) {
+    if (/^#?[0-9a-f]{6}$/i.test(word) || /^#[0-9a-f]{3}$/i.test(word)) hexes.push(normalHex(word));
+    else if (word.startsWith("#")) throw new Error(`“${word}” isn't a hex colour, like #FEF49C`);
+    else words.push(word);
+  }
+  if (hexes.length === 0) throw new Error("It needs a hex colour, like #FEF49C");
+  if (hexes.length > 2) throw new Error("It has more than two hex colours: give the note's colour, then optionally a stronger one for its dot and ring");
+  return {
+    label: words.join(" ") || `Colour ${slot}`,
+    tint: hexes[0],
+    control: hexes[1] || noteControlColour(hexes[0]),
+  };
+}
+
+// A hex colour as "#RRGGBB", in capitals.
+function normalHex(hex) {
+  const digits = hex.replace(/^#/, "").toUpperCase();
+  return `#${digits.length === 3 ? digits.replace(/./g, "$&$&") : digits}`;
+}
+
+// A control colour for the tint `tint` ("#RRGGBB"), for a slot that doesn't
+// give one: the tint's hue, twice as saturated and 10% darker, then darker
+// still until it has a contrast of at least 2:1 with white, so a swatch or
+// ring shows on a light background. Close to Stickies' own control colours,
+// though not the same: theirs follow no one rule.
+function noteControlColour(tint) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(tint.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const range = max - Math.min(r, g, b);
+  let hue = 0;
+  if (range) {
+    hue = max === r ? ((g - b) / range) % 6 : max === g ? (b - r) / range + 2 : (r - g) / range + 4;
+    hue = (hue * 60 + 360) % 360;
+  }
+  const saturation = Math.min(1, (max ? range / max : 0) * 2);
+  const fromHsv = (value) => {
+    const chroma = value * saturation;
+    const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+    const sector = Math.floor(hue / 60);
+    const [r1, g1, b1] = [[chroma, x, 0], [x, chroma, 0], [0, chroma, x], [0, x, chroma], [x, 0, chroma], [chroma, 0, x]][sector];
+    return [r1, g1, b1].map((c) => c + value - chroma);
+  };
+  const luminance = (rgb) => {
+    const [lr, lg, lb] = rgb.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+  };
+  let value = max * 0.9;
+  while (value > 0.3 && 1.05 / (luminance(fromHsv(value)) + 0.05) < 2) value -= 0.01;
+  return `#${fromHsv(value)
+    .map((c) => Math.round(c * 255).toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()}`;
+}
+
+// The colour in slot `slot` (a number, or its text) of `palette`, or null if
+// there's none.
+function notePaletteColour(palette, slot) {
+  const colour = palette.find((c) => String(c.slot) === String(slot));
   return colour ? Object.assign({}, colour) : null;
 }
 
-// The colour of a note with metadata `meta`: its own, or, if it has none or
-// one that isn't in the palette, the `default_colour` setting's, or yellow.
+// The colour of a note with metadata `meta`, from User Configuration's
+// palette: its own, or, if it has none or one that isn't a slot, the
+// `default_colour` setting's, or slot 1's.
 function noteColour(meta, variable = workflowVariable) {
-  return notePaletteColour(meta && meta.colour) || noteDefaultColour(variable);
+  return noteColourIn(notePalette(variable), meta, variable);
 }
 
-function noteDefaultColour(variable = workflowVariable) {
-  return notePaletteColour(variable("default_colour")) || notePaletteColour(DEFAULT_COLOUR);
+// The Script Filter results that stand in for the list when the palette in
+// User Configuration can't be read: one for each slot that's wrong, saying
+// what's wrong with it (notePaletteProblems), or none if it's fine.
+function notePaletteProblemItems(variable = workflowVariable) {
+  return notePaletteProblems(variable).map((problem) => ({
+    title: problem.title,
+    subtitle: `${problem.message}. Fix it in the workflow's Configuration.`,
+    valid: false,
+  }));
+}
+
+function noteColourIn(palette, meta, variable = workflowVariable) {
+  return notePaletteColour(palette, meta && meta.colour) || noteDefaultColour(palette, variable);
+}
+
+function noteDefaultColour(palette, variable = workflowVariable) {
+  return notePaletteColour(palette, variable("default_colour")) || notePaletteColour(palette, DEFAULT_COLOUR);
 }
 
 // The icons a note can have, from Lucide (its sources are in dev/lucide/), in
@@ -1033,7 +1165,7 @@ function noteButtonIconFile(name, appearance) {
 // colours it uses, for a badge the Lucide release, and a hash of the code that
 // draws it, so a change to any of them gets new files rather than stale ones:
 //   badge-<icon>-<tint>-<control>-<Lucide release>-<code>.svg
-//   dot-<spine>-<control>-<code>.png
+//   dot-<tint>-<control>-<code>.png
 // A process that makes a file then deletes the badges and dots whose names
 // aren't current (sweepNoteResultIcons). Nothing a window opens from names
 // one: quick views have no app icon, results name theirs afresh on every run,
@@ -1051,31 +1183,28 @@ const NOTE_DOT_STYLE = { size: 256, diameter: 168, ring: 12 };
 // absolute path, made first if it's missing.
 function noteResultIcon(workflowFolder, note, colour, variable = workflowVariable) {
   const icon = noteIcon(note.meta, variable);
-  return icon ? noteBadgeFile(workflowFolder, icon.name, colour.name, variable) : noteDotFile(colour.name, variable);
+  return icon ? noteBadgeFile(workflowFolder, icon.name, colour, variable) : noteDotFile(colour, variable);
 }
 
-// The badge of the note icon named `icon` in the palette colour named
-// `colour`, as an absolute path in the cache, made first if it's missing: an
-// SVG of the icon in dark text colour on a rounded square of the colour's
-// tint, ringed in its control colour. Made from the icon's light button icon,
-// whose file holds Lucide's elements as they are.
+// The badge of the note icon named `icon` in `colour` (a palette colour), as
+// an absolute path in the cache, made first if it's missing: an SVG of the
+// icon in dark text colour on a rounded square of the colour's tint, ringed
+// in its control colour. Made from the icon's light button icon, whose file
+// holds Lucide's elements as they are.
 function noteBadgeFile(workflowFolder, icon, colour, variable = workflowVariable) {
-  const c = notePaletteColour(colour);
-  if (!c || !noteIconByName(icon)) throw new Error(`No badge for ${icon} in ${colour}`);
+  if (!noteIconByName(icon)) throw new Error(`No badge for ${icon}`);
   return noteResultIconFile(
-    noteBadgeName(icon, c),
-    (path) => writeFileAtomically(path, noteBadgeSvg(workflowFolder, icon, c)),
+    noteBadgeName(icon, colour),
+    (path) => writeFileAtomically(path, noteBadgeSvg(workflowFolder, icon, colour)),
     variable,
   );
 }
 
-// The dot of the palette colour named `colour`, as an absolute path in the
-// cache, made first if it's missing: a PNG of a circle of the colour's spine
-// colour, ringed in its control colour. A PNG, as macOS 12 shows dots too.
+// The dot of `colour` (a palette colour), as an absolute path in the cache,
+// made first if it's missing: a PNG of a circle of the colour's tint, ringed
+// in its control colour. A PNG, as macOS 12 shows dots too.
 function noteDotFile(colour, variable = workflowVariable) {
-  const c = notePaletteColour(colour);
-  if (!c) throw new Error(`No dot for ${colour}`);
-  return noteResultIconFile(noteDotName(c), (path) => writeDataAtomically(path, noteDotPng(c)), variable);
+  return noteResultIconFile(noteDotName(colour), (path) => writeDataAtomically(path, noteDotPng(colour)), variable);
 }
 
 function noteBadgeName(icon, colour) {
@@ -1083,7 +1212,7 @@ function noteBadgeName(icon, colour) {
 }
 
 function noteDotName(colour) {
-  return `dot-${hexName(colour.spine)}-${hexName(colour.control)}-${noteDrawingHash("dot")}.png`;
+  return `dot-${hexName(colour.tint)}-${hexName(colour.control)}-${noteDrawingHash("dot")}.png`;
 }
 
 function hexName(hex) {
@@ -1118,7 +1247,8 @@ const noteResultIconsSeen = new Map();
 let noteResultIconsSwept = false;
 
 // The result icon named `name` in the cache, made with `make(path)` if it's
-// missing; a process that makes one then sweeps the folder once.
+// missing; a process that makes one then sweeps the folder once, keeping the
+// result icons of User Configuration's palette.
 function noteResultIconFile(name, make, variable) {
   if (noteResultIconsSeen.has(name)) return noteResultIconsSeen.get(name);
   const folder = noteResultIconsFolder(variable);
@@ -1128,7 +1258,7 @@ function noteResultIconFile(name, make, variable) {
     make(path);
     if (!noteResultIconsSwept) {
       noteResultIconsSwept = true;
-      sweepNoteResultIcons(folder);
+      sweepNoteResultIcons(folder, notePalette(variable));
     }
   }
   noteResultIconsSeen.set(name, path);
@@ -1136,11 +1266,12 @@ function noteResultIconFile(name, make, variable) {
 }
 
 // Deletes the badges and dots in `folder` whose names aren't current (made
-// from other colours, another Lucide release or other drawing code), and
-// temporary files that a stopped process left more than a minute ago.
-function sweepNoteResultIcons(folder) {
+// from colours that aren't in `palette`, another Lucide release or other
+// drawing code), and temporary files that a stopped process left more than a
+// minute ago.
+function sweepNoteResultIcons(folder, palette) {
   const current = new Set(
-    notePalette().flatMap((colour) =>
+    palette.flatMap((colour) =>
       NOTE_ICONS.map((icon) => noteBadgeName(icon.name, colour)).concat(noteDotName(colour)),
     ),
   );
@@ -1162,7 +1293,7 @@ function noteBadgeSvg(workflowFolder, icon, colour) {
   const iconSize = size - 2 * place.inset;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
-    `<!-- Lucide's ${icon} (see the workflow's icons/lucide/LICENSE), on Scratch'n'Stick's ${colour.name} -->`,
+    `<!-- Lucide's ${icon} (see the workflow's icons/lucide/LICENSE), on Scratch'n'Stick's ${colour.tint} -->`,
     `<rect x="${square.inset}" y="${square.inset}" width="${side}" height="${side}" rx="${square.radius}" fill="${colour.tint}" stroke="${colour.control}" stroke-width="${square.ring}"/>`,
     `<svg x="${place.inset}" y="${place.inset}" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" ${LUCIDE_STROKE} stroke="${text}">${noteButtonIconElements(workflowFolder, icon)}</svg>`,
     `</svg>`,
@@ -1197,7 +1328,7 @@ function noteDotPng(colour) {
       const dot = $.NSBezierPath.bezierPathWithOvalInRect(
         $.NSMakeRect(inset, inset, size - 2 * inset, size - 2 * inset),
       );
-      hexColour(colour.spine).setFill;
+      hexColour(colour.tint).setFill;
       dot.fill;
       hexColour(colour.control).setStroke;
       dot.lineWidth = ring;
@@ -1439,7 +1570,7 @@ const NOTE_WINDOW_LAYOUT = {
 // buttons it has.
 const NOTE_DROPDOWNS = {
   icon: { layout: "iconPicker", count: () => NOTE_ICONS.length + 1 },
-  colour: { layout: "colourPicker", count: () => NOTE_PALETTE.length },
+  colour: { layout: "colourPicker", count: () => NOTE_PALETTE_DEFAULTS.length },
 };
 
 // The drop-downs' names: "icon" and "colour".
@@ -1478,7 +1609,8 @@ function noteDropdownShadowFile(name) {
 // The values of the templates' tokens for a window, given:
 //   workflowFolder, id, form, mode, text, ownFontSize (the note's own font
 //   size, or null for none; see noteOwnFontSize), defaultFontSize (the
-//   `font_size` setting's), colour (a palette name), icon (an icon's name, or
+//   `font_size` setting's), palette (the palette's colours, as notePalette
+//   gives them), colour (the slot of the note's colour), icon (an icon's name, or
 //   null for none), appearance (the appearance the window's button icons are
 //   drawn for, "light" or "dark": always "light" when sticky, as a sticky
 //   note's root view is always in light appearance), icons (whether the
@@ -1496,6 +1628,7 @@ function noteWindowTokens(
     text = "",
     ownFontSize = null,
     defaultFontSize = FONT_SIZE.default,
+    palette = noteDefaultPalette(),
     colour = DEFAULT_COLOUR,
     icon = null,
     appearance = "light",
@@ -1503,7 +1636,7 @@ function noteWindowTokens(
   },
   variable = workflowVariable,
 ) {
-  const current = notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR);
+  const current = notePaletteColour(palette, colour) || notePaletteColour(palette, DEFAULT_COLOUR);
   const currentIcon = icons ? noteIconByName(icon) : null;
   const note = escapeForAlfredUi(id);
   const layout = NOTE_WINDOW_LAYOUT;
@@ -1525,7 +1658,7 @@ function noteWindowTokens(
       insets: { top: 0, left: 0 },
       size: { width: layout.button, height: layout.button - 2 * layout.swatchRaise },
     },
-    "@colourShortcuts": NOTE_PALETTE.map((c, i) => ({
+    "@colourShortcuts": palette.map((c, i) => ({
       shortcut: `⌘${i + 1}`,
       action: noteColourAction({ workflowFolder, note, form, colour: c }),
     })),
@@ -1575,7 +1708,7 @@ function noteWindowTokens(
         workflowFolder,
         form,
         name: "colour",
-        buttons: noteColourPickerButtons({ workflowFolder, note, form, colour: current }),
+        buttons: noteColourPickerButtons({ workflowFolder, note, form, palette, colour: current }),
       }),
     ],
   };
@@ -1617,7 +1750,7 @@ function noteButtonIconImage(workflowFolder, name, appearance, size, icons = tru
 // of its note's icon (a note icon, or null) in its colour (a palette colour),
 // or the Scratch'n'Stick icon for a note without an icon.
 function noteAppIconPath({ workflowFolder, icon, colour }, variable = workflowVariable) {
-  return icon ? noteBadgeFile(workflowFolder, icon.name, colour.name, variable) : `${workflowFolder}/ui/appicon.png`;
+  return icon ? noteBadgeFile(workflowFolder, icon.name, colour, variable) : `${workflowFolder}/ui/appicon.png`;
 }
 
 // A drop-down (see NOTE_WINDOW_LAYOUT): a view, `<name>picker`, hidden until
@@ -1724,32 +1857,32 @@ function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance })
   }));
 }
 
-// The colour picker's buttons: the palette, in order, each as its swatch (the
-// circle.fill symbol in its control colour), with ⌘1 to ⌘6 in its tooltip.
-// Each is in a view of its own size, `colourmark-<name>`, which for the
+// The colour picker's buttons: `palette`, in order, each as its swatch (the
+// circle.fill symbol in its control colour), with its name and ⌘1 to ⌘6 in
+// its tooltip. Each is in a view of its own size, `colourmark-<slot>`, which for the
 // note's colour has a rounded background, so it looks like the icon picker's
 // bezel: a bordered button would draw its symbol in the label colour rather
 // than the swatch's. Each runs the colour's action (noteColourAction), as its
 // shortcut does.
-function noteColourPickerButtons({ workflowFolder, note, form, colour }) {
+function noteColourPickerButtons({ workflowFolder, note, form, palette, colour }) {
   const { image, button: size, mark } = NOTE_WINDOW_LAYOUT.colourPicker;
-  return NOTE_PALETTE.map((c, i) => ({
-    id: `colourmark-${c.name}`,
+  return palette.map((c, i) => ({
+    id: `colourmark-${c.slot}`,
     type: "view",
     layout: "stack",
-    background: c.name === colour.name ? mark.background : null,
+    background: c.slot === colour.slot ? mark.background : null,
     cornerradius: mark.radius,
     components: [
       {
-        id: `colour-${c.name}`,
+        id: `colour-${c.slot}`,
         type: "button",
         text: "",
         bordered: false,
         image: { type: "symbol", src: "circle.fill" },
         font: { size: image },
         contenttintcolour: c.control,
-        tooltip: `${c.label} (⌘${i + 1})`,
-        accessibility: { label: c.label },
+        tooltip: `${escapeForAlfredUi(c.label)} (⌘${i + 1})`,
+        accessibility: { label: escapeForAlfredUi(c.label) },
         constraints: { size: { width: size, height: size } },
         events: [{ triggers: "actioned", action: noteColourAction({ workflowFolder, note, form, colour: c }) }],
       },
@@ -1766,7 +1899,7 @@ function noteColourAction({ workflowFolder, note, form, colour }) {
   const script = {
     type: "script",
     src: `${workflowFolder}/scripts/window.js`,
-    args: ["colour", note, form, colour.name],
+    args: ["colour", note, form, String(colour.slot)],
   };
   if (form !== "sticky") return script;
   return [{ type: "json", src: { update: { ids: { note: { background: colour.tint } } } } }, script];
@@ -1944,7 +2077,8 @@ function writeNoteWindow(
   const meta = note ? note.meta : {};
   const ownFontSize = noteOwnFontSize(meta);
   const defaultFontSize = noteDefaultFontSize(variable);
-  const colour = noteColour(meta, variable).name;
+  const palette = notePalette(variable);
+  const colour = noteColourIn(palette, meta, variable).slot;
   const icons = noteIconsSupported(variable);
   const iconOf = noteIcon(meta, variable);
   const icon = iconOf ? iconOf.name : null;
@@ -1959,6 +2093,7 @@ function writeNoteWindow(
       text,
       ownFontSize,
       defaultFontSize,
+      palette,
       colour,
       icon,
       appearance,
@@ -1969,7 +2104,7 @@ function writeNoteWindow(
   );
   const script = notePageScript(
     mode === "view" ? text : null,
-    colour,
+    noteContextColour({ palette, colour }).tint,
     noteShownFontSize({ ownFontSize, defaultFontSize }),
   );
   const page = notePageHtml({ workflowFolder, form, noteVersion: textHash(script) }, variable);
@@ -1977,6 +2112,7 @@ function writeNoteWindow(
     folder: store.folder,
     ownFontSize,
     defaultFontSize,
+    palette,
     colour,
     icon,
     appearance,
@@ -1993,6 +2129,7 @@ function noteWindowOptions(context, { workflowFolder, id, form, mode }) {
   const {
     ownFontSize = null,
     defaultFontSize = FONT_SIZE.default,
+    palette = noteDefaultPalette(),
     colour,
     icon = null,
     appearance = "light",
@@ -2006,6 +2143,7 @@ function noteWindowOptions(context, { workflowFolder, id, form, mode }) {
     mode,
     ownFontSize,
     defaultFontSize,
+    palette,
     colour,
     icon,
     appearance,
@@ -2014,15 +2152,23 @@ function noteWindowOptions(context, { workflowFolder, id, form, mode }) {
   };
 }
 
+// The colour of a window's note, from its bundle's `context` (its palette
+// and its colour's slot): a palette colour.
+function noteContextColour(context) {
+  const palette = context.palette || noteDefaultPalette();
+  return notePaletteColour(palette, context.colour) || notePaletteColour(palette, DEFAULT_COLOUR);
+}
+
 // Writes a note's window bundle and returns its path. Its files:
 //   ui.json        the window (`ui`)
 //   context.json   what the window's scripts need that Alfred doesn't give
 //                  them (the UI's scripts only get the alfred_* variables, not
 //                  User Configuration): { folder, ownFontSize,
-//                  defaultFontSize, colour, icon, appearance, icons,
+//                  defaultFontSize, palette, colour, icon, appearance, icons,
 //                  collapsed, textHash }, the notes folder, the window's look
 //                  (the note's own font size or null, the `font_size`
-//                  setting's, the note's colour's and icon's names, the
+//                  setting's, the palette from User Configuration, the slot
+//                  of the note's colour, its icon's name, the
 //                  appearance its button icons are drawn for, whether it can
 //                  show note icons, see noteWindowTokens, and, for a
 //                  collapsed sticky window, the height it expands to, or
@@ -2097,7 +2243,7 @@ const NOTE_WINDOW_SOURCES = [
 //
 // A bundle's fingerprint is a hash of everything it's built from: the note's
 // text, its mode, colour, icon and font size (from its sidecar and the
-// settings), the `font_size` setting (the menu's Default), the appearance of the quick view's button icons (from Alfred's theme;
+// settings), the `font_size` setting (the menu's Default), the palette, the appearance of the quick view's button icons (from Alfred's theme;
 // see noteQuickAppearance), whether the Mac can show note icons
 // (noteIconsSupported), the notes and workflow folders, and the modification
 // times of NOTE_WINDOW_SOURCES. The fingerprints are kept in quick/.index.json,
@@ -2126,10 +2272,12 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
     return date ? date.getTime() : 0;
   });
   const appearance = noteQuickAppearance(variable);
+  const palette = notePalette(variable);
   const base = JSON.stringify([
     workflowFolder,
     store.folder,
     noteDefaultFontSize(variable),
+    palette,
     appearance,
     noteIconsSupported(variable),
     sources,
@@ -2143,7 +2291,7 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
       [
         base,
         noteOpenMode(note, note.text),
-        noteColour(note.meta, variable).name,
+        noteColourIn(palette, note.meta, variable).slot,
         icon ? icon.name : "",
         String(noteOwnFontSize(note.meta)),
         note.text,
@@ -2286,12 +2434,11 @@ function notePageHtml({ workflowFolder, form, noteVersion }, variable = workflow
 }
 
 // A note's note.js: its `text` for the page (null for a window that opens in
-// Edit, whose page shows nothing until it's switched to View), the tint of
-// the colour named `colour`, for a sticky window's page, and the size of its
-// text, `fontSize`, in points. The page's look comes from here, rather than
-// from view.html, so a change to it only needs the page reloaded.
-function notePageScript(text, colour, fontSize) {
-  const tint = (notePaletteColour(colour) || notePaletteColour(DEFAULT_COLOUR)).tint;
+// Edit, whose page shows nothing until it's switched to View), its colour's
+// `tint`, for a sticky window's page, and the size of its text, `fontSize`,
+// in points. The page's look comes from here, rather than from view.html, so
+// a change to it only needs the page reloaded.
+function notePageScript(text, tint, fontSize) {
   return `window.NOTE = ${JSON.stringify(text)};\nwindow.NOTE_TINT = ${JSON.stringify(tint)};\nwindow.NOTE_FONT_SIZE = ${JSON.stringify(Number(fontSize))};\n`;
 }
 
@@ -2305,7 +2452,7 @@ function notePageScript(text, colour, fontSize) {
 function writeNotePage(id, form, text, variable = workflowVariable) {
   const bundle = noteBundlePath(id, form, variable);
   const context = readNoteContext(id, form, variable) || {};
-  const script = notePageScript(text, context.colour, noteShownFontSize(context));
+  const script = notePageScript(text, noteContextColour(context).tint, noteShownFontSize(context));
   writeFileAtomically(`${bundle}/note.js`, script);
   updateNoteContext(id, form, { textHash: textHash(text) }, variable);
   return `${fileUrl(`${bundle}/view.html`)}?v=${textHash(script)}.${Date.now().toString(36)}`;

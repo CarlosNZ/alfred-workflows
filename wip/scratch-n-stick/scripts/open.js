@@ -30,7 +30,9 @@
 // checkNotesFolderMove in lib.js), it opens nothing. From the results list
 // that can't happen, as the list shows only "Moving notes…" then; from the
 // hotkey or the Universal Action, the new note isn't opened, and its text is
-// still where it came from.
+// still where it came from. Likewise while a colour in User Configuration
+// can't be read (see notePalette in lib.js), which a notification says: the
+// results list shows what's wrong instead of the notes.
 
 ObjC.import("Foundation");
 
@@ -40,6 +42,11 @@ function run(argv) {
   const form = argv[0] === "stick" ? "sticky" : "quick";
   if (workflowVariable("close_view") === "1") return output("");
   if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");
+  const paletteProblems = notePaletteProblems();
+  if (paletteProblems.length) {
+    postNotesNotification(`${paletteProblems[0].title}: ${paletteProblems[0].message}. Fix it in the workflow's Configuration.`);
+    return output("");
+  }
   const store = noteStore();
   const stickNote = workflowVariable("stick_note");
   const isNew = !stickNote && workflowVariable("new") === "1";

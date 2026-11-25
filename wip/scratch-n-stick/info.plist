@@ -922,32 +922,32 @@
 			<key>config</key>
 			<dict>
 				<key>default</key>
-				<string>yellow</string>
+				<string>1</string>
 				<key>pairs</key>
 				<array>
 					<array>
-						<string>Yellow</string>
-						<string>yellow</string>
+						<string>Colour 1 (Yellow)</string>
+						<string>1</string>
 					</array>
 					<array>
-						<string>Blue</string>
-						<string>blue</string>
+						<string>Colour 2 (Blue)</string>
+						<string>2</string>
 					</array>
 					<array>
-						<string>Green</string>
-						<string>green</string>
+						<string>Colour 3 (Green)</string>
+						<string>3</string>
 					</array>
 					<array>
-						<string>Pink</string>
-						<string>pink</string>
+						<string>Colour 4 (Pink)</string>
+						<string>4</string>
 					</array>
 					<array>
-						<string>Purple</string>
-						<string>purple</string>
+						<string>Colour 5 (Purple)</string>
+						<string>5</string>
 					</array>
 					<array>
-						<string>Grey</string>
-						<string>grey</string>
+						<string>Colour 6 (Grey)</string>
+						<string>6</string>
 					</array>
 				</array>
 			</dict>
@@ -959,6 +959,132 @@
 			<string>popupbutton</string>
 			<key>variable</key>
 			<string>default_colour</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>Yellow #FEF49C #DBC503</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Colour 1</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>colour_1</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>Blue #ADF4FF #24D0E9</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Colour 2</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>colour_2</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>Green #B2FFA1 #51BB51</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Colour 3</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>colour_3</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>Pink #FFC7C7 #F87F7F</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Colour 4</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>colour_4</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>Purple #B6CAFF #7D9BEB</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Colour 5</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>colour_5</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>Grey #EEEEEE #A8A8A8</string>
+				<key>placeholder</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Each colour is a name and a hex colour for the note, such as Yellow #FEF49C, then optionally a stronger hex colour for its dot in the window and the ring of its icon in the results, which is worked out from the first if left out. Choose one in a note's window with ⌘1 to ⌘6. Empty uses the colour it starts with.</string>
+			<key>label</key>
+			<string>Colour 6</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>colour_6</string>
 		</dict>
 	</array>
 	<key>webaddress</key>

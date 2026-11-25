@@ -26,9 +26,9 @@
 // Button icons of icons no longer in the set are removed. Badges and dots,
 // which depend on the palette, aren't shipped: the workflow makes them when
 // they're needed (see noteBadgeFile and noteDotFile in lib.js). To review
-// their look, this writes every badge (each note icon in each palette colour)
-// and every dot into a folder, with lib.js's own code, and with --png a PNG
-// of each badge too:
+// their look, this writes every badge (each note icon in each colour of the
+// default palette) and every dot into a folder, with lib.js's own code, and
+// with --png a PNG of each badge too:
 //
 //   dev/make-icons.js --review <folder> [--png]
 
@@ -72,20 +72,22 @@ function run(argv) {
   return [`${written.length} files written`].concat(removed.map((path) => `removed ${path}`)).join("\n");
 }
 
-// Writes every badge and dot into `folder`, named for the icon and colour,
-// with lib.js's code (from the button icons, so run this after making them).
+// Writes every badge and dot in the default palette into `folder`, named for
+// the icon and the colour's slot, with lib.js's code (from the button icons,
+// so run this after making them).
 function reviewResultIcons(workflowFolder, folder, png) {
   ensureFolder(folder, true);
   let count = 0;
-  for (const colour of notePalette()) {
-    writeDataAtomically(`${folder}/dot-${colour.name}.png`, noteDotPng(colour));
+  for (const colour of noteDefaultPalette()) {
+    const name = `${colour.slot}-${colour.label.toLowerCase()}`;
+    writeDataAtomically(`${folder}/dot-${name}.png`, noteDotPng(colour));
     count++;
     for (const icon of noteIcons()) {
       const svg = noteBadgeSvg(workflowFolder, icon.name, colour);
-      writeFileAtomically(`${folder}/badge-${icon.name}-${colour.name}.svg`, svg);
+      writeFileAtomically(`${folder}/badge-${icon.name}-${name}.svg`, svg);
       count++;
       if (png) {
-        writeDataAtomically(`${folder}/badge-${icon.name}-${colour.name}.png`, pngData(drawSvg(svg, REVIEW_BADGE_PIXELS)));
+        writeDataAtomically(`${folder}/badge-${icon.name}-${name}.png`, pngData(drawSvg(svg, REVIEW_BADGE_PIXELS)));
         count++;
       }
     }

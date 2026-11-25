@@ -28,6 +28,10 @@ function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   loadLib(argv, "titles.js");
   const query = (argv[0] || "").trim();
+  // A colour in User Configuration that can't be read shows what's wrong in
+  // place of the list, as every result and window needs the palette.
+  const paletteProblems = notePaletteProblemItems();
+  if (paletteProblems.length) return output(paletteProblems);
   let store, notes;
   try {
     // The notes may have to move to a newly configured folder first.

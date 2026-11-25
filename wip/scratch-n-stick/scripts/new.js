@@ -19,6 +19,10 @@ function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   loadLib(argv, "titles.js");
   const text = (argv[0] || "").trim();
+  // A colour in User Configuration that can't be read shows what's wrong in
+  // place of the results, as a new note's window needs the palette.
+  const paletteProblems = notePaletteProblemItems();
+  if (paletteProblems.length) return output(paletteProblems);
   let quick;
   try {
     // The notes may have to move to a newly configured folder first.
