@@ -76,7 +76,7 @@ function noteItem(note, now, bundle, pinned, icon) {
   const subtitle = note.preview ? `${edited} · ${note.preview}` : edited;
   return {
     title: note.title,
-    subtitle: pinned ? `Pinned · ${subtitle}` : subtitle,
+    subtitle: pinned ? `Sticky · ${subtitle}` : subtitle,
     arg: pinned ? "" : bundle,
     icon: icon ? { path: icon } : undefined,
     variables: pinned ? { pinned: "1", pin_note: escapeForAlfredUi(note.id) } : undefined,
@@ -84,7 +84,7 @@ function noteItem(note, now, bundle, pinned, icon) {
     action: { file: note.path },
     text: { copy: note.text, largetype: note.text },
     mods: {
-      cmd: { subtitle: "Pin to the desktop", arg: note.id },
+      cmd: { subtitle: "Stick to the desktop", arg: note.id },
       alt: { subtitle: "Move to the Trash", arg: note.id },
       ctrl: { subtitle: "Reveal in Finder", arg: note.path },
     },

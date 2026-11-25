@@ -207,7 +207,7 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     const files = noteButtonIconNames().flatMap((name) => ["light", "dark"].map((a) => noteButtonIconFile(name, a)));
     const missing = files.concat(["icons/lucide/LICENSE"]).filter((f) => !$.NSFileManager.defaultManager.fileExistsAtPath(argv[0] + "/" + f));
     return `${files.length} ${missing.join(" ") || "none missing"}`;
-  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "50 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
+  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "48 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
 # A pinned note's result (no arg, `pinned` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a pinned state whose process isn't one is ignored.

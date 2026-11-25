@@ -21,9 +21,9 @@
       "type": "button",
       "text": "",
       "bordered": false,
-      "image": "@buttonIcon:pin",
-      "tooltip": "Pin to the desktop (⌘P)",
-      "accessibility": { "label": "Pin" },
+      "image": "@buttonIcon:sticky-note",
+      "tooltip": "Stick to the desktop (⌘P)",
+      "accessibility": { "label": "Make sticky" },
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["pin", "@note", "@form", "{value:editor.text}"] } }]
     }
   ]

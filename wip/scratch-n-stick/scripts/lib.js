@@ -900,14 +900,15 @@ const NOTE_ICONS = [
   { name: "flag", label: "Flag" },
 ];
 
-// The other Lucide icons in a note's window, shipped as button icons only, so
+// The other Lucide icons in a note's window, shipped as button icons, so
 // every icon in the top row and the picker is drawn the same way (in the
 // buttons' colour for the window's appearance): the Edit / View switch's
-// (`eye` to switch to View, `pencil` to Edit), Pin's, the icon button's for a
-// note without an icon (`smile-plus`), and the picker's None (`ban`). Each
-// has an SF Symbol for windows that can't show the button icons (macOS 12;
-// see noteIconsSupported), which follows the appearance by itself.
-const NOTE_WINDOW_BUTTON_ICONS = { eye: "eye", pencil: "pencil", pin: "pin", "smile-plus": "face.smiling", ban: "nosign" };
+// (`eye` to switch to View, `pencil` to Edit), Stick to the desktop's
+// (`sticky-note`, which is a note icon too), the icon button's for a note
+// without an icon (`smile-plus`), and the picker's None (`ban`). Each has an
+// SF Symbol for windows that can't show the button icons (macOS 12; see
+// noteIconsSupported), which follows the appearance by itself.
+const NOTE_WINDOW_BUTTON_ICONS = { eye: "eye", pencil: "pencil", "sticky-note": "note.text", "smile-plus": "face.smiling", ban: "nosign" };
 
 // The release of lucide-static that the button icons were drawn from, as
 // dev/lucide/VERSION records it (dev/test-list.sh checks they agree). It's
@@ -920,9 +921,9 @@ function noteIcons() {
 }
 
 // The names of every icon shipped as a button icon: the note icons and
-// NOTE_WINDOW_BUTTON_ICONS.
+// NOTE_WINDOW_BUTTON_ICONS, each once.
 function noteButtonIconNames() {
-  return NOTE_ICONS.map((icon) => icon.name).concat(Object.keys(NOTE_WINDOW_BUTTON_ICONS));
+  return [...new Set(NOTE_ICONS.map((icon) => icon.name).concat(Object.keys(NOTE_WINDOW_BUTTON_ICONS)))];
 }
 
 // The icon named `name`, or null if there's none.
@@ -1753,7 +1754,7 @@ function newNoteResult(title, subtitle, text, bundle) {
     subtitle,
     arg: bundle,
     mods: {
-      cmd: { subtitle: "Create it pinned to the desktop", arg: text, variables },
+      cmd: { subtitle: "Create it as a sticky note", arg: text, variables },
       alt: { subtitle, valid: false },
       ctrl: { subtitle, valid: false },
     },

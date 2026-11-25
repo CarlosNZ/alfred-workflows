@@ -419,7 +419,7 @@ print -rn -- $'Icons\n' > "$notes/icons.md"
 iconbtn=$(byid icon)
 ui=$(open_note quick icons)/ui.json
 expect_exact "no icon: the icon button is the placeholder button icon, before the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/smile-plus-light.svg 20x20 Icon (⌘I) icon,colour"
-expect_exact "the actions are button icons too: Edit (the note opens in View), and Pin" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/pencil-light.svg 16x16,icons/lucide/pin-light.svg 16x16"
+expect_exact "the actions are button icons too: Edit (the note opens in View), and Stick to the desktop" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/pencil-light.svg 16x16,icons/lucide/sticky-note-light.svg 16x16"
 expect "the icon button and ⌘I run picker.sh toggle icon" "$(json $ui '[('$iconbtn').events[0].action.src].concat(('$iconbtn').events[0].action.args, d.window.root.shortcuts.find(s => s.shortcut === "⌘I").action.args).join(" ")')" "$scripts/picker.sh toggle icons quick icon toggle icons quick icon"
 expect "the catcher: hidden, filling the window, a mouse-down running picker.sh close" "$(json $ui '[('$catcher').hidden, ('$catcher').constraints.stretch, ('$catcher').events[0].triggers, ('$catcher').events[0].action.src].concat(('$catcher').events[0].action.args).join(" ")')" "true both mousedown $scripts/picker.sh close icons quick"
 expect "the icon picker: a box, 8 pt in and 34 pt down, with its shadow around it" "$(json $ui '[('$iconpickerv').hidden, JSON.stringify(('$iconpickerv').constraints), ('$iconpickerv').components.map(c => c.id).join(","), JSON.stringify(('$iconpickerbox').constraints)].join(" ")')" 'true {"position":"topleft","insets":{"top":26,"left":0},"size":{"width":215,"height":107}} iconpickershadow,iconpickerbox {"position":"topleft","insets":{"top":8,"left":8},"size":{"width":199,"height":91}}'
@@ -513,7 +513,7 @@ bundle=$(open_note scratchnotes_macos_version=12 quick icons)
 ui=$bundle/ui.json
 expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-yellow:view colour-yellow:button * customise:view colour:button actions:view toggle:button pin:button"
 expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6"
-expect_exact "macOS 12: the actions are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "symbol pencil,symbol pin"
+expect_exact "macOS 12: the actions are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "symbol pencil,symbol note.text"
 expect "macOS 12: the context says so, without the note's icon" "$(json $bundle/context.json '[d.icons, d.icon].join(" ")')" "false "
 expect "macOS 12: no SVG at all, and every file it names exists" "$(grep -c '\.svg' $ui || true) $(missing_files $ui)" "0 "
 bundle=$(open_note scratchnotes_macos_version=12 pin icons)

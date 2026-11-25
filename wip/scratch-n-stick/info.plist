@@ -220,7 +220,7 @@
 	<key>createdby</key>
 	<string>Carl Smith (@CarlosNZ)</string>
 	<key>description</key>
-	<string>Scratch pad and Sticky notes</string>
+	<string>Scratchpad and sticky notes</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
@@ -252,7 +252,7 @@
 				<key>text</key>
 				<string>{query}</string>
 				<key>title</key>
-				<string>ScratchNotes</string>
+				<string>Scratch'n'Stick</string>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.output.notification</string>
@@ -295,9 +295,9 @@
 				<key>scriptfile</key>
 				<string>scripts/list.js</string>
 				<key>subtext</key>
-				<string>Search your scratch notes</string>
+				<string>Search your notes</string>
 				<key>title</key>
-				<string>ScratchNotes</string>
+				<string>Scratch'n'Stick</string>
 				<key>type</key>
 				<integer>8</integer>
 				<key>withspace</key>
@@ -369,7 +369,7 @@
 				<key>subtext</key>
 				<string>Create a note, from text or the clipboard</string>
 				<key>title</key>
-				<string>New ScratchNote</string>
+				<string>New Scratch'n'Stick note</string>
 				<key>type</key>
 				<integer>8</integer>
 				<key>withspace</key>
@@ -538,7 +538,7 @@
 				<key>acceptsurls</key>
 				<true/>
 				<key>name</key>
-				<string>New ScratchNote</string>
+				<string>New Scratch'n'Stick note</string>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.trigger.universalaction</string>
@@ -610,7 +610,7 @@
 				<key>text</key>
 				<string>{query}</string>
 				<key>title</key>
-				<string>ScratchNotes</string>
+				<string>Scratch'n'Stick</string>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.output.notification</string>
@@ -719,7 +719,7 @@
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</key>
 		<dict>
 			<key>note</key>
-			<string>Optional: set a hotkey for a new note, pinned</string>
+			<string>Optional: set a hotkey for a new sticky note</string>
 			<key>xpos</key>
 			<real>40</real>
 			<key>ypos</key>
@@ -783,7 +783,7 @@
 			<key>config</key>
 			<dict>
 				<key>default</key>
-				<string>snn</string>
+				<string>newscratch</string>
 				<key>placeholder</key>
 				<string></string>
 				<key>required</key>
@@ -813,7 +813,7 @@
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>Where your notes are kept, one Markdown file each. Leave empty to keep them in the workflow's own data folder. Changing it moves your notes to the new folder, and closes any pinned notes.</string>
+			<string>Where your notes are kept, one Markdown file each. Leave empty to keep them in the workflow's own data folder. Changing it moves your notes to the new folder, and closes any sticky notes.</string>
 			<key>label</key>
 			<string>Notes folder</string>
 			<key>type</key>
