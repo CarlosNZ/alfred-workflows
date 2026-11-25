@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Scratch'n'Stick</title>
+  <!--
+    Scratch'n'Stick's workflow icon: a sticky note with a curled corner on a
+    warm grey tile. The tile's, note's and curl's colours are the gradients in
+    <defs>; the writing's colour is on the #writing group. The note's size and
+    angle are the `transform` on the #note group: scale about the centre, then
+    rotate.
+
+    The shadows are Gaussian blurs, which macOS's own SVG renderer (NSImage,
+    Quick Look) leaves out, drawing them hard-edged. Render it with
+    rsvg-convert or a browser.
+  -->
+  <defs>
+    <linearGradient id="tile-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F4EE"/>
+      <stop offset="1" stop-color="#E4DED2"/>
+    </linearGradient>
+    <linearGradient id="note-fill" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#FFF6A8"/>
+      <stop offset="1" stop-color="#FDE968"/>
+    </linearGradient>
+    <linearGradient id="curl-fill" x1="1" y1="1" x2="0.4" y2="0.4">
+      <stop offset="0" stop-color="#FFFBD8"/>
+      <stop offset="1" stop-color="#E9D24A"/>
+    </linearGradient>
+    <filter id="soft-blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="tight-blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <!-- The note's outline, with its bottom-right corner curled up. -->
+    <path id="note-shape" d="M250,222 H774 Q792,222 792,240 V632 C754.5,699.5 709.5,744.5 642,782 H250 Q232,782 232,764 V240 Q232,222 250,222 Z"/>
+  </defs>
+
+  <!-- The tile: a squircle filling the canvas. -->
+  <path d="M1024,512 C1024,744 1031.6,883.8 957.7,957.7 C883.8,1031.6 744,1024 512,1024 C280,1024 140.2,1031.6 66.3,957.7 C-7.6,883.8 0,744 0,512 C0,280 -7.6,140.2 66.3,66.3 C140.2,-7.6 280,0 512,0 C744,0 883.8,-7.6 957.7,66.3 C1031.6,140.2 1024,280 1024,512 Z" fill="url(#tile-fill)"/>
+
+  <g id="note" transform="translate(512 512) scale(1.16) rotate(-4) translate(-512 -512)">
+    <!-- Drop shadow under the note, and a tighter one under the curl. -->
+    <use xlink:href="#note-shape" fill="#000000" opacity="0.26" filter="url(#soft-blur)" transform="translate(0 26)"/>
+    <path d="M634.5,779 C702,800 777,722 795,629 Z" fill="#000000" opacity="0.22" filter="url(#tight-blur)" transform="translate(-4 10)"/>
+    <use xlink:href="#note-shape" fill="url(#note-fill)"/>
+    <!-- The curl: the underside of the lifted corner. -->
+    <path d="M792,632 C754.5,699.5 709.5,744.5 642,782 C654,699.5 679.5,650 792,632 Z" fill="url(#curl-fill)"/>
+    <!-- Three lines of writing. -->
+    <g id="writing" stroke="#4A3F00" stroke-opacity="0.6" stroke-width="40" stroke-linecap="round" fill="none">
+      <line x1="316" y1="372" x2="708" y2="372"/>
+      <line x1="316" y1="480" x2="646" y2="480"/>
+      <line x1="316" y1="588" x2="566" y2="588"/>
+    </g>
+  </g>
+</svg>
