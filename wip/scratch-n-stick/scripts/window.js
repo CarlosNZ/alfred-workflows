@@ -404,13 +404,29 @@ function shareNote(store, workflowFolder, id, form, how, text) {
 // on screen, then closes the window. A note that's blank or was never saved
 // is deleted outright instead, as when its window closes. The window's state
 // is marked `trashed`, so its `quit` doesn't save the note back (see quit).
-// If Finder can't move it, the error stops here and the window stays open.
-// Does nothing without a state of the window's form, as for switchMode.
+// A note moved to the Trash posts the same notification as ⌥↩ in the results
+// does, through the workflow's "notify" trigger (postNotesNotification), as a
+// window's script isn't in Alfred's flow of objects; a sticky window waits for
+// it to be sent, as its helper quits when the window closes, and macOS then
+// refuses it. One deleted outright posts none, as there's nothing in the
+// Trash to tell of. If Finder can't move it, the notification says why, and
+// the error stops here, so the window stays open. Does nothing without a
+// state of the window's form, as for switchMode.
 function trashNote(store, id, form, text) {
   const state = readNoteState(id);
   if (!state || state.form !== form) return;
   if (state.mode !== "view") store.save(id, text);
-  if (!store.deleteIfEmpty(id)) store.trash(id);
+  if (!store.deleteIfEmpty(id)) {
+    const note = store.read(id);
+    const wait = form === "sticky";
+    try {
+      store.trash(id);
+    } catch (e) {
+      postNotesNotification(noteTrashFailedMessage(e), workflowVariable, { wait });
+      throw e;
+    }
+    if (note) postNotesNotification(noteTrashedMessage(note.title), workflowVariable, { wait });
+  }
   writeNoteState(id, Object.assign(state, { trashed: true }));
   return JSON.stringify(noteCloseAction(form).src);
 }

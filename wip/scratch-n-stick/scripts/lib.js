@@ -457,24 +457,43 @@ function startNotesMove(workflowFolder, from, to) {
 // Posts a notification from the workflow, through its "notify" External
 // Trigger and Post Notification object, so it comes from Alfred with the
 // workflow's icon, as the Trash's does: for scripts outside Alfred's flow of
-// objects (move.js, and checkNotesFolderMove). The AppleScript call runs in
-// a process of its own that nothing waits for, so a Script Filter never
-// waits on Alfred while Alfred waits on it, and the text is passed as an
-// argument, never pasted into the script. Does nothing outside Alfred (no
+// objects (move.js, checkNotesFolderMove, open.js, and a window's Move to
+// Trash). The AppleScript call runs in a process of its own, and the text is
+// passed as an argument, never pasted into the script. Nothing waits for it
+// unless `wait` is set, so a script running inside Alfred (a Script Filter,
+// or a quick view's) never waits on Alfred while Alfred waits on it. A sticky
+// window's script sets `wait` when its window is about to close: macOS checks
+// an Apple event against the app responsible for the process sending it, the
+// window's helper, and refuses it (-1743, "Not authorised to send Apple
+// events") once that app has quit. Does nothing outside Alfred (no
 // alfred_workflow_bundleid), so the tests post nothing.
-function postNotesNotification(text, variable = workflowVariable) {
+function postNotesNotification(text, variable = workflowVariable, { wait = false } = {}) {
   const bundleId = variable("alfred_workflow_bundleid");
   if (!bundleId) return;
-  launchInBackground("/usr/bin/osascript", [
-    "-e",
-    "on run argv",
-    "-e",
-    'tell application id "com.runningwithcrayons.Alfred" to run trigger "notify" in workflow (item 1 of argv) with argument (item 2 of argv)',
-    "-e",
-    "end run",
-    bundleId,
-    text,
-  ]);
+  runProgram(
+    "/usr/bin/osascript",
+    [
+      "-e",
+      "on run argv",
+      "-e",
+      'tell application id "com.runningwithcrayons.Alfred" to run trigger "notify" in workflow (item 1 of argv) with argument (item 2 of argv)',
+      "-e",
+      "end run",
+      bundleId,
+      text,
+    ],
+    { wait },
+  );
+}
+
+// What the notification after moving a note to the Trash says, from ⌥↩ in the
+// results (trash.js) or Move to Trash in its window (window.js trash): that
+// the note with `title` went, or why it didn't (`error`).
+function noteTrashedMessage(title) {
+  return `Moved “${title}” to the Trash`;
+}
+function noteTrashFailedMessage(error) {
+  return `Couldn't move the note to the Trash: ${error.message}`;
 }
 
 // What a finished move's notification says, from moveNotes' result: the
@@ -506,6 +525,12 @@ function notesFolderName(folder, variable = workflowVariable) {
 // /dev/null, so nothing waits for it. It inherits the environment, and so
 // the workflow's variables.
 function launchInBackground(path, args) {
+  runProgram(path, args);
+}
+
+// Runs a program as launchInBackground does, and with `wait`, waits for it
+// to finish.
+function runProgram(path, args, { wait = false } = {}) {
   const task = $.NSTask.alloc.init;
   task.launchPath = path;
   task.arguments = $(args);
@@ -514,6 +539,7 @@ function launchInBackground(path, args) {
   task.standardOutput = nullDevice;
   task.standardError = nullDevice;
   task.launch;
+  if (wait) task.waitUntilExit;
 }
 
 function workflowDataFolder(variable) {
@@ -1956,7 +1982,7 @@ function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank })
     item(`${switchTo} (⌘E)`, script("toggle"), !collapsed),
     item(sticky ? "Close (⌘W)" : "Close (⎋)", noteCloseAction(form)),
     { type: "separator" },
-    item("Move to Trash", script("trash")),
+    item("Move to Trash (⌘⌫)", script("trash")),
     { type: "separator" },
     item("Share…", script("share"), !blank),
     item("Copy as Rich Text", script("copyrich"), !blank),

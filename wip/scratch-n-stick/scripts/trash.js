@@ -20,9 +20,9 @@ function run(argv) {
     closeStickyNoteWindow(note.id);
     store.trash(note.id);
     removeNoteBundle(note.id);
-    return `Moved “${note.title}” to the Trash`;
+    return noteTrashedMessage(note.title);
   } catch (e) {
-    return `Couldn't move the note to the Trash: ${e.message}`;
+    return noteTrashFailedMessage(e);
   }
 }
 
