@@ -1079,7 +1079,7 @@ const NOTE_ICONS = [
 // buttons' colour for the window's appearance): the Edit / View switch's
 // (`eye` to switch to View, `pencil` to Edit), Stick to the desktop's
 // (`sticky-note-plus`), the icon button's for a note
-// without an icon (`smile-plus`), the picker's None (`ban`), and the Font
+// without an icon (`square-dashed-plus`), the picker's None (`ban`), and the Font
 // size button's (`text-size`, the workflow's own, in Lucide's style; see
 // dev/make-icons.js), a sticky window's close button's (`close`, the
 // workflow's own too: a filled circle with an X cut out of it), and the
@@ -1090,7 +1090,7 @@ const NOTE_WINDOW_BUTTON_ICONS = {
   eye: "eye",
   pencil: "pencil",
   "sticky-note-plus": "note.text.badge.plus",
-  "smile-plus": "face.smiling",
+  "square-dashed-plus": "plus.square.dashed",
   ban: "nosign",
   "text-size": "textformat.size",
   close: "xmark.circle.fill",
@@ -1670,9 +1670,9 @@ function noteWindowTokens(
     })),
     "@iconImage": noteButtonIconImage(
       workflowFolder,
-      currentIcon ? currentIcon.name : "smile-plus",
+      currentIcon ? currentIcon.name : "square-dashed-plus",
       appearance,
-      noteTopRowIconSize(currentIcon ? currentIcon.name : "smile-plus"),
+      noteTopRowIconSize(currentIcon ? currentIcon.name : "square-dashed-plus"),
       icons,
     ),
     "@buttonBox": { size: { width: layout.button, height: layout.button } },

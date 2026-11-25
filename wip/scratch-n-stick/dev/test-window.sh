@@ -573,7 +573,7 @@ window_js quit sizes sticky ""
 print -rn -- $'Icons\n' > "$notes/icons.md"
 iconbtn=$(byid icon)
 ui=$(open_note quick icons)/ui.json
-expect_exact "no icon: the icon button is the placeholder button icon, after the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/smile-plus-light.svg 18x18 Icon (⌘I) colourbox,icon,fontsize"
+expect_exact "no icon: the icon button is the placeholder button icon, after the colour button" "$(json $ui ''$image'('$iconbtn') + " " + ('$iconbtn').tooltip + " " + ('$customise').components.map(c => c.id).join(",")')" "icons/lucide/square-dashed-plus-light.svg 18x18 Icon (⌘I) colourbox,icon,fontsize"
 expect_exact "the actions are button icons too: Edit (the note opens in View), and Stick to the desktop" "$(json $ui '['$actions'.components.map(b => '$image'(b))].join(", ")')" "icons/lucide/pencil-light.svg 18x18,icons/lucide/sticky-note-plus-light.svg 18x18"
 expect_exact "every button in the top row is a 22 pt box, so the groups' heights don't change" "$(json $ui '[...new Set(['$customise', '$actions'].flatMap(g => g.components).map(b => JSON.stringify(b.constraints)))].join(" ")')" '{"size":{"width":22,"height":22}}'
 note_mode icons edit
@@ -645,7 +645,7 @@ window_js toggle icons sticky "Icons" >/dev/null
 expect_exact "toggle icon in View: shows it, leaving the page as it is" "$(picker toggle icons sticky icon)" "$OPEN_ICON"
 action=$(window_js icon icons sticky none)
 expect "icon none: removes the key, keeping the others" "$(json $notes/.scratchnstick/icons.json '[String(d.icon), "icon" in d, d.colour].join(" ")') $(json $bundle/context.json 'String(d.icon)')" "undefined false 3 null"
-expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/smile-plus-light.svg 18x18  true "
+expect "icon none: the placeholder, and None marked" "$(print -r -- $action | json - ''$image'('$iconbtn')') $(print -r -- $action | json - $buttons | head -1 | cut -d'|' -f2)" "icons/lucide/square-dashed-plus-light.svg 18x18  true "
 picker toggle icons sticky colour >/dev/null
 expect "the Edit / View switch closes the open picker" "$(window_js toggle icons sticky "" | json - '[d.update.ids.iconpicker.hidden, d.update.ids.colourpicker.hidden, d.update.ids.pickercatcher.hidden].join(" ")') $([[ -e $cache/state/icons.picker ]] && print open || print closed)" "true true true closed"
 expect "a switch with none open leaves them alone" "$(window_js toggle icons sticky "Icons" | json - 'String(d.update.ids.pickercatcher)')" "undefined"
