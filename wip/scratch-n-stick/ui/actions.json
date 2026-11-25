@@ -24,7 +24,7 @@
       "text": "",
       "bordered": false,
       "constraints": "@buttonBox",
-      "image": "@buttonIcon:sticky-note",
+      "image": "@buttonIcon:sticky-note-plus",
       "tooltip": "Stick to the desktop (⌘P)",
       "accessibility": { "label": "Make sticky" },
       "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["stick", "@note", "@form", "{value:editor.text}"] } }]

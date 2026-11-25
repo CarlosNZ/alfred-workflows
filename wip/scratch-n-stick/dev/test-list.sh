@@ -115,7 +115,7 @@ before_old=$(mtime old)
 (cd "$tmp" && font_size=16 notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache "$list" "") >/dev/null
 expect "a changed setting rewrites every bundle" "$([[ $(mtime cafe) != $before_cafe ]] && print rewritten) $([[ $(mtime old) != $before_old ]] && print rewritten)" "rewritten rewritten"
 items "$notes" milk >/dev/null
-expect "with a query, only matching notes' bundles are rebuilt" "$(editor_size cafe) $(editor_size shopping)" "16 13"
+expect "with a query, only matching notes' bundles are rebuilt" "$(editor_size cafe) $(editor_size shopping)" "16 14"
 mkdir -p "$quick/20200101-000000.alfredui" "$quick/gone.alfredui" "$quick/open.alfredui" "$cache/state"
 print -r -- '{"form":"quick","pid":1,"mode":"edit"}' > "$cache/state/open.json"
 mv "$notes/recent.md" "$tmp/"
@@ -262,7 +262,7 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     const files = noteButtonIconNames().flatMap((name) => ["light", "dark"].map((a) => noteButtonIconFile(name, a)));
     const missing = files.concat(["icons/lucide/LICENSE"]).filter((f) => !$.NSFileManager.defaultManager.fileExistsAtPath(argv[0] + "/" + f));
     return `${files.length} ${missing.join(" ") || "none missing"}`;
-  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "54 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
+  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "56 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
 # A sticky note's result (no arg, `sticky` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a sticky state whose process isn't one is ignored.

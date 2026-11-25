@@ -897,7 +897,7 @@
 			<key>config</key>
 			<dict>
 				<key>defaultvalue</key>
-				<integer>13</integer>
+				<integer>14</integer>
 				<key>markercount</key>
 				<integer>10</integer>
 				<key>maxvalue</key>
@@ -1087,6 +1087,17 @@
 			<string>colour_6</string>
 		</dict>
 	</array>
+	<key>variables</key>
+	<dict>
+		<key>scratchnstick_macos_version</key>
+		<string></string>
+	</dict>
+	<key>variablesdontexport</key>
+	<array>
+		<string>scratchnstick_macos_version</string>
+	</array>
+	<key>version</key>
+	<string></string>
 	<key>webaddress</key>
 	<string></string>
 </dict>

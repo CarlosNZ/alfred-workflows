@@ -868,7 +868,7 @@ function isRegularFile(path) {
 // {data:…} in action arguments, so text from a note is escaped before it goes
 // in (escapeForAlfredUi) and unescaped when it comes back.
 
-const FONT_SIZE = { min: 11, max: 20, default: 13 };
+const FONT_SIZE = { min: 11, max: 20, default: 14 };
 const WORD_JOINER = "⁠";
 
 // The palette: six colours, in slots 1 to 6, in the colour picker's order,
@@ -1078,7 +1078,7 @@ const NOTE_ICONS = [
 // every icon in the top row and the picker is drawn the same way (in the
 // buttons' colour for the window's appearance): the Edit / View switch's
 // (`eye` to switch to View, `pencil` to Edit), Stick to the desktop's
-// (`sticky-note`, which is a note icon too), the icon button's for a note
+// (`sticky-note-plus`), the icon button's for a note
 // without an icon (`smile-plus`), the picker's None (`ban`), and the Font
 // size button's (`text-size`, the workflow's own, in Lucide's style; see
 // dev/make-icons.js), a sticky window's close button's (`close`, the
@@ -1089,7 +1089,7 @@ const NOTE_ICONS = [
 const NOTE_WINDOW_BUTTON_ICONS = {
   eye: "eye",
   pencil: "pencil",
-  "sticky-note": "note.text",
+  "sticky-note-plus": "note.text.badge.plus",
   "smile-plus": "face.smiling",
   ban: "nosign",
   "text-size": "textformat.size",
