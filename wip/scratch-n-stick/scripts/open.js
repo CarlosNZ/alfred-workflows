@@ -13,6 +13,9 @@
 // variable `open_window` set to "1". If the note is already sticky, it brings
 // that window to the front instead and leaves `open_window` empty, so the
 // Conditional after it stops, and a note is never open in two windows at once.
+// A sticky window opening on a screen other than the one it was left on is
+// moved back by scripts/place.js, which it starts (see "Sticky window
+// positions" in lib.js).
 //
 // The workflow runs it for sticking (⌘↩, and Stick in a quick view) and for ↩
 // on a sticky note. ↩ on any other note opens a quick bundle that list.js has
@@ -65,7 +68,9 @@ function run(argv) {
   // since the results were shown; both open blank.
   const text = isNew ? newNoteText(argv[1] || "") : note ? note.text : "";
   const mode = stickNote ? workflowVariable("stick_mode") : "";
-  return output(writeNoteWindow({ store, workflowFolder, id, form, note, text, mode }));
+  const bundle = writeNoteWindow({ store, workflowFolder, id, form, note, text, mode });
+  if (form === "sticky") startStickyWindowPlacement(workflowFolder, bundle);
+  return output(bundle);
 }
 
 // The output for the next objects: the bundle to open, if any, and the

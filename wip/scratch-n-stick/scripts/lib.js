@@ -2738,6 +2738,117 @@ function closeStickyNoteWindow(id, variable = workflowVariable) {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Sticky window positions
+//
+// AppKit saves a sticky window's frame (`frameautosave`) in Alfred UI's
+// defaults, under "NSWindow Frame <bundle name>-<SHA-1 of the bundle's
+// path>", as the window's x, y, width and height and then those of the
+// visible frame of the screen it was on, in AppKit's coordinates (from the
+// bottom left of the primary screen, upwards). When the window next opens,
+// AppKit puts it back there only if that screen is the one it opens on, the
+// active screen; otherwise it moves it to the same relative place on the
+// active screen, and saves that over the old frame. Alfred UI can't set a
+// window's position, so open.js reads the saved frame before the window
+// opens and starts scripts/place.js, which moves the window back once it's
+// open, through the Accessibility API. A script Alfred starts has Alfred's
+// Accessibility permission; the window's own scripts, run by Alfred UI,
+// don't. See "Window positions" in DESIGN.md.
+
+// The key AppKit saves the frame of the sticky window of the bundle at
+// `bundlePath` under. Alfred UI hashes the path standardised (/private/tmp
+// becomes /tmp, for one).
+function stickyWindowFrameKey(bundlePath) {
+  const path = $(bundlePath).stringByStandardizingPath;
+  return `NSWindow Frame ${path.lastPathComponent.stringByDeletingPathExtension.js}-${sha1Hex(path.js)}`;
+}
+
+// The SHA-1 of `text` as UTF-8, in lowercase hex.
+function sha1Hex(text) {
+  ObjC.bindFunction("CC_SHA1", ["void *", ["void *", "unsigned int", "void *"]]);
+  const data = $(text).dataUsingEncoding($.NSUTF8StringEncoding);
+  const digest = $.NSMutableData.dataWithLength(20);
+  $.CC_SHA1(data.bytes, data.length, digest.mutableBytes);
+  // Latin-1 maps each byte to the character with the same code.
+  const bytes = $.NSString.alloc.initWithDataEncoding(digest, $.NSISOLatin1StringEncoding).js;
+  return Array.from(bytes, (c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join("");
+}
+
+// A saved frame's text, as { window, screen }, each { x, y, width, height },
+// or null if it isn't one.
+function parseSavedWindowFrame(text) {
+  const numbers = String(text || "")
+    .trim()
+    .split(/\s+/)
+    .map(Number);
+  if (numbers.length !== 8 || !numbers.every(isFinite)) return null;
+  const rect = ([x, y, width, height]) => ({ x, y, width, height });
+  const window = rect(numbers.slice(0, 4));
+  const screen = rect(numbers.slice(4));
+  if (!(window.width > 0 && window.height > 0 && screen.width > 0 && screen.height > 0)) return null;
+  return { window, screen };
+}
+
+// The frame saved for the sticky window of the bundle at `bundlePath` (see
+// parseSavedWindowFrame), or null if it has none.
+function stickyWindowSavedFrame(bundlePath) {
+  const defaults = $.NSUserDefaults.alloc.initWithSuiteName("com.runningwithcrayons.Alfred-UI");
+  const value = defaults.stringForKey(stickyWindowFrameKey(bundlePath));
+  return value.isNil() ? null : parseSavedWindowFrame(value.js);
+}
+
+// The frames of the connected screens, { x, y, width, height } in AppKit's
+// coordinates, the primary screen (with its origin at 0, 0) first.
+function screenFrames() {
+  ObjC.import("AppKit");
+  const screens = $.NSScreen.screens;
+  const frames = [];
+  for (let i = 0; i < screens.count; i++) {
+    const { origin, size } = screens.objectAtIndex(i).frame;
+    frames.push({ x: origin.x, y: origin.y, width: size.width, height: size.height });
+  }
+  return frames;
+}
+
+// Where a sticky window saved as `saved` (see parseSavedWindowFrame) belongs,
+// as the top left of the window in the Accessibility API's coordinates (from
+// the top left of the primary screen, downwards), given the connected
+// screens' frames (see screenFrames); or null if it has nowhere to go back
+// to: its screen isn't connected, as when the screens are arranged
+// differently, so the saved coordinates no longer point at it. A screen
+// counts as the saved one if its frame holds the saved visible frame (which
+// changes with the menu bar and Dock), and the window's centre.
+function stickyWindowRestorePoint(saved, screens) {
+  if (!saved || !screens.length) return null;
+  const within = (inner, outer) =>
+    inner.x >= outer.x - 1 &&
+    inner.y >= outer.y - 1 &&
+    inner.x + inner.width <= outer.x + outer.width + 1 &&
+    inner.y + inner.height <= outer.y + outer.height + 1;
+  const { window, screen } = saved;
+  const centre = { x: window.x + window.width / 2, y: window.y + window.height / 2, width: 0, height: 0 };
+  if (!screens.some((frame) => within(screen, frame) && within(centre, frame))) return null;
+  const primary = screens[0];
+  return { x: Math.round(window.x), y: Math.round(primary.y + primary.height - (window.y + window.height)) };
+}
+
+// Starts scripts/place.js in the background (see launchInBackground) to move
+// the sticky window about to open from the bundle at `bundlePath` back where
+// it was left, when it has a saved frame on a connected screen. Run before
+// the window opens, as AppKit saves over the frame when it does.
+function startStickyWindowPlacement(workflowFolder, bundlePath) {
+  const point = stickyWindowRestorePoint(stickyWindowSavedFrame(bundlePath), screenFrames());
+  if (!point) return;
+  launchInBackground("/usr/bin/osascript", [
+    "-l",
+    "JavaScript",
+    `${workflowFolder}/scripts/place.js`,
+    bundlePath,
+    String(point.x),
+    String(point.y),
+  ]);
+}
+
 // Whether `id` is in use by a note that's open but may not be saved yet: it
 // has a sticky window bundle or a window state. For noteStore's newId. A
 // quick bundle alone doesn't count: list.js writes one for each new note it

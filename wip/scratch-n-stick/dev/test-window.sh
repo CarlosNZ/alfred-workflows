@@ -687,6 +687,35 @@ expect_exact "macOS 12: picker.sh still opens the colour picker" "$(picker toggl
 window_js quit icons sticky $'Icons\n'
 rm $notes/.scratchnstick/icons.json
 
+# Sticky window positions: the saved frame's key, reading it, and where a
+# window goes back to, with three screens laid out as main display, a laptop
+# below it and a portrait monitor to its right.
+positions() {
+  osascript -l JavaScript -e '
+    ObjC.import("Foundation");
+    function run(argv) {
+      (0, eval)($.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js);
+      const screens = [
+        { x: 0, y: 0, width: 3440, height: 1440 },
+        { x: 1920, y: -982, width: 1512, height: 982 },
+        { x: 3440, y: -944, width: 1440, height: 2560 },
+      ];
+      const point = (text) => JSON.stringify(stickyWindowRestorePoint(parseSavedWindowFrame(text), screens));
+      return new Function("point", "screens", `return (${argv[1]});`)(point, screens);
+    }' "$scripts/lib.js" "$1"
+}
+expect_exact "positions: the key is the bundle name and the SHA-1 of its path" "$(positions 'stickyWindowFrameKey("/Users/x/windows/20261126-084443.alfredui")')" "NSWindow Frame 20261126-084443-$(print -rn -- /Users/x/windows/20261126-084443.alfredui | shasum -a 1 | cut -d' ' -f1)"
+expect_exact "positions: the path is hashed standardised, as Alfred UI hashes it" "$(positions 'stickyWindowFrameKey("'${cache:A}'/../cache") === stickyWindowFrameKey("'${${cache:A}#/private}'")')" "true"
+expect_exact "positions: a saved frame is read" "$(positions 'JSON.stringify(parseSavedWindowFrame("4504 -868 360 279 3440 -944 1440 2530 "))')" '{"window":{"x":4504,"y":-868,"width":360,"height":279},"screen":{"x":3440,"y":-944,"width":1440,"height":2530}}'
+expect_exact "positions: text that isn't a frame isn't read" "$(positions '[parseSavedWindowFrame(""), parseSavedWindowFrame("1 2 3 4"), parseSavedWindowFrame("1 2 0 4 5 6 7 8"), parseSavedWindowFrame("a b c d e f g h")].map(String).join(" ")')" "null null null null"
+expect_exact "positions: on the portrait monitor, the top left from the top of the main display" "$(positions 'point("3600 1100 360 320 3440 -944 1440 2530")')" '{"x":3600,"y":20}'
+expect_exact "positions: on the laptop, below the main display" "$(positions 'point("2000 -600 360 320 1920 -982 1512 949")')" '{"x":2000,"y":1720}'
+expect_exact "positions: on the main display, whatever its menu bar and Dock leave" "$(positions 'point("1000 500 360 288 0 0 3440 1410")')" '{"x":1000,"y":652}'
+expect_exact "positions: a screen that isn't connected (or has moved) has nothing to go back to" "$(positions 'point("-264 -487 360 288 -840 -982 1512 949")')" "null"
+expect_exact "positions: nor does a window whose centre is off its screen" "$(positions 'point("3000 1100 360 320 3440 -944 1440 2530")')" "null"
+expect_exact "positions: no saved frame, nothing to do" "$(positions 'JSON.stringify(stickyWindowRestorePoint(null, screens))')" "null"
+expect_exact "positions: a bundle with no saved frame has none" "$(positions 'String(stickyWindowSavedFrame("'$cache'/windows/none.alfredui"))')" "null"
+
 # Sticky windows.
 mkdir -p $cache/state && print -r -- '{"form":"sticky","pid":'$$',"mode":"edit"}' > $cache/state/vars.json
 expect "a sticky state whose process isn't Alfred UI doesn't count" "$(open_note quick vars)" "$cache/quick/vars.alfredui"
