@@ -7,6 +7,7 @@
   "constraints": "@customisePlace",
   "components": [
     {
+      "@needs": "icons",
       "id": "icon",
       "type": "button",
       "text": "",
@@ -21,8 +22,8 @@
       "type": "button",
       "text": "",
       "bordered": false,
-      "font": "@colourDotFont",
-      "contenttintcolour": "@colourDot",
+      "font": "@swatchFont",
+      "contenttintcolour": "@swatch",
       "image": { "type": "symbol", "src": "circle.fill" },
       "tooltip": "Colour (⌘1–⌘6)",
       "accessibility": { "label": "Colour" },

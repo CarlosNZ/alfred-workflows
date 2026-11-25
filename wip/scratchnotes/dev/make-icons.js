@@ -1,85 +1,62 @@
 #!/usr/bin/osascript -l JavaScript
 
-// Makes the workflow's icons from the palette (notePalette in scripts/lib.js),
-// the note icons (noteIcons) and the window's other icons
-// (NOTE_WINDOW_GLYPHS, through noteGlyphNames), from Lucide's SVGs in
-// dev/lucide/. Run after
-// changing any of them: dev/make-icons.js [--png]
+// Makes the images that ship with the workflow, from Lucide's sources in
+// dev/lucide/, the note icons (noteIcons in scripts/lib.js), the window's
+// other icons (NOTE_WINDOW_BUTTON_ICONS, through noteButtonIconNames) and the
+// drop-downs' sizes (NOTE_WINDOW_LAYOUT). Run after changing any of them:
 //
-//   icons/<colour>.png                       a note's result without an icon:
-//                                            a dot filled with the colour's
-//                                            spine colour and ringed in its
-//                                            control colour, so pale colours
-//                                            such as yellow and grey still
-//                                            show on light and dark themes
-//   icons/lucide/badge/<icon>-<colour>.svg   a note's result with an icon,
-//                                            and its pinned window's app icon:
-//                                            the icon in dark text colour on a
-//                                            rounded square of the tint, ringed
-//                                            in the control colour
-//   icons/lucide/glyph/<icon>-<appearance>.svg
-//                                            the icon alone in the colour of
-//                                            the window's buttons
-//                                            (secondaryLabelColor) in light or
-//                                            dark appearance, for the window:
-//                                            every note icon, and the
-//                                            window's other icons
+//   dev/make-icons.js
+//
+//   icons/lucide/button/<icon>-<appearance>.svg
+//                                            a button icon: the icon alone in
+//                                            the colour of the window's
+//                                            buttons (secondaryLabelColor) in
+//                                            light or dark appearance, for
+//                                            every note icon and the window's
+//                                            other icons
 //   icons/lucide/LICENSE                     Lucide's licence, which covers
-//                                            the badges and glyphs
+//                                            the button icons and the badges
+//                                            made from them
 //   icons/shadow-<picker>-picker.png         each drop-down's shadow (the
 //                                            icon and colour pickers), at
 //                                            twice its size in points, as
-//                                            Alfred UI has no shadow (see
-//                                            NOTE_WINDOW_LAYOUT in lib.js)
+//                                            Alfred UI has no shadow
 //
-// The badges and glyphs are SVG text: Lucide's elements, with its
-// currentColor given a colour. With --png, each is also drawn into a PNG
-// beside it, from the same SVG, for shipping (see NOTE_ICON_FORMAT in
-// lib.js). Badges and glyphs of icons or colours no longer in the set are
-// removed.
+// Button icons of icons no longer in the set are removed. Badges and dots,
+// which depend on the palette, aren't shipped: the workflow makes them when
+// they're needed (see noteBadgeFile and noteDotFile in lib.js). To review
+// their look, this writes every badge (each note icon in each palette colour)
+// and every dot into a folder, with lib.js's own code, and with --png a PNG
+// of each badge too:
+//
+//   dev/make-icons.js --review <folder> [--png]
 
 ObjC.import("AppKit");
 
-const DOT_SIZE = 256; // pixels
-const DOT_DIAMETER = 168; // the dot, within the square
-const DOT_RING = 12; // the ring's width
-
-const BADGE_TEXT = "#1D1D1F";
 // secondaryLabelColor, the buttons' colour, in each appearance (macOS 27).
-const GLYPH_COLOURS = { light: { colour: "#000000", opacity: 0.498 }, dark: { colour: "#FFFFFF", opacity: 0.549 } };
-const BADGE_PIXELS = 128;
-const GLYPH_PIXELS = 64;
+const BUTTON_ICON_COLOURS = { light: { colour: "#000000", opacity: 0.498 }, dark: { colour: "#FFFFFF", opacity: 0.549 } };
+const REVIEW_BADGE_PIXELS = 128;
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "../scripts/lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
-  const png = argv.includes("--png");
-  const written = [];
-  const write = (path, text) => {
-    ensureFolder($(`${workflowFolder}/${path}`).stringByDeletingLastPathComponent.js, true);
-    writeFileAtomically(`${workflowFolder}/${path}`, text);
-    written.push(path);
-    if (png) {
-      const pngPath = path.replace(/\.svg$/, ".png");
-      writePng(drawSvg(text, path.includes("/badge/") ? BADGE_PIXELS : GLYPH_PIXELS), `${workflowFolder}/${pngPath}`);
-      written.push(pngPath);
-    }
-  };
+  const review = argv.indexOf("--review");
+  if (review >= 0) {
+    if (!argv[review + 1]) throw new Error("Usage: dev/make-icons.js --review <folder> [--png]");
+    return reviewResultIcons(workflowFolder, argv[review + 1], argv.includes("--png"));
+  }
 
-  for (const colour of notePalette()) {
-    const path = `icons/${colour.name}.png`;
-    writePng(drawDot(colour), `${workflowFolder}/${path}`);
-    written.push(path);
-  }
-  for (const icon of noteIcons()) {
-    const elements = lucideElements(`${workflowFolder}/dev/lucide/${icon.name}.svg`);
-    for (const colour of notePalette()) write(svgFile(noteBadgeFile(icon.name, colour.name)), badgeSvg(icon, elements, colour));
-  }
-  for (const name of noteGlyphNames()) {
+  const written = [];
+  for (const name of noteButtonIconNames()) {
     const elements = lucideElements(`${workflowFolder}/dev/lucide/${name}.svg`);
-    for (const appearance of Object.keys(GLYPH_COLOURS)) write(svgFile(noteGlyphFile(name, appearance)), glyphSvg({ name }, elements, GLYPH_COLOURS[appearance]));
+    for (const appearance of Object.keys(BUTTON_ICON_COLOURS)) {
+      const path = noteButtonIconFile(name, appearance);
+      ensureFolder($(`${workflowFolder}/${path}`).stringByDeletingLastPathComponent.js, true);
+      writeFileAtomically(`${workflowFolder}/${path}`, buttonIconSvg(name, elements, BUTTON_ICON_COLOURS[appearance]));
+      written.push(path);
+    }
   }
   for (const name of noteDropdownNames()) {
-    writePng(drawPickerShadow(noteDropdownGeometry(name)), `${workflowFolder}/${noteDropdownShadowFile(name)}`);
+    writeDataAtomically(`${workflowFolder}/${noteDropdownShadowFile(name)}`, pngData(drawPickerShadow(noteDropdownGeometry(name))));
     written.push(noteDropdownShadowFile(name));
   }
 
@@ -88,13 +65,29 @@ function run(argv) {
   writeFileAtomically(`${workflowFolder}/icons/lucide/LICENSE`, licence);
   written.push("icons/lucide/LICENSE");
 
-  const removed = removeOthers(workflowFolder, ["icons/lucide/badge", "icons/lucide/glyph"], new Set(written));
+  const removed = removeOthers(workflowFolder, "icons/lucide/button", new Set(written));
   return [`${written.length} files written`].concat(removed.map((path) => `removed ${path}`)).join("\n");
 }
 
-// A badge or glyph's path as an SVG, whatever NOTE_ICON_FORMAT is.
-function svgFile(path) {
-  return path.replace(/\.[a-z]+$/, ".svg");
+// Writes every badge and dot into `folder`, named for the icon and colour,
+// with lib.js's code (from the button icons, so run this after making them).
+function reviewResultIcons(workflowFolder, folder, png) {
+  ensureFolder(folder, true);
+  let count = 0;
+  for (const colour of notePalette()) {
+    writeDataAtomically(`${folder}/dot-${colour.name}.png`, noteDotPng(colour));
+    count++;
+    for (const icon of noteIcons()) {
+      const svg = noteBadgeSvg(workflowFolder, icon.name, colour);
+      writeFileAtomically(`${folder}/badge-${icon.name}-${colour.name}.svg`, svg);
+      count++;
+      if (png) {
+        writeDataAtomically(`${folder}/badge-${icon.name}-${colour.name}.png`, pngData(drawSvg(svg, REVIEW_BADGE_PIXELS)));
+        count++;
+      }
+    }
+  }
+  return `${count} files written to ${folder}`;
 }
 
 // The elements inside a Lucide SVG's <svg> element, which draw with the root's
@@ -107,57 +100,32 @@ function lucideElements(path) {
   return match[1].trim().split(/\s*\n\s*/).join("");
 }
 
-const LUCIDE_STROKE = 'fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
-
-function badgeSvg(icon, elements, colour) {
-  return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">`,
-    `<!-- Lucide's ${icon.name} (see LICENSE), on ScratchNotes' ${colour.name} -->`,
-    `<rect x="6" y="6" width="116" height="116" rx="26" fill="${colour.tint}" stroke="${colour.control}" stroke-width="4"/>`,
-    `<svg x="30" y="30" width="68" height="68" viewBox="0 0 24 24" ${LUCIDE_STROKE} stroke="${BADGE_TEXT}">${elements}</svg>`,
-    `</svg>`,
-    "",
-  ].join("\n");
-}
-
-// The opacity is on a group, so the icon is drawn as one layer, as a symbol in
-// a translucent colour is: where two strokes overlap, it's no darker.
-function glyphSvg(icon, elements, { colour, opacity }) {
+// A button icon's SVG: Lucide's elements in a group with the buttons' colour.
+// The opacity is on the group, so the icon is drawn as one layer, as a symbol
+// in a translucent colour is: where two strokes overlap, it's no darker.
+// lib.js makes badges from the elements in this group (noteButtonIconElements).
+function buttonIconSvg(name, elements, { colour, opacity }) {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`,
-    `<!-- Lucide's ${icon.name} (see LICENSE) -->`,
-    `<g opacity="${opacity}" ${LUCIDE_STROKE} stroke="${colour}">${elements}</g>`,
+    `<!-- Lucide's ${name} (see LICENSE) -->`,
+    `<g opacity="${opacity}" ${noteLucideStroke()} stroke="${colour}">${elements}</g>`,
     `</svg>`,
     "",
   ].join("\n");
 }
 
-// Removes the files in `folders` that aren't in `keep` (paths in the workflow
-// folder), and returns their paths.
-function removeOthers(workflowFolder, folders, keep) {
+// Removes the files in `folder` (a path in the workflow folder) that aren't in
+// `keep` (paths in the workflow folder), and returns their paths.
+function removeOthers(workflowFolder, folder, keep) {
   const removed = [];
-  for (const folder of folders) {
-    const names = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(`${workflowFolder}/${folder}`, null)) || [];
-    for (const name of names) {
-      const path = `${folder}/${name}`;
-      if (keep.has(path) || !/\.(svg|png)$/.test(name)) continue;
-      removeFile(`${workflowFolder}/${path}`);
-      removed.push(path);
-    }
+  const names = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(`${workflowFolder}/${folder}`, null)) || [];
+  for (const name of names) {
+    const path = `${folder}/${name}`;
+    if (keep.has(path) || !/\.(svg|png)$/.test(name)) continue;
+    removeFile(`${workflowFolder}/${path}`);
+    removed.push(path);
   }
   return removed;
-}
-
-function drawDot(colour) {
-  return drawInBitmap(DOT_SIZE, () => {
-    const inset = (DOT_SIZE - DOT_DIAMETER) / 2 + DOT_RING / 2;
-    const dot = $.NSBezierPath.bezierPathWithOvalInRect($.NSMakeRect(inset, inset, DOT_SIZE - 2 * inset, DOT_SIZE - 2 * inset));
-    hexColour(colour.spine).setFill;
-    dot.fill;
-    hexColour(colour.control).setStroke;
-    dot.lineWidth = DOT_RING;
-    dot.stroke;
-  });
 }
 
 // A drop-down's shadow: its box's rounded rectangle, drawn in black with
@@ -190,29 +158,6 @@ function drawSvg(svg, pixels) {
   return drawInBitmap(pixels, () => {
     image.drawInRectFromRectOperationFraction($.NSMakeRect(0, 0, pixels, pixels), $.NSZeroRect, $.NSCompositingOperationSourceOver, 1);
   });
-}
-
-// A bitmap `pixels` square, or [width, height], with `draw` drawn into it.
-function drawInBitmap(pixels, draw) {
-  const [width, height] = Array.isArray(pixels) ? pixels : [pixels, pixels];
-  const rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
-    $(), width, height, 8, 4, true, false, $.NSCalibratedRGBColorSpace, 0, 0,
-  );
-  $.NSGraphicsContext.saveGraphicsState;
-  $.NSGraphicsContext.setCurrentContext($.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep));
-  draw();
-  $.NSGraphicsContext.restoreGraphicsState;
-  return rep;
-}
-
-function hexColour(hex) {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  return $.NSColor.colorWithSRGBRedGreenBlueAlpha(r, g, b, 1);
-}
-
-function writePng(rep, path) {
-  const data = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
-  if (!data.writeToFileAtomically(path, true)) throw new Error(`Can't write ${path}`);
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from

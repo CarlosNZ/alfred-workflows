@@ -1,5 +1,5 @@
 {
-  "iconpath": "@iconPath",
+  "@pinned": { "iconpath": "@iconPath" },
   "window": {
     "title": "@title",
     "titlevisibility": false,
@@ -21,7 +21,7 @@
         { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "shortcut": "⌘↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["view", "@note", "@form", "{value:editor.text}"] } },
         { "@form": "quick", "shortcut": "⌘P", "action": { "type": "script", "src": "scripts/window.js", "args": ["pin", "@note", "@form", "{value:editor.text}"] } },
-        { "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },
+        { "@needs": "icons", "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },
         { "@form": "pinned", "shortcut": "⎋", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["escape", "@note", "@form"] } },
         "@colourShortcuts"
       ],

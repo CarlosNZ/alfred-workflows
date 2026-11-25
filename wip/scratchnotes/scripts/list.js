@@ -42,11 +42,10 @@ function run(argv) {
   const matches = notes.filter((note) => words.every((word) => searchText(note).includes(word)));
   const now = new Date();
   const pinned = attempt(pinnedNoteIds) || new Set();
-  // The default colour is read once: a variable read per note, through the
-  // ObjC bridge, adds up over hundreds of notes on every keystroke.
-  const defaultColour = noteDefaultColour();
-  const colourOf = (note) => noteColour(note.meta, () => defaultColour.name);
-  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), pinned.has(note.id), colourOf(note)));
+  // Each variable is read once (see cachedVariables in lib.js).
+  const variable = cachedVariables();
+  const icon = (note) => attempt(() => noteResultIcon(workflowFolder, note, noteColour(note.meta, variable), variable));
+  const items = matches.map((note) => noteItem(note, now, bundle(() => quick.bundleFor(note)), pinned.has(note.id), icon(note)));
   if (!query) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
   else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, "Create a note with this text", query, bundle(() => quick.bundleForNew(query))));
   if (quick) attempt(() => quick.finish(notes));
@@ -55,29 +54,31 @@ function run(argv) {
 
 // What `fn` returns, or null if it throws, logging the error (to Alfred's
 // debugger). A quick bundle that can't be written leaves its result's arg
-// empty, so ↩ does nothing, while the list and the other keys still work.
+// empty, so ↩ does nothing, and a result icon that can't be made leaves its
+// result without one, while the list and the other keys still work.
 function attempt(fn) {
   try {
     return fn();
   } catch (e) {
-    console.log(`Quick views: ${e.message}`);
+    console.log(e.message);
     return null;
   }
 }
 
-// Its icon is its badge, its icon in its colour, or, without an icon, its
-// colour's dot (both from dev/make-icons.js). A note that's pinned gets no arg, so ↩ shows no quick view, and the variable `pinned`,
+// Its icon is `icon`, the note's result icon (its badge, or its dot; see
+// noteResultIcon in lib.js), or none if that couldn't be made. A note that's
+// pinned gets no arg, so ↩ shows no quick view, and the variable `pinned`,
 // which takes ↩ down the pin route instead (with `pin_note` naming the note,
 // as Pin in a quick view does), where open.js brings the pinned window to the
 // front.
-function noteItem(note, now, bundle, pinned, colour) {
+function noteItem(note, now, bundle, pinned, icon) {
   const edited = `Edited ${formatEditedTime(note.modified, now)}`;
   const subtitle = note.preview ? `${edited} · ${note.preview}` : edited;
   return {
     title: note.title,
     subtitle: pinned ? `Pinned · ${subtitle}` : subtitle,
     arg: pinned ? "" : bundle,
-    icon: { path: noteIcon(note.meta) ? noteBadgeFile(noteIcon(note.meta).name, colour.name) : `icons/${colour.name}.png` },
+    icon: icon ? { path: icon } : undefined,
     variables: pinned ? { pinned: "1", pin_note: escapeForAlfredUi(note.id) } : undefined,
     quicklookurl: note.path,
     action: { file: note.path },
