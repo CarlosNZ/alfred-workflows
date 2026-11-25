@@ -949,8 +949,9 @@ const NOTE_ICONS = [
 // (`sticky-note`, which is a note icon too), the icon button's for a note
 // without an icon (`smile-plus`), the picker's None (`ban`), and the Font
 // size button's (`text-size`, the workflow's own, in Lucide's style; see
-// dev/make-icons.js), and a sticky window's close button's (`close`, the
-// workflow's own too: a filled circle with an X cut out of it). Each has an
+// dev/make-icons.js), a sticky window's close button's (`close`, the
+// workflow's own too: a filled circle with an X cut out of it), and the
+// actions menu button's (`ellipsis`). Each has an
 // SF Symbol for windows that can't show the button icons (macOS 12; see
 // noteIconsSupported), which follows the appearance by itself.
 const NOTE_WINDOW_BUTTON_ICONS = {
@@ -961,6 +962,7 @@ const NOTE_WINDOW_BUTTON_ICONS = {
   ban: "nosign",
   "text-size": "textformat.size",
   close: "xmark.circle.fill",
+  ellipsis: "ellipsis",
 };
 
 // The release of lucide-static that the button icons were drawn from, as
@@ -1359,16 +1361,21 @@ const NOTE_WINDOW_LAYOUT = {
   // traffic lights), in a group of the window's own buttons; and two groups,
   // the note's own look (its colour, its icon and its font size) at the top
   // left, after a sticky window's close button, and the actions (Edit / View,
-  // then Stick in the quick view) at the top right. `top`, `left` and `right`
-  // are each one's distance from the window's edges, in each form, and
-  // `spacing` the space between a group's buttons. Every button in the row is
-  // a box `button` points square, its image centred in it, so both groups are
-  // the same height whatever they show, and the buttons' centres are level,
-  // 16 pt down (so `top` is 16 less half a button), where a window's traffic
-  // lights are.
+  // then Stick in the quick view) at the top right, before the actions menu's
+  // button (…), which is a group of its own so that it stays in a collapsed
+  // sticky window. The menu opens at `menuAnchor`, a point just under the
+  // button at its left edge, since a menu opens with its first item at the
+  // view it's given. `top`, `left` and `right` are each one's distance from
+  // the window's edges, in each form, and `spacing` the space between a
+  // group's buttons. Every button in the row is a box `button` points square,
+  // its image centred in it, so both groups are the same height whatever they
+  // show, and the buttons' centres are level, 16 pt down (so `top` is 16 less
+  // half a button), where a window's traffic lights are.
   windowButtons: { top: 5, left: 9 },
   customise: { quick: { top: 5, left: 12 }, sticky: { top: 5, left: 44 }, spacing: 10 },
-  actions: { quick: { top: 5, right: 10 }, sticky: { top: 5, right: 10 }, spacing: 10 },
+  actions: { quick: { top: 5, right: 42 }, sticky: { top: 5, right: 42 }, spacing: 10 },
+  menuButton: { top: 5, right: 10 },
+  menuAnchor: { top: 29, right: 31 },
   button: 22,
   // The size of the row's button icons: the note's icon, the Font size
   // button's and the actions', all the same so that their strokes match.
@@ -1387,13 +1394,13 @@ const NOTE_WINDOW_LAYOUT = {
   // A collapsed sticky window (see "Collapsing" in window.js): its height,
   // the top row's, which is also the height of the strip along a sticky
   // window's top that a double-click collapses or expands it from, and its
-  // title, a label after the close button, `top`, `left` and `right` from
-  // the window's edges, with its font. `defaultHeight` is the height a window
-  // expands to when its height before collapsing isn't known, the height a
-  // sticky window opens at.
+  // title, a label between the close button and the actions menu's button,
+  // `top`, `left` and `right` from the window's edges, with its font.
+  // `defaultHeight` is the height a window expands to when its height before
+  // collapsing isn't known, the height a sticky window opens at.
   collapsed: {
     height: 32,
-    title: { top: 8, left: 39, right: 10 },
+    title: { top: 8, left: 39, right: 42 },
     titleFont: { size: 13, weight: "semibold" },
     defaultHeight: 288,
   },
@@ -1538,6 +1545,12 @@ function noteWindowTokens(
     "@buttonBox": { size: { width: layout.button, height: layout.button } },
     "@windowButtonsPlace": { position: "topleft", insets: Object.assign({}, layout.windowButtons) },
     "@titleStripBox": { size: { width: 1, height: layout.collapsed.height } },
+    "@menuButtonPlace": { position: "topright", insets: Object.assign({}, layout.menuButton) },
+    "@menuAnchorPlace": {
+      position: "topright",
+      insets: Object.assign({}, layout.menuAnchor),
+      size: { width: 1, height: 1 },
+    },
     "@collapsedTitlePlace": { stretch: "horizontal", insets: Object.assign({}, layout.collapsed.title) },
     "@collapsedTitleFont": Object.assign({}, layout.collapsed.titleFont),
     "@customisePlace": place("customise", "topleft"),
@@ -1787,6 +1800,41 @@ function noteFontSizeAction({ workflowFolder, note, form, choice }) {
   return { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["fontsize", note, form, choice] };
 }
 
+// The actions menu (…, or ⌘K) of a window in `form` and `mode`, `collapsed`
+// or not: Collapse or Expand in a sticky window, or Stick to Desktop in a
+// quick view, then Edit or View, Close, Move to Trash and Share, each with its
+// shortcut in brackets where it has one. Edit / View
+// does nothing in a collapsed window, so it's greyed out there (an item
+// without an action). `note` is the escaped ID. Share does nothing yet.
+// TO-DO: what Share shares (the text or the .md file), through Alfred UI's
+// `share` action.
+function noteActionsMenu({ workflowFolder, note, form, mode, collapsed }) {
+  const script = (command) => ({
+    type: "script",
+    src: `${workflowFolder}/scripts/window.js`,
+    args: [command, note, form, "{value:editor.text}"],
+  });
+  const sticky = form === "sticky";
+  const switchTo = mode === "view" ? "Edit" : "View";
+  return [
+    sticky
+      ? { text: collapsed ? "Expand" : "Collapse", action: script("collapse") }
+      : { text: "Stick to Desktop (⌘P)", action: script("stick") },
+    collapsed ? { text: `${switchTo} (⌘E)` } : { text: `${switchTo} (⌘E)`, action: script("toggle") },
+    { text: sticky ? "Close (⌘W)" : "Close (⎋)", action: noteCloseAction(form) },
+    { type: "separator" },
+    { text: "Move to Trash", action: script("trash") },
+    { type: "separator" },
+    { text: "Share…", action: { type: "json", src: {} } },
+  ];
+}
+
+// The action that closes a window. A quick view's `finish` carries on to the
+// stick route, so it sets `close_view`, for open.js to open nothing.
+function noteCloseAction(form) {
+  return { type: "json", src: { finish: form === "sticky" ? {} : { variables: { close_view: "1" } } } };
+}
+
 // A template with its directives resolved for a form and mode (see above),
 // `icons`, whether the window can show note icons, and `collapsed`, whether
 // it's a collapsed sticky window.
@@ -1830,8 +1878,9 @@ function resolveNoteTemplate(template, { form, mode, icons = true, collapsed = f
 // actions (Edit / View and Stick) at the right, and, in a sticky window, the
 // note's title, shown while it's collapsed, the strip along the window's top
 // that a double-click collapses or expands it from (under the top row's
-// buttons), and the window's own buttons (its close button) at the top left.
-const NOTE_WINDOW_PARTS = ["content", "customise", "actions", "collapsedtitle", "titlestrip", "windowbuttons"];
+// buttons), and the window's own buttons (its close button) at the top left;
+// and the actions menu's button (…) at the top right.
+const NOTE_WINDOW_PARTS = ["content", "customise", "actions", "collapsedtitle", "titlestrip", "windowbuttons", "menubutton"];
 
 // A note window's whole ui.json: window.json, with its placeholders filled
 // (NOTE_WINDOW_PARTS). `options` as for noteWindowTokens.
@@ -2032,6 +2081,7 @@ const NOTE_WINDOW_SOURCES = [
   "ui/windowbuttons.json",
   "ui/collapsedtitle.json",
   "ui/titlestrip.json",
+  "ui/menubutton.json",
   "ui/view.html",
   "ui/view.js",
   "scripts/lib.js",

@@ -25,6 +25,7 @@
         { "@needs": "icons", "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },
         { "@form": "sticky", "shortcut": "⎋", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["escape", "@note", "@form"] } },
         { "@form": "sticky", "shortcut": "⌘W", "action": { "type": "json", "src": { "finish": {} } } },
+        { "shortcut": "⌘K", "action": { "type": "script", "src": "scripts/window.js", "args": ["menu", "@note", "@form", ""] } },
         "@colourShortcuts",
         "@fontSizeShortcuts"
       ],
@@ -34,11 +35,13 @@
       ],
       "components": [
         { "id": "content" },
+        { "id": "menuanchor", "type": "view", "constraints": "@menuAnchorPlace" },
         { "@form": "sticky", "id": "collapsedtitle" },
         { "@form": "sticky", "id": "titlestrip" },
         { "id": "customise" },
         { "id": "actions" },
-        { "@form": "sticky", "id": "windowbuttons" }
+        { "@form": "sticky", "id": "windowbuttons" },
+        { "id": "menubutton" }
       ]
     }
   }

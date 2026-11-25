@@ -17,6 +17,11 @@
 //   window.js collapse <id> <form> <text>   a double-click on a sticky
 //                                           window's top strip: collapses or
 //                                           expands the window
+//   window.js menu <id> <form>              the actions menu's button (…) or
+//                                           ⌘K: opens the actions menu
+//   window.js trash <id> <form> <text>      Move to Trash in the actions menu:
+//                                           moves the note to the Trash and
+//                                           closes the window
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
 //                                           then sticks
@@ -90,6 +95,10 @@ function run(argv) {
       return setFontSize(store, workflowFolder, context, id, form, rest[0]);
     case "collapse":
       return toggleCollapsed(store, workflowFolder, context, id, form, unescapeFromAlfredUi(rest[0] || ""));
+    case "menu":
+      return actionsMenu(workflowFolder, id, form);
+    case "trash":
+      return trashNote(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
     case "tick":
       return tick(store, context, id, form, Number(rest[0]), rest[1]);
     default:
@@ -319,6 +328,36 @@ function toggleCollapsed(store, workflowFolder, context, id, form, text) {
   return JSON.stringify(actions);
 }
 
+// The actions menu's button (…) or ⌘K: prints the popupmenu action that
+// opens the actions menu (noteActionsMenu) for the window as it is now, its
+// mode and whether it's collapsed, at the point under the button
+// (`menuanchor`). Does nothing without a state of the window's form, as for
+// switchMode.
+function actionsMenu(workflowFolder, id, form) {
+  const state = readNoteState(id);
+  if (!state || state.form !== form) return;
+  const mode = state.mode === "view" ? "view" : "edit";
+  const menu = noteActionsMenu({ workflowFolder, note: escapeForAlfredUi(id), form, mode, collapsed: Boolean(state.collapsed) });
+  return JSON.stringify({ popupmenu: { src: "menuanchor", menu } });
+}
+
+// Move to Trash in the actions menu: moves the note to the Trash through
+// Finder (as ⌥↩ in the results does, so "Put Back" works; its sidecar stays),
+// after saving the editor's text in Edit, so the note in the Trash is the one
+// on screen, then closes the window. A note that's blank or was never saved
+// is deleted outright instead, as when its window closes. The window's state
+// is marked `trashed`, so its `quit` doesn't save the note back (see quit).
+// If Finder can't move it, the error stops here and the window stays open.
+// Does nothing without a state of the window's form, as for switchMode.
+function trashNote(store, id, form, text) {
+  const state = readNoteState(id);
+  if (!state || state.form !== form) return;
+  if (state.mode !== "view") store.save(id, text);
+  if (!store.deleteIfEmpty(id)) store.trash(id);
+  writeNoteState(id, Object.assign(state, { trashed: true }));
+  return JSON.stringify(noteCloseAction(form).src);
+}
+
 // A task box was clicked in the page: ticks the task on `line` (counting from
 // 0) when `to` is "x", unticks it when "o". The page has already changed its
 // box, so this prints nothing, but it rewrites the page's note.js, so a later
@@ -360,10 +399,16 @@ function stick(store, id, form, text) {
 // reopens in the mode it was last in, whether or not it was ever switched.
 // A state of the other form is another window's: this was a quick view that
 // handed over to the note's sticky window (see launched), so it leaves
-// everything alone.
+// everything alone. A note moved to the Trash from its window (see trashNote)
+// isn't saved back: its state and bundles are removed, and nothing else.
 function quit(store, id, form, text) {
   const state = readNoteState(id);
   if (state && state.form !== form) return;
+  if (state && state.trashed) {
+    removeNoteState(id);
+    removeNoteBundle(id);
+    return;
+  }
   if (isEditorText(state, form, text)) store.save(id, text);
   removeNoteState(id);
   if (store.deleteIfEmpty(id)) removeNoteBundle(id);

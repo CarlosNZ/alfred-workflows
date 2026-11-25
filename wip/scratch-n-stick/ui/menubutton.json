@@ -1,0 +1,20 @@
+{
+  "id": "menubutton",
+  "type": "view",
+  "layout": "inline",
+  "direction": "horizontal",
+  "constraints": "@menuButtonPlace",
+  "components": [
+    {
+      "id": "menu",
+      "type": "button",
+      "text": "",
+      "bordered": false,
+      "constraints": "@buttonBox",
+      "image": "@buttonIcon:ellipsis",
+      "tooltip": "Actions (⌘K)",
+      "accessibility": { "label": "Actions" },
+      "events": [{ "triggers": "actioned", "action": { "type": "script", "src": "scripts/window.js", "args": ["menu", "@note", "@form", ""] } }]
+    }
+  ]
+}

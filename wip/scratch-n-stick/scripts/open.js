@@ -22,6 +22,10 @@
 // A new note gets its ID now, before it's saved, so its window can save to it;
 // newId skips IDs that open, unsaved notes already use (isNoteIdInUse).
 //
+// A quick view closed from its actions menu (Close, or Move to Trash) finishes
+// with the variable `close_view` set to "1", as a quick view's `finish`
+// carries on to the stick route: then it opens nothing.
+//
 // While the notes are moving to a newly configured folder (see
 // checkNotesFolderMove in lib.js), it opens nothing. From the results list
 // that can't happen, as the list shows only "Moving notes…" then; from the
@@ -34,6 +38,7 @@ function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
   loadLib(argv, "titles.js");
   const form = argv[0] === "stick" ? "sticky" : "quick";
+  if (workflowVariable("close_view") === "1") return output("");
   if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");
   const store = noteStore();
   const stickNote = workflowVariable("stick_note");
@@ -60,7 +65,12 @@ function run(argv) {
 // variables, clearing those that chose the note, so they don't carry on to a
 // note made sticky from the window this opens.
 function output(bundle) {
-  return JSON.stringify({ alfredworkflow: { arg: bundle, variables: { open_window: bundle ? "1" : "", new: "", stick_note: "", stick_mode: "" } } });
+  return JSON.stringify({
+    alfredworkflow: {
+      arg: bundle,
+      variables: { open_window: bundle ? "1" : "", new: "", stick_note: "", stick_mode: "", close_view: "" },
+    },
+  });
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from

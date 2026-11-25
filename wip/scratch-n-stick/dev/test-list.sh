@@ -223,7 +223,7 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     const files = noteButtonIconNames().flatMap((name) => ["light", "dark"].map((a) => noteButtonIconFile(name, a)));
     const missing = files.concat(["icons/lucide/LICENSE"]).filter((f) => !$.NSFileManager.defaultManager.fileExistsAtPath(argv[0] + "/" + f));
     return `${files.length} ${missing.join(" ") || "none missing"}`;
-  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "52 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
+  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "54 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
 # A sticky note's result (no arg, `sticky` set) needs a live Alfred UI helper,
 # so it's checked in Alfred; a sticky state whose process isn't one is ignored.
