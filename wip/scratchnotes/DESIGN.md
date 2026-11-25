@@ -18,6 +18,16 @@ Every item is marked with its status:
 - Each note has its own colour, shown in its pinned window and in the results list. **Decided**
 - New notes from a keyword, from the results list, and from a Universal Action on text. **Decided**
 
+## Name
+
+- The workflow is to be called **Scratch'n'Stick**: a scratch pad and sticky notes. Pinned notes become **sticky notes** in everything the user sees: the action's label and accessibility label, its description in the window, notifications, the user guide and the workflow's name. Done in step 10 (see [Steps](#steps)). **Decided** (25 Nov 2026)
+- What keeps its name: the bundle ID (`net.smithnz.carl.scratchnotes`), the `.scratchnotes` sidecar folder, the `scratchnotes_*` variables and temporary files, and the folder `wip/scratchnotes`. The default notes folder and the record of the last notes folder are in `$alfred_workflow_data`, which is named by the bundle ID, so changing it would leave the notes behind; and nobody sees these names. Whether `bin/wf` takes anything from the workflow's name is to check when it's renamed. **Decided**
+- Open, for step 10:
+  - **The action's verb.** "Pin" is clear as a button and as "⌘P Pin"; "Stick" is awkward as a command. Proposed: **Make sticky** (or **Stick to desktop**), with Lucide's `sticky-note` in place of `pin`.
+  - **Terms in code.** `pinned` is used about 90 times in code, templates and tests (`"@form": "pinned"`, `pinnedNoteIds`). Proposed: keep it, with a row in [Terms](#terms) mapping sticky notes to `pinned`, rather than renaming it throughout.
+  - **"Sticky" suggests a window that floats above others**, as Stickies and paper notes do. **To test**: whether Alfred UI can keep a pinned window above other apps' windows; if it can't, the name still fits, but the user guide shouldn't promise it.
+  - **Spelling.** One form of the apostrophes everywhere (straight `'` or curly `’`), and "sticky notes" and "scratchpad" in the description and keywords, so searches that don't spell the name find it.
+
 ## Storage
 
 ### Notes folder
@@ -645,6 +655,6 @@ The objects: the Script Filter's ↩ goes straight to the quick view's Alfred UI
    Checked by hand (25 Nov 2026), all fine:
    - In Alfred on this Mac, with a throwaway note: the colour picker's swatches and the mark on the note's colour, in the quick view with a light and a dark theme and in a pinned window (the mark's first colour, `quaternaryLabelColor`, was barely visible in dark, so it became `unemphasizedSelectedContentBackgroundColor`, after T6); results' badges and dots after emptying `$alfred_workflow_cache/icons/`; and the macOS 12 window, with `scratchnotes_macos_version` set to `12` in the workflow's environment variables for the check (and removed afterwards).
    - The build on macOS 12 and 13, by hand in UTM virtual machines: the whole workflow runs on both, on 12 without note icons.
-10. **Docs and polish.** Move the developer notes into `DEVELOPMENT.md` (how it's built, from this document and what was learned), write the user guide in `README.md` and run `bin/wf sync-readme scratchnotes`, and make the workflow icon.
+10. **Docs and polish.** Move the developer notes into `DEVELOPMENT.md` (how it's built, from this document and what was learned), write the user guide in `README.md` and run `bin/wf sync-readme scratchnotes`, make the workflow icon, and rename the workflow and pinned notes as in [Name](#name).
 
 After the first version: reloading a window when its note changes on disk, and closing it when the note is deleted by something else (the pulse in [Changes made elsewhere](#changes-made-elsewhere)), and dark-appearance variants of the palette.
