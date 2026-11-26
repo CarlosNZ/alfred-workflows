@@ -161,6 +161,7 @@ expect "sticky: Edit (the sidecar's mode): the editor shown with the text and fo
 expect "sticky: Edit: the page has no note, so it shows nothing" "$(page_text $bundle)" "null"
 expect "sticky: the page is sticky, without the theme, and note.js has the font size" "$(grep -c '<html class="sticky">' $bundle/view.html) $(grep -o 'const theme = .*;' $bundle/view.html) $(page_note $bundle | json - d.NOTE_FONT_SIZE)" "1 const theme = null; 17"
 expect "font_size is kept within 11-20" "$(json "$(open_note font_size=40 stick meeting)/context.json" 'd.defaultFontSize')" "20"
+expect "sticky_corner_radius: the corner radius, rounded, within 0-16" "$(for r in 12 7.6 40 -3 x; do json "$(open_note sticky_corner_radius=$r stick meeting)/ui.json" d.window.cornerradius; done | tr '\n' ' ')" "12 8 16 0 10 "
 
 # Placeholders in a note's text are escaped in the window, but not in the page.
 note_mode vars edit

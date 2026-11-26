@@ -1087,6 +1087,13 @@ function isRegularFile(path) {
 // in (escapeForAlfredUi) and unescaped when it comes back.
 
 const FONT_SIZE = { min: 11, max: 20, default: 14 };
+// A sticky window's corner radius, in points (the `sticky_corner_radius`
+// setting). The default matches the drop-downs' (NOTE_WINDOW_LAYOUT). The
+// maximum is half a collapsed window's height (`collapsed.height`), which
+// rounds its ends into semicircles: the radius is set when the window opens and
+// can't change when it collapses, and Alfred UI doesn't limit it to half the
+// height, so a larger one makes the collapsed window's ends pointed.
+const STICKY_CORNER_RADIUS = { min: 0, max: 16, default: 10 };
 const WORD_JOINER = "⁠";
 
 // The palette: six colours, in slots 1 to 6, in the colour picker's order,
@@ -1696,6 +1703,16 @@ function noteDefaultFontSize(variable = workflowVariable) {
   return isNaN(size) ? FONT_SIZE.default : Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, size));
 }
 
+// The `sticky_corner_radius` setting, in points, within STICKY_CORNER_RADIUS:
+// the rounding of a sticky window's corners. Alfred UI sets it when the window
+// opens, so a change reaches a sticky note the next time it's stuck.
+function stickyCornerRadius(variable = workflowVariable) {
+  const radius = Math.round(parseFloat(variable("sticky_corner_radius")));
+  return isNaN(radius)
+    ? STICKY_CORNER_RADIUS.default
+    : Math.min(STICKY_CORNER_RADIUS.max, Math.max(STICKY_CORNER_RADIUS.min, radius));
+}
+
 // The size of its own that a note with metadata `meta` has (its sidecar's
 // `fontSize`), rounded and within the range of NOTE_FONT_SIZES, or null if it
 // has none, so its text is the `font_size` setting's size.
@@ -1903,7 +1920,8 @@ function noteDropdownShadowFile(name) {
 //   drawn for, "light" or "dark": always "light" when sticky, as a sticky
 //   note's root view is always in light appearance), icons (whether the
 //   window can show note icons; see noteIconsSupported), collapsed (whether
-//   a sticky window is collapsed; see noteCollapsedHeight)
+//   a sticky window is collapsed; see noteCollapsedHeight), cornerRadius (a
+//   sticky window's corner radius; see stickyCornerRadius)
 // Each of NOTE_WINDOW_BUTTON_ICONS is a token too, "@buttonIcon:<name>", its
 // button icon as a button's image at its size in the top row, or its SF Symbol
 // in a window without note icons.
@@ -1920,6 +1938,7 @@ function noteWindowTokens({
   icon = null,
   appearance = "light",
   icons = true,
+  cornerRadius = STICKY_CORNER_RADIUS.default,
 }) {
   const current = notePaletteColour(palette, colour) || notePaletteColour(palette, DEFAULT_COLOUR);
   const currentIcon = icons ? noteIconByName(icon) : null;
@@ -1936,6 +1955,7 @@ function noteWindowTokens({
     "@text": escapeForAlfredUi(text),
     "@title": escapeForAlfredUi(noteSummary(text).title),
     "@tint": current.tint,
+    "@cornerRadius": cornerRadius,
     "@swatch": current.control,
     "@swatchFont": { size: layout.swatch },
     "@swatchBox": {
@@ -2408,6 +2428,7 @@ function writeNoteWindow(
     appearance,
     icons,
     collapsed: collapsed !== null,
+    cornerRadius: stickyCornerRadius(variable),
   });
   if (size && form === "sticky") ui.window.size = size;
   const script = notePageScript(

@@ -119,6 +119,7 @@ User Configuration (saved in the gitignored `prefs.plist`):
 | `show_new_note` | checkbox | on | "New note in list". Off hides New note with no query; a query that matches nothing still offers New note: \<query>. |
 | `notes_folder` | folder picker | blank: `$alfred_workflow_data/notes/` | Changing it moves the notes and closes sticky notes, as its description says. |
 | `font_size` | slider, 11–20 | `14` | "Default font size", for notes without a size of their own |
+| `sticky_corner_radius` | slider, 0–16 | `10` | "Sticky note corners": a sticky window's `cornerradius`, set when it opens. At most half a collapsed window's height (32 pt), as the radius can't change when the window collapses (see [Alfred UI](dev/docs/alfred-ui.md#windows)). Its own option, not the shared `corner_radius`, whose wording is about window buttons this workflow doesn't have. |
 | `default_colour` | popup, Colour 1–6 | `1` | |
 | `colour_1`–`colour_6` | text | the default palette, e.g. `Yellow #FEF49C #DBC503` | A slot's name and one or two hex colours; see [Colours and icons](dev/docs/colours-and-icons.md#custom-colours) |
 

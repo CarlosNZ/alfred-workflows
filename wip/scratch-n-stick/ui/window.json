@@ -12,7 +12,7 @@
     "size": { "width": 360, "height": 320 },
     "minsize": { "width": 220, "height": 160 },
     "@quick": { "size": { "width": 640, "height": 400 } },
-    "@sticky": { "borderless": true, "cornerradius": 10 },
+    "@sticky": { "borderless": true, "cornerradius": "@cornerRadius" },
     "root": {
       "id": "note",
       "type": "view",
