@@ -15,8 +15,8 @@
 #
 # Anything else, such as the page starting to load, is ignored.
 #
-# A page can finish loading after the window has switched to Edit (⌘E pressed
-# straight after opening a note in View, after a switch to View or after a
+# A page can finish loading after the window has switched to Edit (the Edit
+# button clicked straight after opening a note in View, after a switch to View or after a
 # tick), and showing it then would lay it over the editor, so #ready is
 # checked against the window's state (see "Window state" in lib.js). With no
 # state yet, the window has just opened in View (a window that opens in Edit

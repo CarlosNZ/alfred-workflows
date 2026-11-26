@@ -4,7 +4,8 @@
 //
 //   window.js launched <id> <form> <mode>   the window opened: records its state
 //   window.js save <id> <form> <text>       typing stopped: saves the text
-//   window.js toggle <id> <form> <text>     ⌘E or the Edit / View button
+//   window.js toggle <id> <form> <text>     the Edit / View button, or Edit /
+//                                           Preview in the actions menu
 //   window.js edit <id> <form> <text>       ↩ in View: to Edit
 //   window.js view <id> <form> <text>       ⌘↩ in Edit: saves, to View
 //   window.js colour <id> <form> <slot>     a colour in the colour picker, or

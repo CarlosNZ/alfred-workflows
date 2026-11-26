@@ -11,7 +11,7 @@ This file is the overview: what the workflow does, how its parts fit together, a
 - **Example notes**, `example-1-…` onwards, are added to the notes folder the first time the workflow runs, to show what notes can do. They're never replaced, and come back only if the workflow's data folder is deleted.
 - **New notes** come from New note in the list, the `newscratch` and `newsticky` keywords (with typed text or the clipboard), the "New scratch note" and "New sticky note" Universal Actions, and an optional hotkey. Text that reads as a heading starts the note as `# <text>`.
 - **The sticky notes list** (`sticky`) lists the notes stuck to the desktop, to bring one to the front or close it, or show or close them all.
-- **A note's window** has an editor (Edit) and a rendered view (Preview, with task boxes that can be ticked), switched with ⌘E, ↩ and ⌘↩. Its top row sets the note's colour (six slots, customisable), icon (44 Lucide icons) and font size, and its actions menu (⌘K) has Stick, Close, Move to Trash, Share and Copy. Sticky windows collapse to their top strip with a double-click, and reopen where they were left.
+- **A note's window** has an editor (Edit) and a rendered view (Preview, with task boxes that can be ticked), switched with ↩ (to Edit) and ⌘↩ (to Preview). Its top row sets the note's colour (six slots, customisable), icon (44 Lucide icons) and font size, and its actions menu (⌘K) has Stick, Close, Move to Trash, Share and Copy. Sticky windows collapse to their top strip with a double-click, and reopen where they were left.
 
 ## Names
 

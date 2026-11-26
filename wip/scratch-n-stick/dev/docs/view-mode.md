@@ -35,7 +35,7 @@ A web view sends its `changed` action whenever its URL changes, fragment include
 
 The `changed` action is `scripts/changed.sh`, a short zsh script rather than JXA, since Alfred waits for it (in a quick view, inside Alfred's process) and it runs on every URL change, including the page starting to load; an `osascript` there held the page back by about 80 ms. It:
 
-- answers `#ready` with an `update` setting the web view's `opacity`, and in a quick view the strip along the top (`titlestrip`) to the page's colour at the same opacity, unless the window's state says Edit (a page that finished loading after a quick ⌘E would otherwise show over the editor). It reads the state file with a zsh builtin; no state yet means the window has just opened in Preview;
+- answers `#ready` with an `update` setting the web view's `opacity`, and in a quick view the strip along the top (`titlestrip`) to the page's colour at the same opacity, unless the window's state says Edit (a page that finished loading after a quick switch to Edit would otherwise show over the editor). It reads the state file with a zsh builtin; no state yet means the window has just opened in Preview;
 - passes `#t-` on to `window.js tick`;
 - ignores everything else.
 

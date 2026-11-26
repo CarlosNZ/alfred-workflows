@@ -19,7 +19,6 @@
       "layout": "stack",
       "@sticky": { "appearance": "light", "background": "@tint" },
       "shortcuts": [
-        { "shortcut": "⌘E", "action": { "type": "script", "src": "scripts/window.js", "args": ["toggle", "@note", "@form", "{value:editor.text}"] } },
         { "shortcut": "⌘↩", "action": { "type": "script", "src": "scripts/window.js", "args": ["view", "@note", "@form", "{value:editor.text}"] } },
         { "@form": "quick", "shortcut": "⌘D", "action": { "type": "script", "src": "scripts/window.js", "args": ["stick", "@note", "@form", "{value:editor.text}"] } },
         { "@needs": "icons", "shortcut": "⌘I", "action": { "type": "script", "src": "scripts/picker.sh", "args": ["toggle", "@note", "@form", "icon"] } },

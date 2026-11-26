@@ -2239,12 +2239,12 @@ function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank })
   });
   const item = (text, action, enabled = true) => (enabled ? { text, action } : { text });
   const sticky = form === "sticky";
-  const switchTo = mode === "view" ? "Edit" : "Preview";
+  const switchTo = mode === "view" ? "Edit (↩)" : "Preview (⌘↩)";
   return [
     sticky
       ? item(collapsed ? "Expand" : "Collapse", script("collapse"))
       : item("Stick to Desktop (⌘D)", script("stick")),
-    item(`${switchTo} (⌘E)`, script("toggle"), !collapsed),
+    item(switchTo, script("toggle"), !collapsed),
     item(sticky ? "Close (⌘W)" : "Close (⎋)", noteCloseAction(form)),
     { type: "separator" },
     item("Move to Trash (⌘⌫)", script("trash")),

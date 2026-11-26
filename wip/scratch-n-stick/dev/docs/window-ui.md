@@ -30,7 +30,7 @@ A sticky window has no title bar: with a transparent one, the traffic lights ove
 A slim row of borderless buttons over the top of the note, in separate groups rather than one full-width row, since a view laid over the note takes its clicks:
 
 - **customise** (`ui/customise.json`), at the left: the colour button, the icon button (not on macOS 12) and the Font size button, the note's own look. 44 pt in when sticky (after the close button), 12 pt in a quick view.
-- **actions** (`ui/actions.json`), at the right, 42 pt in: the Edit / Preview toggle (`eye` in Edit, tooltip "Preview (⌘E)"; `pencil` in Preview) and, in a quick view only, Stick to the desktop (`sticky-note-plus`, "Stick to the desktop (⌘D)").
+- **actions** (`ui/actions.json`), at the right, 42 pt in: the Edit / Preview toggle (`eye` in Edit, tooltip "Preview (⌘↩)"; `pencil` in Preview, "Edit (↩)") and, in a quick view only, Stick to the desktop (`sticky-note-plus`, "Stick to the desktop (⌘D)").
 - **menubutton** (`ui/menubutton.json`), 10 pt in from the right: the actions menu's button (…), in a group of its own so it stays in a collapsed window.
 
 Every button is a 22 pt box with its image centred, so the groups are the same height whatever they show, 5 pt down, putting the buttons' centres 16 pt down, where a window's traffic lights would be. Button icons are 18 pt, except two glyphs that look small at that size: Aa (`text-size`) at 19 pt and the eye at 20 pt (`buttonIconSizes`). The colour button's swatch is 16 pt; being a symbol, it sits on its font's baseline about 1 pt low, so the colour button is 2 pt shorter than its box and at the top of it (`colourbox`, `swatchRaise`).
@@ -41,8 +41,7 @@ Every size and position of the top row, the drop-downs, the key hints and the co
 
 | Key | Does | Where |
 |---|---|---|
-| ⌘E | Switch Edit / Preview | Both forms |
-| ↩ | Switch to Edit (Preview only) | Both |
+| ↩ | Switch to Edit (Preview only) | Both forms |
 | ⌘↩ | Save and switch to Preview ("submit"; does nothing in Preview) | Both |
 | ⌘1–⌘6 | Set the note's colour | Both |
 | ⌘I | Open or close the icon picker | Both (not macOS 12) |
@@ -53,13 +52,13 @@ Every size and position of the top row, the drop-downs, the key hints and the co
 | ⌘W | Close | Sticky |
 | Esc | Close an open drop-down, or the window | Sticky; in a quick view Alfred handles Esc itself and closes |
 
-↩ and ⌘↩ follow Jupyter's Markdown cells (↩ to edit, ⇧↩ or ⌃↩ to render). The ↩ shortcut is on the `page` view that holds the web view, not the root, so it only runs while the focus is in Preview; in Edit, ↩ in the editor types a new line. Root view shortcuts run on the first press whether or not the page has focus. Inside Alfred, ⌘↩ and the ⌘ number keys reach the quick view rather than Alfred.
+↩ and ⌘↩ follow Jupyter's Markdown cells (↩ to edit, ⇧↩ or ⌃↩ to render), and are the only keys for switching mode: the toggle button's tooltip and the actions menu's Edit / Preview item name them. The ↩ shortcut is on the `page` view that holds the web view, not the root, so it only runs while the focus is in Preview; in Edit, ↩ in the editor types a new line. Root view shortcuts run on the first press whether or not the page has focus. Inside Alfred, ⌘↩ and the ⌘ number keys reach the quick view rather than Alfred.
 
 ⌘W needs a shortcut, as a borderless window has no File › Close in the helper's menu bar. ⌘+ is three shortcuts, `⌘=`, `⇧⌘=` and `⌘+` (`NOTE_FONT_SIZE_SHORTCUTS`): on a US keyboard ⌘+ is ⌘= with or without ⇧, and `⌘+` covers keyboards with a + key of its own.
 
 ## Key hints
 
-A quick view shows key hints at its bottom right, in 12 pt text in the buttons' grey: **Edit ↵** in Preview or **Preview ⌘↵** in Edit, a bullet, then **Actions ⌘K**. Word first, then key, as in Raycast's action bar. ↩ and ⌘↩ are shown rather than ⌘E as the simplest keys while writing; ⌘D and Esc are left to the actions menu, which lists them. Sticky windows have none: by the time a note is stuck, its keys are known.
+A quick view shows key hints at its bottom right, in 12 pt text in the buttons' grey: **Edit ↵** in Preview or **Preview ⌘↵** in Edit, a bullet, then **Actions ⌘K**. Word first, then key, as in Raycast's action bar. ⌘D and Esc are left to the actions menu, which lists them. Sticky windows have none: by the time a note is stuck, its keys are known.
 
 - They're three labels in a narrow view of their own (`keyhints`, `ui/keyhints.json`), 8 pt up and 12 pt in, 6 pt either side of the bullet (`keyHints` in `NOTE_WINDOW_LAYOUT`). The editor's bottom inset in a quick view is 28 pt, and the page keeps a clear band at the bottom, so the text stays clear of them.
 - A mode switch replaces them rather than updating their text, as Alfred UI doesn't re-measure a label when an `update` changes its text.
@@ -96,7 +95,7 @@ A menu of the window's actions, in both forms, from the … button or ⌘K. The 
 The items, with their keys:
 
 - Collapse or Expand (sticky), or Stick to Desktop (⌘D) (quick)
-- Edit or Preview (⌘E), whichever switches the mode; greyed out while collapsed
+- Edit (↩) or Preview (⌘↩), whichever switches the mode; greyed out while collapsed
 - Close (⌘W, or ⎋ in a quick view)
 - Move to Trash (⌘⌫)
 - Share…, Copy as Rich Text, Copy as Markdown Text; greyed out for a blank note
