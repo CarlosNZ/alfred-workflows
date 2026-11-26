@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Scratch'n'Stick app icon: note layer</title>
+  <!--
+    The sticky note from Scratch'n'Stick's workflow icon (dev/icon.svg), as the
+    note layer of its Icon Composer document (dev/appicon.icon): the same note,
+    curl and writing, at the same size, angle and place on a 1024 canvas,
+    without the tile (the document's fill) or the drop shadows (Icon Composer
+    draws the layer's shadow).
+  -->
+  <defs>
+    <linearGradient id="note-fill" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#FFF6A8"/>
+      <stop offset="1" stop-color="#FDE968"/>
+    </linearGradient>
+    <linearGradient id="curl-fill" x1="1" y1="1" x2="0.4" y2="0.4">
+      <stop offset="0" stop-color="#FFFBD8"/>
+      <stop offset="1" stop-color="#E9D24A"/>
+    </linearGradient>
+    <!-- The note's outline, with its bottom-right corner curled up. -->
+    <path id="note-shape" d="M250,222 H774 Q792,222 792,240 V632 C754.5,699.5 709.5,744.5 642,782 H250 Q232,782 232,764 V240 Q232,222 250,222 Z"/>
+  </defs>
+
+  <g id="note" transform="translate(512 512) scale(1.16) rotate(-4) translate(-512 -512)">
+    <use xlink:href="#note-shape" fill="url(#note-fill)"/>
+    <!-- The curl: the underside of the lifted corner. -->
+    <path d="M792,632 C754.5,699.5 709.5,744.5 642,782 C654,699.5 679.5,650 792,632 Z" fill="url(#curl-fill)"/>
+    <!-- Three lines of writing. -->
+    <g id="writing" stroke="#4A3F00" stroke-opacity="0.6" stroke-width="40" stroke-linecap="round" fill="none">
+      <line x1="316" y1="372" x2="708" y2="372"/>
+      <line x1="316" y1="480" x2="646" y2="480"/>
+      <line x1="316" y1="588" x2="566" y2="588"/>
+    </g>
+  </g>
+</svg>

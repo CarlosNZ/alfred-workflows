@@ -1,47 +1,104 @@
 #!/usr/bin/osascript -l JavaScript
-// Usage: bin/make-appicon <icon.png> <appicon.png>
+// Usage: bin/make-appicon <icon.png | artwork.icon> <appicon.png>
 //
-// Builds an Alfred UI's app icon (ui.json's `iconpath`) from a workflow's icon,
-// so the helper app shows it in ⌘-Tab, the Dock and window switchers.
+// Builds an Alfred UI's app icon (ui.json's `iconpath`) from a workflow's
+// artwork, so the helper app shows it in ⌘-Tab, the Dock and window switchers
+// looking like other apps' icons.
 //
-// A workflow's icon is a tile that fills its canvas, with its own corner rounding.
-// macOS app icons sit on the icon grid instead: an 824px tile on a 1024px canvas,
-// cut to a squircle (continuous corners), with a soft drop shadow in the
-// transparent margin. This finds the tile's edges in the icon, scales the tile to
-// cover the squircle with a little overscan (so the icon's own corners and edge
-// shading are cut away), masks it to the squircle and adds the shadow. The canvas
-// is sized so the tile keeps the icon's resolution, up to MAX_SIZE.
+// macOS draws other apps' icons from Icon Composer documents (`.icon`): it
+// masks the artwork to the app icon shape and adds the glass, the rim lighting
+// and the drop shadow. An Alfred UI's app icon is a plain image the helper sets
+// once at launch, so this does the same ahead of time. It renders the artwork
+// with Icon Composer's command-line tool, ictool (Xcode 26 or later), and lays
+// the render out as macOS lays out app icons: an 824px tile on a 1024px
+// canvas, with the system's drop shadow in the margin. It renders the Default
+// (light) appearance only, as the helper can't switch icons with the
+// appearance.
+//
+// The artwork is either:
+// - an Icon Composer document, for artwork made of layers (open it in Icon
+//   Composer, in Xcode.app/Contents/Applications, to edit it), or
+// - a flat image: a tile filling its canvas, like a workflow's icon.png. Its
+//   tile is found along the image's centre row and column and cropped, and
+//   becomes the single layer of a temporary Icon Composer document, scaled to
+//   cover the icon shape with a little overscan, so the image's own corners
+//   and edge shading are cut away. Its lighting is already in the image, so
+//   the layer has no glass.
+//
+// Set ICTOOL to the path of an ictool to use instead of the selected Xcode's.
 
 ObjC.import('AppKit');
 
-const TILE = 824 / 1024; // tile's side as a fraction of the canvas
-const EXPONENT = 5;      // superellipse exponent, close to Apple's continuous-corner squircle
-const OVERSCAN = 1.03;   // how far the artwork extends past the squircle's edge
-const MAX_SIZE = 512;    // largest canvas, plenty for the Dock and ⌘-Tab on a Retina screen
-const OPAQUE = 0.5;      // alpha at which a pixel counts as part of the tile
-// Drop shadow, as fractions of the canvas, and its opacity.
-const SHADOW_Y = 12 / 1024, SHADOW_BLUR = 12 / 1024, SHADOW_ALPHA = 0.28;
-
-function squircle(cx, cy, a, dx = 0) {
-  const path = $.NSBezierPath.bezierPath;
-  for (let i = 0; i < 720; i++) {
-    const t = 2 * Math.PI * i / 720, c = Math.cos(t), s = Math.sin(t);
-    const p = $.NSMakePoint(cx + dx + a * Math.sign(c) * Math.abs(c) ** (2 / EXPONENT),
-                            cy + a * Math.sign(s) * Math.abs(s) ** (2 / EXPONENT));
-    if (i === 0) path.moveToPoint(p); else path.lineToPoint(p);
-  }
-  path.closePath;
-  return path;
-}
+const SIZE = 512;           // canvas, plenty for the Dock and ⌘-Tab on a Retina screen
+const TILE = 824 / 1024;    // the tile's side as a fraction of the canvas
+const OVERSCAN = 1.03;      // how far a flat image extends past the icon shape
+const OPAQUE = 0.5;         // alpha at which a pixel counts as part of a flat image's tile
+// The drop shadow, as fractions of the canvas, and its opacity: fitted to the
+// shadow macOS 27 draws around app icons, which is the same for every icon.
+const SHADOW_Y = 8 / 1024, SHADOW_BLUR = 32 / 1024, SHADOW_ALPHA = 0.25;
 
 function run(argv) {
-  if (argv.length !== 2) throw new Error('Usage: make-appicon <icon.png> <appicon.png>');
-  const cwd = $.NSFileManager.defaultManager.currentDirectoryPath;
-  const [src, out] = argv.map(a => {
-    const path = $(a).stringByExpandingTildeInPath;
-    return (path.isAbsolutePath ? path : cwd.stringByAppendingPathComponent(path)).stringByStandardizingPath.js;
-  });
+  if (argv.length !== 2) throw new Error('Usage: make-appicon <icon.png | artwork.icon> <appicon.png>');
+  const [src, out] = argv.map(absolutePath);
+  const ictool = findIctool();
+  const temp = $.NSTemporaryDirectory().js + `make-appicon-${$.NSUUID.UUID.UUIDString.js}`;
+  const fm = $.NSFileManager.defaultManager;
+  fm.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(temp, true, $(), null);
+  try {
+    const isDocument = src.endsWith('.icon');
+    const doc = isDocument ? src : flatImageDocument(src, temp);
+    const tile = Math.round(SIZE * TILE);
+    const render = `${temp}/render.png`;
+    const result = runTool(ictool, [doc, '--export-image', '--output-file', render, '--platform', 'macOS',
+      '--rendition', 'Default', '--width', String(tile), '--height', String(tile), '--scale', '1']);
+    if (!fm.fileExistsAtPath(render)) throw new Error(`ictool couldn't render ${doc}:\n${result}`);
+    layOut(render, out);
+    return `Wrote ${out} (${SIZE}px, ${tile}px tile, from ${isDocument ? 'an Icon Composer document' : 'a flat image'})`;
+  } finally {
+    fm.removeItemAtPathError(temp, null);
+  }
+}
 
+function absolutePath(arg) {
+  const path = $(arg).stringByExpandingTildeInPath;
+  const cwd = $.NSFileManager.defaultManager.currentDirectoryPath;
+  return (path.isAbsolutePath ? path : cwd.stringByAppendingPathComponent(path)).stringByStandardizingPath.js;
+}
+
+// Icon Composer's ictool, from ICTOOL, the selected Xcode, or a standalone
+// Icon Composer. Xcode's Developer/usr/bin/ictool is a different tool, which
+// can't render Icon Composer documents.
+function findIctool() {
+  const fm = $.NSFileManager.defaultManager;
+  const env = $.NSProcessInfo.processInfo.environment.objectForKey('ICTOOL');
+  if (!env.isNil()) return env.js;
+  const developer = runTool('/usr/bin/xcode-select', ['-p']).trim();
+  const candidates = [
+    `${developer}/../Applications/Icon Composer.app/Contents/Executables/ictool`,
+    '/Applications/Icon Composer.app/Contents/Executables/ictool',
+  ];
+  const found = candidates.find((p) => fm.isExecutableFileAtPath(p));
+  if (!found) throw new Error("Can't find Icon Composer's ictool: install Xcode 26 or later, or set ICTOOL");
+  return $(found).stringByStandardizingPath.js;
+}
+
+// Runs `path` with `args`, returning its output (stdout and stderr).
+function runTool(path, args) {
+  const task = $.NSTask.alloc.init;
+  const pipe = $.NSPipe.pipe;
+  task.executableURL = $.NSURL.fileURLWithPath(path);
+  task.arguments = args;
+  task.standardOutput = pipe;
+  task.standardError = pipe;
+  if (!task.launchAndReturnError(null)) throw new Error(`Can't run ${path}`);
+  const data = pipe.fileHandleForReading.readDataToEndOfFile;
+  task.waitUntilExit;
+  return $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js;
+}
+
+// A temporary Icon Composer document in `temp` whose single layer is the tile
+// of the flat image at `src`, cropped and scaled to cover the icon shape.
+function flatImageDocument(src, temp) {
   const rep = $.NSBitmapImageRep.imageRepWithContentsOfFile(src);
   if (!rep.js) throw new Error(`Can't read ${src}`);
   const w = rep.pixelsWide, h = rep.pixelsHigh;
@@ -53,50 +110,76 @@ function run(argv) {
     for (let i = from; i !== to; i += step) if (at(i)) return i;
     throw new Error(`No opaque tile found in ${src}`);
   };
-  const left = scan(0, w, x => opaque(x, h >> 1));
-  const right = scan(w - 1, -1, x => opaque(x, h >> 1));
-  const top = scan(0, h, y => opaque(w >> 1, y));
-  const bottom = scan(h - 1, -1, y => opaque(w >> 1, y));
-  const sw = right - left + 1, sh = bottom - top + 1;
+  const left = scan(0, w, (x) => opaque(x, h >> 1));
+  const right = scan(w - 1, -1, (x) => opaque(x, h >> 1));
+  const top = scan(0, h, (y) => opaque(w >> 1, y));
+  const bottom = scan(h - 1, -1, (y) => opaque(w >> 1, y));
+  const cw = right - left + 1, ch = bottom - top + 1;
 
-  // The squircle is square, so the artwork covers it: its shorter side spans the tile.
-  const size = Math.min(Math.round(Math.min(sw, sh) / TILE), MAX_SIZE);
-  const tile = size * TILE, c = size / 2;
-  const k = tile * OVERSCAN / Math.min(sw, sh);
-  const dw = sw * k, dh = sh * k;
-
-  const canvas = $.NSBitmapImageRep.alloc
-    .initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
-      null, size, size, 8, 4, true, false, $.NSDeviceRGBColorSpace, 0, 0);
+  // Crop to the tile, at 72 DPI, so Icon Composer places it at one point per pixel.
+  const crop = newCanvas(cw, ch);
   const img = $.NSImage.alloc.initWithSize($.NSMakeSize(w, h));
   img.addRepresentation(rep);
   rep.size = $.NSMakeSize(w, h); // draw in pixels, whatever DPI the PNG declares
+  drawInto(crop, () => {
+    // AppKit's origin is bottom-left; top and bottom were measured from the top.
+    img.drawInRectFromRectOperationFraction($.NSMakeRect(0, 0, cw, ch), $.NSMakeRect(left, h - 1 - bottom, cw, ch),
+      $.NSCompositingOperationCopy, 1);
+  });
 
+  const doc = `${temp}/artwork.icon`;
+  $.NSFileManager.defaultManager.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(`${doc}/Assets`, true, $(), null);
+  writePng(crop, `${doc}/Assets/artwork.png`);
+  // The layer covers the whole canvas, so the document's fill never shows.
+  const json = {
+    groups: [{
+      layers: [{
+        'image-name': 'artwork.png',
+        name: 'artwork',
+        glass: false,
+        position: { scale: (1024 * OVERSCAN) / Math.min(cw, ch), 'translation-in-points': [0, 0] },
+      }],
+    }],
+    'supported-platforms': { squares: ['macOS'] },
+  };
+  $(JSON.stringify(json, null, 2)).writeToFileAtomicallyEncodingError(`${doc}/icon.json`, true, $.NSUTF8StringEncoding, null);
+  return doc;
+}
+
+// Lays out the tile rendered at `render` on the app icon canvas, with the drop
+// shadow, and writes it to `out`.
+function layOut(render, out) {
+  const tile = SIZE * TILE, margin = (SIZE - tile) / 2;
+  const canvas = newCanvas(SIZE, SIZE);
+  const img = $.NSImage.alloc.initWithContentsOfFile(render);
+  drawInto(canvas, () => {
+    const shadow = $.NSShadow.alloc.init;
+    shadow.shadowOffset = $.NSMakeSize(0, -SHADOW_Y * SIZE);
+    shadow.shadowBlurRadius = SHADOW_BLUR * SIZE;
+    shadow.shadowColor = $.NSColor.colorWithCalibratedWhiteAlpha(0, SHADOW_ALPHA);
+    shadow.set;
+    img.drawInRectFromRectOperationFraction($.NSMakeRect(margin, margin, tile, tile), $.NSZeroRect,
+      $.NSCompositingOperationSourceOver, 1);
+  });
+  writePng(canvas, out);
+}
+
+function newCanvas(w, h) {
+  return $.NSBitmapImageRep.alloc
+    .initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
+      null, w, h, 8, 4, true, false, $.NSDeviceRGBColorSpace, 0, 0);
+}
+
+function drawInto(rep, draw) {
   $.NSGraphicsContext.saveGraphicsState;
-  const ctx = $.NSGraphicsContext.graphicsContextWithBitmapImageRep(canvas);
+  const ctx = $.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep);
   ctx.imageInterpolation = $.NSImageInterpolationHigh;
   $.NSGraphicsContext.setCurrentContext(ctx);
-
-  // Shadow only: fill a copy of the squircle off the canvas and offset its shadow back onto it.
-  $.NSGraphicsContext.saveGraphicsState;
-  const shadow = $.NSShadow.alloc.init;
-  shadow.shadowOffset = $.NSMakeSize(-2 * size, -SHADOW_Y * size);
-  shadow.shadowBlurRadius = SHADOW_BLUR * size;
-  shadow.shadowColor = $.NSColor.colorWithCalibratedWhiteAlpha(0, SHADOW_ALPHA);
-  shadow.set;
-  $.NSColor.blackColor.setFill;
-  squircle(c, c, tile / 2, 2 * size).fill;
+  draw();
   $.NSGraphicsContext.restoreGraphicsState;
+}
 
-  squircle(c, c, tile / 2).addClip;
-  // AppKit's origin is bottom-left; top and bottom were measured from the top.
-  img.drawInRectFromRectOperationFraction(
-    $.NSMakeRect(c - dw / 2, c - dh / 2, dw, dh),
-    $.NSMakeRect(left, h - 1 - bottom, sw, sh),
-    $.NSCompositingOperationSourceOver, 1);
-  $.NSGraphicsContext.restoreGraphicsState;
-
-  const png = canvas.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
-  if (!png.writeToFileAtomically(out, true)) throw new Error(`Can't write ${out}`);
-  return `Wrote ${out} (${size}px, tile ${Math.round(tile)}px from ${sw}×${sh})`;
+function writePng(rep, path) {
+  const png = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
+  if (!png.writeToFileAtomically(path, true)) throw new Error(`Can't write ${path}`);
 }

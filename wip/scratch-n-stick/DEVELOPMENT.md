@@ -173,6 +173,7 @@ Everything in `dev/` is development only (excluded from builds by `.wfignore`):
 | `dev/lucide/` | Lucide's source SVGs (`lucide-static` 1.80.0), its `LICENSE` and `VERSION` |
 | `dev/icons/` | The workflow's own button icons in Lucide's style (`close`, `text-size`) |
 | `dev/icon.svg`, `dev/note.svg`, `dev/slate.svg` | Sources of `icon.png` and New note's icons. See [The workflow's own images](dev/docs/colours-and-icons.md#the-workflows-own-images). |
+| `dev/appicon.icon` | Icon Composer document that `ui/appicon.png` is built from. See [The workflow's own images](dev/docs/colours-and-icons.md#the-workflows-own-images). |
 
 ## Still to do
 

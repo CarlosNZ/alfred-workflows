@@ -101,7 +101,27 @@ To give a workflow a shared option, add an item with its variable in Alfred (any
 
 ### App icons
 
-An Alfred UI runs in a helper app with no icon of its own, so a workflow with a window gives it one with `ui.json`'s `iconpath` (see Now Playing's developer notes, [App icon and name](release/now-playing/DEVELOPMENT.md#app-icon-and-name)). `bin/make-appicon <icon.png> <appicon.png>` builds it from the workflow's icon, laid out on the macOS icon grid with a squircle mask and drop shadow so it matches other apps' icons.
+An Alfred UI runs in a helper app with no icon of its own, so a workflow with a window gives it one with `ui.json`'s `iconpath` (see Now Playing's developer notes, [App icon and name](release/now-playing/DEVELOPMENT.md#app-icon-and-name)). The helper sets it once, at launch, from a plain image, so unlike apps' own icons it can't follow the icon style (Light, Dark, Clear or Tinted): each workflow ships one app icon, in the Default (light) style. See [Alfred requests](Alfred%20requests.md#alfred-ui-an-app-icon-that-follows-the-icon-style).
+
+`bin/make-appicon <artwork> <appicon.png>` builds it to look like other apps' icons. It renders the artwork with `ictool`, Icon Composer's command-line tool, which masks it to Apple's icon shape and adds the rim lighting (and any glass and shadows the artwork's layers ask for), then lays the render out as macOS lays out app icons: a tile 824/1024 of a 512px canvas, with the drop shadow macOS draws around app icons in the margin. The artwork is either:
+
+- **A flat image**: a tile filling its canvas, like a workflow's `icon.png`. Use the largest original there is: the tile is cropped and scaled to cover the icon shape with 3% to spare, which cuts off its own corners. Its lighting is in the image already, so no glass is added.
+- **An Icon Composer document** (`.icon`), for artwork made of layers: a folder holding `icon.json` (the fill, and the layers with their glass and shadow) and the layer images in `Assets/`. Edit it in Icon Composer (in `Xcode.app/Contents/Applications/`), which previews it in every style.
+
+| Workflow | Artwork | App icon |
+|---|---|---|
+| Now Playing | `release/now-playing/icon-candidates/icon_play_disc_pink_blue.png` (flat) | `release/now-playing/nowplaying.alfredui/appicon.png` |
+| World Clock | `release/world-clock-cities/resources/icon.png` (flat) | `release/world-clock-cities/appicon.png` |
+| Scratch'n'Stick | `wip/scratch-n-stick/dev/appicon.icon` (layers) | `wip/scratch-n-stick/ui/appicon.png` |
+
+To update a workflow's app icon (each workflow's developer notes give its commands, with anything else made from the same artwork):
+
+1. Change the artwork.
+2. Build the app icon: `bin/make-appicon <artwork> <appicon.png>`.
+3. Compress it: `pngquant --speed 1 --force --ext .png <appicon.png>`. This reduces it to 256 colours with dithering, which keeps gradients smooth at the sizes it's shown (about 60 KB). Not TinyPNG, which doesn't dither and leaves banding.
+4. Check it in ⌘-Tab and the Dock, in Light and Dark mode. An open window keeps the icon it launched with, so close and reopen it first.
+
+This needs Xcode 26 or later, for `ictool`, and `pngquant` from Homebrew (`brew install pngquant`). `make-appicon` finds Icon Composer's `ictool` through `xcode-select`, or uses `ICTOOL` if it's set. The `ictool` in Xcode's `Developer/usr/bin` is a different tool, which can't render Icon Composer documents.
 
 ## Personal settings and secrets
 
