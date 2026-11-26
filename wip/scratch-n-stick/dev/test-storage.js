@@ -34,7 +34,10 @@ function run(argv) {
     testUnicode(freshStore(args[0], "unicode"));
     testEmpty(freshStore(args[0], "empty"));
     testList(freshStore(args[0], "list"));
+    testSweep(freshStore(args[0], "sweep"));
+    testDailySweep(args[0]);
     timeList(freshStore(args[0], "timing"));
+    timeSweep(freshStore(args[0], "timing-sweep"));
     testMoveNotes(args[0]);
     testMoveCheck(args[0]);
     timeMove(args[0]);
@@ -430,6 +433,82 @@ function testList(store) {
   eq("…and the save shows", store.read("Upper").text, "changed");
 }
 
+function testSweep(store) {
+  section("Sweeping sidecars");
+  const day = 24 * 60 * 60 * 1000;
+  const now = new Date(2026, 10, 27, 12, 0, 0);
+  const sidecar = (id) => `${store.folder}/.scratchnstick/${id}.json`;
+  const meta = (id) => readJsonObject(sidecar(id));
+  const writeMeta = (id, value) => writeRaw(sidecar(id), typeof value === "string" ? value : JSON.stringify(value));
+  makeFolder(`${store.folder}/.scratchnstick`);
+  writeRaw(`${store.folder}/kept.md`, "A note");
+  writeMeta("kept", { colour: 2 });
+  writeRaw(`${store.folder}/Upper.MD`, "Upper case extension");
+  writeMeta("Upper", { colour: 3 });
+  writeRaw(`${store.folder}/${"Café".normalize("NFD")}.md`, "Decomposed name");
+  writeMeta("Café".normalize("NFC"), { colour: 4 });
+  writeMeta("new-orphan", { colour: 5, icon: "star" });
+  writeMeta("recent", { colour: 1, trashed: formatLocalIsoDate(new Date(now - 10 * day)) });
+  writeMeta("old", { colour: 1, trashed: formatLocalIsoDate(new Date(now - 30 * day)) });
+  writeMeta("bad-date", { trashed: "yesterday" });
+  writeMeta("corrupt", "{not json");
+  writeMeta("open-unsaved", { colour: 6 });
+  writeRaw(`${store.folder}/.scratchnstick/.scratchnstick-save-x.tmp`, "{}");
+  writeRaw(`${store.folder}/.scratchnstick/notes.txt`, "not a sidecar");
+  const isInUse = (id) => id === "open-unsaved";
+
+  eq("a sweep dates the sidecars without a note and no date, and deletes those gone 30 days", store.sweepSidecars({ now, isInUse }), { stamped: 2, deleted: 1 });
+  eq("…dated now, keeping the rest", meta("new-orphan"), { colour: 5, icon: "star", trashed: formatLocalIsoDate(now) });
+  eq("…a date that can't be read is dated now", meta("bad-date"), { trashed: formatLocalIsoDate(now) });
+  check("…gone 30 days: deleted", !exists(sidecar("old")));
+  eq("…gone 10 days: kept as it was", meta("recent").trashed, formatLocalIsoDate(new Date(now - 10 * day)));
+  eq("…notes' own sidecars untouched, whatever the name's case or normalisation", [meta("kept"), meta("Upper"), meta("Café".normalize("NFC"))], [{ colour: 2 }, { colour: 3 }, { colour: 4 }]);
+  eq("…a sidecar that can't be read is left alone", readText(sidecar("corrupt")), "{not json");
+  eq("…so is a note open but not saved yet", meta("open-unsaved"), { colour: 6 });
+  check("…and other files", exists(`${store.folder}/.scratchnstick/.scratchnstick-save-x.tmp`) && exists(`${store.folder}/.scratchnstick/notes.txt`));
+
+  eq("a day later: nothing more to do", store.sweepSidecars({ now: new Date(now.getTime() + day), isInUse }), { stamped: 0, deleted: 0 });
+  eq("20 days later: the one gone 30 days is deleted", store.sweepSidecars({ now: new Date(now.getTime() + 20 * day), isInUse }), { stamped: 0, deleted: 1 });
+  check("…the one gone 10 days", !exists(sidecar("recent")) && exists(sidecar("new-orphan")));
+  eq("30 days after they were dated: the rest are deleted", store.sweepSidecars({ now: new Date(now.getTime() + 30 * day), isInUse }), { stamped: 0, deleted: 2 });
+  eq("…leaving the notes', the unreadable one and the open note's", entries(`${store.folder}/.scratchnstick`).filter((name) => name.endsWith(".json")).map((name) => name.normalize("NFC")).sort(), ["Café.json", "Upper.json", "corrupt.json", "kept.json", "open-unsaved.json"]);
+
+  writeMeta("kept", { colour: 2, trashed: formatLocalIsoDate(new Date(now - 40 * day)) });
+  eq("a note that's back: listing removes its date", [store.list().find((n) => n.id === "kept").meta, meta("kept")], [{ colour: 2 }, { colour: 2 }]);
+  writeMeta("kept", { trashed: formatLocalIsoDate(new Date(now - 40 * day)) });
+  eq("…and the sidecar, if that was all it held", [store.read("kept").meta, exists(sidecar("kept"))], [{}, false]);
+  writeMeta("kept", { colour: 2, trashed: formatLocalIsoDate(new Date(now - 40 * day)) });
+  eq("a sweep leaves a dated sidecar alone while its note is there", [store.sweepSidecars({ now, isInUse }).deleted, exists(sidecar("kept"))], [0, true]);
+  const empty = freshStore(store.folder, "empty");
+  eq("no sidecars folder: nothing to do", empty.sweepSidecars({ now, isInUse }), { stamped: 0, deleted: 0 });
+}
+
+function testDailySweep(root) {
+  section("Sweeping once a day");
+  const data = `${root}/daily/data`;
+  const settings = (name) => ({ alfred_workflow_data: data, alfred_workflow_cache: `${root}/daily/cache` })[name] || "";
+  const store = freshStore(root, "daily/notes");
+  makeFolder(`${store.folder}/.scratchnstick`);
+  const orphan = (id) => writeRaw(`${store.folder}/.scratchnstick/${id}.json`, JSON.stringify({ colour: 1 }));
+  const state = () => readJsonObject(`${data}/state.json`);
+  const morning = new Date(2026, 10, 27, 8, 0, 0);
+  writeLastNotesFolder(store.folder, settings);
+  orphan("first");
+
+  eq("the first run sweeps", sweepSidecarsDaily(store, { now: morning, variable: settings }), { stamped: 1, deleted: 0 });
+  eq("…recording when, and keeping the notes folder's record", state(), { lastNotesFolder: store.folder, lastSidecarSweep: formatLocalIsoDate(morning) });
+  orphan("second");
+  eq("later the same day: no sweep", sweepSidecarsDaily(store, { now: new Date(2026, 10, 27, 23, 59, 0), variable: settings }), null);
+  eq("…and nothing written", state().lastSidecarSweep, formatLocalIsoDate(morning));
+  const midnight = new Date(2026, 10, 28, 0, 0, 0);
+  eq("just after midnight: a sweep", sweepSidecarsDaily(store, { now: midnight, variable: settings }), { stamped: 1, deleted: 0 });
+  eq("a clock set back a day: a sweep", sweepSidecarsDaily(store, { now: morning, variable: settings }), { stamped: 0, deleted: 0 });
+  writeLastNotesFolder(`${root}/daily/other`, settings);
+  eq("writing the notes folder's record keeps the sweep's", state(), { lastNotesFolder: `${root}/daily/other`, lastSidecarSweep: formatLocalIsoDate(morning) });
+  writeRaw(`${data}/state.json`, "{not json");
+  eq("an unreadable state: no record, and a sweep", [readLastNotesFolder(settings), sweepSidecarsDaily(store, { now: morning, variable: settings })], [null, { stamped: 0, deleted: 0 }]);
+}
+
 function timeList(store) {
   section("Timing");
   for (let i = 0; i < 300; i++) writeRaw(`${store.folder}/note-${i}.md`, `# Note ${i}\n- item one\n- item two\n\nSome text here.\n`.repeat(3));
@@ -442,6 +521,26 @@ function timeList(store) {
   print(`info list() of 300 notes: ${Date.now() - start} ms`);
 }
 
+function timeSweep(store) {
+  const day = 24 * 60 * 60 * 1000;
+  const now = new Date();
+  makeFolder(`${store.folder}/.scratchnstick`);
+  for (let i = 0; i < 1100; i++) {
+    const id = `note-${i}`;
+    if (i < 1000) writeRaw(`${store.folder}/${id}.md`, `# Note ${i}\nSome text.\n`);
+    const meta = { created: "2026-11-25T12:00:00+13:00", colour: 2 };
+    if (i >= 1050) meta.trashed = formatLocalIsoDate(new Date(now - 40 * day));
+    writeRaw(`${store.folder}/.scratchnstick/${id}.json`, JSON.stringify(meta));
+  }
+  let start = Date.now();
+  const result = store.sweepSidecars({ now, isInUse: () => false });
+  print(`info sweepSidecars of 1,000 notes and 1,100 sidecars (50 to date, 50 to delete): ${Date.now() - start} ms`);
+  eq("1,000 notes and 100 sidecars without one: 50 dated, 50 deleted", result, { stamped: 50, deleted: 50 });
+  start = Date.now();
+  store.sweepSidecars({ now, isInUse: () => false });
+  print(`info sweepSidecars again, with nothing to do: ${Date.now() - start} ms`);
+}
+
 function testTrash(store) {
   section("Trash");
   const id = `scratchnstick-test-${$.NSUUID.UUID.UUIDString.js}`;
@@ -450,6 +549,8 @@ function testTrash(store) {
   const trashed = store.trash(id);
   check("note is gone from the folder", !store.exists(id));
   check("its sidecar stays (for Put Back)", exists(`${store.folder}/.scratchnstick/${id}.json`));
+  const stamped = parseDate(store.readMeta(id).trashed);
+  check("…recording when it was trashed, and keeping the rest", stamped && Date.now() - stamped < 60000 && store.readMeta(id).colour === "blue", store.readMeta(id));
   const trashFolder = `${$.NSHomeDirectory().js}/.Trash/`;
   check("Finder says it's in the Trash", typeof trashed === "string" && trashed.startsWith(trashFolder), trashed);
   eq("trashing a missing note returns null", store.trash("missing"), null);
@@ -621,7 +722,7 @@ function testMoveCheck(root) {
   eq("…one renamed", message(5, 1, 0, "/Volumes/Disk/Notes"), "Moved 5 notes to /Volumes/Disk/Notes. 1 was renamed, as its name was taken there.");
   eq("…none to move", message(0, 0, 0, "/Volumes/Disk/Notes"), "Your notes are now kept in /Volumes/Disk/Notes. There were no notes to move.");
   eq("no record and a missing configured folder: nothing recorded", (() => {
-    removeFile(`${data}/last-notes-folder`);
+    removeFile(`${data}/state.json`);
     check_(`${root}/check/missing`);
     return record();
   })(), null);

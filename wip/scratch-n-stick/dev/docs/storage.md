@@ -1,6 +1,6 @@
 # Storage
 
-How notes are kept on disk: the notes folder, note IDs, metadata sidecars, titles and previews, saving, and moving the notes folder. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md).
+How notes are kept on disk: the notes folder, note IDs, metadata sidecars, titles and previews, saving, the Trash and sweeping sidecars, and moving the notes folder. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md).
 
 ## The notes folder
 
@@ -14,7 +14,7 @@ Each note is one plain `.md` file in the notes folder. By default that's `notes/
 
 A note's ID is its filename without `.md`. Filenames are never derived from the content, so a file isn't renamed while a window has it open, and a file added by hand (`shopping.md`) is a note with its own name as its ID.
 
-New notes are named for their creation time in local time, `YYYYMMDD-HHMMSS` (e.g. `20261120-153012.md`), so they sort by creation in Finder, with `-2`, `-3`… added if the ID is taken. An ID is taken if its note or its sidecar exists (a trashed note keeps its sidecar), or if the caller says so: `newId`'s `isTaken` counts new notes that are open but not saved yet (`isNoteIdInUse`: a sticky bundle or a state file exists), so two notes created in the same second don't share an ID. A quick bundle alone doesn't take an ID, so the New note results offered on each list don't pile up as `-2`, `-3`.
+New notes are named for their creation time in local time, `YYYYMMDD-HHMMSS` (e.g. `20261120-153012.md`), so they sort by creation in Finder, with `-2`, `-3`… added if the ID is taken. An ID is taken if its note or its sidecar exists (a trashed note keeps its sidecar for 30 days), or if the caller says so: `newId`'s `isTaken` counts new notes that are open but not saved yet (`isNoteIdInUse`: a sticky bundle or a state file exists), so two notes created in the same second don't share an ID. A quick bundle alone doesn't take an ID, so the New note results offered on each list don't pile up as `-2`, `-3`.
 
 IDs from script arguments are checked (`isNoteId`: one non-hidden filename component), so an argument can't reach outside the folder.
 
@@ -44,13 +44,14 @@ The keys:
 | `fontSize` | The note's own font size in points (see [Window layout and controls](window-ui.md#font-size)). Absent for the default. |
 | `mode` | `edit` or `view`: the mode its window was last in, recorded on every switch and when the window closes, so it reopens that way. |
 | `collapsed` | While its sticky window is collapsed, the height in points it expands back to (see [Collapsing](window-ui.md#collapsing)). |
+| `trashed` | Once the note is gone, when it was trashed, or when a sweep first found it gone. The sidecar is deleted 30 days later (see [Sweeping sidecars](#sweeping-sidecars)). |
 
 Rules:
 
 - Writes merge (`updateMeta`): keys being set are replaced, keys set to null are removed, and every other key is kept, including ones from other versions or tools. A sidecar is written only once there's something to store, and removed when its last key is.
 - An unreadable sidecar, or one that isn't a JSON object, reads as empty, and is left alone rather than overwritten.
 - Every `.md` in the folder is a note, with or without a sidecar. A note without one gets one the first time it's read or listed, recording the file's birth time as `created`. So "has a sidecar" doesn't mark the notes the workflow made.
-- Moving a note to the Trash leaves its sidecar, so a note that's put back keeps its colour and icon.
+- Moving a note to the Trash leaves its sidecar for 30 days, so a note that's put back keeps its colour and icon.
 
 ## Titles and previews
 
@@ -93,13 +94,27 @@ A note is empty when its text is only whitespace, whatever its sidecar holds.
 
 ## The Trash
 
-`trash(id)` moves a note to the Trash through Finder, so Finder's Put Back works, and keeps its sidecar. macOS asks once for Alfred's permission to control Finder. With the permission off, Finder fails at once with -1743 (errAEEventNotPermitted), whose JXA message is only "An error occurred.", so `trash` replaces it with one saying where to allow it. A sticky window's own process can control Finder without a prompt.
+`trash(id)` moves a note to the Trash through Finder, so Finder's Put Back works, and keeps its sidecar, recording the time in its `trashed`. A sidecar that can't be read is left alone, and if the time can't be written, the next sweep dates it instead. macOS asks once for Alfred's permission to control Finder. With the permission off, Finder fails at once with -1743 (errAEEventNotPermitted), whose JXA message is only "An error occurred.", so `trash` replaces it with one saying where to allow it. A sticky window's own process can control Finder without a prompt.
+
+## Sweeping sidecars
+
+A note that's gone (trashed, or deleted some other way) leaves its sidecar, for Put Back. A sweep deletes it once it has been gone 30 days (`SIDECAR_KEEP_DAYS`), the same time Finder's "Remove items from the Trash after 30 days" keeps the note.
+
+- **Two things must be true** for a sidecar to be deleted: there's no note for it, and its `trashed` is 30 days old. "No note" matches the note's name in any extension case or Unicode normalisation, as the move does.
+- **A sidecar without a `trashed`** (the note was deleted in Finder, on another Mac sharing the folder, or by another app) is given the sweep's time, so it's kept 30 days from then. A `trashed` that isn't a date is replaced the same way.
+- **A note that's back** (Put Back) has its `trashed` removed when it's next read or listed, so if it goes again other than through `trash`, a sweep dates it afresh rather than from the old date.
+- **Left alone**: sidecars of notes open but not saved yet (`isNoteIdInUse`: a colour can be picked before typing, which writes a sidecar before the note exists), sidecars that can't be read as a JSON object, and other files. A file that can't be changed is skipped, and tried again on the next sweep.
+- The sidecar's own modification time can't stand in for `trashed`: it's when the note's metadata last changed, which may be long before the note was trashed.
+
+**When**: the results list (`list.js`) sweeps once a day, on its first run on a new local date (`sweepSidecarsDaily`), after checking for a move of the notes folder, so it sweeps only the folder the record names. The time of the last sweep is `lastSidecarSweep` in `$alfred_workflow_data/state.json`. A sidecar is deleted by the first sweep 30 days after its `trashed`: 30 to 31 days after a note trashed through the workflow, and up to a day more for one that went some other way, dated by the next sweep. An error in a sweep is logged and the list carries on.
+
+A sweep of 1,000 notes and 1,100 sidecars (50 to date, 50 to delete) takes about 55 ms; with nothing to change, under 10 ms.
 
 ## Moving the notes folder
 
 When `notes_folder` changes, the notes move to the new folder without asking. Alfred runs nothing when a setting changes, so the move happens on the workflow's next run. It's `checkNotesFolderMove` and `moveNotes` in `lib.js`, and `scripts/move.js`.
 
-**Noticing a change.** The folder the notes were last in is recorded, as an expanded path, in `$alfred_workflow_data/last-notes-folder` (local to each Mac). Every entry point that reads the setting (`list.js`, `new.js`, `open.js`) compares it with the folder the setting gives now; the window scripts don't, as each window works on the folder in its bundle's context. With no record yet, the current folder is recorded and nothing moves. The two count as the same folder if, with symlinks resolved, they have the same volume and file number, so `~/notes` and `~/Notes` on a case-insensitive volume, or a symlink and its target, aren't a change.
+**Noticing a change.** The folder the notes were last in is recorded, as an expanded path, as `lastNotesFolder` in `$alfred_workflow_data/state.json` (local to each Mac). The file also holds `lastSidecarSweep`, and every write merges into it, read again just before writing, so each key is kept when the other changes. Every entry point that reads the setting (`list.js`, `new.js`, `open.js`) compares it with the folder the setting gives now; the window scripts don't, as each window works on the folder in its bundle's context. With no record yet, the current folder is recorded and nothing moves. The two count as the same folder if, with symlinks resolved, they have the same volume and file number, so `~/notes` and `~/Notes` on a case-insensitive volume, or a symlink and its target, aren't a change.
 
 **The lock.** A move holds `$alfred_workflow_cache/move.lock/`, a folder holding the mover's process ID; creating a folder is atomic, so only one run takes it. A lock whose process has gone is stale and is taken over. A lock with no process ID yet counts as held for 5 seconds.
 
@@ -136,7 +151,7 @@ The `notes_folder` field's description warns that changing it moves the notes an
 
 - `list({ ids })`: notes, last edited first, as `{ id, path, fileName, text, meta, modified, created, title, preview }` (`meta` is `{}` without a sidecar; dates are `Date`s). `ids` limits it to those notes (the sticky notes list).
 - `read(id)`: one note object, or null.
-- `newId({ date, isTaken })`, `save(id, text)`, `deleteIfEmpty(id)`, `trash(id)`: as above.
+- `newId({ date, isTaken })`, `save(id, text)`, `deleteIfEmpty(id)`, `trash(id)`, `sweepSidecars({ now, isInUse })`: as above.
 - `readMeta(id)`, `updateMeta(id, changes)`: the sidecar, which works before a note is first saved (a colour picked before typing).
 - `notePath(id)`, `exists(id)`, `folder`.
 

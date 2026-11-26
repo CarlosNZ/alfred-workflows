@@ -74,12 +74,13 @@ print "\n# move.js and the move started by list.js"
 mv=$tmp/movejs
 mkdir -p "$mv/data/notes" "$mv/cache" "$mv/new"
 print -rn "Moved by move.js" > "$mv/data/notes/a.md"
-print -r -- "$mv/data/notes" > "$mv/data/last-notes-folder"
+print -r -- "{\"lastNotesFolder\": \"$mv/data/notes\"}" > "$mv/data/state.json"
+record() { plutil -extract lastNotesFolder raw -o - "$mv/data/state.json" }
 movejs() { env alfred_workflow_data=$mv/data alfred_workflow_cache=$mv/cache "$workflow/scripts/move.js" "$@" }
 expect() { if [[ $2 == "$3" ]]; then ok "$1"; else fail "$1: got '$2', expected '$3'"; fi }
 movejs "$mv/data/notes" "$mv/new"
 expect "the note moved" "$(cat "$mv/new/a.md" 2>&1)" "Moved by move.js"
-expect "the record is the new folder" "$(cat "$mv/data/last-notes-folder")" "$mv/new"
+expect "the record is the new folder" "$(record)" "$mv/new"
 expect "the old default folder, left empty, is removed" "$([[ -e $mv/data/notes ]] && print kept || print removed)" "removed"
 expect "the lock is released, and there's no failure" "$(ls -A "$mv/cache")" ""
 
@@ -87,20 +88,21 @@ mkdir -p "$mv/locked"; chmod 555 "$mv/locked"
 print -rn "Can't move" > "$mv/new/b.md"
 movejs "$mv/new" "$mv/locked"
 expect "a failed move: its failure is recorded, naming the file" "$(grep -c '"error":"Can.t move [^"]*b.md' "$mv/cache/move-failure.json" 2>&1)" "1"
-expect "…the record still names the old folder, and the lock is released" "$(cat "$mv/data/last-notes-folder") $(ls -A "$mv/cache")" "$mv/new move-failure.json"
+expect "…the record still names the old folder, and the lock is released" "$(record) $(ls -A "$mv/cache")" "$mv/new move-failure.json"
 chmod 755 "$mv/locked"; rm -f "$mv/cache/move-failure.json"
 
 mkdir "$mv/cache/move.lock"; print $$ > "$mv/cache/move.lock/pid"
 movejs "$mv/new" "$mv/locked"
-expect "a lock held by a live process: move.js does nothing" "$(ls -A "$mv/locked") $(cat "$mv/data/last-notes-folder")" " $mv/new"
+expect "a lock held by a live process: move.js does nothing" "$(ls -A "$mv/locked") $(record)" " $mv/new"
 rm -rf "$mv/cache/move.lock"
 
 listjs() { (cd "$tmp" && env alfred_workflow_data=$mv/data alfred_workflow_cache=$mv/cache notes_folder=$1 "$workflow/scripts/list.js" "") }
 out=$(listjs "$mv/locked")
 expect "list.js after a change of folder: Moving notes…, rerun" "$(print -r -- $out | grep -o '"rerun":0.5,"items":\[{"title":"Moving notes…"')" '"rerun":0.5,"items":[{"title":"Moving notes…"'
-for i in {1..50}; do [[ $(cat "$mv/data/last-notes-folder") == "$mv/locked" ]] && break; sleep 0.1; done
-expect "…the move it started in the background finishes" "$(cat "$mv/data/last-notes-folder") $(cd "$mv/locked" && print -r -- *)" "$mv/locked a.md b.md"
+for i in {1..50}; do [[ $(record) == "$mv/locked" ]] && break; sleep 0.1; done
+expect "…the move it started in the background finishes" "$(record) $(cd "$mv/locked" && print -r -- *)" "$mv/locked a.md b.md"
 expect "…then list.js lists the notes" "$(listjs "$mv/locked" | grep -o '"title":"[^"]*"' | tr '\n' ' ')" '"title":"New note" "title":"Can'"'"'t move" "title":"Moved by move.js" '
+expect "…and sweeps the sidecars, recording the day in the state, which keeps the record" "$(plutil -extract lastSidecarSweep raw -o - "$mv/data/state.json" | cut -c1-10) $(record)" "$(date +%F) $mv/locked"
 expect "a missing notes folder: Missing notes folder" "$(listjs "$mv/missing" | grep -o '"title":"[^"]*","subtitle":"[^"]*"')" "\"title\":\"Missing notes folder\",\"subtitle\":\"$mv/missing\""
 
 if [[ -n ${SKIP_VOLUME:-} ]]; then

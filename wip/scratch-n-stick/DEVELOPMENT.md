@@ -67,8 +67,8 @@ All JXA unless noted.
 | Path | What |
 |---|---|
 | Notes folder (`$alfred_workflow_data/notes/` by default) | `<id>.md`, one per note |
-| `<notes folder>/.scratchnstick/<id>.json` | Each note's metadata sidecar: created, colour, icon, font size, mode, collapsed |
-| `$alfred_workflow_data/last-notes-folder` | The folder the notes were last in, to notice a change of setting |
+| `<notes folder>/.scratchnstick/<id>.json` | Each note's metadata sidecar: created, colour, icon, font size, mode, collapsed, and once the note is gone, when it went (kept 30 days) |
+| `$alfred_workflow_data/state.json` | `lastNotesFolder`, the folder the notes were last in, to notice a change of setting, and `lastSidecarSweep`, when sidecars were last swept |
 | `$alfred_workflow_cache/quick/<id>.alfredui` | Each note's quick view bundle, and `quick/.index.json`, their fingerprints |
 | `$alfred_workflow_cache/windows/<id>.alfredui` | Each stuck note's sticky window bundle, kept so its saved position stays |
 | `$alfred_workflow_cache/state/<id>.json` | An open window's state: form, PID, mode, collapsed; `<id>.picker` while a drop-down is open |
@@ -125,7 +125,7 @@ Window scripts don't get these, so `list.js`, `new.js` and `open.js` write what 
 
 ## Detailed notes
 
-- [Storage](dev/docs/storage.md): the notes folder, IDs, sidecars, titles and previews, saving, empty notes, the Trash, and moving the notes folder.
+- [Storage](dev/docs/storage.md): the notes folder, IDs, sidecars, titles and previews, saving, empty notes, the Trash, sweeping sidecars, and moving the notes folder.
 - [Results and new notes](dev/docs/results.md): the results list, the sticky notes list, creating notes and text as a heading.
 - [Note windows](dev/docs/windows.md): quick views and sticky notes, the routes, generated bundles and templates, window state, seamless quick views, saving, escaping Alfred's placeholders, and window positions.
 - [Window layout and controls](dev/docs/window-ui.md): the top row, keys, key hints, drop-downs, collapsing, the actions menu, font sizes, and a new sticky note's size.
@@ -143,7 +143,7 @@ Run from anywhere; each uses temporary folders from `mktemp`, deleted afterwards
 
 | Script | Tests |
 |---|---|
-| `dev/test-storage.sh` | `lib.js`'s storage functions (with `dev/test-storage.js`): loading `lib.js` from other folders and through symlinks, IDs, saves (birth time, tags, modification time, racing processes), sidecars, titles and previews (Unicode, `text-rules.js`'s cases), empty notes, the Trash (`SKIP_TRASH=1` skips it; it trashes only a note it made), `fittedNoteSize`, and moving the notes folder, including to another volume on a disk image (`SKIP_VOLUME=1` skips it). About 8 s plus the move tests. |
+| `dev/test-storage.sh` | `lib.js`'s storage functions (with `dev/test-storage.js`): loading `lib.js` from other folders and through symlinks, IDs, saves (birth time, tags, modification time, racing processes), sidecars and their daily sweep, titles and previews (Unicode, `text-rules.js`'s cases), empty notes, the Trash (`SKIP_TRASH=1` skips it; it trashes only a note it made), `fittedNoteSize`, and moving the notes folder, including to another volume on a disk image (`SKIP_VOLUME=1` skips it). About 8 s plus the move tests. |
 | `dev/test-list.sh` | `list.js` and `new.js`: results and searching, result icons (badges, dots, the cache and its sweep), the quick bundles and when they're rebuilt, the theme stylesheet, the palette and its problems, macOS 12, the sticky notes list (sticky notes given in `scratchnstick_sticky_ids`), and the new-note keywords' results (from a private pasteboard, not the clipboard). |
 | `dev/test-window.sh` | `open.js`, `window.js`, `changed.sh` and `picker.sh`: bundles and templates in both forms and modes, escaping, saving, the mode switch, ticks, colours, icons and the pickers, font sizes, collapsing, the actions menu and its actions, macOS 12's windows, a new sticky note's size, saved window frames, and the page's task rule run in JXA with the vendored markdown-it. |
 
@@ -193,4 +193,3 @@ Later:
 - Reload a window when its note changes on disk, and close it when the note is deleted elsewhere (see [Changes made elsewhere](dev/docs/windows.md#changes-made-elsewhere)).
 - Dark-appearance variants of the palette, and a dark-mode look for the drop-downs.
 - The workflow's own Quick Look preview (see [Results and new notes](dev/docs/results.md#a-later-quick-look-preview)).
-- A sweep for sidecars of notes that have been gone a long time (trashed notes keep theirs).

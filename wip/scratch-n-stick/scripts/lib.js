@@ -18,6 +18,11 @@ const TITLE_MAX_LENGTH = 80;
 const PREVIEW_MAX_LENGTH = 100;
 const UNTITLED = "Untitled";
 
+// How long the sidecar of a note that's gone is kept, for Put Back, before a
+// sweep deletes it (see sweepSidecars). Finder's "Remove items from the Trash
+// after 30 days" empties the Trash on the same schedule.
+const SIDECAR_KEEP_DAYS = 30;
+
 // The sizes in a note window's Font size menu, in points, which ⌘+ and ⌘−
 // step through. Any order works, and a note's size outside the range of the
 // list (chosen from a longer one) is brought within it.
@@ -210,7 +215,8 @@ function noteStore(folder = notesFolder()) {
     const text = readText(path);
     if (text === null) return null;
     const birth = jsDate(attributes.objectForKey("NSFileCreationDate"));
-    const meta = fm.fileExistsAtPath(metaPath(id)) ? readMeta(id) : recordNewNote(id, birth);
+    let meta = fm.fileExistsAtPath(metaPath(id)) ? readMeta(id) : recordNewNote(id, birth);
+    if ("trashed" in meta) meta = clearTrashed(id, meta);
     const summary = noteSummary(text);
     return {
       id,
@@ -236,6 +242,19 @@ function noteStore(folder = notesFolder()) {
       return updateMeta(id, { created: formatLocalIsoDate(birth) });
     } catch (e) {
       return { created: formatLocalIsoDate(birth) };
+    }
+  }
+
+  // Removes `trashed` from the sidecar of a note that's back (put back from
+  // the Trash), so that if it goes again other than through trash(), a sweep
+  // dates it afresh rather than from the old date. Returns the metadata.
+  function clearTrashed(id, meta) {
+    try {
+      return updateMeta(id, { trashed: null });
+    } catch (e) {
+      const rest = Object.assign({}, meta);
+      delete rest.trashed;
+      return rest;
     }
   }
 
@@ -343,8 +362,12 @@ function noteStore(folder = notesFolder()) {
   // Moves the note to the Trash through Finder, so Finder's "Put Back" works,
   // and returns the path it has in the Trash ("" if Finder doesn't say), or
   // null if the note doesn't exist. Its sidecar stays, so a note that's put
-  // back keeps its metadata. Needs permission to control Finder: macOS asks
-  // the first time, and once it's refused, the error says where to allow it.
+  // back keeps its metadata, and records when it was trashed (`trashed`),
+  // which a sweep deletes it SIDECAR_KEEP_DAYS after (see sweepSidecars). A
+  // sidecar that can't be read is left alone, and one that can't be written
+  // is dated by the next sweep instead. Needs permission to control Finder:
+  // macOS asks the first time, and once it's refused, the error says where to
+  // allow it.
   function trash(id) {
     const path = notePath(id);
     if (!fm.fileExistsAtPath(path)) return null;
@@ -361,6 +384,13 @@ function noteStore(folder = notesFolder()) {
       throw e;
     }
     if (fm.fileExistsAtPath(path)) throw new Error(`Finder didn't move ${path} to the Trash`);
+    if (readJsonObject(metaPath(id)) !== null) {
+      try {
+        updateMeta(id, { trashed: formatLocalIsoDate(new Date()) });
+      } catch (e) {
+        // Dated by the next sweep.
+      }
+    }
     try {
       return $.NSURL.URLWithString(item.url()).path.js;
     } catch (e) {
@@ -368,7 +398,65 @@ function noteStore(folder = notesFolder()) {
     }
   }
 
-  return { folder, notePath, exists, newId, read, list, save, readMeta, updateMeta, deleteIfEmpty, trash };
+  // Deletes the sidecars of notes that have been gone SIDECAR_KEEP_DAYS, and
+  // returns { stamped, deleted }. A note that's gone (trashed, or deleted some
+  // other way) leaves its sidecar, for Put Back, dated by its `trashed`: a
+  // sidecar without one is given `now`, and so is kept SIDECAR_KEEP_DAYS from
+  // the first sweep that finds it. Left alone: the sidecars of notes `isInUse`
+  // says are open but not saved yet (a colour picked before typing), and
+  // sidecars that can't be read as a JSON object, as everywhere else. A file
+  // that can't be changed is skipped, for the next sweep to try again.
+  function sweepSidecars({ now = new Date(), isInUse = (id) => isNoteIdInUse(id) } = {}) {
+    const result = { stamped: 0, deleted: 0 };
+    const sidecars = folderNames(metaFolder);
+    if (sidecars.length === 0) return result;
+    const noteIds = new Set(
+      folderEntries()
+        .map(noteIdFromFileName)
+        .filter((id) => id !== null)
+        .map((id) => id.normalize("NFC")),
+    );
+    // fileExistsAtPath covers a note whose name differs only in case, on a
+    // case-insensitive volume.
+    const hasNote = (id) => noteIds.has(id.normalize("NFC")) || fm.fileExistsAtPath(`${folder}/${id}${NOTE_EXTENSION}`);
+    const keepFor = SIDECAR_KEEP_DAYS * 24 * 60 * 60 * 1000;
+    for (const name of sidecars) {
+      if (!name.endsWith(".json")) continue;
+      const id = name.slice(0, -".json".length);
+      if (!isNoteId(id) || hasNote(id) || isInUse(id)) continue;
+      const meta = readJsonObject(metaPath(id));
+      if (meta === null) continue;
+      const trashed = parseDate(meta.trashed);
+      try {
+        if (!trashed) {
+          updateMeta(id, { trashed: formatLocalIsoDate(now) });
+          result.stamped++;
+        } else if (now - trashed >= keepFor) {
+          removeFile(metaPath(id));
+          result.deleted++;
+        }
+      } catch (e) {
+        // Tried again by the next sweep.
+      }
+    }
+    return result;
+  }
+
+  return { folder, notePath, exists, newId, read, list, save, readMeta, updateMeta, deleteIfEmpty, trash, sweepSidecars };
+}
+
+// Sweeps the notes folder's sidecars (sweepSidecars in noteStore) once a
+// day: when the last sweep, recorded in the workflow's state, was on another
+// local date. Returns the sweep's result, or null if there was no sweep. The
+// results list calls it once checkNotesFolderMove says the notes are ready,
+// so `store` is the folder the state records.
+function sweepSidecarsDaily(store, { now = new Date(), variable = workflowVariable } = {}) {
+  const last = parseDate(readWorkflowState(variable).lastSidecarSweep);
+  const day = (date) => formatNoteId(date).slice(0, 8);
+  if (last && day(last) === day(now)) return null;
+  const result = store.sweepSidecars({ now, isInUse: (id) => isNoteIdInUse(id, variable) });
+  updateWorkflowState({ lastSidecarSweep: formatLocalIsoDate(now) }, variable);
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -563,17 +651,32 @@ function workflowCacheFolder(variable) {
   return expandPath(cache);
 }
 
-// The record of the folder the notes were last in: its path, in a file in
-// the data folder, which is local to each Mac.
+// The workflow's state on this Mac, kept in `state.json` in the data folder,
+// which is local to each Mac: `lastNotesFolder`, the folder the notes were
+// last in (see checkNotesFolderMove), and `lastSidecarSweep`, when sidecars
+// were last swept (see sweepSidecarsDaily). {} if it's missing or can't be
+// read.
+function readWorkflowState(variable = workflowVariable) {
+  return readJsonObject(`${workflowDataFolder(variable)}/state.json`) || {};
+}
+
+// Merges `changes` into the workflow's state. The state is read just before
+// it's written, so a key another process has changed in the meantime is kept.
+function updateWorkflowState(changes, variable = workflowVariable) {
+  const data = workflowDataFolder(variable);
+  ensureFolder(data, true);
+  const state = Object.assign(readWorkflowState(variable), changes);
+  writeFileAtomically(`${data}/state.json`, JSON.stringify(state, null, 2) + "\n");
+}
+
+// The record of the folder the notes were last in, or null if there's none.
 function readLastNotesFolder(variable = workflowVariable) {
-  const text = readText(`${workflowDataFolder(variable)}/last-notes-folder`);
-  return text === null || !text.trim() ? null : text.trim();
+  const folder = readWorkflowState(variable).lastNotesFolder;
+  return typeof folder === "string" && folder.trim() ? folder.trim() : null;
 }
 
 function writeLastNotesFolder(folder, variable = workflowVariable) {
-  const data = workflowDataFolder(variable);
-  ensureFolder(data, true);
-  writeFileAtomically(`${data}/last-notes-folder`, `${folder}\n`);
+  updateWorkflowState({ lastNotesFolder: folder }, variable);
 }
 
 // Whether two paths are the same folder: with symlinks resolved, the same

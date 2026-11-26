@@ -20,6 +20,9 @@
 // sticks the note (open.js; that modifier's arg is the note's ID), ⌥↩ moves
 // it to the Trash (trash.js), ⌃↩ reveals it in Finder (its path is that
 // modifier's arg), and Quick Look shows the file.
+//
+// The first run each day also sweeps away the sidecars of notes that have
+// been gone a long time (sweepSidecarsDaily in lib.js).
 
 ObjC.import("Foundation");
 
@@ -47,6 +50,8 @@ function run(argv) {
   } catch (e) {
     return output([notesFolderErrorItem(e)]);
   }
+  // Once a day, the sidecars of notes gone a long time are deleted.
+  attempt(() => sweepSidecarsDaily(store));
   const words = searchWords(query);
   const matches = notes.filter((note) => words.every((word) => searchText(note).includes(word)));
   const now = new Date();

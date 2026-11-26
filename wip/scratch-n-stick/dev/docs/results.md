@@ -32,7 +32,7 @@ Creating a note from the clipboard is a result of the new-note keyword rather th
 
 **"Loading notes..."** is the Script Filter's `runningsubtext`, shown on the keyword before the first results. A run usually takes 0.1–0.2 s, but rebuilding every quick bundle (once after a workflow update or a changed setting) takes about 1.5 s for 300 notes. While typing, Alfred keeps the previous results up, so it doesn't show then.
 
-**Before the results**, `list.js` checks for a notes folder move (see [Storage](storage.md#moving-the-notes-folder)) and the palette (see [Colours and icons](colours-and-icons.md#the-palette)); either can replace the results with a single message. It then writes the quick bundles that are out of date and the quick view's theme stylesheet, so ↩ can open a quick view with nothing in between (see [Seamless quick views](windows.md#seamless-quick-views)).
+**Before the results**, `list.js` checks for a notes folder move (see [Storage](storage.md#moving-the-notes-folder)) and the palette (see [Colours and icons](colours-and-icons.md#the-palette)); either can replace the results with a single message. On its first run of the day it sweeps the sidecars of notes gone 30 days (see [Sweeping sidecars](storage.md#sweeping-sidecars)). It then writes the quick bundles that are out of date and the quick view's theme stylesheet, so ↩ can open a quick view with nothing in between (see [Seamless quick views](windows.md#seamless-quick-views)).
 
 ### A later Quick Look preview
 
