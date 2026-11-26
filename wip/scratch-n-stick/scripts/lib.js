@@ -1590,7 +1590,10 @@ const NOTE_WINDOW_LAYOUT = {
   // colour picker marks the note's colour with `mark`, a rounded background
   // behind its swatch in a colour that looks like the icon picker's bezel in
   // both appearances (quaternaryLabelColor is barely visible in dark).
-  iconPicker: { columns: 7, button: 25, image: 20, spacing: 2 },
+  // `slots` is how many buttons the icon picker has, None and the icons,
+  // filled out with placeholders (noteIconPickerButtons).
+  // TO-DO: remove `slots` and the placeholders once the set has its 35 icons.
+  iconPicker: { columns: 9, button: 30, image: 22, spacing: 4, slots: 36 },
   colourPicker: {
     columns: 6,
     button: 25,
@@ -1604,7 +1607,7 @@ const NOTE_WINDOW_LAYOUT = {
 // picker (the palette), each with its grid in NOTE_WINDOW_LAYOUT and how many
 // buttons it has.
 const NOTE_DROPDOWNS = {
-  icon: { layout: "iconPicker", count: () => NOTE_ICONS.length + 1 },
+  icon: { layout: "iconPicker", count: () => Math.max(NOTE_ICONS.length + 1, NOTE_WINDOW_LAYOUT.iconPicker.slots) },
   colour: { layout: "colourPicker", count: () => NOTE_PALETTE_DEFAULTS.length },
 };
 
@@ -1870,11 +1873,25 @@ function noteDropdownCatcher({ workflowFolder, note, form }) {
   };
 }
 
-// The icon picker's buttons: None, then the icons, as button icons. The
-// note's current choice is bordered, so its bezel marks it. Each runs
-// window.js icon, with the icon's name or "none". `note` is the escaped ID.
+// The icon picker's buttons: None, then the icons, as button icons, then
+// placeholders up to the picker's `slots`, showing None's icon and doing
+// nothing. The note's current choice is bordered, so its bezel marks it. Each
+// runs window.js icon, with the icon's name or "none". `note` is the escaped
+// ID.
 function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance }) {
-  const { image } = NOTE_WINDOW_LAYOUT.iconPicker;
+  const { image, slots } = NOTE_WINDOW_LAYOUT.iconPicker;
+  const placeholders = [];
+  for (let i = NOTE_ICONS.length + 1; i < slots; i++) {
+    placeholders.push({
+      id: `icon-placeholder-${i}`,
+      type: "button",
+      text: "",
+      bordered: false,
+      image: noteButtonIconImage(workflowFolder, "ban", appearance, image),
+      tooltip: "Placeholder",
+      accessibility: { label: "Placeholder" },
+    });
+  }
   return [{ name: "none", label: "No icon" }].concat(NOTE_ICONS).map((choice) => ({
     id: `icon-${choice.name}`,
     type: "button",
@@ -1889,7 +1906,7 @@ function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance })
         action: { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["icon", note, form, choice.name] },
       },
     ],
-  }));
+  })).concat(placeholders);
 }
 
 // The colour picker's buttons: `palette`, in order, each as its swatch (the
