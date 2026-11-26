@@ -22,7 +22,8 @@
 // modifier's arg), and Quick Look shows the file.
 //
 // The first run each day also sweeps away the sidecars of notes that have
-// been gone a long time (sweepSidecarsDaily in lib.js).
+// been gone a long time (sweepSidecarsDaily in lib.js), and the first run of
+// all adds the example notes (installExamplesOnce).
 
 ObjC.import("Foundation");
 
@@ -46,6 +47,8 @@ function run(argv) {
     const move = checkNotesFolderMove({ workflowFolder, showFailure: true });
     if (move.status !== "ready") return notesFolderMoveOutput(move);
     store = noteStore();
+    // The first run adds the example notes.
+    attempt(() => installExamplesOnce(store, workflowFolder));
     notes = store.list(stickiesOnly ? { ids: sticky } : {});
   } catch (e) {
     return output([notesFolderErrorItem(e)]);

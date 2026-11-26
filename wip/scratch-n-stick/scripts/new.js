@@ -34,7 +34,11 @@ function run(argv) {
     // The notes may have to move to a newly configured folder first.
     const move = checkNotesFolderMove({ workflowFolder, showFailure: true });
     if (move.status !== "ready") return notesFolderMoveOutput(move);
-    quick = quickWindows(noteStore(), workflowFolder);
+    const store = noteStore();
+    // The first run adds the example notes, as the results list's does, so
+    // they're older than the first new note.
+    attempt(() => installExamplesOnce(store, workflowFolder));
+    quick = quickWindows(store, workflowFolder);
   } catch (e) {
     return output([notesFolderErrorItem(e)]);
   }

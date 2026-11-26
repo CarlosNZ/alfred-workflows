@@ -1,6 +1,6 @@
 # Storage
 
-How notes are kept on disk: the notes folder, note IDs, metadata sidecars, titles and previews, saving, the Trash and sweeping sidecars, and moving the notes folder. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md).
+How notes are kept on disk: the notes folder, note IDs, metadata sidecars, titles and previews, saving, the Trash and sweeping sidecars, the example notes, and moving the notes folder. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md).
 
 ## The notes folder
 
@@ -110,6 +110,17 @@ A note that's gone (trashed, or deleted some other way) leaves its sidecar, for 
 
 A sweep of 1,000 notes and 1,100 sidecars (50 to date, 50 to delete) takes about 55 ms; with nothing to change, under 10 ms.
 
+## Example notes
+
+The workflow ships example notes in `examples/`, which is laid out as a notes folder: `example-<n>-<name>.md`, each with its sidecar in `examples/.scratchnstick/`. The first time the results list or the new-note keywords run, they're added to the notes folder (`installExamplesOnce`, and `installExamples` in the store), after the check for a move of the notes folder and before the notes are listed.
+
+- **Names.** The `example-` prefix makes them stand out in the notes folder, so anyone looking there can see what they are and delete them. `<n>` sets their order (as a number, so `example-10` follows `example-9`); a file in `examples/` not named this way isn't installed.
+- **Sidecars.** A shipped sidecar holds only what the example shows off: `colour`, `icon`, `fontSize` and `mode`. Installing copies it and adds `created`. It replaces any sidecar already there for that ID: with no note, that can only be what's left of a trashed example, kept for Put Back.
+- **Dates.** The copies are dated as made at install time, a second apart, with `example-1` newest, so the list (last edited first) shows them in their numbered order above any notes already there. Their creation and modification dates and `created` are all set to that time. The dates in the bundle aren't used: they're when the build was made or unzipped.
+- **Never replaced.** An example whose note is in the notes folder is left alone, sidecar included, as someone may have kept it and been using it for months.
+- **Once.** When they've been added, `examplesInstalled` in `$alfred_workflow_data/state.json` records when. Nothing else stops them being installed: the notes folder may already have notes. With the data folder gone, or on another Mac sharing the notes folder (the state is per Mac), the examples that aren't in the notes folder come back beside the user's notes. If one can't be added, the ones before it stay, nothing is recorded, and the next run tries again; the error is logged and the list carries on.
+- **Checks.** `dev/test-storage.sh` checks the shipped examples: numbered from 1 with no gaps, a sidecar for each with only those keys and valid values (a colour slot, one of the note icons, a font size from the menu, `edit` or `view`), and nothing else in the folder.
+
 ## Moving the notes folder
 
 When `notes_folder` changes, the notes move to the new folder without asking. Alfred runs nothing when a setting changes, so the move happens on the workflow's next run. It's `checkNotesFolderMove` and `moveNotes` in `lib.js`, and `scripts/move.js`.
@@ -151,7 +162,7 @@ The `notes_folder` field's description warns that changing it moves the notes an
 
 - `list({ ids })`: notes, last edited first, as `{ id, path, fileName, text, meta, modified, created, title, preview }` (`meta` is `{}` without a sidecar; dates are `Date`s). `ids` limits it to those notes (the sticky notes list).
 - `read(id)`: one note object, or null.
-- `newId({ date, isTaken })`, `save(id, text)`, `deleteIfEmpty(id)`, `trash(id)`, `sweepSidecars({ now, isInUse })`: as above.
+- `newId({ date, isTaken })`, `save(id, text)`, `deleteIfEmpty(id)`, `trash(id)`, `sweepSidecars({ now, isInUse })`, `installExamples(source, { now })`: as above.
 - `readMeta(id)`, `updateMeta(id, changes)`: the sidecar, which works before a note is first saved (a colour picked before typing).
 - `notePath(id)`, `exists(id)`, `folder`.
 

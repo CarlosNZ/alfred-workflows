@@ -8,6 +8,7 @@ This file is the overview: what the workflow does, how its parts fit together, a
 
 - **Notes are plain `.md` files** in a notes folder: the workflow's data folder by default, or one the user chooses. Moving the setting moves the notes.
 - **The results list** (`scratch`) lists the notes, last edited first, with a title, a preview and when each was edited, and searches their whole text. ↩ opens a note in a **quick view** inside Alfred's window; ⌘↩ **sticks it to the desktop** as its own window; ⌥↩ trashes it; ⌃↩ reveals it.
+- **Example notes**, `example-1-…` onwards, are added to the notes folder the first time the workflow runs, to show what notes can do. They're never replaced, and come back only if the workflow's data folder is deleted.
 - **New notes** come from New note in the list, the `newscratch` and `newsticky` keywords (with typed text or the clipboard), the "New scratch note" and "New sticky note" Universal Actions, and an optional hotkey. Text that reads as a heading starts the note as `# <text>`.
 - **The sticky notes list** (`sticky`) lists the notes stuck to the desktop, to bring one to the front or close it, or show or close them all.
 - **A note's window** has an editor (Edit) and a rendered view (Preview, with task boxes that can be ticked), switched with ⌘E, ↩ and ⌘↩. Its top row sets the note's colour (six slots, customisable), icon (44 Lucide icons) and font size, and its actions menu (⌘K) has Stick, Close, Move to Trash, Share and Copy. Sticky windows collapse to their top strip with a double-click, and reopen where they were left.
@@ -60,7 +61,7 @@ All JXA unless noted.
 | `scripts/move.js` | Moves the notes to a newly configured folder, in the background. |
 | `scripts/place.js` | Moves a sticky window that opened on the wrong screen back where it was left, in the background. Doesn't load `lib.js`. |
 
-`ui/` holds the templates a window's `ui.json` is built from (`window.json`, `content.json`, `customise.json`, `actions.json`, `menubutton.json`, `windowbuttons.json`, `titlestrip.json`, `collapsedtitle.json`, `keyhints.json`), Preview's page (`view.html`, `view.js`) and `appicon.png`, sticky windows' app icon. `vendor/markdown-it/` is markdown-it 15.0.3. `icons/` holds the images that ship: button icons, drop-down shadows, and New note's icons.
+`examples/` holds the example notes and their sidecars, laid out as a notes folder. `ui/` holds the templates a window's `ui.json` is built from (`window.json`, `content.json`, `customise.json`, `actions.json`, `menubutton.json`, `windowbuttons.json`, `titlestrip.json`, `collapsedtitle.json`, `keyhints.json`), Preview's page (`view.html`, `view.js`) and `appicon.png`, sticky windows' app icon. `vendor/markdown-it/` is markdown-it 15.0.3. `icons/` holds the images that ship: button icons, drop-down shadows, and New note's icons.
 
 ### Where things are kept
 
@@ -68,7 +69,7 @@ All JXA unless noted.
 |---|---|
 | Notes folder (`$alfred_workflow_data/notes/` by default) | `<id>.md`, one per note |
 | `<notes folder>/.scratchnstick/<id>.json` | Each note's metadata sidecar: created, colour, icon, font size, mode, collapsed, and once the note is gone, when it went (kept 30 days) |
-| `$alfred_workflow_data/state.json` | `lastNotesFolder`, the folder the notes were last in, to notice a change of setting, and `lastSidecarSweep`, when sidecars were last swept |
+| `$alfred_workflow_data/state.json` | `lastNotesFolder`, the folder the notes were last in, to notice a change of setting, `lastSidecarSweep`, when sidecars were last swept, and `examplesInstalled`, when the example notes were added |
 | `$alfred_workflow_cache/quick/<id>.alfredui` | Each note's quick view bundle, and `quick/.index.json`, their fingerprints |
 | `$alfred_workflow_cache/windows/<id>.alfredui` | Each stuck note's sticky window bundle, kept so its saved position stays |
 | `$alfred_workflow_cache/state/<id>.json` | An open window's state: form, PID, mode, collapsed; `<id>.picker` while a drop-down is open |
@@ -125,7 +126,7 @@ Window scripts don't get these, so `list.js`, `new.js` and `open.js` write what 
 
 ## Detailed notes
 
-- [Storage](dev/docs/storage.md): the notes folder, IDs, sidecars, titles and previews, saving, empty notes, the Trash, sweeping sidecars, and moving the notes folder.
+- [Storage](dev/docs/storage.md): the notes folder, IDs, sidecars, titles and previews, saving, empty notes, the Trash, sweeping sidecars, the example notes, and moving the notes folder.
 - [Results and new notes](dev/docs/results.md): the results list, the sticky notes list, creating notes and text as a heading.
 - [Note windows](dev/docs/windows.md): quick views and sticky notes, the routes, generated bundles and templates, window state, seamless quick views, saving, escaping Alfred's placeholders, and window positions.
 - [Window layout and controls](dev/docs/window-ui.md): the top row, keys, key hints, drop-downs, collapsing, the actions menu, font sizes, and a new sticky note's size.
@@ -143,8 +144,8 @@ Run from anywhere; each uses temporary folders from `mktemp`, deleted afterwards
 
 | Script | Tests |
 |---|---|
-| `dev/test-storage.sh` | `lib.js`'s storage functions (with `dev/test-storage.js`): loading `lib.js` from other folders and through symlinks, IDs, saves (birth time, tags, modification time, racing processes), sidecars and their daily sweep, titles and previews (Unicode, `text-rules.js`'s cases), empty notes, the Trash (`SKIP_TRASH=1` skips it; it trashes only a note it made), `fittedNoteSize`, and moving the notes folder, including to another volume on a disk image (`SKIP_VOLUME=1` skips it). About 8 s plus the move tests. |
-| `dev/test-list.sh` | `list.js` and `new.js`: results and searching, result icons (badges, dots, the cache and its sweep), the quick bundles and when they're rebuilt, the theme stylesheet, the palette and its problems, macOS 12, the sticky notes list (sticky notes given in `scratchnstick_sticky_ids`), and the new-note keywords' results (from a private pasteboard, not the clipboard). |
+| `dev/test-storage.sh` | `lib.js`'s storage functions (with `dev/test-storage.js`): loading `lib.js` from other folders and through symlinks, IDs, saves (birth time, tags, modification time, racing processes), sidecars and their daily sweep, the example notes (and the shipped ones' sidecars), titles and previews (Unicode, `text-rules.js`'s cases), empty notes, the Trash (`SKIP_TRASH=1` skips it; it trashes only a note it made), `fittedNoteSize`, and moving the notes folder, including to another volume on a disk image (`SKIP_VOLUME=1` skips it). About 8 s plus the move tests. |
+| `dev/test-list.sh` | `list.js` and `new.js`: results and searching, result icons (badges, dots, the cache and its sweep), the quick bundles and when they're rebuilt, the theme stylesheet, the palette and its problems, macOS 12, the sticky notes list (sticky notes given in `scratchnstick_sticky_ids`), the example notes added on a first run, and the new-note keywords' results (from a private pasteboard, not the clipboard). |
 | `dev/test-window.sh` | `open.js`, `window.js`, `changed.sh` and `picker.sh`: bundles and templates in both forms and modes, escaping, saving, the mode switch, ticks, colours, icons and the pickers, font sizes, collapsing, the actions menu and its actions, macOS 12's windows, a new sticky note's size, saved window frames, and the page's task rule run in JXA with the vendored markdown-it. |
 
 Run the three after any change to `lib.js`, the templates or a script, with `alfred_workflow_data` set as well to cover the move checks. `dev/test-window.sh` checks the drop-downs' sizes, so update it with `NOTE_WINDOW_LAYOUT`.
@@ -153,7 +154,7 @@ Run the three after any change to `lib.js`, the templates or a script, with `alf
 
 The tests can't drive Alfred, open windows, or see what's drawn, so window behaviour and look are checked in Alfred, by hand or by scripts:
 
-- Use a throwaway note (or the samples: `dev/install-samples.js` installs eight, `example1`–`example8`, into the notes folder, resetting their text, sidecars and dates) and delete only notes you made and confirmed. Ask before touching the user's own notes.
+- Use a throwaway note (or the samples: `dev/install-samples.js` installs eight, `sample1`–`sample8`, into the notes folder, resetting their text, sidecars and dates) and delete only notes you made and confirmed. Ask before touching the user's own notes.
 - To run something as Alfred does (with Alfred's permissions, or to open a sticky window from a test bundle), add a temporary External Trigger to the object you need and run it with AppleScript's `run trigger`; remove it afterwards and reload Alfred.
 - `CGWindowListCopyWindowInfo` gives windows' bounds without any permission; `lsappinfo front` gives the active app (`NSWorkspace`'s `frontmostApplication` goes stale in a script without a run loop). Screenshots and 60 fps screen recordings show timing and flashes.
 - Posted key events reach a window's process, but Alfred reads modifier keys live, so ⌘↩ in Alfred's results has to be pressed by hand; posted drags don't move windows. See [Alfred UI](dev/docs/alfred-ui.md#shortcuts-and-keys).
@@ -179,6 +180,8 @@ Everything in `dev/` is development only (excluded from builds by `.wfignore`):
 
 Before the first release:
 
+- The example notes' content, in `examples/` (placeholders so far).
+- Check that `examples/.scratchnstick/` survives installing the built `.alfredworkflow`.
 - The user guide in `README.md` (with the names above, how to collapse a sticky note, and that sticky notes don't float), then `bin/wf sync-readme scratch-n-stick`.
 - Check by hand in Alfred:
   - Custom colours: the Configuration sheet's fields and description, a slot that can't be read (the results and the notification), and a renamed, recoloured slot in the results, quick view and a sticky window.

@@ -5,7 +5,8 @@
 // add "use strict", which would keep the functions private too.
 //
 // Storage: the notes folder, note IDs, saving, metadata sidecars, titles and
-// previews, deleting empty notes and moving notes to the Trash.
+// previews, deleting empty notes, moving notes to the Trash, and the example
+// notes.
 //
 // Regular expressions avoid lookbehind, which macOS 12's JavaScriptCore can't
 // parse: one would stop the whole file loading.
@@ -442,6 +443,36 @@ function noteStore(folder = notesFolder()) {
     return result;
   }
 
+  // Adds the example notes from `source` that aren't in this folder, and
+  // returns their IDs. `source` is laid out as a notes folder: the notes
+  // (see exampleNoteIds), each with its sidecar in `.scratchnstick/`. An
+  // example whose note is here already is left alone, sidecar and all, as it
+  // may be in use. One that isn't gets the shipped sidecar in place of any
+  // sidecar left there (a trashed example's, kept for Put Back), with
+  // `created` added. Each is dated as made at `now`, a second apart with the
+  // first example newest, so the list, last edited first, shows them in
+  // their numbered order. Throws if one can't be added, after adding the
+  // ones before it.
+  function installExamples(source, { now = new Date() } = {}) {
+    const newest = Math.floor(now.getTime() / 1000) * 1000;
+    const installed = [];
+    exampleNoteIds(source).forEach((id, index) => {
+      if (exists(id)) return;
+      const text = readText(`${source}/${id}${NOTE_EXTENSION}`);
+      if (text === null) throw new Error(`Can't read the example note ${id}`);
+      const date = new Date(newest - index * 1000);
+      const meta = readJsonObject(`${source}/${META_FOLDER}/${id}.json`) || {};
+      meta.created = formatLocalIsoDate(date);
+      ensureFolder(metaFolder, false);
+      writeFileAtomically(metaPath(id), JSON.stringify(meta, null, 2) + "\n");
+      const path = notePath(id);
+      writeFileAtomically(path, text);
+      setFileDates(path, date);
+      installed.push(id);
+    });
+    return installed;
+  }
+
   return {
     folder,
     notePath,
@@ -455,6 +486,7 @@ function noteStore(folder = notesFolder()) {
     deleteIfEmpty,
     trash,
     sweepSidecars,
+    installExamples,
   };
 }
 
@@ -470,6 +502,39 @@ function sweepSidecarsDaily(store, { now = new Date(), variable = workflowVariab
   const result = store.sweepSidecars({ now, isInUse: (id) => isNoteIdInUse(id, variable) });
   updateWorkflowState({ lastSidecarSweep: formatLocalIsoDate(now) }, variable);
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Example notes
+//
+// The workflow ships example notes in `examples/`, which the first results
+// list or new-note results add to the notes folder (see "Example notes" in
+// dev/docs/storage.md).
+
+// The IDs of the example notes in `folder`: its files named
+// `example-<n>-<name>.md`, in order of <n> as a number, so example-10 comes
+// after example-9. Other files are ignored.
+function exampleNoteIds(folder) {
+  return folderNames(folder)
+    .map((name) => /^(example-(\d+)-[^/]*)\.md$/.exec(name))
+    .filter((match) => match && isNoteId(match[1]))
+    .map((match) => ({ id: match[1], n: Number(match[2]) }))
+    .sort((a, b) => a.n - b.n || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((example) => example.id);
+}
+
+// Adds the example notes in the workflow's `examples/` folder to `store`
+// (installExamples in noteStore) and records in the workflow's state that it
+// has, unless the state already says so. Returns the IDs added, or null if
+// it didn't try. The record is kept per Mac, so with the data folder gone
+// (or on another Mac sharing the notes folder), the examples that aren't in
+// the notes folder are added again, beside the user's notes. If one can't be
+// added, nothing is recorded, so the next run tries again.
+function installExamplesOnce(store, workflowFolder, { now = new Date(), variable = workflowVariable } = {}) {
+  if (readWorkflowState(variable).examplesInstalled) return null;
+  const installed = store.installExamples(`${workflowFolder}/examples`, { now });
+  updateWorkflowState({ examplesInstalled: formatLocalIsoDate(now) }, variable);
+  return installed;
 }
 
 // ---------------------------------------------------------------------------
@@ -666,9 +731,10 @@ function workflowCacheFolder(variable) {
 
 // The workflow's state on this Mac, kept in `state.json` in the data folder,
 // which is local to each Mac: `lastNotesFolder`, the folder the notes were
-// last in (see checkNotesFolderMove), and `lastSidecarSweep`, when sidecars
-// were last swept (see sweepSidecarsDaily). {} if it's missing or can't be
-// read.
+// last in (see checkNotesFolderMove), `lastSidecarSweep`, when sidecars were
+// last swept (see sweepSidecarsDaily), and `examplesInstalled`, when the
+// example notes were added (see installExamplesOnce). {} if it's missing or
+// can't be read.
 function readWorkflowState(variable = workflowVariable) {
   return readJsonObject(`${workflowDataFolder(variable)}/state.json`) || {};
 }
@@ -3322,6 +3388,18 @@ function removeFile(path) {
 function fileDate(path, key) {
   const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError(path, null);
   return attributes.isNil() ? null : jsDate(attributes.objectForKey(key));
+}
+
+// Sets the file's birth and modification times to `date`.
+function setFileDates(path, date) {
+  const attributes = $.NSMutableDictionary.dictionary;
+  const nsDate = $.NSDate.dateWithTimeIntervalSince1970(date.getTime() / 1000);
+  attributes.setObjectForKey(nsDate, "NSFileCreationDate");
+  attributes.setObjectForKey(nsDate, "NSFileModificationDate");
+  const error = $();
+  if (!$.NSFileManager.defaultManager.setAttributesOfItemAtPathError(attributes, path, error)) {
+    throw new Error(`Can't set the dates of ${path}: ${errorText(error)}`);
+  }
 }
 
 function jsDate(nsDate) {

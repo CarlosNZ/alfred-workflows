@@ -74,7 +74,8 @@ print "\n# move.js and the move started by list.js"
 mv=$tmp/movejs
 mkdir -p "$mv/data/notes" "$mv/cache" "$mv/new"
 print -rn "Moved by move.js" > "$mv/data/notes/a.md"
-print -r -- "{\"lastNotesFolder\": \"$mv/data/notes\"}" > "$mv/data/state.json"
+# The example notes count as added, so list.js lists only these notes.
+print -r -- "{\"lastNotesFolder\": \"$mv/data/notes\", \"examplesInstalled\": \"2026-01-01T00:00:00+13:00\"}" > "$mv/data/state.json"
 record() { plutil -extract lastNotesFolder raw -o - "$mv/data/state.json" }
 movejs() { env alfred_workflow_data=$mv/data alfred_workflow_cache=$mv/cache "$workflow/scripts/move.js" "$@" }
 expect() { if [[ $2 == "$3" ]]; then ok "$1"; else fail "$1: got '$2', expected '$3'"; fi }

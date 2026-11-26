@@ -36,6 +36,8 @@ function run(argv) {
     testList(freshStore(args[0], "list"));
     testSweep(freshStore(args[0], "sweep"));
     testDailySweep(args[0]);
+    testExamples(args[0]);
+    testShippedExamples($(libPath).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js);
     timeList(freshStore(args[0], "timing"));
     timeSweep(freshStore(args[0], "timing-sweep"));
     testMoveNotes(args[0]);
@@ -507,6 +509,100 @@ function testDailySweep(root) {
   eq("writing the notes folder's record keeps the sweep's", state(), { lastNotesFolder: `${root}/daily/other`, lastSidecarSweep: formatLocalIsoDate(morning) });
   writeRaw(`${data}/state.json`, "{not json");
   eq("an unreadable state: no record, and a sweep", [readLastNotesFolder(settings), sweepSidecarsDaily(store, { now: morning, variable: settings })], [null, { stamped: 0, deleted: 0 }]);
+}
+
+function testExamples(root) {
+  section("Example notes");
+  const source = `${root}/examples/source`;
+  makeFolder(`${source}/.scratchnstick`);
+  const shipped = { "example-1-welcome": { icon: "sticky-note" }, "example-2-tasks": { colour: 2, mode: "view" }, "example-10-last": { colour: 6 } };
+  for (const [id, meta] of Object.entries(shipped)) {
+    writeRaw(`${source}/${id}.md`, `# ${id}\n`);
+    writeRaw(`${source}/.scratchnstick/${id}.json`, JSON.stringify(meta));
+  }
+  writeRaw(`${source}/example-3-no-sidecar.md`, "# No sidecar\n");
+  for (const name of ["example-x-unnumbered.md", "example-4-text.txt", "notes.md", ".example-5-hidden.md"]) writeRaw(`${source}/${name}`, "x");
+  const ids = ["example-1-welcome", "example-2-tasks", "example-3-no-sidecar", "example-10-last"];
+  eq("examples are example-<n>-<name>.md, in order of <n> as a number", exampleNoteIds(source), ids);
+  eq("…none in a missing folder", exampleNoteIds(`${root}/examples/none`), []);
+
+  const now = new Date(2026, 10, 27, 9, 30, 15, 600);
+  const second = (n) => new Date(2026, 10, 27, 9, 30, 15 - n);
+  const store = freshStore(root, "examples/notes");
+  eq("into an empty folder: every example", store.installExamples(source, { now }), ids);
+  eq("…with its text", ids.map((id) => readText(`${store.folder}/${id}.md`)), ids.map((id) => readText(`${source}/${id}.md`)));
+  eq("…dated a second apart, the first newest, in whole seconds", ids.map((id) => fileDate(`${store.folder}/${id}.md`, "NSFileModificationDate").getTime()), ids.map((_, i) => second(i).getTime()));
+  eq("…born then too", ids.map((id) => fileDate(`${store.folder}/${id}.md`, "NSFileCreationDate").getTime()), ids.map((_, i) => second(i).getTime()));
+  eq("…with the shipped sidecar and created", store.readMeta("example-2-tasks"), { colour: 2, mode: "view", created: formatLocalIsoDate(second(1)) });
+  eq("…or only created without one", store.readMeta("example-3-no-sidecar"), { created: formatLocalIsoDate(second(2)) });
+  eq("…and listed in their order", store.list().map((note) => note.id), ids);
+
+  writeRaw(`${store.folder}/example-1-welcome.md`, "# Welcome, edited\n");
+  store.updateMeta("example-1-welcome", { colour: 4 });
+  const edited = fileDate(`${store.folder}/example-1-welcome.md`, "NSFileModificationDate");
+  writeRaw(`${store.folder}/mine.md`, "# Mine\n");
+  removeFile(`${store.folder}/example-2-tasks.md`);
+  store.updateMeta("example-2-tasks", { colour: 5, trashed: "2026-11-26T10:00:00+13:00" });
+  const later = new Date(2026, 11, 1, 12, 0, 0);
+  eq("again: only the examples that are missing", store.installExamples(source, { now: later }), ["example-2-tasks"]);
+  eq("…an example still there keeps its text", readText(`${store.folder}/example-1-welcome.md`), "# Welcome, edited\n");
+  eq("…and its sidecar", store.readMeta("example-1-welcome"), { icon: "sticky-note", created: formatLocalIsoDate(second(0)), colour: 4 });
+  eq("…and its date", fileDate(`${store.folder}/example-1-welcome.md`, "NSFileModificationDate").getTime(), edited.getTime());
+  eq("…a trashed example's leftover sidecar is replaced", store.readMeta("example-2-tasks"), { colour: 2, mode: "view", created: formatLocalIsoDate(new Date(2026, 11, 1, 11, 59, 59)) });
+  eq("…the user's notes are left alone", readText(`${store.folder}/mine.md`), "# Mine\n");
+
+  section("Example notes, once");
+  const data = `${root}/examples/data`;
+  const settings = (name) => ({ alfred_workflow_data: data })[name] || "";
+  const workflow = `${root}/examples/workflow`;
+  makeFolder(workflow);
+  $.NSFileManager.defaultManager.copyItemAtPathToPathError(source, `${workflow}/examples`, null);
+  const once = freshStore(root, "examples/once");
+  writeRaw(`${once.folder}/mine.md`, "# Mine\n");
+  writeLastNotesFolder(once.folder, settings);
+  eq("the first run adds them, beside the user's notes", installExamplesOnce(once, workflow, { now, variable: settings }), ids);
+  eq("…recording when, and keeping the rest of the state", readJsonObject(`${data}/state.json`), { lastNotesFolder: once.folder, examplesInstalled: formatLocalIsoDate(now) });
+  removeFile(`${once.folder}/example-3-no-sidecar.md`);
+  eq("later runs don't, even with one deleted", installExamplesOnce(once, workflow, { now: later, variable: settings }), null);
+  removeFile(`${data}/state.json`);
+  eq("with the state gone, the missing ones come back", installExamplesOnce(once, workflow, { now: later, variable: settings }), ["example-3-no-sidecar"]);
+  eq("…beside the rest", once.list().map((note) => note.id).sort(), ids.concat("mine").sort());
+
+  const broken = `${root}/examples/broken`;
+  makeFolder(`${broken}/examples/example-2-folder.md`);
+  writeRaw(`${broken}/examples/example-1-fine.md`, "# Fine\n");
+  writeRaw(`${broken}/examples/example-3-after.md`, "# After\n");
+  const brokenData = `${root}/examples/broken-data`;
+  const brokenSettings = (name) => ({ alfred_workflow_data: brokenData })[name] || "";
+  const partial = freshStore(root, "examples/partial");
+  throws("an example that can't be read throws", () => installExamplesOnce(partial, broken, { now, variable: brokenSettings }), /Can't read the example note example-2-folder/);
+  eq("…after adding the ones before it", partial.list().map((note) => note.id), ["example-1-fine"]);
+  eq("…and nothing is recorded, so the next run tries again", readWorkflowState(brokenSettings).examplesInstalled, undefined);
+}
+
+// The examples the workflow ships: numbered from 1 with no gaps, each with a
+// sidecar holding only settings a note can have, all valid, and nothing else
+// in the folder.
+function testShippedExamples(workflowFolder) {
+  section("The shipped examples");
+  const source = `${workflowFolder}/examples`;
+  const ids = exampleNoteIds(source);
+  check("there are examples", ids.length > 0);
+  eq("…numbered 1 to n", ids.map((id) => Number(/^example-(\d+)-/.exec(id)[1])), ids.map((_, i) => i + 1));
+  eq("…and nothing else in the folder", entries(source).sort(), ids.map((id) => `${id}.md`).concat(".scratchnstick").sort());
+  eq("…or in .scratchnstick", entries(`${source}/.scratchnstick`).sort(), ids.map((id) => `${id}.json`).sort());
+  const icons = new Set(noteIcons().map((icon) => icon.name));
+  const sizes = noteFontSizes();
+  const slots = noteDefaultPalette().map((colour) => colour.slot);
+  for (const id of ids) {
+    const meta = readJsonObject(`${source}/.scratchnstick/${id}.json`);
+    const problems = [];
+    if (meta === null) problems.push("no sidecar");
+    for (const [key, value] of Object.entries(meta || {})) {
+      if (key === "colour" ? !slots.includes(value) : key === "icon" ? !icons.has(value) : key === "fontSize" ? !sizes.includes(value) : key === "mode" ? !["edit", "view"].includes(value) : true) problems.push(`${key}: ${JSON.stringify(value)}`);
+    }
+    eq(`the sidecar of ${id}`, problems, []);
+  }
 }
 
 function timeList(store) {

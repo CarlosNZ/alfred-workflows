@@ -18,7 +18,9 @@ trap '[[ $tmp == */scratchnstick-test.* ]] && rm -rf -- "$tmp"; osascript -l Jav
 notes=$tmp/notes
 cache=$tmp/cache
 quick=$cache/quick
-mkdir -p "$notes"
+mkdir -p "$notes" "$notes.data"
+# The example notes count as added, so only the notes below are listed.
+print -r -- '{ "examplesInstalled": "2026-01-01T00:00:00+13:00" }' > "$notes.data/state.json"
 failures=0
 
 # A note with its text and how long ago it was edited (a `date -v` offset).
@@ -318,10 +320,23 @@ theme 'rgba(20, 20, 20, 0.9)' >/dev/null
 expect "theme: an unchanged stylesheet isn't rewritten" "$(stat -f %Fm "$cache/theme.css")" "$before_theme"
 expect "theme: without a theme colour, the page's own colours" "$(theme '')" "/\* No theme colour*"
 
+fresh=$tmp/fresh/notes
+mkdir -p "$fresh"
+note_ids() { ls "$1" | sed 's/\.md$//' | sort | tr '\n' ' ' }
+shipped_ids=$(ls "${here:h}/examples" | grep -E '^example-[0-9]+-.*\.md$' | sed 's/\.md$//' | sort | tr '\n' ' ')
+expect_exact "a first run adds the example notes" "$(items "$fresh" >/dev/null; note_ids "$fresh")" "$shipped_ids"
+expect "…and lists them, the first example after New note" "$(items "$fresh" | sed -n 2p | cut -d'|' -f3)" " $quick/example-1-*.alfredui "
+expect "…and records it" "$(cat "$fresh.data/state.json")" '*"examplesInstalled": "20*'
+rm "$fresh"/example-1-*.md
+expect_exact "a later run doesn't add them again" "$(items "$fresh" >/dev/null; note_ids "$fresh")" "${shipped_ids#* }"
+
 expect "a missing notes folder: Missing notes folder, with its path" "$(items "$tmp/missing/notes" | cut -d'|' -f1-2)" "Missing notes folder | $tmp/missing/notes "
 
 # new.js: the new-note keyword.
 new_items() { local script=$new; items "$@" }
+fresh=$tmp/fresh-new/notes
+mkdir -p "$fresh"
+expect_exact "new: a first run adds the example notes too" "$(new_items "$fresh" >/dev/null; note_ids "$fresh")" "$shipped_ids"
 # Sets the test pasteboard's contents, as pairs of type and string.
 clip() {
   osascript -l JavaScript -e '

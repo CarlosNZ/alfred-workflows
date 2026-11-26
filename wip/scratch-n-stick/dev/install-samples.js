@@ -1,6 +1,6 @@
 #!/usr/bin/osascript -l JavaScript
 
-// Installs the sample notes, example1 to example8, in the current notes
+// Installs the sample notes, sample1 to sample8, in the current notes
 // folder, replacing any notes with those IDs, so the samples can always be
 // reset however they've been edited. Other notes aren't touched.
 //
@@ -47,7 +47,7 @@ function run(argv) {
   const now = Date.now();
   const lines = [`Notes folder: ${store.folder}`];
   SAMPLES.forEach((sample, index) => {
-    const id = `example${index + 1}`;
+    const id = `sample${index + 1}`;
     const existed = store.exists(id);
     const date = new Date(now - Number(sample.age.slice(0, -1)) * SECONDS[sample.age.slice(-1)] * 1000);
     writeFileAtomically(store.notePath(id), sample.text);
@@ -74,14 +74,6 @@ function variableOutsideAlfred(workflow) {
     const saved = prefs.isNil() ? $() : prefs.objectForKey(name);
     return !saved.isNil() && saved.js ? saved.js : fallback[name] || "";
   };
-}
-
-function setFileDates(path, date) {
-  const attributes = $.NSMutableDictionary.dictionary;
-  const nsDate = $.NSDate.dateWithTimeIntervalSince1970(date.getTime() / 1000);
-  attributes.setObjectForKey(nsDate, "NSFileCreationDate");
-  attributes.setObjectForKey(nsDate, "NSFileModificationDate");
-  $.NSFileManager.defaultManager.setAttributesOfItemAtPathError(attributes, path, null);
 }
 
 function scriptFolder(argv) {
