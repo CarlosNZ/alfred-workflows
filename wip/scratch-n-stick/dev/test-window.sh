@@ -251,6 +251,26 @@ window_js edit "$id1" sticky "" >/dev/null
 window_js quit "$id1" sticky "Buy oat milk and bread"
 expect "quit in Edit: saves" "$(cat $notes/$id1.md)" "Buy oat milk and bread"
 expect "quit records the window's mode in the sidecar" "$(json $notes/.scratchnstick/$id1.json d.mode)" "edit"
+expect "quit, sticky: keeps the state, with when it closed" "$(json $cache/state/$id1.json '[d.form, d.mode, Math.abs(Date.now() - d.closed) < 60000].join(" ")')" "sticky edit true"
+expect "a closed state isn't an open window: its actions do nothing" "$(window_js menu "$id1" sticky "")" ""
+# The forget timer, which Alfred starts with the `forget` trigger (here, with
+# no Alfred, run directly, with a 1 s grace).
+forget() { "$scripts/forget.sh" "$(json $cache/state/$1.json d.closed) 1 $cache/state/$1.json" }
+forget "$id1"
+expect "the forget timer removes the closed state after the grace" "$([[ -e $cache/state/$id1.json ]] && print there || print gone)" "gone"
+open_note stick "$id1" >/dev/null
+window_js launched "$id1" sticky edit
+window_js quit "$id1" sticky "Buy oat milk and bread"
+closed=$(json $cache/state/$id1.json d.closed)
+window_js launched "$id1" sticky edit
+"$scripts/forget.sh" "$closed 1 $cache/state/$id1.json"
+expect "a note reopened before its timer ends keeps its new state" "$(json $cache/state/$id1.json '"closed" in d')" "false"
+window_js quit "$id1" sticky "Buy oat milk and bread"
+print -rn -- $'Blank soon\n' > "$notes/blanksticky.md"
+open_note stick blanksticky >/dev/null
+window_js launched blanksticky sticky edit
+window_js quit blanksticky sticky ""
+expect "quit, sticky, with the note left blank: deleted, and the state with it" "$([[ -e $notes/blanksticky.md ]] && print there || print gone) $([[ -e $cache/state/blanksticky.json ]] && print there || print gone)" "gone gone"
 expect "the next open uses the remembered mode" "$(json "$(open_note quick $id1)/ui.json" 'Boolean('$editor'.hidden)')" "false"
 
 # Collapsing a sticky window.
@@ -692,7 +712,7 @@ expect "the Edit / View switch closes the open picker" "$(window_js toggle icons
 expect "a switch with none open leaves them alone" "$(window_js toggle icons sticky "Icons" | json - 'String(d.update.ids.pickercatcher)')" "undefined"
 picker toggle icons sticky icon >/dev/null
 window_js quit icons sticky ""
-expect "quit removes the picker file" "$(ls $cache/state | grep -c '^icons\.' || true)" "0"
+expect "quit removes the picker file" "$([[ -e $cache/state/icons.picker ]] && print open || print closed)" "closed"
 print -rn -- icon > $cache/state/icons.picker
 window_js launched icons quick view >/dev/null
 expect "launched clears a picker left open (a killed window)" "$([[ -e $cache/state/icons.picker ]] && print open || print closed)" "closed"

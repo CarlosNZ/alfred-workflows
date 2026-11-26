@@ -272,8 +272,63 @@ print -r -- '{"form":"sticky","pid":'$$',"mode":"edit"}' > "$cache/state/shoppin
 expect "a sticky state whose process isn't Alfred UI: a normal result" "$(items "$notes" milk | cut -d'|' -f2-3)" " Edited 3h ago • milk, eggs | $quick/shopping.alfredui "
 rm "$cache/state/shopping.json"
 
+# Reopen sticky notes (see reopenItem in list.js), from state files written
+# here: a sticky window's state left by a session that ended (closed, and its
+# forget timer no longer running) or by a window that died without closing
+# (no `closed`, and its process gone).
+scripts=${here:h}/scripts
+true & dead=$!; wait $dead
+state() { print -r -- "$2" > "$cache/state/$1.json" }
+has_state() { [[ -e $cache/state/$1.json ]] && print there || print gone }
+# Evaluates a JavaScript expression with `d` the JSON on stdin.
+json() {
+  osascript -l JavaScript -e '
+    ObjC.import("Foundation");
+    function run(argv) {
+      const d = JSON.parse($.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js);
+      const value = new Function("d", `return (${argv[1]});`)(d);
+      return typeof value === "string" ? value : JSON.stringify(value);
+    }' "$@"
+}
+reopen_one="Reopen “Shopping” | Put the sticky note back on the desktop |  |  |  | - | - | "
+state shopping '{"form":"sticky","pid":'$dead',"mode":"edit","collapsed":false,"closed":1}'
+expect_exact "a closed sticky state whose forget timer has gone: Reopen, first, ↩ and ⌘ with no arg, ⌥ and ⌃ doing nothing" "$(items "$notes" "" | head -1)" "$reopen_one"
+expect_exact "… and in the sticky notes list, with no sticky windows, only Reopen" "$(items "$notes" "" stickies)" "$reopen_one"
+reopen_json() { notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list "" "$@" | json - 'JSON.stringify([d.items[0].variables, d.items[0].mods.cmd.subtitle, d.items[0].mods.cmd.variables])' }
+expect_exact "Reopen: ↩ sets sticky_action reopen, and ⌘ forget" "$(reopen_json)" '[{"sticky_action":"reopen"},"Leave it closed",{"sticky_action":"forget"}]'
+expect "a query: no Reopen" "$(items "$notes" milk | grep -c Reopen || true)" "0"
+state cafe '{"form":"sticky","pid":'$dead',"mode":"view","collapsed":false}'
+expect_exact "a sticky state with no close and its process gone (a crash): Reopen too, naming the notes, last edited first" "$(items "$notes" "" | head -1 | cut -d'|' -f1-2)" "Reopen sticky notes | Café ideas and Shopping "
+expect_exact "Reopen, for several: ⌘ leaves them closed" "$(reopen_json | json - 'd[1]')" "Leave them closed"
+note timed $'Timed note' -5d
+$scripts/forget.sh "5 60 $cache/state/timed.json" & timer=$!
+state timed '{"form":"sticky","pid":'$dead',"mode":"edit","collapsed":false,"closed":5}'
+expect_exact "a closed state whose forget timer is running: not offered" "$(items "$notes" "" | head -1 | cut -d'|' -f2)" " Café ideas and Shopping "
+$scripts/forget.sh "4 60 $cache/state/old.json" & timer2=$!
+state old '{"form":"sticky","pid":'$dead',"mode":"edit","collapsed":false,"closed":1}'
+expect_exact "a closed state with a timer running for another close of it: offered" "$(items "$notes" "" | head -1 | cut -d'|' -f2)" " Café ideas, Shopping and Old note "
+kill $timer $timer2; wait $timer $timer2 2>/dev/null || true
+expect_exact "… and once that timer has gone, four notes: two named and 2 more" "$(items "$notes" "" | head -1 | cut -d'|' -f2)" " Café ideas, Shopping and 2 more "
+state gone '{"form":"sticky","pid":'$dead',"mode":"edit","collapsed":false,"closed":1}'
+state quickleft '{"form":"quick","pid":'$dead',"mode":"edit"}'
+state trashedleft '{"form":"sticky","pid":'$dead',"mode":"edit","trashed":true}'
+cp "$notes/cafe.md" "$notes/quickleft.md"; cp "$notes/cafe.md" "$notes/trashedleft.md"
+expect_exact "a note that no longer exists, a quick view's state and a trashed note's: not offered" "$(items "$notes" "" | head -1 | cut -d'|' -f2)" " Café ideas, Shopping and 2 more "
+expect_exact "… and the state of the note that's gone is removed, the others left" "$(has_state gone) $(has_state quickleft) $(has_state trashedleft)" "gone there there"
+rm -rf "$notes/quickleft.md" "$notes/trashedleft.md" "$cache/state/quickleft.json" "$cache/state/trashedleft.json" "$notes/timed.md" "$notes/.scratchnstick/timed.json" "$quick/timed.alfredui" "$cache/state/timed.json" "$cache/state/old.json"
+expect_exact "the sticky notes list with sticky windows: Reopen first, then the notes, Show all and Close all" "$(scratchnstick_sticky_ids=cafe items "$notes" "" stickies | cut -d'|' -f1)" $'Reopen sticky notes \nCafé ideas \nShow all sticky notes \nClose all sticky notes '
+expect_exact "open.js with sticky_action forget (⌘ in the notes list): opens nothing, and the notes aren't offered" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache sticky_action=forget $scripts/open.js stick "" | json - 'd.alfredworkflow.arg + d.alfredworkflow.variables.open_window') $(items "$notes" "" | grep -c Reopen || true) $(has_state shopping) $(has_state cafe)" " 0 gone gone"
+state shopping '{"form":"sticky","pid":'$dead',"mode":"edit","collapsed":false}'
+# A note that's one long line, whose title needs text-rules.js.
+note longline 'Hi Sam. Thanks for the notes from yesterday, I have added the action items to the tracker.' -2d
+state longline '{"form":"sticky","pid":'$dead',"mode":"edit","collapsed":false}'
+expect_exact "stickies.js reopen reads the notes to reopen, titles and all (outside Alfred it opens nothing)" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $scripts/stickies.js reopen 2>&1; print $?)" "0"
+rm -rf "$notes/longline.md" "$notes/.scratchnstick/longline.json" "$quick/longline.alfredui" "$cache/state/longline.json"
+env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $scripts/stickies.js forget
+expect_exact "stickies.js forget (⌘ in the sticky notes list): the notes aren't offered" "$(items "$notes" "" | grep -c Reopen || true) $(has_state shopping)" "0 gone"
+
 # Sticky notes, given by scratchnstick_sticky_ids in place of live windows
-# (see stickyIds in list.js). In the notes list, a sticky note's result has no
+# (see windowStates in list.js). In the notes list, a sticky note's result has no
 # arg and says it's sticky.
 expect "notes list: a sticky note says so, with no arg; ⌘ still sticks it" "$(scratchnstick_sticky_ids=shopping items "$notes" milk)" "Shopping | 📌 Sticky • Edited 3h ago • milk, eggs |  |  | shopping | shopping | $notes/shopping.md | "
 

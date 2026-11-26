@@ -35,8 +35,10 @@
 //   window.js tick <id> <form> <line> <x|o> a task box in View: ticks (x) or
 //                                           unticks (o) the task on that line
 //                                           (from scripts/changed.sh)
-//   window.js quit <id> <form> <text>       the window closed: saves, and
-//                                           deletes the note if it's empty
+//   window.js quit <id> <form> <text>       the window closed: saves, deletes
+//                                           the note if it's empty, and keeps
+//                                           a sticky window's state for a
+//                                           while (see quit)
 //
 // <form> is "quick" or "sticky", which says which bundle the window opened
 // from (see "Note windows" in lib.js).
@@ -138,7 +140,8 @@ function launched(store, workflowFolder, context, id, form, mode) {
   }
   const pid = $.getppid();
   const collapsed = form === "sticky" && context.collapsed != null;
-  writeNoteState(id, { form, pid, mode, collapsed });
+  const launched = form === "sticky" ? processLaunchTime(pid) : null;
+  writeNoteState(id, { form, pid, ...(launched === null ? {} : { launched }), mode, collapsed });
   closeNotePickerState(id);
   if (form === "sticky") return stickyWindowSize(workflowFolder, pid, collapsed);
   const note = form === "quick" ? store.read(id) : null;
@@ -154,7 +157,7 @@ function launched(store, workflowFolder, context, id, form, mode) {
 // isEditorText). The event fires about a second after the last keystroke, so
 // it can come after a switch to View, which has already saved the text.
 function save(store, id, form, text) {
-  if (isEditorText(readNoteState(id), form, text)) store.save(id, text);
+  if (isEditorText(windowState(id), form, text)) store.save(id, text);
 }
 
 // Switches the window to mode `to` ("edit" or "view"), or to the other mode
@@ -172,7 +175,7 @@ function save(store, id, form, text) {
 // mode), or when it has no state of its form (its `launched` failed, or it
 // handed over to a sticky window), since then its mode is unknown.
 function switchMode(store, workflowFolder, context, id, form, text, to) {
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form || state.collapsed) return;
   const from = state.mode === "view" ? "view" : "edit";
   if (to === from) return;
@@ -215,7 +218,7 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
 function setColour(store, workflowFolder, context, id, form, slot) {
   const colour = notePaletteColour(context.palette || noteDefaultPalette(), slot);
   if (!colour) throw new Error(`Unknown colour: ${slot}`);
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form) return;
   store.updateMeta(id, { colour: colour.slot });
   updateNoteContext(id, form, { colour: colour.slot });
@@ -243,7 +246,7 @@ function setColour(store, workflowFolder, context, id, form, slot) {
 // switchMode.
 function setIcon(store, workflowFolder, context, id, form, name) {
   if (name !== "none" && !noteIconByName(name)) throw new Error(`Unknown icon: ${name}`);
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form) return;
   const icon = name === "none" ? null : name;
   store.updateMeta(id, { icon });
@@ -272,7 +275,7 @@ function setIcon(store, workflowFolder, context, id, form, name) {
 // as for switchMode.
 function setFontSize(store, workflowFolder, context, id, form, choice) {
   if (!/^(\d+|bigger|smaller|default)$/.test(choice || "")) throw new Error(`Unknown font size: ${choice}`);
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form) return;
   const mode = state.mode === "view" ? "view" : "edit";
   const before = noteWindowOptions(context, { workflowFolder, id, form, mode });
@@ -315,7 +318,7 @@ function stickyWindowSize(workflowFolder, pid, collapsed) {
 // back in the editor in Edit. Does nothing without a state of the window's
 // form, as for switchMode, or in a quick view.
 function toggleCollapsed(store, workflowFolder, context, id, form, text) {
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (form !== "sticky" || !state || state.form !== form) return;
   const mode = state.mode === "view" ? "view" : "edit";
   const layout = noteCollapsedLayout();
@@ -353,7 +356,7 @@ function toggleCollapsed(store, workflowFolder, context, id, form, text) {
 // (`menuanchor`). Does nothing without a state of the window's form, as for
 // switchMode.
 function actionsMenu(store, workflowFolder, id, form, text) {
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form) return;
   const mode = state.mode === "view" ? "view" : "edit";
   const note = mode === "edit" ? null : store.read(id);
@@ -388,7 +391,7 @@ function actionsMenu(store, workflowFolder, id, form, text) {
 // without switching to Edit to select it.
 // Does nothing without a state of the window's form, as for switchMode.
 function shareNote(store, workflowFolder, id, form, how, text) {
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form) return;
   if (state.mode !== "view") store.save(id, text);
   const note = store.read(id);
@@ -419,7 +422,7 @@ function shareNote(store, workflowFolder, id, form, how, text) {
 // the error stops here, so the window stays open. Does nothing without a
 // state of the window's form, as for switchMode.
 function trashNote(store, id, form, text) {
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form) return;
   if (state.mode !== "view") store.save(id, text);
   if (!store.deleteIfEmpty(id)) {
@@ -447,7 +450,7 @@ function trashNote(store, id, form, text) {
 // Does nothing without a View state of the window's form.
 function tick(store, context, id, form, line, to) {
   if (to !== "x" && to !== "o") throw new Error(`Unknown tick: ${to}`);
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (!state || state.form !== form || state.mode !== "view") return;
   const note = store.read(id);
   const text = note ? note.text : "";
@@ -466,7 +469,7 @@ function tick(store, context, id, form, line, to) {
 // editor (a new note with text, or typing within the last second) would open
 // blank or stale in its sticky window.
 function stick(store, id, form, text) {
-  const state = readNoteState(id);
+  const state = windowState(id);
   save(store, id, form, text);
   const mode = state && state.form === form ? state.mode : "";
   return JSON.stringify({ finish: { variables: { stick_note: escapeForAlfredUi(id), stick_mode: mode } } });
@@ -476,12 +479,17 @@ function stick(store, id, form, text) {
 // deletes the note, with its window bundles, if it's empty or was never saved,
 // and otherwise records the window's mode in the note's sidecar, so the note
 // reopens in the mode it was last in, whether or not it was ever switched.
+// A quick view's state is removed. A sticky window's is kept, with the time
+// it closed, and Alfred starts a forget timer that removes it a little later, so
+// that if the session is ending (a restart, shutdown or logout, which closes
+// the window this way too) the note can be reopened afterwards (see
+// "Reopening sticky notes" in lib.js).
 // A state of the other form is another window's: this was a quick view that
 // handed over to the note's sticky window (see launched), so it leaves
 // everything alone. A note moved to the Trash from its window (see trashNote)
 // isn't saved back: its state and bundles are removed, and nothing else.
 function quit(store, id, form, text) {
-  const state = readNoteState(id);
+  const state = windowState(id);
   if (state && state.form !== form) return;
   if (state && state.trashed) {
     removeNoteState(id);
@@ -489,9 +497,15 @@ function quit(store, id, form, text) {
     return;
   }
   if (isEditorText(state, form, text)) store.save(id, text);
-  removeNoteState(id);
-  if (store.deleteIfEmpty(id)) removeNoteBundle(id);
-  else if (state && store.exists(id)) store.updateMeta(id, { mode: state.mode === "view" ? "view" : "edit" });
+  if (store.deleteIfEmpty(id)) {
+    removeNoteState(id);
+    removeNoteBundle(id);
+    return;
+  }
+  const exists = store.exists(id);
+  if (state && exists) store.updateMeta(id, { mode: state.mode === "view" ? "view" : "edit" });
+  if (state && exists && form === "sticky") keepClosedNoteState(id, state);
+  else removeNoteState(id);
 }
 
 // Whether `text`, a window's {value:editor.text}, is its editor's text, and so
@@ -503,6 +517,14 @@ function quit(store, id, form, text) {
 function isEditorText(state, form, text) {
   if (!state) return !isBlankText(text);
   return state.form === form && state.mode === "edit";
+}
+
+// The window's state (see "Window state" in lib.js), or null if there's none
+// or it's a closed sticky window's, kept for reopening, which no open window
+// acts on.
+function windowState(id) {
+  const state = readNoteState(id);
+  return state && state.closed == null ? state : null;
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from

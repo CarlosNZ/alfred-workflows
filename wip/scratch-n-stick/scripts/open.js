@@ -44,6 +44,12 @@ function run(argv) {
   loadLib(argv, "text-rules.js");
   const form = argv[0] === "stick" ? "sticky" : "quick";
   if (workflowVariable("close_view") === "1") return output("");
+  // ⌘↩ on Reopen sticky notes in the results list comes here, as ⌘↩ on a
+  // note does: it leaves those notes closed, and opens nothing.
+  if (workflowVariable("sticky_action") === "forget") {
+    forgetReopenNotes();
+    return output("");
+  }
   if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");
   const paletteProblems = notePaletteProblems();
   if (paletteProblems.length) {

@@ -72,6 +72,19 @@
 				<false/>
 			</dict>
 		</array>
+		<key>42419655-242F-4C5F-8402-3287F2BA6441</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</key>
 		<array>
 			<dict>
@@ -115,6 +128,18 @@
 		</array>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</key>
 		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>9AE9C2EF-31AB-43A1-8F55-C156F232FAD1</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
 			<dict>
 				<key>destinationuid</key>
 				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
@@ -362,7 +387,32 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
+				<string>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>3D7623AD-42CF-4E63-8BDC-61A93E3E340E</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
 				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>CB05C81B-79F9-44D1-AED7-DDE31D475167</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F97B82D1-681F-47D5-92E1-4800ABA575A0</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -657,6 +707,20 @@
 						<key>uid</key>
 						<string>10613DF5-A71B-4985-B69F-AE343F9CDF4D</string>
 					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:sticky_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>reopen</string>
+						<key>outputlabel</key>
+						<string>Reopen</string>
+						<key>uid</key>
+						<string>3D7623AD-42CF-4E63-8BDC-61A93E3E340E</string>
+					</dict>
 				</array>
 				<key>elselabel</key>
 				<string>else</string>
@@ -848,6 +912,20 @@
 						<key>uid</key>
 						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
 					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:sticky_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>reopen</string>
+						<key>outputlabel</key>
+						<string>Reopen</string>
+						<key>uid</key>
+						<string>9AE9C2EF-31AB-43A1-8F55-C156F232FAD1</string>
+					</dict>
 				</array>
 				<key>elselabel</key>
 				<string>else</string>
@@ -1038,6 +1116,21 @@
 				<key>availableviaurlhandler</key>
 				<false/>
 				<key>triggerid</key>
+				<string>stick</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.external</string>
+			<key>uid</key>
+			<string>42419655-242F-4C5F-8402-3287F2BA6441</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>availableviaurlhandler</key>
+				<false/>
+				<key>triggerid</key>
 				<string>notify</string>
 			</dict>
 			<key>type</key>
@@ -1068,6 +1161,44 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<true/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>scripts/forget.sh</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>F97B82D1-681F-47D5-92E1-4800ABA575A0</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>availableviaurlhandler</key>
+				<false/>
+				<key>triggerid</key>
+				<string>forget</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.external</string>
+			<key>uid</key>
+			<string>CB05C81B-79F9-44D1-AED7-DDE31D475167</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string></string>
@@ -1093,6 +1224,15 @@
 			<real>205</real>
 			<key>ypos</key>
 			<real>15</real>
+		</dict>
+		<key>42419655-242F-4C5F-8402-3287F2BA6441</key>
+		<dict>
+			<key>note</key>
+			<string>Sticky notes reopened by stickies.js reopen, one note ID per run</string>
+			<key>xpos</key>
+			<real>200</real>
+			<key>ypos</key>
+			<real>965</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</key>
 		<dict>
@@ -1182,14 +1322,14 @@
 			<key>xpos</key>
 			<real>200</real>
 			<key>ypos</key>
-			<real>1010</real>
+			<real>1135</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D31</key>
 		<dict>
 			<key>xpos</key>
 			<real>960</real>
 			<key>ypos</key>
-			<real>1010</real>
+			<real>1135</real>
 		</dict>
 		<key>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</key>
 		<dict>
@@ -1238,11 +1378,20 @@
 		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
 		<dict>
 			<key>note</key>
-			<string>Show all or Close all sticky notes; else a sticky note to bring to the front</string>
+			<string>Show all, Close all or Reopen sticky notes; else a sticky note to bring to the front</string>
 			<key>xpos</key>
 			<real>413</real>
 			<key>ypos</key>
 			<real>360</real>
+		</dict>
+		<key>CB05C81B-79F9-44D1-AED7-DDE31D475167</key>
+		<dict>
+			<key>note</key>
+			<string>Forget timers for closed sticky windows, started by window.js quit (see Reopening sticky notes in lib.js)</string>
+			<key>xpos</key>
+			<real>200</real>
+			<key>ypos</key>
+			<real>1310</real>
 		</dict>
 		<key>CEC2F155-08CF-4B0A-8AC9-268E023173CA</key>
 		<dict>
@@ -1250,6 +1399,13 @@
 			<real>650</real>
 			<key>ypos</key>
 			<real>15</real>
+		</dict>
+		<key>F97B82D1-681F-47D5-92E1-4800ABA575A0</key>
+		<dict>
+			<key>xpos</key>
+			<real>625</real>
+			<key>ypos</key>
+			<real>1310</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>

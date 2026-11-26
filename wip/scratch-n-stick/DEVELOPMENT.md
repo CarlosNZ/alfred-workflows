@@ -11,6 +11,7 @@ This file is the overview: what the workflow does, how its parts fit together, a
 - **Example notes**, `example-1-…` onwards, are added to the notes folder the first time the workflow runs, to show what notes can do. They're never replaced, and come back only if the workflow's data folder is deleted.
 - **New notes** come from New note in the list, the `newscratch` and `newsticky` keywords (with typed text or the clipboard), the "New scratch note" and "New sticky note" Universal Actions, and an optional hotkey. Text that reads as a heading starts the note as `# <text>`.
 - **The sticky notes list** (`sticky`) lists the notes stuck to the desktop, to bring one to the front or close it, or show or close them all.
+- **Reopening after a restart**: sticky notes closed by a restart, shutdown or logout (or a crash) are offered back by "Reopen sticky notes" at the top of both lists.
 - **A note's window** has an editor (Edit) and a rendered view (Preview, with task boxes that can be ticked), switched with ↩ (to Edit) and ⌘↩ (to Preview). Its top row sets the note's colour (six slots, customisable), icon (44 Lucide icons) and font size, and its actions menu (⌘K) has Stick, Close, Move to Trash, Share and Copy. Sticky windows collapse to their top strip with a double-click, and reopen where they were left.
 
 ## Names
@@ -29,14 +30,16 @@ Sticky notes don't float above other windows (Alfred UI can't), so the user guid
 
 | Input | Runs | Leads to |
 |---|---|---|
-| Keyword `{var:keyword}` (Script Filter), optional hotkey | `list.js` | ↩: the quick view's Alfred UI object (Open within Alfred), or for a sticky note a Conditional on `sticky` to the stick route. ⌘↩: the stick route. ⌥↩: `trash.js` → Post Notification. ⌃↩: Reveal in Finder. |
+| Keyword `{var:keyword}` (Script Filter), optional hotkey | `list.js` | ↩: the quick view's Alfred UI object (Open within Alfred), and a Conditional: `sticky` (a sticky note) to the stick route, `sticky_action` `reopen` to `stickies.js`. ⌘↩: the stick route. ⌥↩: `trash.js` → Post Notification. ⌃↩: Reveal in Finder. |
 | Keyword `{var:keyword_new}` (Script Filter) | `new.js` | ↩: the quick view. ⌘↩: the stick route. |
 | Keyword `{var:keyword_new_sticky}` (Script Filter) | `new.js "$1" sticky` | ↩: the stick route. ⌘↩: the quick view. |
-| Keyword `{var:keyword_sticky}` (Script Filter), optional hotkey | `list.js "$1" stickies` | A Conditional on `sticky_action`: `show` / `close` to `stickies.js`; otherwise the stick route. |
+| Keyword `{var:keyword_sticky}` (Script Filter), optional hotkey | `list.js "$1" stickies` | A Conditional on `sticky_action`: `show` / `close` / `reopen` to `stickies.js`; otherwise the stick route. ⌘↩: `stickies.js`. |
 | Universal Action "New scratch note" | `open.js quick` with `new=1` | The quick view |
 | Universal Action "New sticky note" | `open.js stick` with `new=1` | The stick route's Conditional |
 | Optional hotkey, new note | Arg and Vars (`new` = 1) | The stick route |
 | External Trigger `notify` | | Post Notification (notifications from scripts) |
+| External Trigger `stick` | | The stick route (`stickies.js reopen`, one note per run) |
+| External Trigger `forget` | `forget.sh` (concurrent) | A closed sticky window's forget timer, started by its `quit` |
 
 **The stick route** is the Run Script `./scripts/open.js stick "$1"`, then a Conditional on `open_window`, then the sticky Alfred UI object (Launch Externally). The quick view's Alfred UI object connects on to the stick route, so a quick view that finishes with `stick_note` set (Stick to the desktop) opens the sticky window. See [Note windows](dev/docs/windows.md#the-routes).
 
@@ -56,7 +59,8 @@ All JXA unless noted.
 | `scripts/window.js` | A note window's actions: `launched`, `save`, `quit`, `toggle` / `edit` / `view`, `stick`, `colour`, `icon`, `fontsize`, `collapse`, `menu`, `trash`, `share`, `copyrich`, `copytext`, `tick`. |
 | `scripts/changed.sh` | zsh. The web view's `changed` action: shows the page once drawn, passes task ticks to `window.js tick`. |
 | `scripts/picker.sh` | zsh. Opens and closes the icon and colour pickers. |
-| `scripts/stickies.js` | The sticky notes list's actions: `close [<id>]`, `show`. |
+| `scripts/stickies.js` | The sticky notes list's actions: `close [<id>]`, `show`; and Reopen sticky notes': `reopen`, `forget`. |
+| `scripts/forget.sh` | zsh. A closed sticky window's forget timer, run by Alfred: deletes its state `CLOSE_GRACE_SECONDS` later, unless a session ending kills it first. |
 | `scripts/trash.js` | ⌥↩: closes a note's sticky window and moves the note to the Trash. |
 | `scripts/move.js` | Moves the notes to a newly configured folder, in the background. |
 | `scripts/place.js` | Moves a sticky window that opened on the wrong screen back where it was left, in the background. Doesn't load `lib.js`. |
@@ -129,7 +133,7 @@ Window scripts don't get these, so `list.js`, `new.js` and `open.js` write what 
 
 - [Storage](dev/docs/storage.md): the notes folder, IDs, sidecars, titles and previews, saving, empty notes, the Trash, sweeping sidecars, the example notes, and moving the notes folder.
 - [Results and new notes](dev/docs/results.md): the results list, the sticky notes list, creating notes and text as a heading.
-- [Note windows](dev/docs/windows.md): quick views and sticky notes, the routes, generated bundles and templates, window state, seamless quick views, saving, escaping Alfred's placeholders, and window positions.
+- [Note windows](dev/docs/windows.md): quick views and sticky notes, the routes, generated bundles and templates, window state, reopening after a restart, seamless quick views, saving, escaping Alfred's placeholders, and window positions.
 - [Window layout and controls](dev/docs/window-ui.md): the top row, keys, key hints, drop-downs, collapsing, the actions menu, font sizes, and a new sticky note's size.
 - [Preview](dev/docs/view-mode.md): the web view, markdown-it, task boxes, and showing the page without a flash.
 - [Colours and icons](dev/docs/colours-and-icons.md): the palette and custom colours, note icons, the images and how they're made, macOS 12, and the workflow's own icons.
@@ -147,8 +151,8 @@ Run from anywhere; each uses temporary folders from `mktemp`, deleted afterwards
 | Script | Tests |
 |---|---|
 | `dev/test-storage.sh` | `lib.js`'s storage functions (with `dev/test-storage.js`): loading `lib.js` from other folders and through symlinks, IDs, saves (birth time, tags, modification time, racing processes), sidecars and their daily sweep, the example notes (and the shipped ones' sidecars), titles and previews (Unicode, `text-rules.js`'s cases), empty notes, the Trash (`SKIP_TRASH=1` skips it; it trashes only a note it made), `fittedNoteSize`, and moving the notes folder, including to another volume on a disk image (`SKIP_VOLUME=1` skips it). About 8 s plus the move tests. |
-| `dev/test-list.sh` | `list.js` and `new.js`: results and searching, result icons (badges, dots, the cache and its sweep), the quick bundles and when they're rebuilt, the theme stylesheet, the palette and its problems, macOS 12, the sticky notes list (sticky notes given in `scratchnstick_sticky_ids`), the example notes added on a first run, and the new-note keywords' results (from a private pasteboard, not the clipboard). |
-| `dev/test-window.sh` | `open.js`, `window.js`, `changed.sh` and `picker.sh`: bundles and templates in both forms and modes, escaping, saving, the mode switch, ticks, colours, icons and the pickers, font sizes, collapsing, the actions menu and its actions, macOS 12's windows, a new sticky note's size, saved window frames, and the page's task rule run in JXA with the vendored markdown-it. |
+| `dev/test-list.sh` | `list.js` and `new.js`: results and searching, result icons (badges, dots, the cache and its sweep), the quick bundles and when they're rebuilt, the theme stylesheet, the palette and its problems, macOS 12, the sticky notes list (sticky notes given in `scratchnstick_sticky_ids`), Reopen sticky notes (from state files written by hand), the example notes added on a first run, and the new-note keywords' results (from a private pasteboard, not the clipboard). |
+| `dev/test-window.sh` | `open.js`, `window.js`, `changed.sh` and `picker.sh`: bundles and templates in both forms and modes, escaping, saving, the mode switch, ticks, colours, icons and the pickers, font sizes, collapsing, the actions menu and its actions, a closed sticky window's kept state and its forget timer (run directly, with a 1 s grace), macOS 12's windows, a new sticky note's size, saved window frames, and the page's task rule run in JXA with the vendored markdown-it. |
 
 Run the three after any change to `lib.js`, the templates or a script, with `alfred_workflow_data` set as well to cover the move checks. `dev/test-window.sh` checks the drop-downs' sizes, so update it with `NOTE_WINDOW_LAYOUT`.
 
@@ -192,5 +196,7 @@ Before the first release:
   - Window positions: a note left on another display, closed, and stuck again with ⌘↩ and from its quick view.
   - Preview's fades: scrolling, ↓ and Home after a click in the page, and a translucent theme.
   - The icon picker in a sticky window at its minimum width (220 pt), which it doesn't fit; perhaps raise the minimum.
+  - Reopening: a sticky note closed with its button keeps its state with `closed` for 2 minutes, with no Reopen item meanwhile, and can be stuck again straight away; a helper killed with `kill -9` gives the item at once, ↩ reopens the note where and as it was, and ⌘↩ leaves it closed, in both lists; several notes reopen one at a time, the most recently edited on top.
+- Check reopening in real sessions (in a UTM VM): a restart, a shutdown and a logout with sticky notes open give the item straight after logging back in, and ↩ reopens them all. That confirms that `quit` runs as the session ends, that its `forget` trigger reaches Alfred or is skipped, and that `forget.sh` dies with the session.
 
 Later: see [Planned](dev/docs/planned.md) (reloading windows on changes made elsewhere, dark appearance, the workflow's own Quick Look preview, and images in the example notes).

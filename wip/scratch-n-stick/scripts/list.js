@@ -21,6 +21,11 @@
 // it to the Trash (trash.js), ⌃↩ reveals it in Finder (its path is that
 // modifier's arg), and Quick Look shows the file.
 //
+// With no query, both lists start with "Reopen sticky notes" while there are
+// notes whose sticky windows were closed by a restart, shutdown or logout, or
+// ended without closing (see reopenItem, and "Reopening sticky notes" in
+// lib.js).
+//
 // The first run each day also sweeps away the sidecars of notes that have
 // been gone a long time (sweepSidecarsDaily in lib.js), and the first run of
 // all adds the example notes (installExamplesOnce).
@@ -40,8 +45,9 @@ function run(argv) {
   // place of the list, as every result and window needs the palette.
   const paletteProblems = notePaletteProblemItems();
   if (paletteProblems.length) return output(paletteProblems);
-  const sticky = stickyIds();
-  let store, notes;
+  const windows = windowStates();
+  const sticky = windows.open;
+  let store, notes, reopen;
   try {
     // The notes may have to move to a newly configured folder first.
     const move = checkNotesFolderMove({ workflowFolder, showFailure: true });
@@ -50,6 +56,7 @@ function run(argv) {
     // The first run adds the example notes.
     attempt(() => installExamplesOnce(store, workflowFolder));
     notes = store.list(stickiesOnly ? { ids: sticky } : {});
+    reopen = query || windows.reopen.size === 0 ? [] : attempt(() => reopenNotes(store)) || [];
   } catch (e) {
     return output([notesFolderErrorItem(e)]);
   }
@@ -62,7 +69,11 @@ function run(argv) {
   const variable = cachedVariables();
   const icon = (note) => attempt(() => noteResultIcon(workflowFolder, note, noteColour(note.meta, variable), variable));
   const item = (note) => noteItem(note, now, icon(note));
-  if (stickiesOnly) return output(stickiesListItems(matches.map((note) => stickiesListItem(note, item(note))), query, sticky.size, variable));
+  const reopenResult = reopen.length ? reopenItem(reopen) : null;
+  if (stickiesOnly) {
+    const items = stickiesListItems(matches.map((note) => stickiesListItem(note, item(note))), query, sticky.size, variable);
+    return output(reopenResult ? [reopenResult, ...(sticky.size ? items : [])] : items);
+  }
 
   const quick = attempt(() => quickWindows(store, workflowFolder));
   // Quick views' pages take their colour from Alfred's theme, which Alfred
@@ -72,6 +83,7 @@ function run(argv) {
   const items = matches.map((note) => notesListItem(note, item(note), bundle(() => quick.bundleFor(note)), sticky.has(note.id)));
   if (!query && showNewNote(variable)) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
   else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, newNoteSubtitle(query), query, bundle(() => quick.bundleForNew(query))));
+  if (reopenResult) items.unshift(reopenResult);
   if (quick) attempt(() => quick.finish(notes));
   return output(items);
 }
@@ -83,14 +95,47 @@ function showNewNote(variable) {
   return variable("show_new_note") !== "0";
 }
 
-// The IDs of the notes that have a sticky window (stickyNoteIds in lib.js),
-// or none if they can't be read. The variable `scratchnstick_sticky_ids`, IDs
-// one per line, stands in for them, for dev/test-list.sh, which can't open
+// The sticky windows' states (noteWindowStates in lib.js): { open, reopen },
+// the IDs of the notes with a sticky window and of those to reopen, or none
+// if they can't be read. The variable `scratchnstick_sticky_ids`, IDs one per
+// line, stands in for the open ones, for dev/test-list.sh, which can't open
 // sticky windows.
-function stickyIds() {
+function windowStates() {
+  const states = attempt(noteWindowStates) || { open: new Set(), reopen: new Set() };
   const ids = workflowVariable("scratchnstick_sticky_ids");
-  if (ids) return new Set(ids.split("\n").filter(isNoteId));
-  return attempt(stickyNoteIds) || new Set();
+  if (ids) states.open = new Set(ids.split("\n").filter(isNoteId));
+  return states;
+}
+
+// Reopen sticky notes, first in both lists with no query, for `notes`, the
+// notes to reopen (reopenNotes in lib.js): ↩ goes to stickies.js with
+// `sticky_action` "reopen" and an empty arg, through the Conditional on that
+// variable (in the notes list, the quick view's Alfred UI object gets the
+// empty arg too, and shows nothing). ⌘↩ leaves the notes closed, through
+// stickies.js from the sticky notes list and open.js from the notes list,
+// where ⌘ goes. ⌥ and ⌃ do nothing.
+function reopenItem(notes) {
+  const one = notes.length === 1;
+  const subtitle = one ? "Put the sticky note back on the desktop" : listedTitles(notes.map((note) => note.title));
+  const none = { subtitle, valid: false };
+  return {
+    title: one ? `Reopen “${notes[0].title}”` : "Reopen sticky notes",
+    subtitle,
+    arg: "",
+    icon: { path: "icons/note.png" },
+    variables: { sticky_action: "reopen" },
+    mods: {
+      cmd: { subtitle: one ? "Leave it closed" : "Leave them closed", arg: "", variables: { sticky_action: "forget" } },
+      alt: none,
+      ctrl: none,
+    },
+  };
+}
+
+// "A", "A and B", "A, B and C", or "A, B and 2 more".
+function listedTitles(titles) {
+  if (titles.length <= 3) return titles.length === 1 ? titles[0] : `${titles.slice(0, -1).join(", ")} and ${titles[titles.length - 1]}`;
+  return `${titles.slice(0, 2).join(", ")} and ${titles.length - 2} more`;
 }
 
 // What `fn` returns, or null if it throws, logging the error (to Alfred's

@@ -643,22 +643,42 @@ function startNotesMove(workflowFolder, from, to) {
 // events") once that app has quit. Does nothing outside Alfred (no
 // alfred_workflow_bundleid), so the tests post nothing.
 function postNotesNotification(text, variable = workflowVariable, { wait = false } = {}) {
+  runWorkflowTrigger("notify", text, variable, { wait });
+}
+
+// Asks Alfred to run the workflow's External Trigger `trigger` with
+// `argument`, as postNotesNotification describes: in a process of its own,
+// with the argument passed as one, and waiting for Alfred to take it only
+// with `wait`, for up to 10 s. Only while Alfred is running, so a window
+// closing as the session ends never starts Alfred again. Does nothing outside
+// Alfred (no alfred_workflow_bundleid). Returns whether it asked.
+function runWorkflowTrigger(trigger, argument, variable = workflowVariable, { wait = false } = {}) {
   const bundleId = variable("alfred_workflow_bundleid");
-  if (!bundleId) return;
+  if (!bundleId) return false;
   runProgram(
     "/usr/bin/osascript",
     [
       "-e",
       "on run argv",
       "-e",
-      'tell application id "com.runningwithcrayons.Alfred" to run trigger "notify" in workflow (item 1 of argv) with argument (item 2 of argv)',
+      'if application id "com.runningwithcrayons.Alfred" is running then',
+      "-e",
+      "with timeout of 10 seconds",
+      "-e",
+      'tell application id "com.runningwithcrayons.Alfred" to run trigger (item 1 of argv) in workflow (item 2 of argv) with argument (item 3 of argv)',
+      "-e",
+      "end timeout",
+      "-e",
+      "end if",
       "-e",
       "end run",
+      trigger,
       bundleId,
-      text,
+      argument,
     ],
     { wait },
   );
+  return true;
 }
 
 // What the notification after moving a note to the Trash says, from ⌥↩ in the
@@ -715,6 +735,24 @@ function runProgram(path, args, { wait = false } = {}) {
   task.standardError = nullDevice;
   task.launch;
   if (wait) task.waitUntilExit;
+}
+
+// Runs a program, waits for it to finish, and returns what it printed, or ""
+// if it printed nothing readable. Its input and errors are on /dev/null.
+function programOutput(path, args) {
+  const task = $.NSTask.alloc.init;
+  task.launchPath = path;
+  task.arguments = $(args);
+  const pipe = $.NSPipe.pipe;
+  const nullDevice = $.NSFileHandle.fileHandleWithNullDevice;
+  task.standardInput = nullDevice;
+  task.standardOutput = pipe;
+  task.standardError = nullDevice;
+  task.launch;
+  const data = pipe.fileHandleForReading.readDataToEndOfFile;
+  task.waitUntilExit;
+  const text = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding);
+  return text.isNil() ? "" : text.js;
 }
 
 function workflowDataFolder(variable) {
@@ -3004,20 +3042,49 @@ function escapeHtml(text) {
 // ---------------------------------------------------------------------------
 // Window state
 //
-// Each open window's state is in <cache>/state/<id>.json, { form, pid, mode,
-// collapsed }: its form ("quick" or "sticky"), the process it runs in (its
-// Alfred UI helper's when sticky, Alfred's own when quick), its mode ("edit"
-// or "view") and whether it's collapsed (a sticky window only; see
-// "Collapsing" in window.js). The window's `launched` event writes it, the
-// Edit / View toggle updates the mode, collapsing and expanding update
-// `collapsed`, and `quit` removes it. A window whose process is killed
-// leaves its state behind, so a sticky note counts as open only while its
+// Each open window's state is in <cache>/state/<id>.json, { form, pid,
+// launched, mode, collapsed }: its form ("quick" or "sticky"), the process it
+// runs in (its Alfred UI helper's when sticky, Alfred's own when quick), when
+// that process started (sticky only, so a process ID reused by a later helper
+// doesn't count as the window's), its mode ("edit" or "view") and whether
+// it's collapsed (a sticky window only; see "Collapsing" in window.js). The
+// window's `launched` event writes it, the Edit / View toggle updates the
+// mode, and collapsing and expanding update `collapsed`. A quick view's `quit`
+// removes it. A sticky window's `quit` keeps it, adding `closed` (see
+// "Reopening sticky notes" below). A window whose process is killed
+// leaves its state as it was, so a sticky note counts as open only while its
 // process is alive (stickyNotePid).
 //
 // Beside it, <id>.picker holds the name of the window's open drop-down ("icon"
 // or "colour"), and exists only while one is open: it's written by
 // scripts/picker.sh, which reads the state with zsh builtins but doesn't
 // rewrite JSON. `launched` and `quit` remove it.
+//
+// Reopening sticky notes: when a session ends (a restart, shutdown or
+// logout), macOS quits every sticky window's helper, which runs its `quit` as
+// any close does, so `quit` can't tell that from a close on purpose. Instead,
+// a sticky window's `quit` keeps its state, adding `closed` (when, in ms since
+// 1970), and has Alfred start a forget timer, scripts/forget.sh, which deletes
+// the state CLOSE_GRACE_SECONDS later if it still has that `closed`. If the
+// Mac is still running then, the state goes, however the window was closed.
+// If the session ended first, the timer was killed with it, and the state
+// stays. So a sticky state that's neither open nor waiting on a running timer
+// is a note to reopen: its timer was killed, or it has no `closed` because
+// its process ended without `quit` (a crash, a Force Quit, or the Mac losing
+// power). noteWindowStates finds them, and the results lists offer "Reopen
+// sticky notes" (see list.js and stickies.js).
+//
+// Alfred starts the timer (the `forget` External Trigger), not the window:
+// a process the helper starts, even with setsid, counts as the helper's, and
+// LaunchServices keeps a helper that has quit as running
+// ("exited-with-subordinates") while one is alive. Alfred then won't open
+// that bundle's window again until it has launched another.
+
+// How long a sticky window's state is kept after it closes, in seconds: its
+// forget timer deletes it then. A session that ends within it leaves the
+// state to be reopened; one held up for longer (another app asking to save
+// changes, say) doesn't.
+const CLOSE_GRACE_SECONDS = 120;
 
 function noteStateFolder(variable = workflowVariable) {
   const cache = variable("alfred_workflow_cache");
@@ -3055,26 +3122,130 @@ function closeNotePickerState(id, variable = workflowVariable) {
   return true;
 }
 
-// The process ID of the note's sticky window, or null if it has none: its
-// state says sticky, and that process is still an Alfred UI helper (so a
-// process ID reused by another app doesn't count).
+// The process ID of the note's sticky window, or null if it has none (see
+// liveStickyPid).
 function stickyNotePid(id, variable = workflowVariable) {
   const state = readNoteState(id, variable);
-  if (!state || state.form !== "sticky" || !Number.isInteger(state.pid)) return null;
+  return state ? liveStickyPid(state) : null;
+}
+
+// The process ID of a state's sticky window, or null if it has none: the
+// state says sticky and hasn't closed, and its process is still an Alfred UI
+// helper (so a process ID reused by another app doesn't count), started when
+// the state says (so one reused by a later helper doesn't either). A state
+// without `launched` is checked without it.
+function liveStickyPid(state) {
+  if (state.form !== "sticky" || state.closed != null || !Number.isInteger(state.pid)) return null;
   const app = runningApp(state.pid);
   if (!app || app.isTerminated) return null;
   const executable = app.executableURL.isNil() ? "" : app.executableURL.path.js;
-  return executable.endsWith("/Alfred UI") ? state.pid : null;
+  if (!executable.endsWith("/Alfred UI")) return null;
+  if (typeof state.launched === "number") {
+    const launched = appLaunchTime(app);
+    if (launched !== null && Math.abs(launched - state.launched) > 1000) return null;
+  }
+  return state.pid;
+}
+
+// When the process `pid` started, in ms since 1970, or null if it isn't a
+// running app or doesn't say.
+function processLaunchTime(pid) {
+  const app = runningApp(pid);
+  return app ? appLaunchTime(app) : null;
+}
+
+function appLaunchTime(app) {
+  const date = app.launchDate;
+  return date.isNil() ? null : Math.round(date.timeIntervalSince1970 * 1000);
 }
 
 // The IDs of the notes that have a sticky window (see stickyNotePid), from
 // the state folder, listed once.
 function stickyNoteIds(variable = workflowVariable) {
+  return noteWindowStates(variable).open;
+}
+
+// The sticky windows' states, read once each: { open, reopen }, the IDs of
+// the notes with a sticky window, and of those to reopen (see "Reopening
+// sticky notes" above): sticky, not open, not trashed, and not waiting on a
+// running forget timer. Whether the notes still exist is up to the caller
+// (see reopenNotes).
+function noteWindowStates(variable = workflowVariable) {
   const names =
     ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(noteStateFolder(variable), null)) ||
     [];
-  const ids = names.filter((name) => name.endsWith(".json")).map((name) => name.slice(0, -".json".length));
-  return new Set(ids.filter((id) => isNoteId(id) && stickyNotePid(id, variable) !== null));
+  const open = new Set();
+  const reopen = new Set();
+  let timers = null;
+  for (const name of names) {
+    if (!name.endsWith(".json")) continue;
+    const id = name.slice(0, -".json".length);
+    if (!isNoteId(id)) continue;
+    const state = readNoteState(id, variable);
+    if (!state || state.form !== "sticky" || state.trashed) continue;
+    if (liveStickyPid(state) !== null) {
+      open.add(id);
+      continue;
+    }
+    if (state.closed != null) {
+      if (timers === null) timers = runningForgetTimers();
+      if (timers.some((timer) => isForgetTimerFor(timer, noteStatePath(id, variable), state.closed))) continue;
+    }
+    reopen.add(id);
+  }
+  return { open, reopen };
+}
+
+// The arguments of the running forget timers (see forgetTimerArgument), from
+// one `ps`, which runs only when there's a closed state to check.
+function runningForgetTimers() {
+  const marker = "/scripts/forget.sh ";
+  return programOutput("/bin/ps", ["-axww", "-o", "command="])
+    .split("\n")
+    .filter((line) => line.includes(marker))
+    .map((line) => line.slice(line.indexOf(marker) + marker.length));
+}
+
+// A forget timer's argument, which says which close of which state it's for:
+// "<closed> <seconds> <state path>", one argument (as an External Trigger
+// passes it), with the path last as it may have spaces.
+function forgetTimerArgument(statePath, closed, seconds) {
+  return `${closed} ${seconds} ${statePath}`;
+}
+
+// Whether a running timer's argument is for the close `closed` of the state
+// at `statePath`.
+function isForgetTimerFor(argument, statePath, closed) {
+  return argument.startsWith(`${closed} `) && argument.endsWith(` ${statePath}`);
+}
+
+// Keeps a sticky window's state after it closes, adding `closed`, and has
+// Alfred start its forget timer (see "Reopening sticky notes" above), waiting
+// for Alfred to take the request, as the window's helper is about to quit and
+// macOS refuses an Apple event from a process that has.
+function keepClosedNoteState(id, state, variable = workflowVariable) {
+  closeNotePickerState(id, variable);
+  const closed = Date.now();
+  writeNoteState(id, Object.assign(state, { closed }), variable);
+  const argument = forgetTimerArgument(noteStatePath(id, variable), closed, CLOSE_GRACE_SECONDS);
+  runWorkflowTrigger("forget", argument, variable, { wait: true });
+}
+
+// The notes to reopen (see noteWindowStates) that still exist, last edited
+// first. The states of those that don't are removed, so a new note given the
+// same ID is never offered.
+function reopenNotes(store, variable = workflowVariable) {
+  const ids = noteWindowStates(variable).reopen;
+  if (ids.size === 0) return [];
+  const notes = store.list({ ids });
+  const found = new Set(notes.map((note) => note.id));
+  for (const id of ids) if (!found.has(id)) removeNoteState(id, variable);
+  return notes;
+}
+
+// Removes the states of the notes to reopen, so they aren't offered.
+function forgetReopenNotes(variable = workflowVariable) {
+  for (const id of noteWindowStates(variable).reopen) removeNoteState(id, variable);
 }
 
 // The height in points that a note's collapsed sticky window expands back to,

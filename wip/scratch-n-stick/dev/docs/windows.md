@@ -61,15 +61,36 @@ The `ui/` files are `ui.json` as Alfred UI reads it, with directives that `resol
 
 ## Window state
 
-Variable persistence (`persist`) is keyed on a UI's `bundleid`, so all windows would share it. Each window's state is instead a file keyed by note ID, `$alfred_workflow_cache/state/<id>.json`: its form, PID, mode, and whether it's collapsed (sticky). `launched` writes it (the PID is `window.js`'s parent: the helper's when sticky, Alfred's when quick), the mode switch and collapsing update it, and `quit` removes it. `<id>.picker` beside it exists while a drop-down is open (see [Drop-downs](window-ui.md#drop-downs)).
+Variable persistence (`persist`) is keyed on a UI's `bundleid`, so all windows would share it. Each window's state is instead a file keyed by note ID, `$alfred_workflow_cache/state/<id>.json`: its form, PID, mode, and whether it's collapsed (sticky), and for a sticky window `launched`, when its helper started. `launched` writes it (the PID is `window.js`'s parent: the helper's when sticky, Alfred's when quick), the mode switch and collapsing update it. A quick view's `quit` removes it; a sticky window's keeps it for a while (see [Reopening after a restart](#reopening-after-a-restart)). `<id>.picker` beside it exists while a drop-down is open (see [Drop-downs](window-ui.md#drop-downs)).
 
-A note is sticky only when its state's form is `sticky` and the PID is still an Alfred UI helper (`stickyNotePid`); a quick view's PID is Alfred's, which is always alive. `stickyNoteIds()` lists them, for the lists. A `quit` without a state (its `launched` failed) saves only non-blank text.
+A note is sticky only when its state's form is `sticky`, it hasn't closed, and the PID is still an Alfred UI helper that started when `launched` says (`stickyNotePid`), so neither another app nor a later helper given the same PID counts; a state without `launched` is checked by PID alone. A quick view's PID is Alfred's, which is always alive. `noteWindowStates()` reads the state folder once and sorts the sticky states into open windows and notes to reopen; `stickyNoteIds()` is the open ones, for the lists. A window's own actions treat a closed state as none (`windowState` in `window.js`). A `quit` without a state (its `launched` failed) saves only non-blank text.
 
 Opening a note that has a live sticky window brings that window to the front instead of opening a second one: two queued Sticks once opened two windows for a note, and once none, so the guard is needed.
 
 `activateWindowProcess(pid)` brings a sticky window to the front and closes Alfred's window. Activating the window's process is enough when another app is in front, but Alfred's window opens without making Alfred active, so when the note's own window was already in front, activating it changed nothing and Alfred stayed open. So it activates Alfred first, waits until Alfred is active (about 7 ms), then the note, but only while Alfred has a window on screen: with Alfred's window already closed, doing so could leave a third app in front. Accessibility calls (`AXFrontmost`, `AXRaise` and the like) all succeed but leave Alfred's window open. `activateWindowProcesses(pids)` does several in order, each once the one before is active.
 
 `closeStickyNoteWindow(id)` force-quits a window's process, so its `quit` doesn't run and nothing writes the note back; `trash.js` uses it before trashing a sticky note. `quitStickyNoteWindows` asks windows to quit normally, so they save (the sticky notes list's Close, and moving the notes folder).
+
+## Reopening after a restart
+
+A restart, shutdown or logout quits every sticky window's helper, so the notes close. (With "Reopen windows when logging back in" on, macOS also relaunches the helpers without their bundles, and each shows an Alfred UI error; see [Alfred UI](alfred-ui.md#processes-and-launching).) The workflow offers to put the notes back: "Reopen sticky notes" in the lists (see [Results](results.md#reopen-sticky-notes)).
+
+A session ending closes a window as any close does, by quitting its helper, which runs `quit`, so `quit` can't tell it from a close on purpose (⌘Q and Quit from the helper's menu or Dock look the same too). Instead, a sticky window's `quit` keeps its state (`keepClosedNoteState`), adding `closed`, when it closed in ms since 1970, and has Alfred start a forget timer: it runs the workflow's `forget` External Trigger, whose Run Script (concurrent) is `scripts/forget.sh "<closed> <seconds> <state path>"`, one argument. It waits for Alfred to take the request, as macOS refuses an Apple event from a helper that has quit, and sends it only while Alfred is running, so a window closing as the session ends can't start Alfred again.
+
+The timer sleeps for `CLOSE_GRACE_SECONDS` (120), then deletes the state if it still has that `closed`; a note opened again since has a new state, which it leaves alone. If the Mac is still running then, the state goes, however the window was closed. If the session ended first, the timer was killed with everything else, and the state stays, however quickly the Mac comes back. A session held up for longer than the grace (another app asking to save changes, say) lets the timer finish first, and those notes aren't offered; raise the constant if that happens.
+
+Alfred starts the timer, not the window, because a process the helper starts stays the helper's: LaunchServices keeps a helper that has quit listed as running ("exited-with-subordinates") while one is alive, even after `setsid`, and Alfred won't launch that bundle again until it has launched another, so the note couldn't be stuck again (see [Alfred UI](alfred-ui.md#processes-and-launching)).
+
+A sticky state is a note to reopen when it's neither an open window nor waiting on a running timer (`noteWindowStates`):
+
+- closed, and no `forget.sh` is running for that close of this state: one `ps` lists the timers' arguments (`runningForgetTimers`), and runs only when there's a closed state to check;
+- not closed, and its process has gone: the helper crashed, was force-quit, or the Mac lost power, so `quit` never ran.
+
+Quick views' states, and those marked `trashed`, are never offered. `reopenNotes` drops the notes that no longer exist and removes their states, so a new note given the same ID isn't offered (`isNoteIdInUse` also keeps new notes off IDs with a state). A blank note's state goes at once, with the note.
+
+**Reopening** (`stickies.js reopen`) runs the workflow's `stick` External Trigger, which leads into the stick route, once per note: only an Alfred UI object can open a sticky window, and each run opens one. So each note opens as ⌘↩ opens it, in its mode, collapsed or not, where it was left. It's a Run Script, so it can wait on Alfred: it waits for each window (`stickyNotePid`, up to 10 s) before asking for the next, in Show all's order, so the most recently edited note opens last, on top. **Leaving them closed** (`stickies.js forget`, or `open.js` with `sticky_action` `forget`) removes their states (`forgetReopenNotes`).
+
+`dev/test-window.sh` runs the timer directly with a 1 s grace; `dev/test-list.sh` writes states by hand for each case, with timers running.
 
 ## Seamless quick views
 
