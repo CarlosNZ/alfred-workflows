@@ -9,14 +9,14 @@
   note.js?v=…, since WebKit keeps a script it has loaded under the same URL.
   See "View mode in a web view" in DESIGN.md.
 
-  In a quick view the page fills the whole window, with its own margins, and
-  scrolled text fades out below the window's buttons rather than running
-  under them. Its colours are the system's, on a
-  panel the colour of Alfred's theme (from the theme stylesheet, which list.js
-  writes). In a sticky window the page starts below the top row (see
-  ui/content.json), so the window can still be dragged by the strip under its
-  title bar (a web view takes the mouse), and it has dark text on the note's
-  tint, as in Edit and the window around it.
+  In both forms the page starts below the top row (see ui/content.json), so
+  the window can still be dragged by the strip along its top: macOS doesn't
+  drag a window from any part of a web view, even with a view laid over it.
+  In a quick view its colours are the system's, on a panel the colour of
+  Alfred's theme (from the theme stylesheet, which list.js writes), and the
+  strip above it takes the panel's colour when the page is shown (see
+  scripts/changed.sh), so the two look like one. In a sticky window it has
+  dark text on the note's tint, as in Edit and the window around it.
 -->
 <style>
   :root {
@@ -39,26 +39,24 @@
   /*
     The note scrolls in #note, which fills the page, rather than in the page
     itself, so that its mask stays put while the text scrolls under it. The
-    mask hides the text in the top --clear-top (under a quick view's buttons)
-    and the bottom --clear-bottom (under a quick view's key hints), and fades
-    it to transparent, so it blends into the panel, over --fade-top below the
-    top one while there's more above, and over --fade-bottom above the bottom
-    one while there's more below (view.js sets the fades).
+    mask hides the text in the bottom --clear-bottom (under a quick view's key
+    hints), and fades it to transparent, so it blends into the panel, over
+    --fade-top at the top while there's more above, and over --fade-bottom
+    above --clear-bottom while there's more below (view.js sets the fades).
   */
   #note {
-    --clear-top: 34px;
     --clear-bottom: 28px;
     --mask: linear-gradient(to bottom,
-      transparent var(--clear-top),
-      #000 calc(var(--clear-top) + var(--fade-top, 0px)),
+      transparent 0px,
+      #000 var(--fade-top, 0px),
       #000 calc(100% - var(--clear-bottom) - var(--fade-bottom, 0px)),
       transparent calc(100% - var(--clear-bottom)));
     position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-    overflow-y: auto; padding: 40px 12px 36px 16px;
+    overflow-y: auto; padding: 8px 12px 36px 16px;
     -webkit-mask-image: var(--mask);
     mask-image: var(--mask);
   }
-  html.sticky #note { --clear-top: 0px; --clear-bottom: 0px; padding-top: 8px; padding-bottom: 14px; }
+  html.sticky #note { --clear-bottom: 0px; padding-bottom: 14px; }
   h1, h2, h3, h4, h5, h6 { line-height: 1.2; margin: 0.7em 0 0.35em; }
   h1 { font-size: 1.45em; }
   h2 { font-size: 1.2em; }

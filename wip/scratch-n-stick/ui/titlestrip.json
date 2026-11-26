@@ -6,6 +6,6 @@
   "components": [{ "id": "titlestripheight", "type": "view", "constraints": "@titleStripBox" }],
   "events": [
     { "triggers": "mousedown", "action": { "type": "json", "src": {} } },
-    { "triggers": "doubleclicked", "action": { "type": "script", "src": "scripts/window.js", "args": ["collapse", "@note", "@form", "{value:editor.text}"] } }
+    { "@form": "sticky", "triggers": "doubleclicked", "action": { "type": "script", "src": "scripts/window.js", "args": ["collapse", "@note", "@form", "{value:editor.text}"] } }
   ]
 }

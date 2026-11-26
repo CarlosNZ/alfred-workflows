@@ -4,9 +4,13 @@
 # <url> is the page's URL ({value:web.src}). The page tells the window things
 # by changing its fragment (see ui/view.js):
 #
-#   #ready-<opacity>-<n>   the note has been drawn: prints an update that shows
+#   #ready-<opacity>[-<rrggbb>]-<n>
+#                          the note has been drawn: prints an update that shows
 #                          the web view at <opacity>, unless the window is in
-#                          Edit
+#                          Edit, and in a quick view the strip along the
+#                          window's top (titlestrip) at the same opacity, in
+#                          the page's background colour <rrggbb>, so the strip
+#                          and the page look like one panel
 #   #t-<line>-<x|o>-<n>    a task box was clicked: window.js tick ticks the note
 #
 # Anything else, such as the page starting to load, is ignored.
@@ -36,10 +40,13 @@ in_edit() {
 
 fragment=${1#*\#}
 [[ $fragment == $1 ]] && exit 0
-if [[ $fragment =~ '^ready-(0|1|0?\.[0-9]+|1\.0+)-[0-9]+$' ]]; then
+if [[ $fragment =~ '^ready-(0|1|0?\.[0-9]+|1\.0+)(-([0-9a-f]{6}))?-[0-9]+$' ]]; then
   opacity=${match[1]/#./0.}
+  panel=$match[3]
   in_edit "$@" && exit 0
-  print -r -- "{\"update\":{\"ids\":{\"web\":{\"opacity\":$opacity}}}}"
+  strip=
+  [[ $3 == quick && -n $panel ]] && strip=",\"titlestrip\":{\"background\":\"#$panel\",\"opacity\":$opacity}"
+  print -r -- "{\"update\":{\"ids\":{\"web\":{\"opacity\":$opacity}$strip}}}"
 elif [[ $fragment =~ '^t-([0-9]+)-([xo])-[0-9]+$' ]]; then
   exec "${0:A:h}/window.js" tick "$2" "$3" "$match[1]" "$match[2]"
 fi

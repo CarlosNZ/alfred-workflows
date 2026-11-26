@@ -2109,11 +2109,11 @@ function resolveNoteTemplate(template, { form, mode, icons = true, collapsed = f
 // the editor and the icon picker), the top row's two groups of buttons, the
 // note's own look (its colour, icon and font size) at the left and the
 // actions (Edit / View and Stick) at the right, in a quick view the key hints
-// at the bottom right, and, in a sticky window, the
-// note's title, shown while it's collapsed, the strip along the window's top
-// that a double-click collapses or expands it from (under the top row's
-// buttons), and the window's own buttons (its close button) at the top left;
-// and the actions menu's button (…) at the top right.
+// at the bottom right, the strip along the window's top (under the top row's
+// buttons) that drags the window, and that a double-click collapses or
+// expands a sticky window from, and, in a sticky window, the note's title,
+// shown while it's collapsed, and the window's own buttons (its close button)
+// at the top left; and the actions menu's button (…) at the top right.
 const NOTE_WINDOW_PARTS = [
   "content",
   "keyhints",

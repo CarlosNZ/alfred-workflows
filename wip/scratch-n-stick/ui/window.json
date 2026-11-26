@@ -39,7 +39,7 @@
         { "@form": "quick", "id": "keyhints" },
         { "id": "menuanchor", "type": "view", "constraints": "@menuAnchorPlace" },
         { "@form": "sticky", "id": "collapsedtitle" },
-        { "@form": "sticky", "id": "titlestrip" },
+        { "id": "titlestrip" },
         { "id": "customise" },
         { "id": "actions" },
         { "@form": "sticky", "id": "windowbuttons" },

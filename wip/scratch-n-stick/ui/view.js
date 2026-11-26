@@ -10,9 +10,12 @@
 // The page tells the window things by changing its URL's fragment, which the
 // web view reports with its `changed` event (scripts/changed.sh):
 //
-//   #ready-<opacity>-<n>   the note has been drawn: show the web view at
+//   #ready-<opacity>-<rrggbb>-<n>
+//                          the note has been drawn: show the web view at
 //                          <opacity> (it starts at 0, which hides WebKit's
-//                          own fill until the note is there)
+//                          own fill until the note is there), and, in a quick
+//                          view, the strip above it in the page's background
+//                          colour, <rrggbb> (left out if it can't be read)
 //   #t-<line>-<x|o>-<n>    the task box of source line <line> (counting from
 //                          0) was ticked (x) or unticked (o)
 //
@@ -114,7 +117,16 @@ function startNotePage(form) {
   // Two animation frames after rendering, the note has been drawn. Shown any
   // sooner (one frame after rendering), the web view showed WebKit's own
   // fill for a moment in a sticky window.
-  requestAnimationFrame(() => requestAnimationFrame(() => send(`ready-${notePageOpacity(form)}`)));
+  requestAnimationFrame(() => requestAnimationFrame(() => send(`ready-${notePageOpacity(form)}${notePagePanel()}`)));
+}
+
+// The page's background colour as "-rrggbb", for #ready, or "" if it can't be
+// read: a quick view's strip above the page takes it (see scripts/changed.sh),
+// so the two look like one panel. It's read from the page, rather than worked
+// out by lib.js, as the theme stylesheet's colour depends on the appearance.
+function notePagePanel() {
+  const match = /^rgb\((\d+), (\d+), (\d+)\)$/.exec(getComputedStyle(document.documentElement).backgroundColor);
+  return match ? "-" + match.slice(1, 4).map((c) => Number(c).toString(16).padStart(2, "0")).join("") : "";
 }
 
 // The opacity to show the web view at: 1 when sticky; in a quick view, the

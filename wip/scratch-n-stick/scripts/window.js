@@ -189,6 +189,9 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
   if (closeNotePickerState(id)) Object.assign(ids, noteDropdownsClosed());
   if (mode === "edit") {
     Object.assign(ids, { web: { opacity: 0 }, editor: { hidden: false, text: escapeForAlfredUi(current), focus: true } });
+    // A quick view's strip along the top has the page's colour in View (see
+    // scripts/changed.sh), and Alfred's own background in Edit.
+    if (form === "quick") ids.titlestrip = { opacity: 0 };
   } else {
     Object.assign(ids, { editor: { hidden: true }, web: { src: writeNotePage(id, form, current) } });
   }
