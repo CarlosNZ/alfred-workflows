@@ -1438,6 +1438,16 @@ function pngData(rep) {
   return rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
 }
 
+// The buttons' colour, secondaryLabelColor, in `appearance` ("light" or
+// "dark"), as a colour and an opacity (macOS 27): the button icons are drawn
+// in it (dev/make-icons.js), and a quick view's key hints are shown in it.
+// The hints don't use the system colour by name, which follows the
+// appearance by itself: inside Alfred's window, one label took the light
+// appearance's and the label beside it the dark's.
+function noteButtonColour(appearance) {
+  return appearance === "dark" ? { colour: "#FFFFFF", opacity: 0.549 } : { colour: "#000000", opacity: 0.498 };
+}
+
 // The appearance, "light" or "dark", that Alfred gives its window, and so a
 // quick view, with its current theme. A file image in Alfred UI keeps its own
 // colours (it can't be tinted, or follow the appearance), so the quick view's
@@ -1573,6 +1583,15 @@ const NOTE_WINDOW_LAYOUT = {
   menuButton: { top: 5, right: 10 },
   menuAnchor: { top: 29, right: 31 },
   button: 22,
+  // The quick view's key hints at the bottom right (the Edit / View switch's
+  // ↩ or ⌘↩, and ⌘K for the actions menu, with a bullet between them): their
+  // distance from the window's bottom and right edges, the space either side
+  // of the bullet, and their font size (their colour is the buttons',
+  // noteButtonColour). The right edge lines up with the actions menu's
+  // button's icon. The editor's bottom inset in a quick view
+  // (ui/content.json) and the page's --clear-bottom (ui/view.html) keep the
+  // note's text clear of them.
+  keyHints: { bottom: 8, right: 12, spacing: 6, size: 12 },
   // The size of the row's button icons: the note's icon, the Font size
   // button's and the actions', all the same so that their strokes match.
   // `buttonIconSizes` overrides it for glyphs that look small at that size,
@@ -1761,6 +1780,14 @@ function noteWindowTokens(
     "@customiseSpacing": layout.customise.spacing,
     "@actionsPlace": place("actions", "topright"),
     "@actionsSpacing": layout.actions.spacing,
+    "@keyHintsPlace": {
+      position: "bottomright",
+      insets: { bottom: layout.keyHints.bottom, right: layout.keyHints.right },
+    },
+    "@keyHintsSpacing": layout.keyHints.spacing,
+    "@keyHintsFont": { size: layout.keyHints.size },
+    "@keyHintsColour": noteButtonColour(appearance).colour,
+    "@keyHintsOpacity": noteButtonColour(appearance).opacity,
     "@dropdowns": [
       noteDropdownCatcher({ workflowFolder, note, form }),
       // Without note icons, update actions still name the icon picker; Alfred
@@ -2019,7 +2046,7 @@ function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank })
   });
   const item = (text, action, enabled = true) => (enabled ? { text, action } : { text });
   const sticky = form === "sticky";
-  const switchTo = mode === "view" ? "Edit" : "View";
+  const switchTo = mode === "view" ? "Edit" : "Preview";
   return [
     sticky
       ? item(collapsed ? "Expand" : "Collapse", script("collapse"))
@@ -2081,12 +2108,22 @@ function resolveNoteTemplate(template, { form, mode, icons = true, collapsed = f
 // ({ "id": "content" } is filled with content.json): the note (the web view,
 // the editor and the icon picker), the top row's two groups of buttons, the
 // note's own look (its colour, icon and font size) at the left and the
-// actions (Edit / View and Stick) at the right, and, in a sticky window, the
+// actions (Edit / View and Stick) at the right, in a quick view the key hints
+// at the bottom right, and, in a sticky window, the
 // note's title, shown while it's collapsed, the strip along the window's top
 // that a double-click collapses or expands it from (under the top row's
 // buttons), and the window's own buttons (its close button) at the top left;
 // and the actions menu's button (…) at the top right.
-const NOTE_WINDOW_PARTS = ["content", "customise", "actions", "collapsedtitle", "titlestrip", "windowbuttons", "menubutton"];
+const NOTE_WINDOW_PARTS = [
+  "content",
+  "keyhints",
+  "customise",
+  "actions",
+  "collapsedtitle",
+  "titlestrip",
+  "windowbuttons",
+  "menubutton",
+];
 
 // A note window's whole ui.json: window.json, with its placeholders filled
 // (NOTE_WINDOW_PARTS). `options` as for noteWindowTokens.
@@ -2336,6 +2373,7 @@ const NOTE_WINDOW_SOURCES = [
   "ui/collapsedtitle.json",
   "ui/titlestrip.json",
   "ui/menubutton.json",
+  "ui/keyhints.json",
   "ui/view.html",
   "ui/view.js",
   "scripts/lib.js",

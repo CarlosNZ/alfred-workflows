@@ -163,7 +163,8 @@ function save(store, id, form, text) {
 // caret at its end; to View, it saves the editor's text, hides the editor and
 // reloads the web view's page with the file's text (the page has the web view
 // shown once it has drawn; see scripts/changed.sh). The toggle button changes
-// its symbol and tooltip. It also remembers the mode in the note's sidecar, so
+// its symbol and tooltip, and a quick view's key hints name the other
+// mode's key. It also remembers the mode in the note's sidecar, so
 // the note reopens in it. The icon picker closes, if it's open (see
 // scripts/picker.sh). Does nothing when the window is already in mode
 // `to` (⌘↩ is a shortcut of the whole window, so it also reaches this in View
@@ -178,9 +179,13 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
   const mode = from === "edit" ? "view" : "edit";
   const note = store.read(id);
   const current = note ? note.text : "";
-  const actions = noteWindowPart(noteWindowOptions(context, { workflowFolder, id, form, mode }), "actions");
-  const { image, tooltip, accessibility } = findNoteComponent(actions, "toggle");
+  const options = noteWindowOptions(context, { workflowFolder, id, form, mode });
+  const { image, tooltip, accessibility } = findNoteComponent(noteWindowPart(options, "actions"), "toggle");
   const ids = { toggle: { image, tooltip, accessibility } };
+  // A quick view's key hints are replaced rather than updated, so they're
+  // laid out for their new text: Alfred UI doesn't measure a label again
+  // when an update changes it.
+  const replace = form === "quick" ? { ids: { keyhints: noteWindowPart(options, "keyhints") } } : undefined;
   if (closeNotePickerState(id)) Object.assign(ids, noteDropdownsClosed());
   if (mode === "edit") {
     Object.assign(ids, { web: { opacity: 0 }, editor: { hidden: false, text: escapeForAlfredUi(current), focus: true } });
@@ -189,7 +194,7 @@ function switchMode(store, workflowFolder, context, id, form, text, to) {
   }
   writeNoteState(id, Object.assign(state, { mode }));
   store.updateMeta(id, { mode });
-  return JSON.stringify({ update: { ids } });
+  return JSON.stringify({ replace, update: { ids } });
 }
 
 // Gives the note the colour in the palette's slot `slot` (1 to 6, of the

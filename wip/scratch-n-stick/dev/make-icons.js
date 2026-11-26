@@ -34,8 +34,6 @@
 
 ObjC.import("AppKit");
 
-// secondaryLabelColor, the buttons' colour, in each appearance (macOS 27).
-const BUTTON_ICON_COLOURS = { light: { colour: "#000000", opacity: 0.498 }, dark: { colour: "#FFFFFF", opacity: 0.549 } };
 const REVIEW_BADGE_PIXELS = 128;
 
 function run(argv) {
@@ -51,10 +49,10 @@ function run(argv) {
   for (const name of noteButtonIconNames()) {
     const own = isOwnButtonIcon(workflowFolder, name);
     const elements = lucideElements(`${workflowFolder}/dev/${own ? "icons" : "lucide"}/${name}.svg`, own);
-    for (const appearance of Object.keys(BUTTON_ICON_COLOURS)) {
+    for (const appearance of ["light", "dark"]) {
       const path = noteButtonIconFile(name, appearance);
       ensureFolder($(`${workflowFolder}/${path}`).stringByDeletingLastPathComponent.js, true);
-      writeFileAtomically(`${workflowFolder}/${path}`, buttonIconSvg(name, own, elements, BUTTON_ICON_COLOURS[appearance]));
+      writeFileAtomically(`${workflowFolder}/${path}`, buttonIconSvg(name, own, elements, noteButtonColour(appearance)));
       written.push(path);
     }
   }

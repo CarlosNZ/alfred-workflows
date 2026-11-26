@@ -36,6 +36,7 @@
       ],
       "components": [
         { "id": "content" },
+        { "@form": "quick", "id": "keyhints" },
         { "id": "menuanchor", "type": "view", "constraints": "@menuAnchorPlace" },
         { "@form": "sticky", "id": "collapsedtitle" },
         { "@form": "sticky", "id": "titlestrip" },

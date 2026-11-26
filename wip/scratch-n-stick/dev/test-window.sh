@@ -95,6 +95,7 @@ closebtn=$(byid close)
 titlestrip=$(byid titlestrip)
 collapsedtitle=$(byid collapsedtitle)
 menubtn=$(byid menu)
+keyhints=$(byid keyhints)
 # An icon button's image, as "<src> <size>" for a file (its path from icons/)
 # or "<symbol>" for a symbol.
 image='(b => b.image.type === "file" ? b.image.src.replace(/^.*\/icons\//, "icons/") + " " + b.image.size.width + "x" + b.image.size.height : b.image.type + " " + b.image.src)'
@@ -106,13 +107,14 @@ print -rn -- $'Vars: {var:x} and {const:y}\n' > "$notes/vars.md"
 bundle=$(open_note quick meeting)
 expect "quick: the bundle is the note's, in the cache's quick folder" "$bundle" "$cache/quick/meeting.alfredui"
 ui=$bundle/ui.json
-expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * colourmark-6:view colour-6:button menuanchor:view customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
+expect "quick: a stack of the page's web view, the editor, the icon picker and the top row's two groups" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view iconpicker:view iconpickershadow:imageview iconpickerbox:view icon-none:button icon-sticky-note:button * icon-flag:button colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * colourmark-6:view colour-6:button keyhints:view modehint:label hintseparator:label actionshint:label menuanchor:view customise:view colourbox:view colour:button icon:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
 expect "quick: the root and content are stacks filling the window" "$(json $ui 'd.window.root.layout + " " + d.window.root.components[0].layout + " " + d.window.root.components[0].constraints.stretch')" "stack stack both"
 expect "quick: the colour and icon at the top left, the actions at the top right" "$(json $ui '['$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")')" 'topleft {"top":5,"left":12} topright {"top":5,"right":42}'
 expect "quick: the web view shows view.html, from opacity 0, links in the browser" "$(json $ui '['$web'.src, '$web'.opacity, '$web'.openlinksexternally].join(" ")')" "view.html 0 true"
 expect "quick: the web view's changed runs changed.sh with its URL" "$(json $ui '['$web'.events[0].triggers, '$web'.events[0].action.src].concat('$web'.events[0].action.args).join(" ")')" "changed $scripts/changed.sh {value:web.src} meeting quick"
 expect "quick: View's editor is hidden and empty, without focus" "$(json $ui '['$editor'.hidden, JSON.stringify('$editor'.text), Boolean('$editor'.focus)].join(" ")')" 'true "" false'
-expect "quick: the editor's insets clear the top row" "$(json $ui 'JSON.stringify('$editor'.constraints.insets)')" '{"top":38,"left":14,"right":10,"bottom":10}'
+expect "quick: the editor's insets clear the top row and the key hints" "$(json $ui 'JSON.stringify('$editor'.constraints.insets)')" '{"top":38,"left":14,"right":10,"bottom":28}'
+expect_exact "quick: key hints at the bottom right, in the buttons' grey for the appearance: Edit ↵ in View, a bullet, and Actions ⌘K" "$(json $ui '[JSON.stringify(('$keyhints').constraints), ('$keyhints').spacing, ('$keyhints').components.map(l => [l.text, l.font.size, l.colour, l.opacity].join(" ")).join(", ")].join(" | ")')" '{"position":"bottomright","insets":{"bottom":8,"right":12}} | 6 | Edit ↵ 12 #000000 0.498, • 12 #000000 0.498, Actions ⌘K 12 #000000 0.498'
 expect "quick: the page fills the window" "$(json $ui 'JSON.stringify(('$page').constraints)')" '{"stretch":"both"}'
 expect "quick: the page's view has ↩ (to Edit)" "$(json $ui '('$page').shortcuts.map(s => s.shortcut + " " + s.action.args[0]).join(" ")')" "↩ edit"
 expect "quick: the page's note.js has the note" "$(page_text $bundle)" $'# Team meeting\n- Ship it'
@@ -178,6 +180,7 @@ for s in {0..9}; do mkdir -p "$cache/windows/$(date -v+${s}S +%Y%m%d-%H%M%S).alf
 id2=$(basename "$(open_note new=1 quick '')" .alfredui)
 expect "an ID whose sticky bundle exists is taken" "$id2" "20[0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]-2"
 expect_exact "a new note opens in Edit with its text, as a heading" "$(json $cache/quick/$id1.alfredui/ui.json '[Boolean('$editor'.hidden), JSON.stringify('$editor'.text)].join(" ")') $(page_text $cache/quick/$id1.alfredui)" 'false "# Buy milk\n\n" null'
+expect_exact "a new note's quick view, in Edit: the key hints name ⌘↵ for Preview" "$(json $cache/quick/$id1.alfredui/ui.json '('$keyhints').components.map(l => l.text).join(", ")')" "Preview ⌘↵, •, Actions ⌘K"
 id5=$(basename "$(open_note new=1 quick $'Line one\n  Line two  \n')" .alfredui)
 expect_exact "a new note from text that isn't a heading keeps it exactly" "$(json $cache/quick/$id5.alfredui/ui.json '[Boolean('$editor'.hidden), JSON.stringify('$editor'.text)].join(" ")')" 'false "Line one\n  Line two  \n"'
 expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meeting.md script.md vars.md "
@@ -213,6 +216,7 @@ expect "save writes the text, unescaped" "$(cat $notes/$id1.md)" "Buy milk {var:
 update=$(window_js toggle "$id1" quick "Buy oat milk")
 expect "toggle to View: saves first" "$(cat $notes/$id1.md)" "Buy oat milk"
 expect "toggle to View: updates the toggle button, the editor and the web view" "$(print -r -- $update | json - 'Object.keys(d.update.ids).sort().join(" ")')" "editor toggle web"
+expect_exact "toggle to View, quick: replaces the key hints, which name ↵ for Edit" "$(print -r -- $update | json - 'Object.keys(d.replace.ids).join(" ") + " | " + d.replace.ids.keyhints.components.map(l => l.text).join(", ")')" "keyhints | Edit ↵, •, Actions ⌘K"
 expect "toggle to View: hides the editor" "$(print -r -- $update | json - 'JSON.stringify(d.update.ids.editor)')" '{"hidden":true}'
 expect "toggle to View: reloads the page by its absolute URL, with a version" "$(print -r -- $update | json - 'Object.keys(d.update.ids.web).join(" ") + " " + d.update.ids.web.src')" "src file://$bundle1/view.html?v=*.*"
 expect "toggle to View: the page's note.js has the saved text" "$(page_text $bundle1)" "Buy oat milk"
@@ -228,9 +232,10 @@ window_js save "$id1" quick ""
 expect "save with no state: blank text isn't saved" "$(cat $notes/$id1.md)" "Buy oat milk"
 bundle1=$(open_note stick "$id1")
 update=$(window_js launched "$id1" sticky view; window_js toggle "$id1" sticky "")
+expect "toggle, sticky: no key hints to replace" "$(print -r -- $update | json - '"replace" in d')" "false"
 expect "toggle to Edit: fades out the web view" "$(print -r -- $update | json - 'JSON.stringify(d.update.ids.web)')" '{"opacity":0}'
 expect "toggle to Edit: shows the editor with the file's text and focus" "$(print -r -- $update | json - '[d.update.ids.editor.hidden, d.update.ids.editor.focus, d.update.ids.editor.text].join(" ")')" "false true Buy oat milk"
-expect_exact "toggle to Edit: the button shows View" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip].join(" ")')" "$workflow/icons/lucide/eye-light.svg View (⌘E)"
+expect_exact "toggle to Edit: the button shows Preview" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip].join(" ")')" "$workflow/icons/lucide/eye-light.svg Preview (⌘E)"
 expect "edit in Edit: nothing" "$(window_js edit "$id1" sticky "")" ""
 update=$(window_js view "$id1" sticky "Buy oat milk!")
 src1=$(print -r -- $update | json - d.update.ids.web.src)
@@ -292,8 +297,8 @@ window_js quit groceries sticky ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
 open_note quick quickmenu >/dev/null
 window_js launched quickmenu quick edit
-expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, View, and Close with Esc" "$(window_js menu quickmenu quick "Quick menu" | json - $menu_items)" "Stick to Desktop (⌘D) | View (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
-expect_exact "menu, a blank note in Edit: sharing and copying greyed out" "$(window_js menu quickmenu quick "  " | json - $menu_items)" "Stick to Desktop (⌘D) | View (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… [off] | Copy as Rich Text [off] | Copy as Markdown Text [off]"
+expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, Preview, and Close with Esc" "$(window_js menu quickmenu quick "Quick menu" | json - $menu_items)" "Stick to Desktop (⌘D) | Preview (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
+expect_exact "menu, a blank note in Edit: sharing and copying greyed out" "$(window_js menu quickmenu quick "  " | json - $menu_items)" "Stick to Desktop (⌘D) | Preview (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… [off] | Copy as Rich Text [off] | Copy as Markdown Text [off]"
 expect_exact "share, in Edit: saves first, then shares the note's file" "$(window_js share quickmenu quick $'Quick menu {var:x}\n' | json - 'JSON.stringify(d)') $(cat $notes/quickmenu.md)" '{"share":{"src":"'$notes'/quickmenu.md"}} Quick menu {var:x}'
 expect "share and copy a blank note: nothing" "$(window_js share quickmenu quick "  ")$(window_js copyrich quickmenu quick "  ")$(window_js copytext quickmenu quick "  ")" ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
@@ -630,6 +635,7 @@ expect "button icons: a theme's appearanceMode 1 wins over a dark colour" "$(app
 expect "button icons: a theme without one goes by its colour" "$(appearance_of alfred_preferences=$tmp/prefs alfred_theme=plain alfred_theme_background='rgba(16,16,16,1.00)')" "dark"
 expect "button icons: a missing theme goes by its colour" "$(appearance_of alfred_preferences=$tmp/prefs alfred_theme=gone alfred_theme_background='rgba(16,16,16,1.00)')" "dark"
 expect "button icons: the dark button icons in a dark quick view's picker" "$(json $cache/quick/icons.alfredui/ui.json $buttons | sed -n 2p | cut -d'|' -f3)" " icons/lucide/sticky-note-dark.svg 22x22 "
+expect "key hints: the buttons' grey for a dark quick view" "$(json $cache/quick/icons.alfredui/ui.json '('$keyhints').components.map(l => l.colour + " " + l.opacity).join(", ")')" "#FFFFFF 0.549, #FFFFFF 0.549, #FFFFFF 0.549"
 expect "button icons: a sticky window's are light, whatever the theme" "$(json "$(open_note alfred_theme_background='rgba(16,16,16,1.00)' stick icons)/context.json" d.appearance)" "light"
 
 # Opening and closing the drop-downs, and choosing an icon.
@@ -693,7 +699,7 @@ expect "a new note with an icon closed blank: its sidecar goes too" "$(ls -A $no
 print -r -- '{"icon":"heart"}' > $notes/.scratchnstick/icons.json
 bundle=$(open_note scratchnstick_macos_version=12 quick icons)
 ui=$bundle/ui.json
-expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * menuanchor:view customise:view colourbox:view colour:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
+expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * keyhints:view modehint:label hintseparator:label actionshint:label menuanchor:view customise:view colourbox:view colour:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
 expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘D ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect_exact "macOS 12: the actions and the Font size button are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b)), '$image'('$sizebtn')].join(", ")')" "symbol pencil,symbol note.text.badge.plus, symbol textformat.size"
 expect "macOS 12: the context says so, without the note's icon" "$(json $bundle/context.json '[d.icons, d.icon].join(" ")')" "false "

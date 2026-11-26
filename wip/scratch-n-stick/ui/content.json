@@ -33,7 +33,7 @@
       "font": { "size": "@fontSize", "monospaced": true },
       "background": null,
       "constraints": { "stretch": "both", "insets": { "top": 34, "left": 14, "right": 10, "bottom": 10 } },
-      "@quick": { "constraints": { "stretch": "both", "insets": { "top": 38, "left": 14, "right": 10, "bottom": 10 } } },
+      "@quick": { "constraints": { "stretch": "both", "insets": { "top": 38, "left": 14, "right": 10, "bottom": 28 } } },
       "@edit": { "text": "@text", "focus": true },
       "@view": { "hidden": true },
       "events": [{ "triggers": "typingstopped", "action": { "type": "script", "src": "scripts/window.js", "args": ["save", "@note", "@form", "{value:editor.text}"] } }]

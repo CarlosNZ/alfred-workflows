@@ -1,0 +1,35 @@
+{
+  "id": "keyhints",
+  "type": "view",
+  "layout": "inline",
+  "direction": "horizontal",
+  "spacing": "@keyHintsSpacing",
+  "constraints": "@keyHintsPlace",
+  "components": [
+    {
+      "id": "modehint",
+      "type": "label",
+      "@edit": { "text": "Preview ⌘↵" },
+      "@view": { "text": "Edit ↵" },
+      "font": "@keyHintsFont",
+      "colour": "@keyHintsColour",
+      "opacity": "@keyHintsOpacity"
+    },
+    {
+      "id": "hintseparator",
+      "type": "label",
+      "text": "•",
+      "font": "@keyHintsFont",
+      "colour": "@keyHintsColour",
+      "opacity": "@keyHintsOpacity"
+    },
+    {
+      "id": "actionshint",
+      "type": "label",
+      "text": "Actions ⌘K",
+      "font": "@keyHintsFont",
+      "colour": "@keyHintsColour",
+      "opacity": "@keyHintsOpacity"
+    }
+  ]
+}
