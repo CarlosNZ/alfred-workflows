@@ -37,7 +37,8 @@ function noteTaskRule(state) {
   const tokens = state.tokens;
   for (let i = 2; i < tokens.length; i++) {
     const inline = tokens[i];
-    if (inline.type !== "inline" || tokens[i - 1].type !== "paragraph_open" || tokens[i - 2].type !== "list_item_open") continue;
+    if (inline.type !== "inline" || tokens[i - 1].type !== "paragraph_open" || tokens[i - 2].type !== "list_item_open")
+      continue;
     const match = /^\[([ xX])\] /.exec(inline.content);
     const first = inline.children && inline.children[0];
     if (!match || !inline.map || !first || first.type !== "text" || !first.content.startsWith(match[0])) continue;
@@ -59,8 +60,9 @@ function showNoteLook() {
   if (typeof NOTE_FONT_SIZE === "number" && NOTE_FONT_SIZE > 0) root.setProperty("--font-size", `${NOTE_FONT_SIZE}px`);
 }
 
-// Renders the note, keeps the scroll position across reloads, sends task
-// ticks, and says when the note has been drawn. `form` is "quick" or
+// Renders the note, keeps the scroll position across reloads, fades the text
+// at the top and bottom while there's more beyond, sends task ticks, and
+// says when the note has been drawn. `form` is "quick" or
 // "sticky".
 function startNotePage(form) {
   if (typeof NOTE !== "string") return;
@@ -82,11 +84,25 @@ function startNotePage(form) {
   // it opens where it was.
   try {
     const saved = sessionStorage.getItem("scrollY");
-    if (saved !== null) scrollTo(0, Number(saved));
-    addEventListener("pagehide", () => sessionStorage.setItem("scrollY", String(scrollY)));
+    if (saved !== null) note.scrollTop = Number(saved);
+    addEventListener("pagehide", () => sessionStorage.setItem("scrollY", String(note.scrollTop)));
   } catch (e) {
     // No session storage: the page opens at the top.
   }
+
+  // The fade at each edge shows while there's more beyond it, shortening
+  // over the last of the scroll, so the start and end of the note are never
+  // faded.
+  const fade = () => {
+    const most = 5 * parseFloat(getComputedStyle(note).fontSize);
+    const length = (beyond) => `${Math.max(0, Math.min(most, beyond))}px`;
+    note.style.setProperty("--fade-top", length(note.scrollTop));
+    note.style.setProperty("--fade-bottom", length(note.scrollHeight - note.scrollTop - note.clientHeight));
+  };
+  fade();
+  note.addEventListener("scroll", fade, { passive: true });
+  addEventListener("resize", fade);
+  for (const image of note.querySelectorAll("img")) image.addEventListener("load", fade);
 
   document.addEventListener("change", (event) => {
     const box = event.target;
