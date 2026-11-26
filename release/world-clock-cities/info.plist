@@ -297,6 +297,8 @@
 				<integer>1</integer>
 				<key>scriptfile</key>
 				<string>results.js</string>
+				<key>skipuniversalaction</key>
+				<true/>
 				<key>subtext</key>
 				<string>Current time in your Clock app cities</string>
 				<key>title</key>
