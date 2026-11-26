@@ -41,7 +41,7 @@ const SECONDS = { s: 1, m: 60, h: 3600, d: 86400 };
 
 function run(argv) {
   loadLib(argv, "../scripts/lib.js");
-  loadLib(argv, "../scripts/titles.js");
+  loadLib(argv, "../scripts/text-rules.js");
   const workflow = $(scriptFolder(argv)).stringByDeletingLastPathComponent.js;
   const store = noteStore(argv[0] ? expandPath(argv[0]) : notesFolder(variableOutsideAlfred(workflow)));
   const now = Date.now();

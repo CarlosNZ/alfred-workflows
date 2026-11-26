@@ -1,0 +1,274 @@
+Scratch'n'Stick: a new sticky note's size, test cases
+
+How to test: select the text between a case's >>> and <<< lines (not the markers) and run the Universal Action "New sticky note"; or copy it and use `newsticky` → "New sticky note from clipboard". Close each test note afterwards (⌘⌫ moves it to the Trash).
+
+Sizes are the window on screen in points, width × height, predicted for this Mac's main screen (visible area 3440 × 1410) with the default 14 pt font. The caps there are 800 wide and 987 tall. On a smaller screen the caps are lower (on a 1440 × 875 laptop, 576 × 612), so the big cases come out smaller. Every note is at least the usual 360 × 288.
+
+If a font_size other than 14 is set in the workflow's Configuration, every size scales with it.
+
+==============================================================================
+1. A heading
+Expect: Opens at the usual size: the body is still to be typed.
+Predicted: 360 × 288
+
+>>>
+Things to sort out before the move
+<<<
+
+==============================================================================
+2. A short paragraph that fits
+Expect: Usual size: it fits, and the window only ever grows.
+Predicted: 360 × 288
+
+>>>
+Call the dentist to move Tuesday's appointment, and ask whether they can do an earlier slot.
+<<<
+
+==============================================================================
+3. A 25-item shopping list
+Expect: Taller, not wider: widening wouldn't make short lines any shorter.
+Predicted: 360 × 469
+
+>>>
+- milk
+- eggs
+- flour
+- butter
+- sugar
+- rice
+- pasta
+- tomatoes
+- onions
+- garlic
+- olive oil
+- coffee
+- tea
+- bread
+- cheese
+- yoghurt
+- apples
+- bananas
+- lemons
+- spinach
+- carrots
+- potatoes
+- chicken
+- salmon
+- dish soap
+<<<
+
+==============================================================================
+4. A medium paragraph (about 650 characters)
+Expect: Wider and taller, roughly square.
+Predicted: 363 × 350
+
+>>>
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+<<<
+
+==============================================================================
+5. An email (several paragraphs, about 2,600 characters)
+Expect: Large and roughly square, unless the height cap stops it first on a smaller screen.
+Predicted: 666 × 622
+
+>>>
+Hi all,
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the fourth floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Sam thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the IT team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Friday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Thanks,
+Carl
+<<<
+
+==============================================================================
+6. A long article (about 10,000 characters)
+Expect: At the caps (40% of the screen's width up to 800 pt, 70% of its height), and it scrolls.
+Predicted: 800 × 987
+
+>>>
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+
+Met with the facilities team about the move to the third floor. The main sticking point is the server cupboard: it needs its own circuit and better ventilation, and nobody has budgeted for either. Priya thinks we can borrow the electrician from the warehouse fit-out if we book him before the end of the month, but that means signing off the layout this week. I said I'd check with finance whether the contingency line can cover the ventilation, and get back to her by Thursday. We also talked about desks. The current plan has twelve fixed desks and eight hot desks, which is fine for now but won't survive the two new hires in March.
+<<<
+
+==============================================================================
+7. A fenced code block with long lines
+Expect: As wide as the longest code line (about 75 characters), so the code doesn't wrap.
+Predicted: 684 × 288
+
+>>>
+Deploy notes
+
+```zsh
+rsync -avz --delete --exclude '.git' ./build/ deploy@staging:/srv/www/app/
+ssh deploy@staging 'sudo systemctl restart app && systemctl status app'
+curl -fsS https://staging.example.com/healthz || echo 'health check failed'
+```
+<<<
+
+==============================================================================
+8. The same code without a fence
+Expect: Treated as prose, so its lines wrap: only fenced code and tables set a minimum width.
+Predicted: 360 × 288
+
+>>>
+rsync -avz --delete --exclude '.git' ./build/ deploy@staging:/srv/www/app/
+ssh deploy@staging 'sudo systemctl restart app && systemctl status app'
+curl -fsS https://staging.example.com/healthz || echo 'health check failed'
+<<<
+
+==============================================================================
+9. A Markdown table
+Expect: As wide as the longest row, so the table doesn't wrap.
+Predicted: 606 × 288
+
+>>>
+| Room | Desks | Notes |
+|------|-------|-------|
+| 3.01 | 12 fixed | Needs new power strips along the window wall |
+| 3.02 | 8 hot | Booking system to be set up before the move |
+| 3.03 | 0 | Server cupboard: own circuit, ventilation |
+<<<
+
+==============================================================================
+10. A table too wide for the cap
+Expect: At the width cap: the rows wrap.
+Predicted: 800 × 288
+
+>>>
+| Item | Supplier | Order number | Ordered | Expected | Status | Notes |
+|---|---|---|---|---|---|---|
+| Standing desks (x8) | Office Furniture Direct Ltd | OFD-2026-118734 | 12 Nov 2026 | 3 Dec 2026 | Confirmed | Delivery to loading bay only, booked for the morning slot |
+<<<
+
+==============================================================================
+11. A long URL
+Expect: Usual size: a long word wraps anywhere rather than widening the note.
+Predicted: 360 × 288
+
+>>>
+https://www.example.com/projects/office-move/2026/planning/documents/floor-plans/third-floor-revised-layout-final-v3.pdf?download=1&version=3
+<<<
+
+==============================================================================
+12. Chinese text (CJK)
+Expect: Wider and taller: each character is measured at its own width, about 1.6 Latin letters.
+Predicted: 384 × 384
+
+>>>
+办公室搬迁计划：三楼的服务器机房需要独立电路和更好的通风，但目前预算中没有包括这两项。我们需要在本周确定布局，以便在月底前预约电工。财务部需要确认应急预算是否可以覆盖通风费用。另外，目前的方案是十二个固定工位和八个共享工位，三月份新增两名员工后将不够用。
+
+办公室搬迁计划：三楼的服务器机房需要独立电路和更好的通风，但目前预算中没有包括这两项。我们需要在本周确定布局，以便在月底前预约电工。财务部需要确认应急预算是否可以覆盖通风费用。另外，目前的方案是十二个固定工位和八个共享工位，三月份新增两名员工后将不够用。
+
+办公室搬迁计划：三楼的服务器机房需要独立电路和更好的通风，但目前预算中没有包括这两项。我们需要在本周确定布局，以便在月底前预约电工。财务部需要确认应急预算是否可以覆盖通风费用。另外，目前的方案是十二个固定工位和八个共享工位，三月份新增两名员工后将不够用。
+<<<
+
+==============================================================================
+13. An emoji row in a code block
+Expect: As wide as 30 emoji (about 20 pt each), with none wrapping onto a second line.
+Predicted: 634 × 288
+
+>>>
+Reactions
+
+```
+🍎🍌🍇🍓🍒🍑🥝🍍🥭🍋🍊🍉🍈🍐🥥🥑🍆🥕🌽🥦🧄🧅🥔🍠🥐🥯🍞🥖🧀🥚
+```
+<<<
+
+==============================================================================
+14. An emoji list
+Expect: Taller, not wider, like the shopping list: the lines are short.
+Predicted: 360 × 316
+
+>>>
+🏠 Move checklist
+
+📦 Pack the kitchen
+🔌 Label every cable
+🖥️ Back up the servers
+🔑 Return the old keys
+🧹 Clean the old office
+🚚 Confirm the van for 7am
+📞 Tell the bank the new address
+🪴 Don't forget the plants
+☕ Coffee machine goes last
+🎉 Drinks on Friday
+🧾 File the receipts
+📮 Redirect the post
+🗝️ Spare keys to reception
+✅ Done!
+<<<
+
+==============================================================================
+15. Mixed Markdown: heading, list, code
+Expect: Wide enough for the code line, then as tall as the rest needs.
+Predicted: 718 × 288
+
+>>>
+# Release checklist
+
+1. Bump the version
+2. Run the tests
+3. Tag the release:
+
+```
+git tag -a scratch-n-stick/v1.0.0 -m 'Scratch'n'Stick 1.0.0' && git push --tags
+```
+
+4. Upload to the gallery
+5. Post the announcement
+
+> Remember to check the readme renders in Alfred.
+<<<
+
+==============================================================================
+16. Tab-indented outline
+Expect: Usual size: its 13 lines fit, with each tab measured at 28 pt.
+Predicted: 360 × 288
+
+>>>
+Project
+	Phase one
+		Agree the layout
+		Book the electrician
+			Check he's free before the 30th
+	Phase two
+		Order desks
+		Set up hot-desk booking
+	Phase three
+		Move day
+			Van at 7am
+			Servers last
+<<<
+

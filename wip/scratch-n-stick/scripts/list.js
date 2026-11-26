@@ -29,7 +29,7 @@ const SUBTITLE_SEPARATOR = " • ";
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
-  loadLib(argv, "titles.js");
+  loadLib(argv, "text-rules.js");
   const query = (argv[0] || "").trim();
   const stickiesOnly = argv[1] === "stickies";
   // A colour in User Configuration that can't be read shows what's wrong in

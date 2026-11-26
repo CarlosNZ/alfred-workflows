@@ -3,7 +3,7 @@
 // Opens a note in a window: argv[0] is the form, "quick" (inside Alfred's
 // window) or "stick" (its own window on the desktop), and argv[1] the note's ID,
 // or, with the variable `new` set to "1" (the New note result), the text a new
-// note starts with, which may become its heading (newNoteText in titles.js). After Stick in a quick view, or ↩ on a sticky note in the
+// note starts with, which may become its heading (newNoteText in text-rules.js). After Stick in a quick view, or ↩ on a sticky note in the
 // results, the variable `stick_note` names the note instead (escaped as in its
 // window; see escapeForAlfredUi). After Stick, `stick_mode` is the quick view's
 // mode, which the sticky window opens in.
@@ -41,7 +41,7 @@ ObjC.import("Foundation");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
-  loadLib(argv, "titles.js");
+  loadLib(argv, "text-rules.js");
   const form = argv[0] === "stick" ? "sticky" : "quick";
   if (workflowVariable("close_view") === "1") return output("");
   if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");
@@ -74,7 +74,9 @@ function run(argv) {
   // list shows while it's open.
   if (isNew && form === "sticky") store.save(id, text);
   const mode = stickNote ? workflowVariable("stick_mode") : "";
-  const bundle = writeNoteWindow({ store, workflowFolder, id, form, note, text, mode });
+  // A new sticky note's window opens sized to its starting text.
+  const size = isNew && form === "sticky" ? newStickyWindowSize(workflowFolder, text) : null;
+  const bundle = writeNoteWindow({ store, workflowFolder, id, form, note, text, mode, size });
   if (form === "sticky") startStickyWindowPlacement(workflowFolder, bundle);
   return output(bundle);
 }

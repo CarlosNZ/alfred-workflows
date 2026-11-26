@@ -24,7 +24,7 @@ ObjC.import("unistd");
 function run(argv) {
   $.setsid();
   loadLib(argv, "lib.js");
-  loadLib(argv, "titles.js");
+  loadLib(argv, "text-rules.js");
   const [from, to] = argv;
   if (!from || !to) throw new Error("Give the folder to move the notes from and the folder to move them to");
   if (!takeMoveLock()) return;

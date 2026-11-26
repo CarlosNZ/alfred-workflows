@@ -187,7 +187,21 @@ idst=$(basename "$(open_note new=1 stick 'Sticky from a keyword')" .alfredui)
 expect_exact "a new sticky note with text is saved as it opens, with a sidecar" "$(<$notes/$idst.md) $([[ -e $notes/.scratchnstick/$idst.json ]] && print sidecar)" "# Sticky from a keyword sidecar"
 idsb=$(basename "$(open_note new=1 stick '')" .alfredui)
 expect "a new blank sticky note isn't written" "$(ls -A $notes $notes/.scratchnstick | grep -c $idsb || true)" "0"
+# A new sticky note's window is sized to its text (fittedNoteSize in
+# text-rules.js; its cases are in test-storage.js), in the 14 pt system
+# monospaced font, which is 17 pt a line and 8.65 pt a character: 25 short
+# lines are 25 × 17 + 44 pt of insets, plus the 32 pt the window comes out
+# short; a 60-column line of code is 60 × 8.65 + 34 pt wide.
+size='d.window.size.width + "x" + d.window.size.height'
+expect "a new sticky note's usual size, for short text" "$(json $cache/windows/$idst.alfredui/ui.json $size)" "360x320"
+expect "…and for a blank one" "$(json $cache/windows/$idsb.alfredui/ui.json $size)" "360x320"
+idsl=$(basename "$(open_note new=1 stick "$(for i in {1..25}; print -r -- "- item $i")")" .alfredui)
+expect "a new sticky note with more lines is taller" "$(json $cache/windows/$idsl.alfredui/ui.json $size)" "360x501"
+idsc=$(basename "$(open_note new=1 stick $'```\n'"$(repeat 60 printf x)"$'\n```')" .alfredui)
+expect "a new sticky note with wide code is wider" "$(json $cache/windows/$idsc.alfredui/ui.json $size)" "554x320"
+expect "an existing note's sticky window isn't sized to its text" "$(json $cache/windows/meeting.alfredui/ui.json $size)" "360x320"
 rm -rf -- $notes/$idst.md $notes/.scratchnstick/$idst.json $cache/windows/$idst.alfredui $cache/windows/$idsb.alfredui
+rm -rf -- $notes/$idsl.md $notes/.scratchnstick/$idsl.json $cache/windows/$idsl.alfredui $notes/$idsc.md $notes/.scratchnstick/$idsc.json $cache/windows/$idsc.alfredui
 expect "open.js sets open_window, clears new and stick_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","stick_note":"","stick_mode":"","close_view":""}'
 
 # window.js: launched, save, toggle, edit, view, quit.

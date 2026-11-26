@@ -21,7 +21,7 @@ ObjC.import("Foundation");
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
-  loadLib(argv, "titles.js");
+  loadLib(argv, "text-rules.js");
   const text = (argv[0] || "").trim();
   const sticky = argv[1] === "sticky";
   const noun = sticky ? "sticky note" : "note";

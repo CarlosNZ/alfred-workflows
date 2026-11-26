@@ -40,7 +40,7 @@ const REVIEW_BADGE_PIXELS = 128;
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "../scripts/lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
-  loadLib(argv, "../scripts/titles.js");
+  loadLib(argv, "../scripts/text-rules.js");
   const review = argv.indexOf("--review");
   if (review >= 0) {
     if (!argv[review + 1]) throw new Error("Usage: dev/make-icons.js --review <folder> [--png]");

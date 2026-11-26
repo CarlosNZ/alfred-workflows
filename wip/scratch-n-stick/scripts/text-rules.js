@@ -1,5 +1,7 @@
-// Scratch'n'Stick titles: how text from elsewhere starts a note, and how a
-// note that's one long line is shown as a title and a preview. Loaded beside
+// Scratch'n'Stick text rules, the hand-tuned judgements about a note's text:
+// how text from elsewhere starts a note, the size of the window a new sticky
+// note opens at for that text, and how a note that's one long line is shown
+// as a title and a preview. Loaded beside
 // lib.js by every script, with loadLib (see "Loading lib.js" in DESIGN.md),
 // and, like lib.js, run in the global scope: its function declarations become
 // globals, while its top-level const and let stay private to this file. It
@@ -9,8 +11,11 @@
 //                            or the seed exactly as given
 //   seedHeading(seed)        the heading a seed becomes, or null
 //   splitTitleLine(line)     a long line split into { title, rest }, or null
+//   fittedNoteSize(text, …)  the size of a new sticky note's window, fitted to
+//                            its starting text
 //
-// See "Title, timestamps, empty notes" and "Text as a heading" in DESIGN.md.
+// See "Title, timestamps, empty notes", "Text as a heading" and "A new sticky
+// note's size" in DESIGN.md.
 //
 // Lengths count what a reader sees as one character (an emoji with modifiers,
 // a letter with combining accents, a flag) as one.
@@ -43,6 +48,17 @@ const PUNCTUATION_BREAK_MIN_LENGTH = 40;
 // macOS's sentence splitter breaks after them ("Ask Dr. | Patel"), and can't be
 // told not to.
 const ABBREVIATIONS = ["Mr", "Mrs", "Ms", "Mx", "Dr", "Prof", "St", "Jr", "Sr", "No", "vs", "etc", "approx", "e.g", "i.e", "cf"];
+
+// A new sticky note whose starting text doesn't fit its window's usual size
+// opens bigger (fittedNoteSize). Long text widens the window until it's no
+// more than NOTE_SHAPE times as tall as it's wide (1 is square, more allows
+// taller, less keeps it wider), then makes it taller. The window is never
+// wider than NOTE_MAX_WIDTH_FRACTION of the screen or NOTE_MAX_WIDTH points,
+// or taller than NOTE_MAX_HEIGHT_FRACTION of the screen; longer text scrolls.
+const NOTE_SHAPE = 1;
+const NOTE_MAX_WIDTH_FRACTION = 0.4;
+const NOTE_MAX_WIDTH = 800;
+const NOTE_MAX_HEIGHT_FRACTION = 0.7;
 
 // ---------------------------------------------------------------------------
 
@@ -121,7 +137,141 @@ function splitTitleLine(line) {
   return sentenceSplit;
 }
 
+// The size, { width, height } in points, of a new sticky note's window
+// content for its starting text `text`: `minimum`, the window's usual size,
+// if the text fits it, or bigger, to show the text without scrolling where
+// the caps allow, shaped as NOTE_SHAPE says. `font` is the editor's
+// monospaced font, { column, line, wide, emoji }: a character's width, a
+// line's height, and the widths of a wide (CJK) character and an emoji,
+// which, if left out, are two columns. `insets` ({ top, right, bottom, left }) is the space between the
+// window's edges and the text. `screen` ({ width, height }) is the screen it
+// opens on (its visible frame), and `scroller` the width a scroll bar takes
+// from the text when it scrolls (0 for overlay scroll bars).
+//
+// The text is measured as the editor lays it out, closely enough: wrapped
+// at spaces and after hyphens, with a word too long for a line broken
+// anywhere, wide characters and emoji at their own widths, and a tab
+// TAB_STOP wide. Lines in a fenced code block or a table aren't meant to wrap, so the
+// window is at least as wide as the longest of them, within the cap.
+// Otherwise it only widens while that makes it shorter, so a list of short
+// lines just gets taller.
+function fittedNoteSize(text, { font, insets, minimum, screen, scroller = 0 }) {
+  const across = insets.left + insets.right;
+  const down = insets.top + insets.bottom;
+  const maxWidth = Math.max(minimum.width, Math.round(Math.min(screen.width * NOTE_MAX_WIDTH_FRACTION, NOTE_MAX_WIDTH)));
+  const maxHeight = Math.max(minimum.height, Math.round(screen.height * NOTE_MAX_HEIGHT_FRACTION));
+  const lines = measuredLines((text || "").slice(0, MEASURED_LENGTH), font, minimum.width - across);
+  const heightAt = (width) => wrappedLineCount(lines, width - across) * font.line + down;
+  const widthFor = (textWidth) => Math.min(maxWidth, Math.max(minimum.width, Math.ceil(textWidth - LAYOUT_SLACK + across)));
+  const longest = (rigidOnly) => lines.reduce((max, line) => (rigidOnly && !line.rigid ? max : Math.max(max, line.width)), 0);
+
+  const narrowest = widthFor(longest(true));
+  if (narrowest === minimum.width && heightAt(minimum.width) <= minimum.height) return { width: minimum.width, height: minimum.height };
+  // The narrowest width no taller than NOTE_SHAPE allows, between the
+  // narrowest the code and tables allow and the width where nothing wraps.
+  // Wider is never taller, so it's found by bisection.
+  let low = narrowest;
+  let high = Math.max(low, widthFor(longest(false)));
+  if (heightAt(high) <= NOTE_SHAPE * high) {
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (heightAt(middle) <= NOTE_SHAPE * middle) high = middle;
+      else low = middle + 1;
+    }
+  }
+  let width = high;
+  if (heightAt(width) > maxHeight) width = Math.min(maxWidth, width + scroller);
+  return { width, height: Math.min(maxHeight, Math.max(minimum.height, Math.ceil(heightAt(width)))) };
+}
+
 // Helpers, private to this file (top-level const).
+
+// NSParagraphStyle's default tab interval, in points.
+const TAB_STOP = 28;
+
+// fittedNoteSize measures at most this many characters of a note's text:
+// that much overflows the largest window the caps allow at any font size
+// the editor has (11 pt and up), so the rest would only make it scroll.
+const MEASURED_LENGTH = 20000;
+
+// A little room for rounding when comparing widths in points.
+const LAYOUT_SLACK = 0.01;
+
+// An emoji shown as one: one that is by default, or a symbol followed by the
+// emoji variation selector. Symbols such as © and ™ are text, one column.
+const EMOJI = /\p{Emoji_Presentation}|\p{Extended_Pictographic}️|\p{Regional_Indicator}/u;
+
+// East Asian wide characters: Hangul, CJK ideographs and punctuation, kana,
+// and fullwidth forms.
+const WIDE_CHARACTER =
+  /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿ꥠ-꥿가-힣豈-﫿︰-﹏＀-｠￠-￦\u{20000}-\u{3FFFD}]/u;
+
+// `text`'s lines measured for wrapping, in `font` (as for fittedNoteSize):
+// each { width, rigid, tokens }, its width unwrapped (less trailing spaces),
+// whether it's in a fenced code block or a table, and its words and runs of
+// spaces, each { width, space }. A word wider than `narrowest`, the
+// narrowest the text can be laid out, also has `chars`, its characters'
+// widths, to be broken anywhere.
+const measuredLines = (text, font, narrowest) => {
+  const { column, wide = 2 * column, emoji = 2 * column } = font;
+  const segmenter = segmenterFor("grapheme");
+  const charWidths = (word) =>
+    Array.from(segmenter ? segmenter.segment(word) : word, (part) => {
+      const char = segmenter ? part.segment : part;
+      return char === "\t" ? TAB_STOP : EMOJI.test(char) ? emoji : WIDE_CHARACTER.test(char) ? wide : column;
+    });
+  const lines = [];
+  let fence = null;
+  for (const line of text.split(/\r\n|\r|\n/)) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    const rigid = fence !== null || Boolean(marker) || /^\s*\|/.test(line);
+    if (marker && fence === null) fence = marker[1];
+    else if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = null;
+    const tokens = (line.match(/[^\s-]*-+(?=\S)|\S+|\s+/g) || []).map((part) => {
+      const space = /^\s/.test(part);
+      const chars = charWidths(part);
+      const width = chars.reduce((sum, w) => sum + w, 0);
+      return !space && width > narrowest ? { width, space, chars } : { width, space };
+    });
+    const trailing = tokens.length && tokens[tokens.length - 1].space ? tokens[tokens.length - 1].width : 0;
+    lines.push({ width: tokens.reduce((sum, t) => sum + t.width, 0) - trailing, rigid, tokens });
+  }
+  return lines;
+};
+
+// How many lines `lines` (from measuredLines) take wrapped at `available`
+// points. Spaces at the end of a line hang past its edge, as in the editor.
+const wrappedLineCount = (lines, available) => {
+  const limit = available + LAYOUT_SLACK;
+  let count = 0;
+  for (const { tokens } of lines) {
+    let rows = 1;
+    let x = 0;
+    for (const token of tokens) {
+      if (token.space || x + token.width <= limit) {
+        x += token.width;
+        continue;
+      }
+      if (x > 0) {
+        rows++;
+        x = 0;
+      }
+      if (token.width <= limit) {
+        x = token.width;
+        continue;
+      }
+      for (const w of token.chars || [token.width]) {
+        if (x > 0 && x + w > limit) {
+          rows++;
+          x = 0;
+        }
+        x += w;
+      }
+    }
+    count += rows;
+  }
+  return count;
+};
 
 // `text` split into sentences, each with the spaces after it, never breaking
 // after one of ABBREVIATIONS. Without Intl.Segmenter, the text is one sentence.

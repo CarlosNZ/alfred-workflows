@@ -19,7 +19,7 @@ let failed = 0;
 
 function run(argv) {
   const libPath = loadLib(argv, "../scripts/lib.js");
-  loadLib(argv, "../scripts/titles.js");
+  loadLib(argv, "../scripts/text-rules.js");
   const [command, ...args] = argv;
   if (command === "loader") return print(`loaded ${libPath} (noteStore: ${typeof noteStore})`);
   if (command === "save") return print(noteStore(args[0]).save(args[1], readText(args[2])));
@@ -225,7 +225,7 @@ function testSummary() {
   for (const [name, text, title, preview] of cases) eq(name, noteSummary(text), { title, preview });
 }
 
-// titles.js, with its tuning as shipped (SPLIT_LENGTH 65, and so on): a case
+// text-rules.js, with its tuning as shipped (SPLIT_LENGTH 65, and so on): a case
 // whose split moves when a boundary is tuned needs its expected values updated.
 function testTitles() {
   section("Titles: a single long line split");
@@ -301,6 +301,48 @@ function testTitles() {
   for (const [name, seed, text] of seeds) eq(name, newNoteText(seed), text);
   eq("seedHeading: the heading or null", [seedHeading(" Trip "), seedHeading("Trip.")], ["Trip", null]);
   eq("newNoteSubtitle: heading or text", [newNoteSubtitle("buy milk"), newNoteSubtitle("Buy milk.")], ["Create a note with this heading", "Create a note with this text"]);
+
+  // Round metrics, so sizes can be worked out by hand: characters 10 pt wide,
+  // lines 20 pt tall, 34 pt of insets across and 44 down, so the usual
+  // 360 × 288 holds 32 columns and 12 lines. On a 1440 × 900 screen the caps
+  // are 576 × 630 (NOTE_MAX_WIDTH_FRACTION, NOTE_MAX_HEIGHT_FRACTION).
+  section("Titles: a new sticky note's size");
+  const metrics = (screen = { width: 1440, height: 900 }, scroller = 0) => ({
+    font: { column: 10, line: 20 },
+    insets: { top: 34, right: 15, bottom: 10, left: 19 },
+    minimum: { width: 360, height: 288 },
+    screen,
+    scroller,
+  });
+  const fit = (text, ...rest) => fittedNoteSize(text, metrics(...rest));
+  const lines = (count, line) => Array.from({ length: count }, (_, i) => line.replace("#", i + 1)).join("\n");
+  const fence = (body) => "```\n" + body + "\n```";
+  eq("blank: the usual size", fit(""), { width: 360, height: 288 });
+  eq("a heading: the usual size", fit(newNoteText("buy milk")), { width: 360, height: 288 });
+  eq("12 lines fit", fit(lines(12, "- item #")), { width: 360, height: 288 });
+  eq("13 short lines: taller, not wider", fit(lines(13, "- item #")), { width: 360, height: 304 });
+  eq("a 32-column line fits", fit("a".repeat(32)), { width: 360, height: 288 });
+  eq("a long word wraps rather than widening", fit("https://example.com/" + "a".repeat(80)), { width: 360, height: 288 });
+  eq("code: as wide as its longest line", fit(fence(lines(3, "x".repeat(50)))), { width: 534, height: 288 });
+  eq("a table: as wide as its longest row", fit("| a | b |\n|" + "-".repeat(40) + "|"), { width: 454, height: 288 });
+  eq("code wider than the cap: the cap", fit(fence("x".repeat(70))), { width: 576, height: 288 });
+  eq("wide characters: two columns by default", fit(fence("中".repeat(20))), { width: 434, height: 288 });
+  eq("emoji: two columns by default", fit(fence("🙂".repeat(20))), { width: 434, height: 288 });
+  const ownWidths = Object.assign(metrics(), { font: { column: 10, line: 20, wide: 16, emoji: 23 } });
+  eq("wide characters and emoji at the font's widths", [fittedNoteSize(fence("中".repeat(30)), ownWidths), fittedNoteSize(fence("🙂".repeat(20)), ownWidths)], [{ width: 514, height: 288 }, { width: 494, height: 288 }]);
+  eq("© and ™ are one column", fit(fence("©™".repeat(20))), { width: 434, height: 288 });
+  eq("a tab is TAB_STOP wide", fit(fence("\t".repeat(10) + "x".repeat(20))), { width: 514, height: 288 });
+  // 150 four-letter words: at 424 pt (39 columns) 8 to a line, 19 lines,
+  // 424 pt tall; a column narrower, 7 to a line, 22 lines, 484 pt tall.
+  eq("prose widens until it's no taller than it's wide (NOTE_SHAPE 1)", fit("word ".repeat(150).trim()), { width: 424, height: 424 });
+  eq("long text: the caps", fit("word ".repeat(5000)), { width: 576, height: 630 });
+  eq("a wide screen: 800 pt at most", fit("word ".repeat(5000), { width: 3440, height: 1410 }), { width: 800, height: 987 });
+  eq("a small screen: never below the usual size", fit("word ".repeat(5000), { width: 600, height: 300 }), { width: 360, height: 288 });
+  eq("scrolling text leaves room for a scroll bar", fit(lines(100, "x"), undefined, 15), { width: 375, height: 630 });
+  eq("…but not overlay scroll bars", fit(lines(100, "x")), { width: 360, height: 630 });
+  const fitStarted = Date.now();
+  fit("word ".repeat(200000));
+  check("very long text sizes quickly", Date.now() - fitStarted < 300, `${Date.now() - fitStarted} ms`);
 }
 
 function testUnicode(store) {

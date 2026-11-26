@@ -1600,6 +1600,12 @@ const NOTE_WINDOW_LAYOUT = {
     titleFont: { size: 13, weight: "semibold" },
     defaultHeight: 288,
   },
+  // A sticky window's size, for fitting a new note's window to its text (see
+  // newStickyWindowSize): the window comes out `shortfall` points shorter
+  // than window.json's `size` asks for, and the editor's text sits
+  // `textInset` inside the editor's frame (the text view's own inset and
+  // padding).
+  stickySize: { shortfall: 32, textInset: { top: 0, right: 5, bottom: 0, left: 5 } },
   // The drop-downs, the icon and colour pickers: boxes of buttons under the
   // customise group, `top` from the window's top in each form and `left` from
   // its left, with corners of `radius`, `padding` inside, and a shadow around
@@ -2131,9 +2137,11 @@ function noteOpenMode(note, text) {
 // given, is the appearance a quick view's button icons are drawn for
 // (quickWindows works it out once for all its bundles); otherwise it's
 // noteQuickAppearance's. A sticky window opens collapsed if its note was
-// collapsed when its window last closed (see noteCollapsedHeight).
+// collapsed when its window last closed (see noteCollapsedHeight). `size`, if
+// given, is the size a sticky window opens at in place of window.json's
+// (see newStickyWindowSize); a window with a saved frame opens at that.
 function writeNoteWindow(
-  { store, workflowFolder, id, form, note, text, mode: requestedMode, appearance: quickAppearance },
+  { store, workflowFolder, id, form, note, text, mode: requestedMode, appearance: quickAppearance, size = null },
   variable = workflowVariable,
 ) {
   const mode =
@@ -2168,6 +2176,7 @@ function writeNoteWindow(
     },
     variable,
   );
+  if (size && form === "sticky") ui.window.size = size;
   const script = notePageScript(
     mode === "view" ? text : null,
     noteContextColour({ palette, colour }).tint,
@@ -2187,6 +2196,38 @@ function writeNoteWindow(
     textHash: textHash(text),
   };
   return writeNoteBundle(id, form, { ui, context, page, script }, variable);
+}
+
+// The size a new sticky note's window opens at, as window.json's `size`, for
+// its starting text `text`: window.json's own size if the text fits, or
+// bigger (fittedNoteSize in text-rules.js). It's measured in the editor's font
+// (the system's monospaced font) at the `font_size` setting's size, a new
+// note's, within the editor's insets in a sticky window, on the main screen,
+// where AppKit centres a window with no saved frame.
+function newStickyWindowSize(workflowFolder, text, variable = workflowVariable) {
+  ObjC.import("AppKit");
+  const { shortfall, textInset } = NOTE_WINDOW_LAYOUT.stickySize;
+  const { size } = readNoteTemplate(workflowFolder, "window").window;
+  const editor = resolveNoteTemplate(findNoteComponent(readNoteTemplate(workflowFolder, "content"), "editor"), {
+    form: "sticky",
+    mode: "edit",
+    tokens: {},
+    workflowFolder,
+  });
+  const inset = (side) => (editor.constraints.insets[side] || 0) + textInset[side];
+  const font = $.NSFont.monospacedSystemFontOfSizeWeight(noteDefaultFontSize(variable), 0);
+  const attributes = $.NSDictionary.dictionaryWithObjectForKey(font, $.NSFontAttributeName);
+  const width = (sample) => $(sample).sizeWithAttributes(attributes).width;
+  const screen = $.NSScreen.mainScreen.visibleFrame.size;
+  const legacyScrollers = $.NSScroller.preferredScrollerStyle === $.NSScrollerStyleLegacy;
+  const fitted = fittedNoteSize(text, {
+    font: { column: width("M"), line: $.NSLayoutManager.alloc.init.defaultLineHeightForFont(font), wide: width("中"), emoji: width("🙂") },
+    insets: { top: inset("top"), right: inset("right"), bottom: inset("bottom"), left: inset("left") },
+    minimum: { width: size.width, height: size.height - shortfall },
+    screen: { width: screen.width, height: screen.height },
+    scroller: legacyScrollers ? $.NSScroller.scrollerWidthForControlSizeScrollerStyle($.NSControlSizeRegular, $.NSScrollerStyleLegacy) : 0,
+  });
+  return { width: fitted.width, height: fitted.height + shortfall };
 }
 
 // The options for noteWindowPart of an open window, from its bundle's
@@ -2298,7 +2339,7 @@ const NOTE_WINDOW_SOURCES = [
   "ui/view.html",
   "ui/view.js",
   "scripts/lib.js",
-  "scripts/titles.js",
+  "scripts/text-rules.js",
 ];
 
 // Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
@@ -2320,7 +2361,7 @@ const NOTE_WINDOW_SOURCES = [
 //   bundleFor(note)     the quick bundle of a note from store.list(), rebuilt
 //                       if it's out of date
 //   bundleForNew(seed)  a quick bundle for a new note starting with `seed`
-//                       (as newNoteText in titles.js makes it), with a new
+//                       (as newNoteText in text-rules.js makes it), with a new
 //                       ID, a different one on each call in a run
 //   finish(notes)       removes the bundles and fingerprints of notes that
 //                       are gone, given every note in the folder, keeping any
@@ -2413,7 +2454,7 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
 }
 
 // A Script Filter result that creates a note starting with `text` (list.js's
-// New note, and new.js's results), as newNoteText in titles.js makes it from
+// New note, and new.js's results), as newNoteText in text-rules.js makes it from
 // `text`. Its arg is `bundle`, the quick view of the new note (quickWindows'
 // bundleForNew), which ↩ opens inside Alfred. ⌘'s arg is the text itself, with
 // the variable `new`, so open.js knows it isn't a note's ID, and sticks the
@@ -2443,7 +2484,7 @@ function newNoteResult(title, subtitle, text, bundle, { sticky = false } = {}) {
 
 // The subtitle of a New note result for text typed after a keyword, which
 // says whether the text starts the note as its heading (seedHeading in
-// titles.js). `noun` is what's created: "note", or "sticky note".
+// text-rules.js). `noun` is what's created: "note", or "sticky note".
 function newNoteSubtitle(text, noun = "note") {
   return seedHeading(text) === null ? `Create a ${noun} with this text` : `Create a ${noun} with this heading`;
 }
@@ -3149,7 +3190,7 @@ function isBlankText(text) {
 // "### Decisions / - a / - b / ### Actions / - c" gives
 // "Decisions: a, b | Actions: c". A note that's a single long line, not a
 // heading, is split between the title and the preview where it reads well
-// (splitTitleLine in titles.js). Both are truncated on whole characters
+// (splitTitleLine in text-rules.js). Both are truncated on whole characters
 // (truncateText). A leading YAML front matter block, as other apps write, is
 // skipped.
 function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PREVIEW_MAX_LENGTH } = {}) {
