@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Scratch'n'Stick slate</title>
+  <!--
+    A new note that isn't a sticky note: the tile from Scratch'n'Stick's
+    workflow icon (icon.svg) with three lines of writing straight on it, like
+    a slate. The writing matches the sticky note's in note.svg at the same
+    displayed size (its 40-unit strokes in a 616-unit viewBox), left-aligned
+    and centred on the tile. The tile's colours are the gradient in <defs>;
+    the writing's colour is on the #writing group.
+  -->
+  <defs>
+    <linearGradient id="tile-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F4EE"/>
+      <stop offset="1" stop-color="#E4DED2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- The tile: a squircle filling the canvas. -->
+  <path d="M1024,512 C1024,744 1031.6,883.8 957.7,957.7 C883.8,1031.6 744,1024 512,1024 C280,1024 140.2,1031.6 66.3,957.7 C-7.6,883.8 0,744 0,512 C0,280 -7.6,140.2 66.3,66.3 C140.2,-7.6 280,0 512,0 C744,0 883.8,-7.6 957.7,66.3 C1031.6,140.2 1024,280 1024,512 Z" fill="url(#tile-fill)"/>
+
+  <!-- Three lines of writing. -->
+  <g id="writing" stroke="#4A4237" stroke-opacity="0.6" stroke-width="66.5" stroke-linecap="round" fill="none">
+    <line x1="186.2" y1="332.5" x2="837.8" y2="332.5"/>
+    <line x1="186.2" y1="512" x2="734.8" y2="512"/>
+    <line x1="186.2" y1="691.5" x2="601.8" y2="691.5"/>
+  </g>
+</svg>

@@ -140,8 +140,8 @@ icons() {
       return JSON.parse(input).items.map((i) => `${i.title} ${i.icon ? name(i.icon.path) : "-"}`).join("\n");
     }' "$cache/icons"
 }
-expect "the workflow ships no badges or dots: Lucide's button icons and the drop-downs' shadows" "$(ls ${here:h}/icons | tr '\n' ' ')" "lucide shadow-colour-picker.png shadow-icon-picker.png "
-expect "a note's result icon is its colour's dot (its tint, ringed in its control colour), made in the cache, yellow (slot 1) by default; New note has none" "$(icons '')" $'New note -\nCafé ideas dot-FEF49C-DBC503-*.png\nShopping dot-FEF49C-DBC503-*.png\nOld note dot-FEF49C-DBC503-*.png'
+expect "the workflow ships no badges or dots: Lucide's button icons, the drop-downs' shadows and New note's icons" "$(ls ${here:h}/icons | tr '\n' ' ')" "lucide note.png shadow-colour-picker.png shadow-icon-picker.png slate.png "
+expect "a note's result icon is its colour's dot (its tint, ringed in its control colour), made in the cache, yellow (slot 1) by default; New note's is the slate" "$(icons '')" $'New note icons/slate.png\nCafé ideas dot-FEF49C-DBC503-*.png\nShopping dot-FEF49C-DBC503-*.png\nOld note dot-FEF49C-DBC503-*.png'
 expect "a dot is a 256-pixel PNG" "$(sips -g format -g pixelWidth -g pixelHeight $cache/icons/dot-FEF49C-DBC503-*.png | awk '/format|pixel/ {printf "%s ", $2}')" "png 256 256 "
 expect "default_colour sets the icon of notes without a colour" "$(icons default_colour=5 milk)" "Shopping dot-B6CAFF-7D9BEB-*.png"
 print -r -- '{"colour":4}' > "$notes/.scratchnstick/shopping.json"
@@ -346,9 +346,10 @@ clip $text $'# Plan
 
   - one  
 '
-# A JavaScript expression's value, with `d` new.js's output with no text.
+# A JavaScript expression's value, with `d` new.js's output with no text,
+# and with the further arguments (`sticky`) after the text.
 new_json() {
-  (cd "$tmp" && notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache scratchnstick_pasteboard=$pasteboard "$new" "") | osascript -l JavaScript -e '
+  (cd "$tmp" && notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache scratchnstick_pasteboard=$pasteboard "$new" "" "${@:2}") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run(argv) {
       const d = JSON.parse($.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js);
@@ -360,6 +361,7 @@ expect_exact "new: from clipboard: its text on one line as the subtitle, ⌘ arg
 args=$(new_json 'd.items.map((i) => i.arg.split("/").pop()).join(" ")')
 blank=${args% *} fromclip=${args#* }
 expect "new: the two new notes have their own IDs and bundles, the second's with the clipboard's text" "${blank%.alfredui}-2.alfredui $(grep -c '"text": "# Plan' $quick/$fromclip/ui.json) $(grep -c '"text": "# Plan' $quick/$blank/ui.json || true)" "$fromclip 1 0"
+expect_exact "new: the icon is the slate, and ⌘'s, which sticks the note, the sticky note" "$(new_json 'JSON.stringify(d.items.map((i) => [i.icon.path, i.mods.cmd.icon.path, i.mods.alt.icon]))')" '[["icons/slate.png","icons/note.png",null],["icons/slate.png","icons/note.png",null]]'
 expect "new: text typed after the keyword leaves out the clipboard" "$(new_items "$notes" x | cut -d'|' -f1)" "New note: x "
 # The new sticky note keyword (new.js's second argument, "sticky"): the same
 # results, as sticky notes, with ↩ and ⌘ swapped: ↩'s arg is the text, with
@@ -367,6 +369,7 @@ expect "new: text typed after the keyword leaves out the clipboard" "$(new_items
 expect "newsticky: New sticky note, then from clipboard; ↩ sticks, ⌘ the quick view" "$(new_items "$notes" "" sticky)" "New sticky note | Create a blank sticky note |  | 1 | $quick/20*.alfredui | - | - | "$'\n'"New sticky note from clipboard | # Plan - one | # Plan"$'\n\n'"  - one  "$'\n'" | 1 | $quick/20*-2.alfredui | - | - | "
 expect "newsticky: with text" "$(new_items "$notes" "  buy milk " sticky)" "New sticky note: buy milk | Create a sticky note with this heading | buy milk | 1 | $quick/20*.alfredui | - | - | "
 expect_exact "newsticky: ⌘'s subtitle" "$(cd "$tmp" && notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache scratchnstick_pasteboard=$pasteboard "$new" x sticky | grep -o '"cmd":{"subtitle":"[^"]*"')" '"cmd":{"subtitle":"Create it in Alfred instead"'
+expect_exact "newsticky: the icon is the sticky note, and ⌘'s, which opens it in Alfred, the slate" "$(new_json 'JSON.stringify(d.items.map((i) => [i.icon.path, i.mods.cmd.icon.path]))' sticky)" '[["icons/note.png","icons/slate.png"],["icons/note.png","icons/slate.png"]]'
 clip $text $' \n\t '
 expect "new: a clipboard of whitespace: no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
 clip public.file-url "file:///tmp/a.txt" $text "a.txt"

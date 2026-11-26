@@ -2466,15 +2466,20 @@ function quickWindows(store, workflowFolder, readVariable = workflowVariable) {
 // route, and ⌘↩ opens the quick view, ⌘ being connected to the quick view's
 // Alfred UI object. ⌘ clears `new`, which would otherwise carry on from the
 // result into the quick view.
+//
+// The icon shows what the key creates: the slate (icons/slate.png) for a note
+// in Alfred, the yellow sticky note (icons/note.png) for a sticky note, so
+// holding ⌘ swaps them.
 function newNoteResult(title, subtitle, text, bundle, { sticky = false } = {}) {
-  const stick = { arg: text, variables: { new: "1" } };
+  const slate = { icon: { path: "icons/slate.png" } };
+  const stick = { arg: text, variables: { new: "1" }, icon: { path: "icons/note.png" } };
   return {
     title,
     subtitle,
-    ...(sticky ? stick : { arg: bundle }),
+    ...(sticky ? stick : { arg: bundle, ...slate }),
     mods: {
       cmd: sticky
-        ? { subtitle: "Create it in Alfred instead", arg: bundle, variables: { new: "" } }
+        ? { subtitle: "Create it in Alfred instead", arg: bundle, variables: { new: "" }, ...slate }
         : { subtitle: "Create it as a sticky note", ...stick },
       alt: { subtitle, valid: false },
       ctrl: { subtitle, valid: false },
