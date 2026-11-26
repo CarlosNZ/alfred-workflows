@@ -193,7 +193,7 @@ expect_exact "info.plist's colour fields default to lib.js's palette, and Defaul
 # Note icons: a note with an icon shows its badge in its colour.
 print -r -- '{"colour":4,"icon":"shopping-cart"}' > "$notes/.scratchnstick/shopping.json"
 before_shopping=$(mtime shopping) before_cafe=$(mtime cafe)
-expect "a note's icon shows as its badge in its colour, named for its colours, Lucide's release and its code" "$(icons milk)" "Shopping badge-shopping-cart-FFC7C7-F87F7F-1.72.0-*.svg"
+expect "a note's icon shows as its badge in its colour, named for its colours, Lucide's release and its code" "$(icons milk)" "Shopping badge-shopping-cart-FFC7C7-F87F7F-1.80.0-*.svg"
 badge=$(print $cache/icons/badge-shopping-cart-FFC7C7-F87F7F-*.svg)
 expect "the badge: the icon from its button icon, in dark text colour, on the tint's square ringed in the control colour" "$(grep -c '<rect x="6" y="6" width="116" height="116" rx="26" fill="#FFC7C7" stroke="#F87F7F"' $badge) $(grep -c 'stroke="#1D1D1F"><path d="m2.05 2.05 ' $badge)" "1 1"
 expect "an icon change rewrites the note's quick bundle with its button icon (button and picker)" "$([[ $(mtime shopping) != $before_shopping ]] && print rewritten) $(grep -c 'lucide/shopping-cart-light.svg' $(ui shopping))" "rewritten 2"
@@ -223,7 +223,7 @@ expect "every file the quick bundles name exists, and none is in the cache (no a
 print -r -- '{"colour":4,"icon":"rocket"}' > "$notes/.scratchnstick/shopping.json"
 expect "an unknown icon: the colour's dot" "$(icons milk)" "Shopping dot-FFC7C7-F87F7F-*.png"
 print -r -- '{"colour":"orange","icon":"heart"}' > "$notes/.scratchnstick/shopping.json"
-expect "an icon with an unknown colour: the default colour's badge" "$(icons milk)" "Shopping badge-heart-FEF49C-DBC503-1.72.0-*.svg"
+expect "an icon with an unknown colour: the default colour's badge" "$(icons milk)" "Shopping badge-heart-FEF49C-DBC503-1.80.0-*.svg"
 
 # The result icons' folder: emptied, its icons are made again, without
 # rebuilding the quick bundles; a process that makes an icon sweeps out the
@@ -238,7 +238,7 @@ touch -t 202001010000 $cache/icons/.scratchnstick-save-old.tmp
 icons '' >/dev/null
 expect "a list that makes no icon sweeps nothing" "$(ls -A $cache/icons | wc -l | tr -d ' ')" "7"
 rm $cache/icons/dot-FEF49C-DBC503-[^a]*.png
-expect "a list that makes an icon sweeps out the stale ones and old temporary files" "$(icons '' | grep -c MISSING || true) $(ls -A $cache/icons | sed 's/[0-9a-z]\{6\}\.\(svg\|png\)$/*/' | tr '\n' ' ')" "0 .scratchnstick-save-new.tmp badge-heart-FEF49C-DBC503-1.72.0-* dot-FEF49C-DBC503-* notes.txt "
+expect "a list that makes an icon sweeps out the stale ones and old temporary files" "$(icons '' | grep -c MISSING || true) $(ls -A $cache/icons | sed 's/[0-9a-z]\{6\}\.\(svg\|png\)$/*/' | tr '\n' ' ')" "0 .scratchnstick-save-new.tmp badge-heart-FEF49C-DBC503-1.80.0-* dot-FEF49C-DBC503-* notes.txt "
 
 # macOS 12 can't read the button icons and badges, so it gets no note icons:
 # results show dots, and the quick bundles have no icon button or picker, and
@@ -262,7 +262,7 @@ expect "every button icon exists, with Lucide's licence, from the release lib.js
     const files = noteButtonIconNames().flatMap((name) => ["light", "dark"].map((a) => noteButtonIconFile(name, a)));
     const missing = files.concat(["icons/lucide/LICENSE"]).filter((f) => !$.NSFileManager.defaultManager.fileExistsAtPath(argv[0] + "/" + f));
     return `${files.length} ${missing.join(" ") || "none missing"}`;
-  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "56 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
+  }' ${here:h}) $(head -1 ${here}/lucide/VERSION | cut -d: -f1)" "104 none missing lucide-static $(grep -o 'LUCIDE_VERSION = "[^"]*"' ${here:h}/scripts/lib.js | cut -d'"' -f2)"
 
 # A note is sticky only while its state's process is a live Alfred UI helper;
 # a sticky state whose process isn't one is ignored.

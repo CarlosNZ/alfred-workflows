@@ -1078,7 +1078,8 @@ function noteDefaultColour(palette, variable = workflowVariable) {
 }
 
 // The icons a note can have, from Lucide (its sources are in dev/lucide/), in
-// the picker's order, each with the label of its tooltip. A note stores its
+// the picker's order, in rows of themes (the grid's rows, after None), each
+// with the label of its tooltip. A note stores its
 // icon's name in its sidecar (`icon`); a note without one has no icon, and
 // there's no default. Each is shipped as a button icon in each appearance, in
 // icons/lucide/ (drawn by dev/make-icons.js), for the window, and made
@@ -1087,23 +1088,52 @@ function noteDefaultColour(palette, variable = workflowVariable) {
 // icon picker's grid (NOTE_WINDOW_LAYOUT.iconPicker), whose shadow
 // dev/make-icons.js then redraws.
 const NOTE_ICONS = [
+  // Notes and work, after None
   { name: "sticky-note", label: "Note" },
   { name: "list-todo", label: "To-do" },
-  { name: "shopping-cart", label: "Shopping" },
   { name: "lightbulb", label: "Idea" },
-  { name: "book-open", label: "Reading" },
-  { name: "bookmark", label: "Bookmark" },
+  { name: "question-mark", label: "Question" },
+  { name: "triangle-exclamation-point", label: "Important" },
   { name: "briefcase", label: "Work" },
+  { name: "building-2", label: "Office" },
+  { name: "laptop", label: "Computer" },
+  // Time and contact
   { name: "calendar", label: "Calendar" },
+  { name: "alarm-clock", label: "Reminder" },
+  { name: "sun", label: "Sun" },
+  { name: "moon", label: "Moon" },
   { name: "phone", label: "Call" },
-  { name: "users", label: "People" },
+  { name: "mail", label: "Mail" },
+  { name: "message-circle", label: "Message" },
+  { name: "user-group", label: "People" },
+  { name: "person-standing", label: "Person" },
+  // Home and life
   { name: "house", label: "Home" },
   { name: "utensils", label: "Food" },
-  { name: "plane", label: "Travel" },
+  { name: "coffee", label: "Coffee" },
+  { name: "shopping-cart", label: "Shopping" },
+  { name: "circle-dollar-sign", label: "Money" },
   { name: "gift", label: "Gift" },
-  { name: "wallet", label: "Money" },
-  { name: "code", label: "Code" },
+  { name: "paw-print", label: "Pets" },
+  { name: "sprout", label: "Garden" },
+  { name: "wrench", label: "Fixes" },
+  // Learning, leisure and health
+  { name: "graduation-cap", label: "Learning" },
+  { name: "book-open", label: "Reading" },
+  { name: "link", label: "Links" },
   { name: "music", label: "Music" },
+  { name: "camera", label: "Photo" },
+  { name: "gamepad-2", label: "Games" },
+  { name: "stethoscope", label: "Health" },
+  { name: "activity", label: "Fitness" },
+  { name: "volleyball", label: "Sport" },
+  // Out and about, and markers
+  { name: "plane", label: "Travel" },
+  { name: "car", label: "Car" },
+  { name: "bike", label: "Cycling" },
+  { name: "sailboat", label: "Sailing" },
+  { name: "parasol", label: "Beach" },
+  { name: "tent-tree", label: "Camping" },
   { name: "heart", label: "Heart" },
   { name: "star", label: "Star" },
   { name: "flag", label: "Flag" },
@@ -1135,7 +1165,7 @@ const NOTE_WINDOW_BUTTON_ICONS = {
 // The release of lucide-static that the button icons were drawn from, as
 // dev/lucide/VERSION records it (dev/test-list.sh checks they agree). It's
 // part of every badge's name, so a new release gets new badges.
-const LUCIDE_VERSION = "1.72.0";
+const LUCIDE_VERSION = "1.80.0";
 
 // The icons, as copies: { name, label }.
 function noteIcons() {
@@ -1590,10 +1620,7 @@ const NOTE_WINDOW_LAYOUT = {
   // colour picker marks the note's colour with `mark`, a rounded background
   // behind its swatch in a colour that looks like the icon picker's bezel in
   // both appearances (quaternaryLabelColor is barely visible in dark).
-  // `slots` is how many buttons the icon picker has, None and the icons,
-  // filled out with placeholders (noteIconPickerButtons).
-  // TO-DO: remove `slots` and the placeholders once the set has its 35 icons.
-  iconPicker: { columns: 9, button: 30, image: 22, spacing: 4, slots: 36 },
+  iconPicker: { columns: 9, button: 30, image: 22, spacing: 4 },
   colourPicker: {
     columns: 6,
     button: 25,
@@ -1607,7 +1634,7 @@ const NOTE_WINDOW_LAYOUT = {
 // picker (the palette), each with its grid in NOTE_WINDOW_LAYOUT and how many
 // buttons it has.
 const NOTE_DROPDOWNS = {
-  icon: { layout: "iconPicker", count: () => Math.max(NOTE_ICONS.length + 1, NOTE_WINDOW_LAYOUT.iconPicker.slots) },
+  icon: { layout: "iconPicker", count: () => NOTE_ICONS.length + 1 },
   colour: { layout: "colourPicker", count: () => NOTE_PALETTE_DEFAULTS.length },
 };
 
@@ -1873,25 +1900,11 @@ function noteDropdownCatcher({ workflowFolder, note, form }) {
   };
 }
 
-// The icon picker's buttons: None, then the icons, as button icons, then
-// placeholders up to the picker's `slots`, showing None's icon and doing
-// nothing. The note's current choice is bordered, so its bezel marks it. Each
-// runs window.js icon, with the icon's name or "none". `note` is the escaped
-// ID.
+// The icon picker's buttons: None, then the icons, as button icons. The
+// note's current choice is bordered, so its bezel marks it. Each runs
+// window.js icon, with the icon's name or "none". `note` is the escaped ID.
 function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance }) {
-  const { image, slots } = NOTE_WINDOW_LAYOUT.iconPicker;
-  const placeholders = [];
-  for (let i = NOTE_ICONS.length + 1; i < slots; i++) {
-    placeholders.push({
-      id: `icon-placeholder-${i}`,
-      type: "button",
-      text: "",
-      bordered: false,
-      image: noteButtonIconImage(workflowFolder, "ban", appearance, image),
-      tooltip: "Placeholder",
-      accessibility: { label: "Placeholder" },
-    });
-  }
+  const { image } = NOTE_WINDOW_LAYOUT.iconPicker;
   return [{ name: "none", label: "No icon" }].concat(NOTE_ICONS).map((choice) => ({
     id: `icon-${choice.name}`,
     type: "button",
@@ -1906,7 +1919,7 @@ function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance })
         action: { type: "script", src: `${workflowFolder}/scripts/window.js`, args: ["icon", note, form, choice.name] },
       },
     ],
-  })).concat(placeholders);
+  }));
 }
 
 // The colour picker's buttons: `palette`, in order, each as its swatch (the
