@@ -338,16 +338,6 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-			<dict>
-				<key>destinationuid</key>
 				<string>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</string>
 				<key>modifiers</key>
 				<integer>0</integer>
@@ -367,6 +357,16 @@
 				<string></string>
 				<key>sourceoutputuid</key>
 				<string>10613DF5-A71B-4985-B69F-AE343F9CDF4D</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
 				<key>vitoclose</key>
 				<false/>
 			</dict>
@@ -394,29 +394,6 @@
 			<string>CEC2F155-08CF-4B0A-8AC9-268E023173CA</string>
 			<key>version</key>
 			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string></string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string>scripts/trash.js</string>
-				<key>type</key>
-				<integer>8</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
-			<key>version</key>
-			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -472,27 +449,6 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>lastpathcomponent</key>
-				<false/>
-				<key>onlyshowifquerypopulated</key>
-				<false/>
-				<key>removeextension</key>
-				<false/>
-				<key>text</key>
-				<string>{query}</string>
-				<key>title</key>
-				<string>Scratch'n'Stick</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.output.notification</string>
-			<key>uid</key>
-			<string>2AAC74E0-969A-4500-A412-97376F3EDD5B</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>action</key>
 				<integer>0</integer>
 				<key>argument</key>
@@ -520,6 +476,50 @@
 			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D25</string>
 			<key>version</key>
 			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>scripts/trash.js</string>
+				<key>type</key>
+				<integer>8</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>2F740338-1573-4278-81CC-2F174BE452E7</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>Scratch'n'Stick</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>2AAC74E0-969A-4500-A412-97376F3EDD5B</string>
+			<key>version</key>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -553,23 +553,6 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>launchmode</key>
-				<integer>0</integer>
-				<key>path</key>
-				<string>{query}</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>alfredfiltersresults</key>
 				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
@@ -583,7 +566,7 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>keyword</key>
-				<string>{var:keyword_new}</string>
+				<string>{var:keyword_sticky}</string>
 				<key>queuedelaycustom</key>
 				<integer>3</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -593,265 +576,30 @@
 				<key>queuemode</key>
 				<integer>2</integer>
 				<key>runningsubtext</key>
-				<string></string>
+				<string>Loading sticky notes...</string>
 				<key>script</key>
-				<string></string>
+				<string>exec ./scripts/list.js "$1" stickies</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
-				<string>scripts/new.js</string>
+				<string></string>
 				<key>skipuniversalaction</key>
 				<true/>
 				<key>subtext</key>
-				<string>Create a note, from text or the clipboard</string>
+				<string>Search your sticky notes</string>
 				<key>title</key>
-				<string>New Scratch'n'Stick note</string>
+				<string>Sticky notes</string>
 				<key>type</key>
-				<integer>8</integer>
+				<integer>5</integer>
 				<key>withspace</key>
 				<true/>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</string>
+			<string>8957C450-FFC2-4DAE-88CC-3A3B18792A63</string>
 			<key>version</key>
 			<integer>3</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>action</key>
-				<integer>0</integer>
-				<key>argument</key>
-				<integer>0</integer>
-				<key>focusedappvariable</key>
-				<false/>
-				<key>focusedappvariablename</key>
-				<string></string>
-				<key>hotkey</key>
-				<integer>1</integer>
-				<key>hotmod</key>
-				<integer>393216</integer>
-				<key>hotstring</key>
-				<string>S</string>
-				<key>leftcursor</key>
-				<false/>
-				<key>modsmode</key>
-				<integer>0</integer>
-				<key>relatedAppsMode</key>
-				<integer>0</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.hotkey</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>1</integer>
-				<key>path</key>
-				<string>{query}</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D02</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string>./scripts/open.js stick "$1"</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>type</key>
-				<integer>5</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>conditions</key>
-				<array>
-					<dict>
-						<key>inputstring</key>
-						<string>{var:sticky}</string>
-						<key>matchcasesensitive</key>
-						<false/>
-						<key>matchmode</key>
-						<integer>0</integer>
-						<key>matchstring</key>
-						<string>1</string>
-						<key>outputlabel</key>
-						<string>Sticky</string>
-						<key>uid</key>
-						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
-					</dict>
-				</array>
-				<key>elselabel</key>
-				<string>else</string>
-				<key>hideelse</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.conditional</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>conditions</key>
-				<array>
-					<dict>
-						<key>inputstring</key>
-						<string>{var:open_window}</string>
-						<key>matchcasesensitive</key>
-						<false/>
-						<key>matchmode</key>
-						<integer>0</integer>
-						<key>matchstring</key>
-						<string>1</string>
-						<key>outputlabel</key>
-						<string>Open sticky window</string>
-						<key>uid</key>
-						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0A</string>
-					</dict>
-				</array>
-				<key>elselabel</key>
-				<string>else</string>
-				<key>hideelse</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.conditional</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argument</key>
-				<string></string>
-				<key>passthroughargument</key>
-				<false/>
-				<key>variables</key>
-				<dict>
-					<key>new</key>
-					<string>1</string>
-				</dict>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.argument</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string>new=1 ./scripts/open.js quick "$1"</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>type</key>
-				<integer>5</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>acceptsfiles</key>
-				<false/>
-				<key>acceptsmulti</key>
-				<integer>0</integer>
-				<key>acceptstext</key>
-				<true/>
-				<key>acceptsurls</key>
-				<true/>
-				<key>name</key>
-				<string>New scratch note</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.universalaction</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>availableviaurlhandler</key>
-				<false/>
-				<key>triggerid</key>
-				<string>notify</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.external</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D30</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>lastpathcomponent</key>
-				<false/>
-				<key>onlyshowifquerypopulated</key>
-				<true/>
-				<key>removeextension</key>
-				<false/>
-				<key>text</key>
-				<string>{query}</string>
-				<key>title</key>
-				<string>Scratch'n'Stick</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.output.notification</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D31</string>
-			<key>version</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -938,7 +686,7 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>keyword</key>
-				<string>{var:keyword_sticky}</string>
+				<string>{var:keyword_new}</string>
 				<key>queuedelaycustom</key>
 				<integer>3</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -948,30 +696,47 @@
 				<key>queuemode</key>
 				<integer>2</integer>
 				<key>runningsubtext</key>
-				<string>Loading sticky notes...</string>
+				<string></string>
 				<key>script</key>
-				<string>exec ./scripts/list.js "$1" stickies</string>
+				<string></string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
-				<string></string>
+				<string>scripts/new.js</string>
 				<key>skipuniversalaction</key>
 				<true/>
 				<key>subtext</key>
-				<string>Search your sticky notes</string>
+				<string>Create a note, from text or the clipboard</string>
 				<key>title</key>
-				<string>Sticky notes</string>
+				<string>New Scratch'n'Stick note</string>
 				<key>type</key>
-				<integer>5</integer>
+				<integer>8</integer>
 				<key>withspace</key>
 				<true/>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
-			<string>8957C450-FFC2-4DAE-88CC-3A3B18792A63</string>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</string>
 			<key>version</key>
 			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>launchmode</key>
+				<integer>0</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
+			<key>version</key>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -1032,6 +797,205 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>script</key>
+				<string>./scripts/open.js stick "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>5</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>launchmode</key>
+				<integer>1</integer>
+				<key>path</key>
+				<string>{query}</string>
+				<key>stackview</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.userinterface.alfredui</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D02</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:sticky}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>1</string>
+						<key>outputlabel</key>
+						<string>Sticky</string>
+						<key>uid</key>
+						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>else</string>
+				<key>hideelse</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:open_window}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>1</string>
+						<key>outputlabel</key>
+						<string>Open sticky window</string>
+						<key>uid</key>
+						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0A</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>else</string>
+				<key>hideelse</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>hotkey</key>
+				<integer>1</integer>
+				<key>hotmod</key>
+				<integer>393216</integer>
+				<key>hotstring</key>
+				<string>S</string>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argument</key>
+				<string></string>
+				<key>passthroughargument</key>
+				<false/>
+				<key>variables</key>
+				<dict>
+					<key>new</key>
+					<string>1</string>
+				</dict>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.argument</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string>new=1 ./scripts/open.js quick "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>5</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<true/>
+				<key>acceptsurls</key>
+				<true/>
+				<key>name</key>
+				<string>New scratch note</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
 				<string>new=1 ./scripts/open.js stick "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
@@ -1068,6 +1032,42 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>availableviaurlhandler</key>
+				<false/>
+				<key>triggerid</key>
+				<string>notify</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.external</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D30</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<true/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>Scratch'n'Stick</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D31</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string></string>
@@ -1083,7 +1083,7 @@
 		<key>2F740338-1573-4278-81CC-2F174BE452E7</key>
 		<dict>
 			<key>xpos</key>
-			<real>515</real>
+			<real>650</real>
 			<key>ypos</key>
 			<real>140</real>
 		</dict>
@@ -1092,33 +1092,33 @@
 			<key>xpos</key>
 			<real>205</real>
 			<key>ypos</key>
-			<real>140</real>
+			<real>15</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</key>
 		<dict>
 			<key>xpos</key>
 			<real>965</real>
 			<key>ypos</key>
-			<real>330</real>
+			<real>380</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D02</key>
 		<dict>
 			<key>xpos</key>
 			<real>955</real>
 			<key>ypos</key>
-			<real>470</real>
+			<real>560</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</key>
 		<dict>
 			<key>xpos</key>
-			<real>510</real>
+			<real>640</real>
 			<key>ypos</key>
 			<real>560</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</key>
 		<dict>
 			<key>xpos</key>
-			<real>765</real>
+			<real>850</real>
 			<key>ypos</key>
 			<real>590</real>
 		</dict>
@@ -1134,21 +1134,21 @@
 			<key>xpos</key>
 			<real>200</real>
 			<key>ypos</key>
-			<real>700</real>
+			<real>695</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</key>
 		<dict>
 			<key>xpos</key>
-			<real>515</real>
+			<real>635</real>
 			<key>ypos</key>
-			<real>700</real>
+			<real>695</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</key>
 		<dict>
 			<key>xpos</key>
-			<real>210</real>
+			<real>200</real>
 			<key>ypos</key>
-			<real>330</real>
+			<real>365</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</key>
 		<dict>
@@ -1157,23 +1157,23 @@
 			<key>xpos</key>
 			<real>30</real>
 			<key>ypos</key>
-			<real>465</real>
+			<real>595</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D24</key>
 		<dict>
 			<key>xpos</key>
 			<real>325</real>
 			<key>ypos</key>
-			<real>650</real>
+			<real>625</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D25</key>
 		<dict>
 			<key>note</key>
 			<string>Optional: set a hotkey to show your notes</string>
 			<key>xpos</key>
-			<real>30</real>
+			<real>35</real>
 			<key>ypos</key>
-			<real>140</real>
+			<real>15</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D30</key>
 		<dict>
@@ -1194,60 +1194,60 @@
 		<key>6C06FA91-6BF3-499A-9D40-E231C9D54EFE</key>
 		<dict>
 			<key>xpos</key>
-			<real>515</real>
+			<real>650</real>
 			<key>ypos</key>
-			<real>1190</real>
+			<real>270</real>
 		</dict>
 		<key>82E5ABD0-A4CF-4CD4-854D-449A747CB630</key>
 		<dict>
 			<key>xpos</key>
 			<real>200</real>
 			<key>ypos</key>
-			<real>1330</real>
+			<real>495</real>
 		</dict>
 		<key>8957C450-FFC2-4DAE-88CC-3A3B18792A63</key>
 		<dict>
 			<key>xpos</key>
 			<real>200</real>
 			<key>ypos</key>
-			<real>1195</real>
+			<real>190</real>
 		</dict>
 		<key>91A91A8B-8C71-432E-9668-448E6ADEE0F5</key>
 		<dict>
 			<key>note</key>
 			<string>Optional: set a hotkey to show your sticky notes</string>
 			<key>xpos</key>
-			<real>30</real>
+			<real>35</real>
 			<key>ypos</key>
-			<real>300</real>
+			<real>190</real>
 		</dict>
 		<key>95F23DA9-DB49-4918-9EFC-6DAD25B4EC26</key>
 		<dict>
 			<key>xpos</key>
 			<real>200</real>
 			<key>ypos</key>
-			<real>1460</real>
+			<real>830</real>
 		</dict>
 		<key>BDACB344-BAB3-4FDA-9AF1-390F2329E6F9</key>
 		<dict>
 			<key>xpos</key>
-			<real>500</real>
+			<real>625</real>
 			<key>ypos</key>
-			<real>1460</real>
+			<real>830</real>
 		</dict>
 		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
 		<dict>
 			<key>note</key>
 			<string>Show all or Close all sticky notes; else a sticky note to bring to the front</string>
 			<key>xpos</key>
-			<real>368</real>
+			<real>413</real>
 			<key>ypos</key>
-			<real>1195</real>
+			<real>360</real>
 		</dict>
 		<key>CEC2F155-08CF-4B0A-8AC9-268E023173CA</key>
 		<dict>
 			<key>xpos</key>
-			<real>510</real>
+			<real>650</real>
 			<key>ypos</key>
 			<real>15</real>
 		</dict>
