@@ -442,7 +442,20 @@ function noteStore(folder = notesFolder()) {
     return result;
   }
 
-  return { folder, notePath, exists, newId, read, list, save, readMeta, updateMeta, deleteIfEmpty, trash, sweepSidecars };
+  return {
+    folder,
+    notePath,
+    exists,
+    newId,
+    read,
+    list,
+    save,
+    readMeta,
+    updateMeta,
+    deleteIfEmpty,
+    trash,
+    sweepSidecars,
+  };
 }
 
 // Sweeps the notes folder's sidecars (sweepSidecars in noteStore) once a
@@ -1094,13 +1107,19 @@ function readNotePalette(texts) {
 function parseNotePaletteSlot(slot, text) {
   const hexes = [];
   const words = [];
-  for (const word of text.trim().split(/[\s,]+/).filter(Boolean)) {
+  for (const word of text
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)) {
     if (/^#?[0-9a-f]{6}$/i.test(word) || /^#[0-9a-f]{3}$/i.test(word)) hexes.push(normalHex(word));
     else if (word.startsWith("#")) throw new Error(`“${word}” isn't a hex colour, like #FEF49C`);
     else words.push(word);
   }
   if (hexes.length === 0) throw new Error("It needs a hex colour, like #FEF49C");
-  if (hexes.length > 2) throw new Error("It has more than two hex colours: give the note's colour, then optionally a stronger one for its dot and ring");
+  if (hexes.length > 2)
+    throw new Error(
+      "It has more than two hex colours: give the note's colour, then optionally a stronger one for its dot and ring",
+    );
   return {
     label: words.join(" ") || `Colour ${slot}`,
     tint: hexes[0],
@@ -1133,7 +1152,14 @@ function noteControlColour(tint) {
     const chroma = value * saturation;
     const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
     const sector = Math.floor(hue / 60);
-    const [r1, g1, b1] = [[chroma, x, 0], [x, chroma, 0], [0, chroma, x], [0, x, chroma], [x, 0, chroma], [chroma, 0, x]][sector];
+    const [r1, g1, b1] = [
+      [chroma, x, 0],
+      [x, chroma, 0],
+      [0, chroma, x],
+      [0, x, chroma],
+      [x, 0, chroma],
+      [chroma, 0, x],
+    ][sector];
     return [r1, g1, b1].map((c) => c + value - chroma);
   };
   const luminance = (rgb) => {
@@ -1143,7 +1169,11 @@ function noteControlColour(tint) {
   let value = max * 0.9;
   while (value > 0.3 && 1.05 / (luminance(fromHsv(value)) + 0.05) < 2) value -= 0.01;
   return `#${fromHsv(value)
-    .map((c) => Math.round(c * 255).toString(16).padStart(2, "0"))
+    .map((c) =>
+      Math.round(c * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
     .join("")
     .toUpperCase()}`;
 }
@@ -1440,9 +1470,7 @@ function noteResultIconFile(name, make, variable) {
 // minute ago.
 function sweepNoteResultIcons(folder, palette) {
   const current = new Set(
-    palette.flatMap((colour) =>
-      NOTE_ICONS.map((icon) => noteBadgeName(icon.name, colour)).concat(noteDotName(colour)),
-    ),
+    palette.flatMap((colour) => NOTE_ICONS.map((icon) => noteBadgeName(icon.name, colour)).concat(noteDotName(colour))),
   );
   const names = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(folder, null)) || [];
   const minuteAgo = Date.now() - 60000;
@@ -1813,22 +1841,20 @@ function noteDropdownShadowFile(name) {
 // Each of NOTE_WINDOW_BUTTON_ICONS is a token too, "@buttonIcon:<name>", its
 // button icon as a button's image at its size in the top row, or its SF Symbol
 // in a window without note icons.
-function noteWindowTokens(
-  {
-    workflowFolder,
-    id,
-    form,
-    mode,
-    text = "",
-    ownFontSize = null,
-    defaultFontSize = FONT_SIZE.default,
-    palette = noteDefaultPalette(),
-    colour = DEFAULT_COLOUR,
-    icon = null,
-    appearance = "light",
-    icons = true,
-  },
-) {
+function noteWindowTokens({
+  workflowFolder,
+  id,
+  form,
+  mode,
+  text = "",
+  ownFontSize = null,
+  defaultFontSize = FONT_SIZE.default,
+  palette = noteDefaultPalette(),
+  colour = DEFAULT_COLOUR,
+  icon = null,
+  appearance = "light",
+  icons = true,
+}) {
   const current = notePaletteColour(palette, colour) || notePaletteColour(palette, DEFAULT_COLOUR);
   const currentIcon = icons ? noteIconByName(icon) : null;
   const note = escapeForAlfredUi(id);
@@ -1914,7 +1940,13 @@ function noteWindowTokens(
     ],
   };
   for (const name of Object.keys(NOTE_WINDOW_BUTTON_ICONS))
-    tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, noteTopRowIconSize(name), icons);
+    tokens[`@buttonIcon:${name}`] = noteButtonIconImage(
+      workflowFolder,
+      name,
+      appearance,
+      noteTopRowIconSize(name),
+      icons,
+    );
   // A sticky window's app icon (`iconpath`), for ⌘-Tab and the Dock. Alfred
   // UI sets it once, at launch, so it can't follow the note's colour or icon,
   // or the appearance.
@@ -2033,7 +2065,12 @@ function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance })
     type: "button",
     text: "",
     bordered: choice.name === (icon ? icon.name : "none"),
-    image: noteButtonIconImage(workflowFolder, choice.name === "none" ? "square-dashed" : choice.name, appearance, image),
+    image: noteButtonIconImage(
+      workflowFolder,
+      choice.name === "none" ? "square-dashed" : choice.name,
+      appearance,
+      image,
+    ),
     tooltip: choice.label,
     accessibility: { label: choice.label },
     events: [
@@ -2180,7 +2217,13 @@ function resolveNoteTemplate(template, { form, mode, icons = true, collapsed = f
         .flatMap((item) => (isToken(item) && Array.isArray(tokens[item]) ? tokens[item] : [resolve(item, inArgs)]));
     }
     if (value === null || typeof value !== "object") return value;
-    const merged = Object.assign({}, value, value[`@${form}`], value[`@${mode}`], collapsed ? value["@collapsed"] : null);
+    const merged = Object.assign(
+      {},
+      value,
+      value[`@${form}`],
+      value[`@${mode}`],
+      collapsed ? value["@collapsed"] : null,
+    );
     const result = {};
     for (const [key, item] of Object.entries(merged)) {
       if (key.startsWith("@")) continue;
@@ -2285,23 +2328,21 @@ function writeNoteWindow(
   const icon = iconOf ? iconOf.name : null;
   const appearance = form === "sticky" ? "light" : quickAppearance || noteQuickAppearance(variable);
   const collapsed = form === "sticky" ? noteCollapsedHeight(meta) : null;
-  const ui = noteWindowUi(
-    {
-      workflowFolder,
-      id,
-      form,
-      mode,
-      text,
-      ownFontSize,
-      defaultFontSize,
-      palette,
-      colour,
-      icon,
-      appearance,
-      icons,
-      collapsed: collapsed !== null,
-    },
-  );
+  const ui = noteWindowUi({
+    workflowFolder,
+    id,
+    form,
+    mode,
+    text,
+    ownFontSize,
+    defaultFontSize,
+    palette,
+    colour,
+    icon,
+    appearance,
+    icons,
+    collapsed: collapsed !== null,
+  });
   if (size && form === "sticky") ui.window.size = size;
   const script = notePageScript(
     mode === "view" ? text : null,
@@ -2347,11 +2388,18 @@ function newStickyWindowSize(workflowFolder, text, variable = workflowVariable) 
   const screen = $.NSScreen.mainScreen.visibleFrame.size;
   const legacyScrollers = $.NSScroller.preferredScrollerStyle === $.NSScrollerStyleLegacy;
   const fitted = fittedNoteSize(text, {
-    font: { column: width("M"), line: $.NSLayoutManager.alloc.init.defaultLineHeightForFont(font), wide: width("中"), emoji: width("🙂") },
+    font: {
+      column: width("M"),
+      line: $.NSLayoutManager.alloc.init.defaultLineHeightForFont(font),
+      wide: width("中"),
+      emoji: width("🙂"),
+    },
     insets: { top: inset("top"), right: inset("right"), bottom: inset("bottom"), left: inset("left") },
     minimum: { width: size.width, height: size.height - shortfall },
     screen: { width: screen.width, height: screen.height },
-    scroller: legacyScrollers ? $.NSScroller.scrollerWidthForControlSizeScrollerStyle($.NSControlSizeRegular, $.NSScrollerStyleLegacy) : 0,
+    scroller: legacyScrollers
+      ? $.NSScroller.scrollerWidthForControlSizeScrollerStyle($.NSControlSizeRegular, $.NSScrollerStyleLegacy)
+      : 0,
   });
   return { width: fitted.width, height: fitted.height + shortfall };
 }
@@ -3032,7 +3080,9 @@ const ACTIVATION_TIMEOUT_MS = 500;
 function alfredWithWindowOnScreen() {
   ObjC.import("AppKit");
   ObjC.import("CoreGraphics");
-  const alfred = $.NSRunningApplication.runningApplicationsWithBundleIdentifier("com.runningwithcrayons.Alfred").firstObject;
+  const alfred = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(
+    "com.runningwithcrayons.Alfred",
+  ).firstObject;
   if (alfred.isNil()) return null;
   const pid = alfred.processIdentifier;
   const onScreenOnly = 1;
