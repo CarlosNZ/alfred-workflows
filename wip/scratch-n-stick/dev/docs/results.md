@@ -13,7 +13,7 @@ A Script Filter on `{var:keyword}` (`scratch` by default), run by `scripts/list.
 - Title: the note's title (see [Storage](storage.md#titles-and-previews)).
 - Subtitle: when it was last edited and its preview, `Edited 3h ago • milk, eggs, flour…`. The time is "just now", "5m ago", "3h ago", "2d ago", and after a week the date in the Mac's format ("12 Nov", with the year if not this year). A sticky note's starts "📌 Sticky • ": the pushpin stands out among grey subtitles, where the word alone was easy to miss. The separator is a bullet, `SUBTITLE_SEPARATOR` in `list.js` (a middle dot looked too small, ● too heavy, and a pipe clashes with the preview's ` | `).
 - Icon: the note's result icon, its badge or its colour's dot (see [Colours and icons](colours-and-icons.md)).
-- ⌘C copies the note's text, ⌘L shows it in Large Type, → shows Alfred's file actions for its file, and ⇧ / ⌘Y Quick Look it (`quicklookurl` is the `.md`, so the preview is whatever Markdown previewer the Mac has, possibly plain text).
+- ⌘C copies the note's text, ⌘L shows it in Large Type, → shows Alfred's file actions for its file, and ⇧ / ⌘Y Quick Look it (`quicklookurl` is the `.md`, so the preview is whatever Markdown previewer the Mac has, possibly plain text). A Quick Look preview of the workflow's own is [planned](planned.md#the-workflows-own-quick-look-preview).
 
 **Keys on a note:**
 
@@ -33,10 +33,6 @@ Creating a note from the clipboard is a result of the new-note keyword rather th
 **"Loading notes..."** is the Script Filter's `runningsubtext`, shown on the keyword before the first results. A run usually takes 0.1–0.2 s, but rebuilding every quick bundle (once after a workflow update or a changed setting) takes about 1.5 s for 300 notes. While typing, Alfred keeps the previous results up, so it doesn't show then.
 
 **Before the results**, `list.js` checks for a notes folder move (see [Storage](storage.md#moving-the-notes-folder)) and the palette (see [Colours and icons](colours-and-icons.md#the-palette)); either can replace the results with a single message. Its first run of all adds the example notes, as does the new-note keywords' (see [Example notes](storage.md#example-notes)). On its first run of the day it sweeps the sidecars of notes gone 30 days (see [Sweeping sidecars](storage.md#sweeping-sidecars)). It then writes the quick bundles that are out of date and the quick view's theme stylesheet, so ↩ can open a quick view with nothing in between (see [Seamless quick views](windows.md#seamless-quick-views)).
-
-### A later Quick Look preview
-
-Planned for after the first version: a Quick Look preview of the workflow's own, so ⇧ shows the note as Preview does, in its colour, on every Mac. Alfred runs no script on ⇧ / ⌘Y; it previews the `quicklookurl` it was given, so the page must exist before `list.js` returns. The plan: `bundleFor` in `quickWindows` writes a static `preview.html` into each quick bundle when it rebuilds it, so the fingerprint, the missing-bundle check and the clean-up cover it unchanged. The page is the note rendered with markdown-it under `osascript` (as `noteRichHtml` does), with inline CSS for the tint and the icon as inline SVG, and `quicklookurl` is its path. The sticky notes list builds no quick bundles, so it would keep the `.md` unless it reads the previews too. Rendering at save time doesn't work, as notes change outside the workflow and the page depends on settings and the theme too; rendering on demand would need a web server or a signed Quick Look extension. What Alfred's Quick Look does with an `.html` is in [Alfred UI and Alfred behaviour](alfred-ui.md#quick-look).
 
 ## The sticky notes list
 

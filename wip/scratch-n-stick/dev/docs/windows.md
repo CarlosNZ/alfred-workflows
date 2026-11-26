@@ -116,4 +116,4 @@ It works only because a script Alfred starts has Alfred's Accessibility permissi
 
 A note's window doesn't notice its file changing on disk (another editor, a sync), so its next save overwrites that change; Preview's ticks check the text first and refuse a stale tick (see [Preview](view-mode.md#ticking-task-boxes)). ⌥↩ in the results closes a sticky note's window itself before trashing it, but a note deleted by anything else leaves its window open, and closing it writes the note back.
 
-The plan, for after the first version: a slow `pulse` in each window comparing the file's modification time, which reloads the window when it has no unsaved typing, and closes it without a final save when the file has gone.
+Reloading and closing the window when its file changes or goes is [planned](planned.md#changes-made-elsewhere).

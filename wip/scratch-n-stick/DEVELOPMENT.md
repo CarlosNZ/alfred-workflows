@@ -133,6 +133,7 @@ Window scripts don't get these, so `list.js`, `new.js` and `open.js` write what 
 - [Preview](dev/docs/view-mode.md): the web view, markdown-it, task boxes, and showing the page without a flash.
 - [Colours and icons](dev/docs/colours-and-icons.md): the palette and custom colours, note icons, the images and how they're made, macOS 12, and the workflow's own icons.
 - [Alfred UI and Alfred behaviour](dev/docs/alfred-ui.md): undocumented behaviour of Alfred and Alfred UI that the workflow relies on.
+- [Planned](dev/docs/planned.md): features planned for after the first release, with what's known about each.
 
 Undocumented Alfred behaviour this workflow has hit is collected in the last; requests to Alfred's developer are in the repo's [Alfred requests](../../Alfred%20requests.md).
 
@@ -191,8 +192,4 @@ Before the first release:
   - Preview's fades: scrolling, ↓ and Home after a click in the page, and a translucent theme.
   - The icon picker in a sticky window at its minimum width (220 pt), which it doesn't fit; perhaps raise the minimum.
 
-Later:
-
-- Reload a window when its note changes on disk, and close it when the note is deleted elsewhere (see [Changes made elsewhere](dev/docs/windows.md#changes-made-elsewhere)).
-- Dark-appearance variants of the palette, and a dark-mode look for the drop-downs.
-- The workflow's own Quick Look preview (see [Results and new notes](dev/docs/results.md#a-later-quick-look-preview)).
+Later: see [Planned](dev/docs/planned.md) (reloading windows on changes made elsewhere, dark appearance, the workflow's own Quick Look preview, and images in the example notes).

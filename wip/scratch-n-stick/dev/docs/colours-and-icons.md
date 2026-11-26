@@ -43,7 +43,7 @@ Functions: `notePalette()` (throws if a slot can't be read), `notePaletteProblem
 - **Sticky**: the root view's `background` is the tint and the editor's is `null`, so the whole window is tinted like a sticky note; Preview's page has the tint as its background. The root view's `appearance: "light"` keeps text, buttons, caret and selection in their light look, so a note looks the same in light and dark mode, like Apple's Stickies; without it, dark mode gives white text on the pale tint. (A view's `appearance` applies to everything inside it; only the title bar follows the window's.)
 - **Quick view**: not tinted. It takes Alfred's theme, and its only accent is the colour button's swatch. A stripe of the note's colour down the left edge, and a coloured top row, both looked wrong.
 
-TO-DO: dark-appearance variants of the palette. Only macOS's named colours adapt to the appearance by themselves; hex colours are fixed. Adaptive notes need a light and a dark tint per colour, chosen when the window opens, or a translucent tint that suits both.
+Dark-appearance variants of the palette are [planned](planned.md#dark-appearance).
 
 ### The colour button and picker
 
