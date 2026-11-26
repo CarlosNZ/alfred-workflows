@@ -308,6 +308,32 @@
 				<false/>
 			</dict>
 		</array>
+		<key>95F23DA9-DB49-4918-9EFC-6DAD25B4EC26</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>BDACB344-BAB3-4FDA-9AF1-390F2329E6F9</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>BDACB344-BAB3-4FDA-9AF1-390F2329E6F9</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
 		<array>
 			<dict>
@@ -425,6 +451,8 @@
 				<integer>1</integer>
 				<key>scriptfile</key>
 				<string>scripts/list.js</string>
+				<key>skipuniversalaction</key>
+				<true/>
 				<key>subtext</key>
 				<string>Search your notes</string>
 				<key>title</key>
@@ -543,6 +571,8 @@
 				<integer>1</integer>
 				<key>scriptfile</key>
 				<string>scripts/new.js</string>
+				<key>skipuniversalaction</key>
+				<true/>
 				<key>subtext</key>
 				<string>Create a note, from text or the clipboard</string>
 				<key>title</key>
@@ -698,7 +728,7 @@
 				<key>acceptsurls</key>
 				<true/>
 				<key>name</key>
-				<string>New Scratch'n'Stick note</string>
+				<string>New scratch note</string>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.trigger.universalaction</string>
@@ -925,10 +955,12 @@
 				<integer>1</integer>
 				<key>scriptfile</key>
 				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
 				<key>subtext</key>
 				<string>Search your sticky notes</string>
 				<key>title</key>
-				<string>Scratch'n'Stick sticky notes</string>
+				<string>Sticky notes</string>
 				<key>type</key>
 				<integer>5</integer>
 				<key>withspace</key>
@@ -974,10 +1006,12 @@
 				<integer>1</integer>
 				<key>scriptfile</key>
 				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
 				<key>subtext</key>
 				<string>Create a sticky note, from text or the clipboard</string>
 				<key>title</key>
-				<string>New Scratch'n'Stick sticky note</string>
+				<string>New Sticky note</string>
 				<key>type</key>
 				<integer>5</integer>
 				<key>withspace</key>
@@ -989,6 +1023,50 @@
 			<string>82E5ABD0-A4CF-4CD4-854D-449A747CB630</string>
 			<key>version</key>
 			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string>new=1 ./scripts/open.js stick "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>5</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>BDACB344-BAB3-4FDA-9AF1-390F2329E6F9</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<true/>
+				<key>acceptsurls</key>
+				<true/>
+				<key>name</key>
+				<string>New sticky note</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>95F23DA9-DB49-4918-9EFC-6DAD25B4EC26</string>
+			<key>version</key>
+			<integer>1</integer>
 		</dict>
 	</array>
 	<key>readme</key>
@@ -1142,6 +1220,20 @@
 			<real>30</real>
 			<key>ypos</key>
 			<real>1195</real>
+		</dict>
+		<key>95F23DA9-DB49-4918-9EFC-6DAD25B4EC26</key>
+		<dict>
+			<key>xpos</key>
+			<real>200</real>
+			<key>ypos</key>
+			<real>1460</real>
+		</dict>
+		<key>BDACB344-BAB3-4FDA-9AF1-390F2329E6F9</key>
+		<dict>
+			<key>xpos</key>
+			<real>500</real>
+			<key>ypos</key>
+			<real>1460</real>
 		</dict>
 		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
 		<dict>
