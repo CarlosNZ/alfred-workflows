@@ -57,7 +57,7 @@ There's no right-click colour menu: the editor and the web view keep their own m
 
 ## Note icons
 
-A note can have an icon, chosen from 44, or none (the default). The icon shows on its result (its badge, in place of the colour dot), in its window's icon button, and as a sticky window's app icon, so notes can be told apart in ⌘-Tab and the Dock.
+A note can have an icon, chosen from 44, or none (the default). The icon shows on its result (its badge, in place of the colour dot) and in its window's icon button.
 
 The icons are from [Lucide](https://lucide.dev) (ISC, plus Feather's MIT for a few icons; its `LICENSE` ships in `icons/lucide/`): outline SVGs, 2 pt strokes on a 24 pt grid, drawn with `stroke="currentColor"`. SF Symbols can't be used: a Script Filter's icon must be a file, and Apple's licence doesn't allow shipping symbols as images.
 
@@ -88,14 +88,14 @@ The workflow's images, with the names used for them in code (named for what they
 | **Lucide sources** | Lucide's original icons: the 44 note icons plus `eye`, `pencil`, `sticky-note-plus`, `square-dashed-plus`, `square-dashed`, `ellipsis`, drawn in black | SVG | `dev/lucide/`, development only | Making the button icons | `lucide` |
 | **Button icons** (light and dark) | Every icon in the window, in the buttons' grey (`secondaryLabelColor`) for each appearance | SVG | `icons/lucide/<name>-<light or dark>.svg`, shipped, made by `dev/make-icons.js` | Every image button in the window | `noteButtonIconFile(name, appearance)`, token `@buttonIcon:<name>` |
 | **Colour swatches** | The SF Symbol `circle.fill` tinted with a control colour | No file | Built into the window | The colour button and colour picker | token `@swatch` |
-| **Badges** (result icons) | A note's icon in `#1D1D1F` on a rounded square of its tint, ringed in its control colour | SVG | Made at run time into the cache (macOS 13 and later) | Results of notes with an icon; sticky windows' app icons | `noteBadgeFile(workflowFolder, icon, colour)` |
+| **Badges** (result icons) | A note's icon in `#1D1D1F` on a rounded square of its tint, ringed in its control colour | SVG | Made at run time into the cache (macOS 13 and later) | Results of notes with an icon | `noteBadgeFile(workflowFolder, icon, colour)` |
 | **Dots** (result icons) | A circle of the note's tint, ringed in its control colour | PNG (so macOS 12 can show it) | Made at run time into the cache | Results of notes without an icon | `noteDotFile(colour)` |
 | **Shadows** | The drop shadows behind the drop-downs | PNG | `icons/shadow-<icon or colour>-picker.png`, shipped, made by `dev/make-icons.js` | The icon and colour pickers | `noteDropdownShadowFile(name)` |
 
 Also:
 
 - **Result icons**: a note's result shows its badge, or its dot if it has no icon (or on macOS 12): `noteResultIcon`.
-- **App icon** is a use, not a kind: a sticky note with an icon uses its badge (`noteAppIconPath`); one without, or any note on macOS 12, uses `ui/appicon.png`. It's set once when the window opens (the helper sets its app icon as it finishes launching), so a change of icon or colour shows in ⌘-Tab the next time the note is stuck, as with the window's title. TO-DO: an app icon of its own, drawn to the size and squircle of macOS app icons; the badge's rounded square doesn't match them.
+- **App icon**: every sticky window's app icon is the workflow's, `ui/appicon.png` (see [The workflow's own images](#the-workflows-own-images)), not one in the note's colour or with its icon. The Alfred UI helper sets its app icon once, at launch, and nothing changes it afterwards, so an icon of the note's own would be out of date as soon as its colour or icon changed, and would never follow a change of appearance either (an SVG's `prefers-color-scheme` is ignored too).
 - **New note's icons**, `icons/note.png` and `icons/slate.png` (see [Results and new notes](results.md#the-results-list)), and the workflow's icon, are drawn by hand; see [The workflow's own images](#the-workflows-own-images).
 - `dev/icons/` holds the workflow's own button icons in Lucide's style, `close.svg` and `text-size.svg`, which `make-icons.js` treats like Lucide's.
 
@@ -115,9 +115,9 @@ A file image in Alfred UI can't be tinted (`template` and `contenttintcolour` on
 
 Whatever doesn't depend on the palette ships; only what does is made at run time. So the button icons and shadows ship, made by `dev/make-icons.js`, and badges and dots are made when needed into `$alfred_workflow_cache/icons/`. Two reasons: the palette can be customised, which images drawn ahead of time can't follow, and macOS 12 can't read SVG, so no SVG may reach a window there. Badges are made from the shipped light button icons (one set can't be made from another with `<use>`: NSImage draws nothing for a `<use>` into another file), so only two sets of Lucide icons ship.
 
-- **Made when named**: `noteBadgeFile` and `noteDotFile` return the file's path, making it first (atomically) if it's missing. Everything that names one goes through them: `list.js` for each result's icon, and `open.js` for a sticky window's app icon. A window's own colour and icon changes make none, as the app icon only changes the next time the note is stuck. Each process checks a file on disk once, so a list of 300 notes takes no longer. A result icon that can't be made leaves the result without an icon, with the error in Alfred's debugger (`attempt` in `list.js`).
+- **Made when named**: `noteBadgeFile` and `noteDotFile` return the file's path, making it first (atomically) if it's missing. Only results name them (`list.js`, for each result's icon); windows name none. Each process checks a file on disk once, so a list of 300 notes takes no longer. A result icon that can't be made leaves the result without an icon, with the error in Alfred's debugger (`attempt` in `list.js`).
 - **Names** say everything a file is made from, so a change gets new files rather than stale ones: the kind, the icon, the colours, the Lucide version and a short hash of the drawing function's own source (`toString()`), e.g. `badge-heart-FEF49C-DBC503-1.80.0-k3j9x.svg`. So changing the drawing code needs no version bump. The Lucide version is `LUCIDE_VERSION` in `lib.js`, which `dev/test-list.sh` checks against `dev/lucide/VERSION`.
-- **Sweeping**: a run that makes a new badge or dot then deletes those in the cache whose names aren't current, and temporary files a stopped run left. Nothing can name a deleted file: quick bundles name only shipped images, results name their icons afresh each run, and an open sticky window read its app icon when it opened.
+- **Sweeping**: a run that makes a new badge or dot then deletes those in the cache whose names aren't current, and temporary files a stopped run left. Nothing can name a deleted file: windows name only shipped images, and results name their icons afresh each run.
 - **Missing images**: a `file` image that doesn't exist, or isn't an image, shows as a blank button; a missing `iconpath` is ignored. Only on macOS 12, where an image that can't be read makes Alfred UI reject the whole window, is a missing image worse.
 
 ### macOS 12
@@ -125,7 +125,7 @@ Whatever doesn't depend on the palette ships; only what does is made at run time
 macOS 12's NSImage can't read SVG, and an unreadable image makes Alfred UI reject the window ("Invalid Alfred UI…"; a quick view crashed Alfred). So on macOS 12 there are no note icons:
 
 - The icon button, the icon picker and ⌘I are left out of the window (the templates' `"@needs": "icons"`). `picker.sh` still names `iconpicker` in its updates, which is harmless: Alfred UI ignores unknown ids in an `update`.
-- Results show dots, and sticky windows keep `ui/appicon.png`.
+- Results show dots.
 - The action buttons are SF Symbols: `@buttonIcon:<name>` gives the symbol from `NOTE_WINDOW_BUTTON_ICONS` there, so the templates don't change.
 - `noteIcon(meta)` gives no icon on macOS 12, so it's never drawn; the sidecar keeps the key (dropping it in the sidecar's own read would lose it on the next write), for a notes folder also used on a newer Mac.
 - `noteIconsSupported()` checks `NSProcessInfo`'s `operatingSystemVersion.majorVersion` (13 or later), which needs only Foundation; asking NSImage to read an SVG would load AppKit, about 10 ms a run. It's in the quick bundles' fingerprint, so an upgraded Mac rebuilds them once. The variable `scratchnstick_macos_version` (e.g. `12`) overrides it, for the tests and to see macOS 12's window on a newer Mac.

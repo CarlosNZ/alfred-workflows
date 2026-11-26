@@ -629,7 +629,7 @@ expect_exact "the icon picker: None first, bordered for a note without an icon" 
 expect_exact "the icon picker: an icon's button icon, light without a theme, at 22 pt" "$(json $ui $buttons | sed -n 2p)" "icon-sticky-note | false | icons/lucide/sticky-note-light.svg 22x22 | Note | Note | icon icons quick sticky-note"
 expect_exact "the icon picker: the icons in order, none of them bordered" "$(json $ui $buttons | tail -n +2 | cut -d'|' -f1,2 | tr -d ' ' | tr '\n' ' ')" "icon-sticky-note|false icon-list-todo|false icon-lightbulb|false icon-question-mark|false icon-triangle-exclamation-point|false icon-briefcase|false icon-building-2|false icon-laptop|false icon-calendar|false icon-alarm-clock|false icon-sun|false icon-moon|false icon-phone|false icon-mail|false icon-message-circle|false icon-user-group|false icon-person-standing|false icon-house|false icon-utensils|false icon-coffee|false icon-shopping-cart|false icon-circle-dollar-sign|false icon-gift|false icon-paw-print|false icon-sprout|false icon-wrench|false icon-graduation-cap|false icon-book-open|false icon-link|false icon-music|false icon-camera|false icon-gamepad-2|false icon-stethoscope|false icon-activity|false icon-volleyball|false icon-plane|false icon-car|false icon-bike|false icon-sailboat|false icon-parasol|false icon-tent-tree|false icon-heart|false icon-star|false icon-flag|false "
 expect "every file the window names exists" "$(missing_files $ui)" ""
-expect "no icon: a sticky window's app icon is Scratch'n'Stick's" "$(json "$(open_note stick icons)/ui.json" d.iconpath)" "$workflow/ui/appicon.png"
+expect "a sticky window's app icon is Scratch'n'Stick's" "$(json "$(open_note stick icons)/ui.json" d.iconpath)" "$workflow/ui/appicon.png"
 
 # The quick view's button icons follow the appearance Alfred gives its window: a
 # theme's own appearanceMode, or else its background colour. Sticky windows are
@@ -673,10 +673,10 @@ expect "icon: replaces the customise group and the icon picker, and hides the re
 expect "icon: the icon button shows its button icon, light in a sticky window" "$(print -r -- $action | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 18x18"
 expect "icon: the icon picker marks it, and comes back hidden" "$(print -r -- $action | json - 'd.replace.ids.iconpicker.hidden') $(print -r -- $action | json - $buttons | grep '| true |' | cut -d'|' -f1)" "true icon-shopping-cart "
 expect "icon: the picker closed in the state" "$([[ -e $cache/state/icons.picker ]] && print open || print closed)" "closed"
-expect "icon: the window's actions make no badge (only open.js does, for the app icon)" "$(ls $cache/icons 2>/dev/null | grep -c badge-shopping-cart || true)" "0"
-expect "icon: the next sticky window's app icon is its badge in its colour, made in the cache" "$(json "$(open_note stick icons)/ui.json" d.iconpath)" "$cache/icons/badge-shopping-cart-FEF49C-DBC503-1.80.0-*.svg"
+expect "icon: the window's actions make no badge" "$(ls $cache/icons 2>/dev/null | grep -c badge-shopping-cart || true)" "0"
+expect "icon: the next sticky window's app icon is Scratch'n'Stick's, though the note has an icon, and sticking it makes no badge" "$(json "$(open_note stick icons)/ui.json" d.iconpath) $(ls $cache/icons 2>/dev/null | grep -c badge-shopping-cart || true)" "$workflow/ui/appicon.png 0"
 expect "icon: the next window's icon button and picker show it" "$(json $bundle/ui.json ''$image'('$iconbtn')') $(json $bundle/ui.json $buttons | grep -c 'icon-shopping-cart | true')" "icons/lucide/shopping-cart-light.svg 18x18 1"
-expect "every file the sticky window names exists, its badge too" "$(missing_files $bundle/ui.json)" ""
+expect "every file the sticky window names exists" "$(missing_files $bundle/ui.json)" ""
 expect "colour: the customise group keeps the icon" "$(window_js colour icons sticky 3 | json - ''$image'('$iconbtn')')" "icons/lucide/shopping-cart-light.svg 18x18"
 expect "colour: makes no badge in the new colour" "$(ls $cache/icons | grep -c 'badge-shopping-cart-B2FFA1' || true)" "0"
 expect "icon: an unknown icon is an error, and nothing changes" "$(window_js icon icons sticky rocket 2>&1 >/dev/null | grep -c 'Unknown icon') $(json $notes/.scratchnstick/icons.json d.icon)" "1 shopping-cart"
@@ -705,8 +705,8 @@ window_js quit "$new" quick ""
 expect "a new note with an icon closed blank: its sidecar goes too" "$(ls -A $notes/.scratchnstick | grep -c $new || true)" "0"
 
 # macOS 12 can't read the button icons and badges (SVGs), so its windows have
-# no note icons: no icon button, icon picker or ⌘I, the actions as SF Symbols,
-# and Scratch'n'Stick's app icon. A note's icon stays in its sidecar.
+# no note icons: no icon button, icon picker or ⌘I, and the actions as SF
+# Symbols. A note's icon stays in its sidecar.
 print -r -- '{"icon":"heart"}' > $notes/.scratchnstick/icons.json
 bundle=$(open_note scratchnstick_macos_version=12 quick icons)
 ui=$bundle/ui.json
@@ -717,7 +717,6 @@ expect "macOS 12: the context says so, without the note's icon" "$(json $bundle/
 expect "macOS 12: no SVG at all, and every file it names exists" "$(grep -c '\.svg' $ui || true) $(missing_files $ui)" "0 "
 bundle=$(open_note scratchnstick_macos_version=12 stick icons)
 ui=$bundle/ui.json
-expect "macOS 12, sticky: Scratch'n'Stick's app icon, though the note has an icon" "$(json $ui d.iconpath)" "$workflow/ui/appicon.png"
 expect_exact "macOS 12, sticky: the close button is an SF Symbol" "$(json $ui ''$image'('$closebtn')')" "symbol xmark.circle.fill"
 window_js launched icons sticky view
 action=$(window_js colour icons sticky 2)

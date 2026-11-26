@@ -60,7 +60,7 @@ All JXA unless noted.
 | `scripts/move.js` | Moves the notes to a newly configured folder, in the background. |
 | `scripts/place.js` | Moves a sticky window that opened on the wrong screen back where it was left, in the background. Doesn't load `lib.js`. |
 
-`ui/` holds the templates a window's `ui.json` is built from (`window.json`, `content.json`, `customise.json`, `actions.json`, `menubutton.json`, `windowbuttons.json`, `titlestrip.json`, `collapsedtitle.json`, `keyhints.json`), Preview's page (`view.html`, `view.js`) and `appicon.png`, sticky windows' default app icon. `vendor/markdown-it/` is markdown-it 15.0.3. `icons/` holds the images that ship: button icons, drop-down shadows, and New note's icons.
+`ui/` holds the templates a window's `ui.json` is built from (`window.json`, `content.json`, `customise.json`, `actions.json`, `menubutton.json`, `windowbuttons.json`, `titlestrip.json`, `collapsedtitle.json`, `keyhints.json`), Preview's page (`view.html`, `view.js`) and `appicon.png`, sticky windows' app icon. `vendor/markdown-it/` is markdown-it 15.0.3. `icons/` holds the images that ship: button icons, drop-down shadows, and New note's icons.
 
 ### Where things are kept
 
@@ -191,6 +191,5 @@ Later:
 
 - Reload a window when its note changes on disk, and close it when the note is deleted elsewhere (see [Changes made elsewhere](dev/docs/windows.md#changes-made-elsewhere)).
 - Dark-appearance variants of the palette, and a dark-mode look for the drop-downs.
-- An app icon for sticky notes with an icon, drawn to macOS's app icon grid rather than the badge's rounded square.
 - The workflow's own Quick Look preview (see [Results and new notes](dev/docs/results.md#a-later-quick-look-preview)).
 - A sweep for sidecars of notes that have been gone a long time (trashed notes keep theirs).

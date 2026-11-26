@@ -240,9 +240,6 @@ function setColour(store, workflowFolder, context, id, form, slot) {
 // drop-down and the catcher are hidden too, so choosing closes the open
 // picker. Does nothing without a state of the window's form, as for
 // switchMode.
-//
-// A sticky window's app icon (its badge) is set when the window opens, so it
-// changes the next time the note is made sticky.
 function setIcon(store, workflowFolder, context, id, form, name) {
   if (name !== "none" && !noteIconByName(name)) throw new Error(`Unknown icon: ${name}`);
   const state = readNoteState(id);

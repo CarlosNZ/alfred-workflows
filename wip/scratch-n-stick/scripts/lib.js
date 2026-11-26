@@ -1085,7 +1085,7 @@ function noteDefaultColour(palette, variable = workflowVariable) {
 // there's no default. Each is shipped as a button icon in each appearance, in
 // icons/lucide/ (drawn by dev/make-icons.js), for the window, and made
 // into a badge in a note's colour when one is needed (noteBadgeFile), for its
-// result and its sticky window's app icon. Adding one adds a button to the
+// result. Adding one adds a button to the
 // icon picker's grid (NOTE_WINDOW_LAYOUT.iconPicker), whose shadow
 // dev/make-icons.js then redraws.
 const NOTE_ICONS = [
@@ -1198,8 +1198,8 @@ function noteIcon(meta, variable = workflowVariable) {
 // and badges are SVGs, which macOS 12 can't read, and an image Alfred UI can't
 // read makes it reject the whole window there (see "macOS 12" in
 // dev/docs/colours-and-icons.md). So on macOS 12 a window has no icon
-// button, icon picker or ⌘I, its actions are SF Symbols, results show dots,
-// and a sticky window keeps the Scratch'n'Stick app icon. The variable
+// button, icon picker or ⌘I, its actions are SF Symbols, and results show
+// dots. The variable
 // `scratchnstick_macos_version` overrides the version, for tests, and to see
 // macOS 12's window on a newer Mac.
 function noteIconsSupported(variable = workflowVariable) {
@@ -1234,9 +1234,8 @@ function noteButtonIconFile(name, appearance) {
 //   badge-<icon>-<tint>-<control>-<Lucide release>-<code>.svg
 //   dot-<tint>-<control>-<code>.png
 // A process that makes a file then deletes the badges and dots whose names
-// aren't current (sweepNoteResultIcons). Nothing a window opens from names
-// one: quick views have no app icon, results name theirs afresh on every run,
-// and an open sticky window read its app icon when it opened.
+// aren't current (sweepNoteResultIcons). Nothing a window opens names one,
+// and results name theirs afresh on every run.
 
 // The badge's look, at its size in pixels.
 const NOTE_BADGE_STYLE = { size: 128, text: "#1D1D1F", square: { inset: 6, radius: 26, ring: 4 }, icon: { inset: 30 } };
@@ -1726,7 +1725,6 @@ function noteWindowTokens(
     appearance = "light",
     icons = true,
   },
-  variable = workflowVariable,
 ) {
   const current = notePaletteColour(palette, colour) || notePaletteColour(palette, DEFAULT_COLOUR);
   const currentIcon = icons ? noteIconByName(icon) : null;
@@ -1814,16 +1812,10 @@ function noteWindowTokens(
   };
   for (const name of Object.keys(NOTE_WINDOW_BUTTON_ICONS))
     tokens[`@buttonIcon:${name}`] = noteButtonIconImage(workflowFolder, name, appearance, noteTopRowIconSize(name), icons);
-  // The app icon is worked out only when a template names it, which only
-  // window.json does, in a sticky window: so its badge is made when open.js
-  // writes the sticky window's bundle, and never by the window's own actions,
-  // which build only its parts (a colour change would otherwise make a badge
-  // for every colour tried).
-  Object.defineProperty(tokens, "@iconPath", {
-    enumerable: true,
-    get: () =>
-      form === "sticky" ? noteAppIconPath({ workflowFolder, icon: currentIcon, colour: current }, variable) : null,
-  });
+  // A sticky window's app icon (`iconpath`), for ⌘-Tab and the Dock. Alfred
+  // UI sets it once, at launch, so it can't follow the note's colour or icon,
+  // or the appearance.
+  tokens["@iconPath"] = `${workflowFolder}/ui/appicon.png`;
   return tokens;
 }
 
@@ -1844,13 +1836,6 @@ function noteButtonIconImage(workflowFolder, name, appearance, size, icons = tru
     src: `${workflowFolder}/${noteButtonIconFile(name, appearance)}`,
     size: { width: size, height: size },
   };
-}
-
-// A sticky window's app icon (`iconpath`), for ⌘-Tab and the Dock: the badge
-// of its note's icon (a note icon, or null) in its colour (a palette colour),
-// or the Scratch'n'Stick icon for a note without an icon.
-function noteAppIconPath({ workflowFolder, icon, colour }, variable = workflowVariable) {
-  return icon ? noteBadgeFile(workflowFolder, icon.name, colour, variable) : `${workflowFolder}/ui/appicon.png`;
 }
 
 // A drop-down (see NOTE_WINDOW_LAYOUT): a view, `<name>picker`, hidden until
@@ -2129,10 +2114,10 @@ const NOTE_WINDOW_PARTS = [
 
 // A note window's whole ui.json: window.json, with its placeholders filled
 // (NOTE_WINDOW_PARTS). `options` as for noteWindowTokens.
-function noteWindowUi(options, variable = workflowVariable) {
-  const ui = noteWindowPart(options, "window", variable);
+function noteWindowUi(options) {
+  const ui = noteWindowPart(options, "window");
   ui.window.root.components = ui.window.root.components.map((c) =>
-    NOTE_WINDOW_PARTS.includes(c.id) ? noteWindowPart(options, c.id, variable) : c,
+    NOTE_WINDOW_PARTS.includes(c.id) ? noteWindowPart(options, c.id) : c,
   );
   return ui;
 }
@@ -2140,10 +2125,10 @@ function noteWindowUi(options, variable = workflowVariable) {
 // One of a window's templates ("window", or one of NOTE_WINDOW_PARTS),
 // resolved for its form and mode: the customise group, for instance, for a
 // replace action after a colour change. `options` as for noteWindowTokens.
-function noteWindowPart(options, name, variable = workflowVariable) {
+function noteWindowPart(options, name) {
   const { workflowFolder, form, mode, icons = true } = options;
   const collapsed = form === "sticky" && Boolean(options.collapsed);
-  const settings = { form, mode, icons, collapsed, tokens: noteWindowTokens(options, variable), workflowFolder };
+  const settings = { form, mode, icons, collapsed, tokens: noteWindowTokens(options), workflowFolder };
   return resolveNoteTemplate(readNoteTemplate(workflowFolder, name), settings);
 }
 
@@ -2213,7 +2198,6 @@ function writeNoteWindow(
       icons,
       collapsed: collapsed !== null,
     },
-    variable,
   );
   if (size && form === "sticky") ui.window.size = size;
   const script = notePageScript(
