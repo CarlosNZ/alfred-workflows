@@ -29,7 +29,7 @@
 //   window.js copytext <id> <form> <text>   Copy as Markdown Text: the note's
 //                                           Markdown on the clipboard
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
-//   window.js stick <id> <form> <text>      Stick or ⌘P in a quick view: saves,
+//   window.js stick <id> <form> <text>      Stick or ⌘D in a quick view: saves,
 //                                           then sticks
 //   window.js tick <id> <form> <line> <x|o> a task box in View: ticks (x) or
 //                                           unticks (o) the task on that line
@@ -451,7 +451,7 @@ function tick(store, context, id, form, line, to) {
   writeNotePage(id, form, ticked);
 }
 
-// Stick (its button or ⌘P) in a quick view: saves the editor's text, then
+// Stick (its button or ⌘D) in a quick view: saves the editor's text, then
 // finishes with the variables `stick_note` and `stick_mode` (the view's mode), so
 // Alfred carries on to the stick route, where open.js writes the sticky
 // window's bundle from the note on disk, to open in the same mode. The save

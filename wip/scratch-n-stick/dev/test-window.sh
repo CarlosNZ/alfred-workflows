@@ -117,7 +117,7 @@ expect "quick: the page fills the window" "$(json $ui 'JSON.stringify(('$page').
 expect "quick: the page's view has ↩ (to Edit)" "$(json $ui '('$page').shortcuts.map(s => s.shortcut + " " + s.action.args[0]).join(" ")')" "↩ edit"
 expect "quick: the page's note.js has the note" "$(page_text $bundle)" $'# Team meeting\n- Ship it'
 expect "quick: the title is the note's" "$(json $ui 'd.window.title')" "Team meeting"
-expect "quick: ⌘E, ⌘↩, ⌘P, ⌘I, ⌘⌫, ⌘K, ⌘1-⌘6 and the font size's, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘I ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
+expect "quick: ⌘E, ⌘↩, ⌘D, ⌘I, ⌘⌫, ⌘K, ⌘1-⌘6 and the font size's, no ⎋" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘D ⌘I ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect "quick: the quick size" "$(json $ui 'd.window.size.width + "x" + d.window.size.height')" "640x400"
 expect "quick: not borderless" "$(json $ui '"borderless" in d.window || "cornerradius" in d.window')" "false"
 expect "quick: no tint or appearance, so it takes Alfred's theme" "$(json $ui '"background" in d.window.root || "appearance" in d.window.root')" "false"
@@ -149,7 +149,7 @@ expect "sticky: borderless, with rounded corners" "$(json $ui '[d.window.borderl
 expect "sticky: the close button at the top left, then the colour and icon, level with the actions" "$(json $ui '['$windowbuttons', '$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")') $(json $ui '('$windowbuttons').components.map(b => b.id).join(",")')" 'topleft {"top":5,"left":9} topleft {"top":5,"left":44} topright {"top":5,"right":42} close'
 expect_exact "sticky: the close button shows the close icon and closes the window" "$(json $ui '['$image'('$closebtn'), '$closebtn'.tooltip, '$closebtn'.accessibility.label, JSON.stringify('$closebtn'.events)].join(" | ")')" "icons/lucide/close-light.svg 15x15 | Close (⌘W) | Close | "'[{"triggers":"actioned","action":{"type":"json","src":{"finish":{}}}}]'
 expect "sticky: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FEF49C light"
-expect "sticky: ⌘E, ⌘↩, ⌘I, ⎋, ⌘W, ⌘⌫, ⌘K, ⌘1-⌘6 and the font size's, no ⌘P" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘W ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
+expect "sticky: ⌘E, ⌘↩, ⌘I, ⎋, ⌘W, ⌘⌫, ⌘K, ⌘1-⌘6 and the font size's, no ⌘D" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘I ⎋ ⌘W ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect_exact "sticky: ⌘W closes the window" "$(json $ui 'JSON.stringify(d.window.root.shortcuts.find(s => s.shortcut === "⌘W").action)')" '{"type":"json","src":{"finish":{}}}'
 expect "sticky: the font size is a number" "$(json $ui 'typeof '$editor'.font.size + " " + '$editor'.font.size')" "number 17"
 expect "sticky: the editor's insets clear the top row" "$(json $ui ''$editor'.constraints.insets.top')" "34"
@@ -292,13 +292,13 @@ window_js quit groceries sticky ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
 open_note quick quickmenu >/dev/null
 window_js launched quickmenu quick edit
-expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, View, and Close with Esc" "$(window_js menu quickmenu quick "Quick menu" | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
-expect_exact "menu, a blank note in Edit: sharing and copying greyed out" "$(window_js menu quickmenu quick "  " | json - $menu_items)" "Stick to Desktop (⌘P) | View (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… [off] | Copy as Rich Text [off] | Copy as Markdown Text [off]"
+expect_exact "menu, quick view in Edit: Stick to Desktop for Collapse, View, and Close with Esc" "$(window_js menu quickmenu quick "Quick menu" | json - $menu_items)" "Stick to Desktop (⌘D) | View (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
+expect_exact "menu, a blank note in Edit: sharing and copying greyed out" "$(window_js menu quickmenu quick "  " | json - $menu_items)" "Stick to Desktop (⌘D) | View (⌘E) | Close (⎋) | — | Move to Trash (⌘⌫) | — | Share… [off] | Copy as Rich Text [off] | Copy as Markdown Text [off]"
 expect_exact "share, in Edit: saves first, then shares the note's file" "$(window_js share quickmenu quick $'Quick menu {var:x}\n' | json - 'JSON.stringify(d)') $(cat $notes/quickmenu.md)" '{"share":{"src":"'$notes'/quickmenu.md"}} Quick menu {var:x}'
 expect "share and copy a blank note: nothing" "$(window_js share quickmenu quick "  ")$(window_js copyrich quickmenu quick "  ")$(window_js copytext quickmenu quick "  ")" ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
 expect_exact "quick: ⌘⌫ runs window.js trash" "$(json $cache/quick/quickmenu.alfredui/ui.json 'd.window.root.shortcuts.find(s => s.shortcut === "⌘⌫").action.args.join(",")')" "trash,quickmenu,quick,{value:editor.text}"
-expect_exact "menu, quick view: Stick to Desktop sticks, as ⌘P does" "$(window_js menu quickmenu quick | json - 'd.popupmenu.menu[0].action.args.join(",")')" "stick,quickmenu,quick,{value:editor.text}"
+expect_exact "menu, quick view: Stick to Desktop sticks, as ⌘D does" "$(window_js menu quickmenu quick | json - 'd.popupmenu.menu[0].action.args.join(",")')" "stick,quickmenu,quick,{value:editor.text}"
 expect_exact "menu, quick view: Close finishes with close_view" "$(window_js menu quickmenu quick | json - 'JSON.stringify(d.popupmenu.menu[2].action.src)')" '{"finish":{"variables":{"close_view":"1"}}}'
 expect_exact "open.js with close_view: opens nothing" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache close_view=1 $scripts/open.js stick quickmenu | json - 'JSON.stringify([d.alfredworkflow.arg, d.alfredworkflow.variables.open_window, d.alfredworkflow.variables.close_view])')" '["","",""]'
 window_js quit quickmenu quick "Quick menu"
@@ -326,13 +326,13 @@ expect "a note never open in a window opens in View, quick and sticky" "$(json "
 window_js quit elsewhere quick ""
 expect "quit with no state: no mode recorded" "$(json $notes/.scratchnstick/elsewhere.json '"mode" in d')" "false"
 
-# stick: Stick or ⌘P in a quick view saves before finishing, so the stick route
+# stick: Stick or ⌘D in a quick view saves before finishing, so the stick route
 # finds the text on disk without waiting for the view's quit, and the sticky
 # window carries on in the view's mode.
 id3=$(basename "$(open_note new=1 quick 'Sticky straight away')" .alfredui)
 window_js launched "$id3" quick edit
 stickbutton=$(byid stick)
-expect "quick: ⌘P and the Stick button run window.js stick with the editor's text" "$(json $cache/quick/$id3.alfredui/ui.json '[d.window.root.shortcuts.find(s => s.shortcut === "⌘P").action, ('$stickbutton').events[0].action].map(a => [a.src].concat(a.args).join(" ")).join(" | ")')" "$scripts/window.js stick $id3 quick {value:editor.text} | $scripts/window.js stick $id3 quick {value:editor.text}"
+expect "quick: ⌘D and the Stick button run window.js stick with the editor's text" "$(json $cache/quick/$id3.alfredui/ui.json '[d.window.root.shortcuts.find(s => s.shortcut === "⌘D").action, ('$stickbutton').events[0].action].map(a => [a.src].concat(a.args).join(" ")).join(" | ")')" "$scripts/window.js stick $id3 quick {value:editor.text} | $scripts/window.js stick $id3 quick {value:editor.text}"
 finish=$(window_js stick "$id3" quick "Sticky straight away {${wj}var:x}")
 expect "stick in Edit: saves the editor's text, unescaped, before finishing" "$(cat $notes/$id3.md)" "Sticky straight away {var:x}"
 expect "stick: finishes with stick_note, the escaped ID, and stick_mode, the view's mode" "$(print -r -- $finish | json - 'JSON.stringify(d)')" '{"finish":{"variables":{"stick_note":"'$id3'","stick_mode":"edit"}}}'
@@ -694,7 +694,7 @@ print -r -- '{"icon":"heart"}' > $notes/.scratchnstick/icons.json
 bundle=$(open_note scratchnstick_macos_version=12 quick icons)
 ui=$bundle/ui.json
 expect "macOS 12: no icon button or icon picker; the colour picker and the catcher stay" "$(json $ui $ids)" "note:view content:view page:view web:webkitview editor:textarea pickercatcher:view colourpicker:view colourpickershadow:imageview colourpickerbox:view colourmark-1:view colour-1:button * menuanchor:view customise:view colourbox:view colour:button fontsize:button actions:view toggle:button stick:button menubutton:view menu:button"
-expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘P ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
+expect "macOS 12: no ⌘I" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘E ⌘↩ ⌘D ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect_exact "macOS 12: the actions and the Font size button are SF Symbols" "$(json $ui '['$actions'.components.map(b => '$image'(b)), '$image'('$sizebtn')].join(", ")')" "symbol pencil,symbol note.text.badge.plus, symbol textformat.size"
 expect "macOS 12: the context says so, without the note's icon" "$(json $bundle/context.json '[d.icons, d.icon].join(" ")')" "false "
 expect "macOS 12: no SVG at all, and every file it names exists" "$(grep -c '\.svg' $ui || true) $(missing_files $ui)" "0 "

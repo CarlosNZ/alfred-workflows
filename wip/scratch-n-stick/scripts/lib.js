@@ -2023,7 +2023,7 @@ function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank })
   return [
     sticky
       ? item(collapsed ? "Expand" : "Collapse", script("collapse"))
-      : item("Stick to Desktop (⌘P)", script("stick")),
+      : item("Stick to Desktop (⌘D)", script("stick")),
     item(`${switchTo} (⌘E)`, script("toggle"), !collapsed),
     item(sticky ? "Close (⌘W)" : "Close (⎋)", noteCloseAction(form)),
     { type: "separator" },
