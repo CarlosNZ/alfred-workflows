@@ -1143,9 +1143,9 @@ const NOTE_ICONS = [
 // every icon in the top row and the picker is drawn the same way (in the
 // buttons' colour for the window's appearance): the Edit / View switch's
 // (`eye` to switch to View, `pencil` to Edit), Stick to the desktop's
-// (`sticky-note-plus`), the icon button's for a note
-// without an icon (`square-dashed-plus`), the picker's None (`ban`), and the Font
-// size button's (`text-size`, the workflow's own, in Lucide's style; see
+// (`sticky-note-plus`), the icon button's for a note without an icon
+// (`square-dashed-plus`), the picker's None (`square-dashed`, an empty slot),
+// and the Font size button's (`text-size`, the workflow's own, in Lucide's style; see
 // dev/make-icons.js), a sticky window's close button's (`close`, the
 // workflow's own too: a filled circle with an X cut out of it), and the
 // actions menu button's (`ellipsis`). Each has an
@@ -1156,7 +1156,7 @@ const NOTE_WINDOW_BUTTON_ICONS = {
   pencil: "pencil",
   "sticky-note-plus": "note.text.badge.plus",
   "square-dashed-plus": "plus.square.dashed",
-  ban: "nosign",
+  "square-dashed": "square.dashed",
   "text-size": "textformat.size",
   close: "xmark.circle.fill",
   ellipsis: "ellipsis",
@@ -1910,7 +1910,7 @@ function noteIconPickerButtons({ workflowFolder, note, form, icon, appearance })
     type: "button",
     text: "",
     bordered: choice.name === (icon ? icon.name : "none"),
-    image: noteButtonIconImage(workflowFolder, choice.name === "none" ? "ban" : choice.name, appearance, image),
+    image: noteButtonIconImage(workflowFolder, choice.name === "none" ? "square-dashed" : choice.name, appearance, image),
     tooltip: choice.label,
     accessibility: { label: choice.label },
     events: [
