@@ -92,6 +92,16 @@ Quick views' states, and those marked `trashed`, are never offered. `reopenNotes
 
 `dev/test-window.sh` runs the timer directly with a 1 s grace; `dev/test-list.sh` writes states by hand for each case, with timers running.
 
+**If Alfred UI reopens its own windows.** All of this exists because a relaunched helper doesn't know its bundle (see the [Alfred request](../../../../Alfred%20requests.md#alfred-ui-dont-show-an-error-when-macos-reopens-a-ui-at-login)). If Alfred UI comes to reopen the window it was showing when macOS relaunches it at login, restarts won't need it, though it would still offer notes whose windows crashed or were force-quit. An Alfred UI that only stops relaunching, without reopening, still leaves the notes closed, so it changes nothing here. To take the feature out, remove:
+
+- `scripts/forget.sh`, the `forget` External Trigger and its Run Script, the `stick` External Trigger, and the `reopen` condition on both Conditionals (on `sticky` and on `sticky_action`), with their connections;
+- in `window.js`, `quit`'s call to `keepClosedNoteState` (it removes the state, as for a quick view) and `windowState` (back to `readNoteState`);
+- in `lib.js`, the reopen half of `noteWindowStates` (the closed states, `runningForgetTimers`), `forgetTimerArgument`, `isForgetTimerFor`, `keepClosedNoteState`, `reopenNotes`, `forgetReopenNotes`, `CLOSE_GRACE_SECONDS` and the "Reopening sticky notes" comment;
+- `reopenItem` and `listedTitles` in `list.js`, `reopen` and `forget` in `stickies.js`, and the `forget` hand-off in `open.js`;
+- this section, the Reopen sticky notes section in [Results](results.md#reopen-sticky-notes), and their tests.
+
+Keep the parts that stand on their own: the helper start time in a window's state (`launched`, checked by `stickyNotePid`), `runWorkflowTrigger`, and `stickies.js` loading `text-rules.js`.
+
 ## Seamless quick views
 
 Alfred replaces the results with a quick view from one frame to the next only when the Script Filter connects straight to the Alfred UI object. With anything in between, even a Run Script that only echoes or a Conditional, Alfred hides its whole window on ↩ and fades the view in over about 170 ms, after 170–200 ms of nothing. Filling an empty view from its `launched` script pops the text in about 100 ms late. So each note's quick bundle, with its text, has to exist before ↩: `list.js` writes them (`quickWindows` in `lib.js`), and each result's arg is its bundle's path.
