@@ -273,7 +273,7 @@ rm "$cache/state/shopping.json"
 # Sticky notes, given by scratchnstick_sticky_ids in place of live windows
 # (see stickyIds in list.js). In the notes list, a sticky note's result has no
 # arg and says it's sticky.
-expect "notes list: a sticky note says so, with no arg; ⌘ still sticks it" "$(scratchnstick_sticky_ids=shopping items "$notes" milk)" "Shopping | Sticky • Edited 3h ago • milk, eggs |  |  | shopping | shopping | $notes/shopping.md | "
+expect "notes list: a sticky note says so, with no arg; ⌘ still sticks it" "$(scratchnstick_sticky_ids=shopping items "$notes" milk)" "Shopping | 📌 Sticky • Edited 3h ago • milk, eggs |  |  | shopping | shopping | $notes/shopping.md | "
 
 # The sticky notes list (list.js's second argument, "stickies"): only the
 # sticky notes, last edited first, each with its ID as the arg of ↩ and ⌘

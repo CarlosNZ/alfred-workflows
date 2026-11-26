@@ -23,8 +23,8 @@
 
 ObjC.import("Foundation");
 
-// Separates the parts of a note's subtitle: "Sticky", when it was edited, and
-// its preview.
+// Separates the parts of a note's subtitle: "📌 Sticky", when it was edited,
+// and its preview.
 const SUBTITLE_SEPARATOR = " • ";
 
 function run(argv) {
@@ -127,7 +127,7 @@ function noteItem(note, now, icon) {
 function notesListItem(note, base, bundle, sticky) {
   return {
     ...base,
-    subtitle: sticky ? `Sticky${SUBTITLE_SEPARATOR}${base.subtitle}` : base.subtitle,
+    subtitle: sticky ? `📌 Sticky${SUBTITLE_SEPARATOR}${base.subtitle}` : base.subtitle,
     arg: sticky ? "" : bundle,
     variables: sticky ? { sticky: "1", stick_note: escapeForAlfredUi(note.id) } : undefined,
     mods: { ...base.mods, cmd: { subtitle: "Stick to the desktop", arg: note.id } },
