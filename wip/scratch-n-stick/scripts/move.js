@@ -2,7 +2,7 @@
 
 // Moves the notes from argv[0], the folder they were last in, to argv[1], the
 // folder the settings give, in the background (see "Moving the notes folder"
-// in DESIGN.md). checkNotesFolderMove in lib.js starts it, with the
+// in dev/docs/storage.md). checkNotesFolderMove in lib.js starts it, with the
 // workflow's variables, and its input and output on /dev/null.
 //
 // It first leaves the process group it was started in: a keystroke in Alfred
@@ -50,7 +50,7 @@ function run(argv) {
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from
-// (JXA has no require). See "Loading lib.js" in DESIGN.md.
+// (JXA has no require). See "Loading lib.js" in DEVELOPMENT.md.
 function loadLib(argv, relativePath) {
   const args = ObjC.deepUnwrap($.NSProcessInfo.processInfo.arguments);
   let script = args[args.length - argv.length - 1];

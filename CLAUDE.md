@@ -6,6 +6,10 @@ Alfred 6 workflows. See README.md for the layout, the `bin/wf` commands and the 
 
 Each workflow folder has a `DEVELOPMENT.md` of developer notes: what the workflow does, how it's built, and anything non-obvious. When asked to work on a workflow (by name, e.g. "Now Playing"; `bin/wf status` maps names to folders), read its `DEVELOPMENT.md` first. When a change makes it inaccurate or adds something worth knowing, update it in the same change; likewise the user guide in `README.md` when a change affects what users see or configure. A workflow whose `README.md` is still developer notes (no `<!-- end of Alfred readme -->` line) hasn't been moved to this layout yet.
 
+A larger workflow's `DEVELOPMENT.md` is an overview (what it does, how the parts fit together, testing, what's still to do) that links to topic files in its `dev/docs/` folder (e.g. Scratch'n'Stick's `dev/docs/storage.md`, `dev/docs/windows.md`). Read the overview, then the topic files for the area you're working on, and put new detail in the topic file it belongs to, keeping the overview short. If a `DEVELOPMENT.md` grows too long to read in one go, split it the same way.
+
+Developer notes say how the workflow works now, and why, for someone reading them fresh: not a design log. When something changes, rewrite the description rather than appending to it, and leave out dates, "decided"/"proposed" markers, build steps, superseded approaches ("until then…", "was first…") and step-by-step accounts of experiments. Keep the reasons and the facts found (a rejected alternative only if it stops someone trying it again; what an experiment showed, not how it was run). Undocumented Alfred behaviour goes in one place per workflow (Scratch'n'Stick's `dev/docs/alfred-ui.md`). Work still to do goes in a "Still to do" list, not scattered through the notes.
+
 ## Edits are live
 
 Linked workflows are symlinked into Alfred's workflows directory (which syncs via Dropbox), so any change to a file under `wip/`, `release/` or `gallery/` takes effect in Alfred immediately. Don't leave a workflow half-edited or broken, and don't create scratch files inside workflow folders.

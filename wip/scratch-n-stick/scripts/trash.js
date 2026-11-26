@@ -27,7 +27,7 @@ function run(argv) {
 }
 
 // Runs lib.js from this script's own folder, wherever the script is run from
-// (JXA has no require). See "Loading lib.js" in DESIGN.md.
+// (JXA has no require). See "Loading lib.js" in DEVELOPMENT.md.
 function loadLib(argv, relativePath) {
   const args = ObjC.deepUnwrap($.NSProcessInfo.processInfo.arguments);
   let script = args[args.length - argv.length - 1];

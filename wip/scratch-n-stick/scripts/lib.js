@@ -1,8 +1,8 @@
-// Scratch'n'Stick shared code, loaded by every script with loadLib (see "Loading
-// lib.js" in DESIGN.md). It runs in the global scope through an indirect eval:
-// its function declarations become globals for the loading script, while its
-// top-level const and let stay private to this file. Don't add "use strict",
-// which would keep the functions private too.
+// Scratch'n'Stick shared code, loaded by every script with loadLib (see
+// "Loading lib.js" in DEVELOPMENT.md). It runs in the global scope through an
+// indirect eval: its function declarations become globals for the loading
+// script, while its top-level const and let stay private to this file. Don't
+// add "use strict", which would keep the functions private too.
 //
 // Storage: the notes folder, note IDs, saving, metadata sidecars, titles and
 // previews, deleting empty notes and moving notes to the Trash.
@@ -375,13 +375,14 @@ function noteStore(folder = notesFolder()) {
 // Moving the notes folder
 //
 // Alfred runs nothing when a setting changes, so the notes move on the next
-// run (see "Moving the notes folder" in DESIGN.md). The scripts that read the
-// setting (list.js, new.js, open.js) call checkNotesFolderMove first. It
-// compares the folder the notes were last in, recorded per Mac in the data
-// folder, with the folder the setting gives, and when they differ starts
-// scripts/move.js in the background, which closes the sticky windows and
-// moves the notes (moveNotes). A move holds a lock, <cache>/move.lock/, while
-// it runs, and one that fails leaves <cache>/move-failure.json saying why.
+// run (see "Moving the notes folder" in dev/docs/storage.md). The scripts
+// that read the setting (list.js, new.js, open.js) call checkNotesFolderMove
+// first. It compares the folder the notes were last in, recorded per Mac in
+// the data folder, with the folder the setting gives, and when they differ
+// starts scripts/move.js in the background, which closes the sticky windows
+// and moves the notes (moveNotes). A move holds a lock, <cache>/move.lock/,
+// while it runs, and one that fails leaves <cache>/move-failure.json saying
+// why.
 
 const MOVE_TEMP_PREFIX = ".scratchnstick-move-";
 const MOVE_RERUN_SECONDS = 0.5;
@@ -1195,11 +1196,12 @@ function noteIcon(meta, variable = workflowVariable) {
 
 // Whether the Mac can show note icons: macOS 13 or later. The button icons
 // and badges are SVGs, which macOS 12 can't read, and an image Alfred UI can't
-// read makes it reject the whole window there (see "Note icons" in DESIGN.md).
-// So on macOS 12 a window has no icon button, icon picker or ⌘I, its actions
-// are SF Symbols, results show dots, and a sticky window keeps the Scratch'n'Stick
-// app icon. The variable `scratchnstick_macos_version` overrides the version,
-// for tests, and to see macOS 12's window on a newer Mac.
+// read makes it reject the whole window there (see "macOS 12" in
+// dev/docs/colours-and-icons.md). So on macOS 12 a window has no icon
+// button, icon picker or ⌘I, its actions are SF Symbols, results show dots,
+// and a sticky window keeps the Scratch'n'Stick app icon. The variable
+// `scratchnstick_macos_version` overrides the version, for tests, and to see
+// macOS 12's window on a newer Mac.
 function noteIconsSupported(variable = workflowVariable) {
   const override = parseInt(variable("scratchnstick_macos_version"), 10);
   return (isNaN(override) ? macosMajorVersion() : override) >= 13;
@@ -2382,8 +2384,8 @@ const NOTE_WINDOW_SOURCES = [
 
 // Quick views' bundles, for list.js. ↩ on a result opens its bundle straight
 // from the Script Filter, with nothing in between: a Run Script or Conditional
-// there makes Alfred hide its window and fade the view in (see "Quick notes
-// and sticky notes" in DESIGN.md). So each note's quick bundle has to be ready
+// there makes Alfred hide its window and fade the view in (see "Seamless quick
+// views" in dev/docs/windows.md). So each note's quick bundle has to be ready
 // before the results are shown.
 //
 // A bundle's fingerprint is a hash of everything it's built from: the note's
@@ -2985,7 +2987,7 @@ function closeStickyNoteWindow(id, variable = workflowVariable) {
 // opens and starts scripts/place.js, which moves the window back once it's
 // open, through the Accessibility API. A script Alfred starts has Alfred's
 // Accessibility permission; the window's own scripts, run by Alfred UI,
-// don't. See "Window positions" in DESIGN.md.
+// don't. See "Window positions" in dev/docs/windows.md.
 
 // The key AppKit saves the frame of the sticky window of the bundle at
 // `bundlePath` under. Alfred UI hashes the path standardised (/private/tmp

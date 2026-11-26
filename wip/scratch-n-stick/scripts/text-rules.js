@@ -1,11 +1,11 @@
 // Scratch'n'Stick text rules, the hand-tuned judgements about a note's text:
 // how text from elsewhere starts a note, the size of the window a new sticky
 // note opens at for that text, and how a note that's one long line is shown
-// as a title and a preview. Loaded beside
-// lib.js by every script, with loadLib (see "Loading lib.js" in DESIGN.md),
-// and, like lib.js, run in the global scope: its function declarations become
-// globals, while its top-level const and let stay private to this file. It
-// stands alone, using nothing from lib.js.
+// as a title and a preview. Loaded beside lib.js by every script, with
+// loadLib (see "Loading lib.js" in DEVELOPMENT.md), and, like lib.js, run in
+// the global scope: its function declarations become globals, while its
+// top-level const and let stay private to this file. It stands alone, using
+// nothing from lib.js.
 //
 //   newNoteText(seed)        a new note's starting text: the seed as a heading,
 //                            or the seed exactly as given
@@ -14,8 +14,8 @@
 //   fittedNoteSize(text, …)  the size of a new sticky note's window, fitted to
 //                            its starting text
 //
-// See "Title, timestamps, empty notes", "Text as a heading" and "A new sticky
-// note's size" in DESIGN.md.
+// See "Titles and previews" in dev/docs/storage.md, "Text as a heading" in
+// dev/docs/results.md and "A new sticky note's size" in dev/docs/window-ui.md.
 //
 // Lengths count what a reader sees as one character (an emoji with modifiers,
 // a letter with combining accents, a flag) as one.
