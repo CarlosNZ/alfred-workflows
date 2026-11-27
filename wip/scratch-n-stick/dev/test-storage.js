@@ -657,7 +657,7 @@ function testExamples(root) {
   section("Example notes");
   const source = `${root}/examples/source`;
   makeFolder(`${source}/.scratchnstick`);
-  const shipped = { "example-1-welcome": { icon: "sticky-note" }, "example-2-tasks": { colour: 2, mode: "view" }, "example-10-last": { colour: 6 } };
+  const shipped = { "example-1-welcome": { icon: "sticky-note" }, "example-2-tasks": { colour: 2, mode: "view" }, "example-10-last": { colour: 6, sticky: true } };
   for (const [id, meta] of Object.entries(shipped)) {
     writeRaw(`${source}/${id}.md`, `# ${id}\n`);
     writeRaw(`${source}/.scratchnstick/${id}.json`, JSON.stringify(meta));
@@ -677,6 +677,7 @@ function testExamples(root) {
   eq("…born then too", ids.map((id) => fileDate(`${store.folder}/${id}.md`, "NSFileCreationDate").getTime()), ids.map((_, i) => second(i).getTime()));
   eq("…with the shipped sidecar and created", store.readMeta("example-2-tasks"), { colour: 2, mode: "view", created: formatLocalIsoDate(second(1)) });
   eq("…or only created without one", store.readMeta("example-3-no-sidecar"), { created: formatLocalIsoDate(second(2)) });
+  eq("…a sticky one as a closed sticky note", store.readMeta("example-10-last"), { colour: 6, sticky: true, created: formatLocalIsoDate(second(3)) });
   eq("…and listed in their order", store.list().map((note) => note.id), ids);
 
   writeRaw(`${store.folder}/example-1-welcome.md`, "# Welcome, edited\n");
@@ -723,8 +724,8 @@ function testExamples(root) {
 }
 
 // The examples the workflow ships: numbered from 1 with no gaps, each with a
-// sidecar holding only settings a note can have, all valid, and nothing else
-// in the folder.
+// sidecar holding only settings a note can have (sticky only as true), all
+// valid, and nothing else in the folder.
 function testShippedExamples(workflowFolder) {
   section("The shipped examples");
   const source = `${workflowFolder}/examples`;
@@ -741,7 +742,7 @@ function testShippedExamples(workflowFolder) {
     const problems = [];
     if (meta === null) problems.push("no sidecar");
     for (const [key, value] of Object.entries(meta || {})) {
-      if (key === "colour" ? !slots.includes(value) : key === "icon" ? !icons.has(value) : key === "fontSize" ? !sizes.includes(value) : key === "mode" ? !["edit", "view"].includes(value) : true) problems.push(`${key}: ${JSON.stringify(value)}`);
+      if (key === "colour" ? !slots.includes(value) : key === "icon" ? !icons.has(value) : key === "fontSize" ? !sizes.includes(value) : key === "mode" ? !["edit", "view"].includes(value) : key === "sticky" ? value !== true : true) problems.push(`${key}: ${JSON.stringify(value)}`);
     }
     eq(`the sidecar of ${id}`, problems, []);
   }
