@@ -492,5 +492,15 @@ clip public.png ""
 expect "new: no text (an image): no result for it" "$(new_items "$notes" | wc -l | tr -d ' ')" "1"
 expect "new: a missing notes folder: Missing notes folder" "$(new_items "$tmp/missing/notes" | cut -d'|' -f1)" "Missing notes folder "
 
+# A note with only its creation time for a name: the list renames it for its
+# title, and it keeps its ID.
+named=$tmp/named
+mkdir -p "$named" "$named.data"
+print -r -- '{ "examplesInstalled": "2026-01-01T00:00:00+13:00" }' > "$named.data/state.json"
+print -rn -- $'# Groceries\n- milk\n' > "$named/20261120-090000.md"
+script=$list
+expect "a note named by time is listed under its ID, renamed for its title (⌃'s arg)" "$(items "$named" | sed -n 2p | cut -d'|' -f1,3-)" "Groceries | $quick/20261120-090000.alfredui |  | 20261120-090000 | 20261120-090000 | $named/20261120-090000 Groceries.md | "
+expect "…and the file is renamed" "$(ls "$named")" "20261120-090000 Groceries.md"
+
 print
 if (( failures )); then print "FAILED: $failures"; exit 1; else print "All passed"; fi

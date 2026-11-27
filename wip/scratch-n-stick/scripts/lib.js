@@ -105,6 +105,8 @@ function ensureFolder(folder, createParents) {
   }
   const error = $();
   if (!fm.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(folder, createParents, $(), error)) {
+    // Another process may have created it since the check above.
+    if (fm.fileExistsAtPathIsDirectory(folder, isFolder) && isFolder[0]) return;
     throw new Error(`Can't create ${folder}: ${errorText(error)}`);
   }
 }
@@ -112,9 +114,23 @@ function ensureFolder(folder, createParents) {
 // ---------------------------------------------------------------------------
 // Note IDs
 //
-// A note's ID is its filename without the `.md` extension. Notes the workflow
-// creates are named for their creation time in local time, YYYYMMDD-HHMMSS,
-// with -2, -3… when that's taken; files added by hand keep their own names.
+// Notes the workflow creates have IDs from their creation time in local time,
+// YYYYMMDD-HHMMSS, with -2, -3… when that's taken, and are named
+// `<ID> <title>.md`, or `<ID>.md` while they have no title (noteFileName).
+// The title part follows the note's title, so notes can be told apart in
+// Finder, while the ID, and everything keyed on it (the sidecar, the window
+// bundles and state), stays the same. Such a name is "prefixed": its ID is
+// the timestamp before the first space. Any other file in the notes folder,
+// added by hand, has its whole name without `.md` as its ID, and is never
+// renamed.
+
+const PREFIXED_NOTE_ID = /^\d{8}-\d{6}(-\d+)?$/;
+const PREFIXED_NOTE_STEM = /^(\d{8}-\d{6}(?:-\d+)?)(?: [\s\S]*)?$/;
+
+// The longest title in a note's filename, in characters, and the longest
+// filename, in UTF-8 bytes, that APFS and HFS+ allow.
+const FILE_NAME_TITLE_LENGTH = 60;
+const FILE_NAME_MAX_BYTES = 255;
 
 function formatNoteId(date) {
   const pad = (n) => String(n).padStart(2, "0");
@@ -130,11 +146,53 @@ function isNoteId(id) {
   return typeof id === "string" && id.length > 0 && id.length <= 250 && !/[/\0]/.test(id) && !id.startsWith(".");
 }
 
-// The note ID for a filename in the notes folder, or null if it isn't a note.
+// The note ID for a filename in the notes folder, or null if it isn't a note:
+// the timestamp of a prefixed name, or the whole name without `.md`.
 function noteIdFromFileName(name) {
   if (name.startsWith(".") || name.slice(-NOTE_EXTENSION.length).toLowerCase() !== NOTE_EXTENSION) return null;
-  const id = name.slice(0, -NOTE_EXTENSION.length);
+  const stem = name.slice(0, -NOTE_EXTENSION.length);
+  const prefixed = PREFIXED_NOTE_STEM.exec(stem);
+  const id = prefixed ? prefixed[1] : stem;
   return isNoteId(id) ? id : null;
+}
+
+// Whether a note with this ID is named by the workflow, and so renamed to
+// follow its title.
+function isPrefixedNoteId(id) {
+  return PREFIXED_NOTE_ID.test(id);
+}
+
+// The filename a note with a prefixed ID has for its text: `<id> <title>.md`,
+// or `<id>.md` if the text has no title. The title is the one the results
+// list shows (noteSummary), shorter, made safe for a filename: `/` (which a
+// filename can't have) and `:` (which Finder shows as `/`) become `-`, and
+// control characters go. It's cut further if the name would be too long for
+// the volume.
+function noteFileName(id, text) {
+  return noteFileNameForTitle(id, noteSummaryOrUntitled(text).title);
+}
+
+// As noteFileName, given the title from noteSummaryOrUntitled. Cutting a
+// title cut at TITLE_MAX_LENGTH gives the same as cutting the text's.
+function noteFileNameForTitle(id, fullTitle) {
+  const title =
+    fullTitle === null
+      ? ""
+      : truncateText(fullTitle, FILE_NAME_TITLE_LENGTH)
+          .replace(/[/:]/g, "-")
+          .replace(/[\u0000-\u001f\u007f]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .normalize("NFC");
+  if (!title) return `${id}${NOTE_EXTENSION}`;
+  const bytes = (s) => $(s).lengthOfBytesUsingEncoding($.NSUTF8StringEncoding);
+  let length = graphemes(title).length;
+  let name = `${id} ${title}${NOTE_EXTENSION}`;
+  while (bytes(name) > FILE_NAME_MAX_BYTES && length > 1) {
+    length--;
+    name = `${id} ${truncateText(title, length)}${NOTE_EXTENSION}`;
+  }
+  return name;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,9 +212,16 @@ function noteIdFromFileName(name) {
 //
 // Metadata lives in a hidden sidecar per note, `.scratchnstick/<id>.json` in the
 // notes folder, so the note itself stays plain Markdown and changing its colour
-// doesn't change its modification time.
+// doesn't change its modification time. Sidecars are named by ID, so renaming
+// a note to follow its title leaves its sidecar alone.
+//
+// Saving, renaming and deleting hold the save lock (see "Locks"), so two
+// processes saving one note can't leave two files for it. `lockFile` is the
+// lock's path; by default `locks/save` in the workflow's cache folder.
 
-function noteStore(folder = notesFolder()) {
+const SAVE_LOCK_TIMEOUT = 2000;
+
+function noteStore(folder = notesFolder(), { lockFile = null } = {}) {
   const fm = $.NSFileManager.defaultManager;
   const metaFolder = `${folder}/${META_FOLDER}`;
 
@@ -169,19 +234,76 @@ function noteStore(folder = notesFolder()) {
     return entries.isNil() ? [] : ObjC.deepUnwrap(entries);
   }
 
-  // The note's filename as it is on disk, or `<id>.md` if it doesn't exist.
-  // Matches the extension in any case (Notes.MD), and the ID whatever its
-  // Unicode normalization, since a filename may be decomposed.
-  function fileNameFor(id) {
-    const exact = `${id}${NOTE_EXTENSION}`;
-    const wanted = id.normalize("NFC");
-    let match = null;
-    for (const name of folderEntries()) {
-      if (name === exact) return name;
-      const candidate = match === null ? noteIdFromFileName(name) : null;
-      if (candidate !== null && candidate.normalize("NFC") === wanted) match = name;
+  // Runs `fn` holding the save lock, or without it if another process holds
+  // it for longer than SAVE_LOCK_TIMEOUT or it can't be taken: a save made
+  // without it can at worst leave a second file for the note, which the next
+  // list splits off as a note of its own, where a save that gave up would
+  // lose the text.
+  function withSaveLock(fn) {
+    let path = lockFile;
+    if (path === null) {
+      try {
+        path = saveLockPath();
+      } catch (e) {
+        return fn();
+      }
     }
-    return match || exact;
+    return withFileLock(path, fn, { timeout: SAVE_LOCK_TIMEOUT });
+  }
+
+  // The names of the files in `names` (the folder's, by default) with this
+  // ID: in any extension case (Notes.MD), any Unicode normalization (a
+  // filename may be decomposed), and for a prefixed ID, with any title.
+  function fileNamesFor(id, names = folderEntries()) {
+    const wanted = id.normalize("NFC");
+    return names.filter((name) => {
+      const candidate = noteIdFromFileName(name);
+      return candidate !== null && candidate.normalize("NFC") === wanted;
+    });
+  }
+
+  // The note's filename as it is on disk, or `<id>.md` if it doesn't exist.
+  function fileNameFor(id) {
+    const names = fileNamesFor(id);
+    if (names.length === 0) return `${id}${NOTE_EXTENSION}`;
+    return names.length === 1 ? names[0] : ownerName(id, names);
+  }
+
+  // Which of several files with one ID is the note's file: Finder's
+  // Duplicate, a sync app's conflicted copy, or a save that went ahead
+  // without the lock can each leave a second file with a prefixed ID. It's
+  // the one named as the workflow names the note (noteFileName for its
+  // text, or `<id>.md` for a note named by hand), then the one with the
+  // shortest name, as copies are named by adding to the original's ("…
+  // copy", "… 2", "… (conflicted copy …)"), then the first by name.
+  function ownerName(id, names) {
+    const own = (name) => {
+      if (!isPrefixedNoteId(id)) return name === `${id}${NOTE_EXTENSION}`;
+      const text = readText(`${folder}/${name}`);
+      return text !== null && sameFileName(noteFileName(id, text), name);
+    };
+    return names
+      .map((name) => ({ name, rank: own(name) ? 0 : 1 }))
+      .sort((a, b) => a.rank - b.rank || a.name.length - b.name.length || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))[0]
+      .name;
+  }
+
+  // Whether two names are the same, whatever their Unicode normalization: an
+  // HFS+ volume gives names back decomposed, however they were written.
+  function sameFileName(a, b) {
+    return a.normalize("NFC") === b.normalize("NFC");
+  }
+
+  // Renames a prefixed note's file to the name for its text (noteFileName),
+  // if it has another, and returns the file's name. A note named by hand
+  // keeps its name. Never replaces another file: if the name is taken, the
+  // note keeps the name it has. Renaming changes neither the note's
+  // modification time nor its birth time. Call with the save lock held.
+  function matchFileName(id, name, text) {
+    if (!isPrefixedNoteId(id)) return name;
+    const wanted = noteFileName(id, text);
+    if (sameFileName(wanted, name)) return name;
+    return renameFileInFolder(folder, name, wanted) ? wanted : name;
   }
 
   function notePath(id) {
@@ -210,6 +332,13 @@ function noteStore(folder = notesFolder()) {
   }
 
   function readFile(id, fileName) {
+    const read = readFileNamed(id, fileName);
+    return read && read.note;
+  }
+
+  // As readFile, also giving the name the note has for its text (noteFileName),
+  // as { note, wantedName }, or null.
+  function readFileNamed(id, fileName) {
     const path = `${folder}/${fileName}`;
     const attributes = fm.attributesOfItemAtPathError(path, null);
     if (attributes.isNil() || attributes.objectForKey("NSFileType").js !== "NSFileTypeRegular") return null;
@@ -218,8 +347,8 @@ function noteStore(folder = notesFolder()) {
     const birth = jsDate(attributes.objectForKey("NSFileCreationDate"));
     let meta = fm.fileExistsAtPath(metaPath(id)) ? readMeta(id) : recordNewNote(id, birth);
     if ("trashed" in meta) meta = clearTrashed(id, meta);
-    const summary = noteSummary(text);
-    return {
+    const summary = noteSummaryOrUntitled(text);
+    const note = {
       id,
       path,
       fileName,
@@ -227,9 +356,10 @@ function noteStore(folder = notesFolder()) {
       meta,
       modified: jsDate(attributes.objectForKey("NSFileModificationDate")),
       created: parseDate(meta.created) || birth,
-      title: summary.title,
+      title: summary.title === null ? UNTITLED : summary.title,
       preview: summary.preview,
     };
+    return { note, wantedName: noteFileNameForTitle(id, summary.title) };
   }
 
   // Gives a note found without a sidecar (one added by hand or by another
@@ -259,16 +389,30 @@ function noteStore(folder = notesFolder()) {
     }
   }
 
-  // The note, or null if it doesn't exist or can't be read.
+  // The note, or null if it doesn't exist or can't be read. A note renamed
+  // between finding its name and reading it is looked for again.
   function read(id) {
     checkId(id);
-    const fileName = fileNameFor(id);
-    return fm.fileExistsAtPath(`${folder}/${fileName}`) ? readFile(id, fileName) : null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const fileName = fileNameFor(id);
+      const path = `${folder}/${fileName}`;
+      if (!fm.fileExistsAtPath(path)) return null;
+      const note = readFile(id, fileName);
+      if (note || fm.fileExistsAtPath(path)) return note;
+    }
+    return null;
   }
 
   // Every note in the folder, or, given `ids`, the notes with those IDs that
   // exist, last edited first.
-  function list({ ids = null } = {}) {
+  //
+  // Listing every note also tidies the prefixed ones, with the save lock
+  // held: a note whose name doesn't follow its title (one with only its ID
+  // for a name, or edited in another app) is renamed, and a copy of a note
+  // (a second file with its ID, see ownerName) is split off as a note of its
+  // own (splitCopy). `isInUse` says which IDs open notes not saved yet have,
+  // which a copy mustn't be given.
+  function list({ ids = null, isInUse = (id) => isNoteIdInUse(id) } = {}) {
     const notes = [];
     if (ids) {
       for (const id of ids) {
@@ -276,13 +420,90 @@ function noteStore(folder = notesFolder()) {
         if (note) notes.push(note);
       }
     } else {
-      for (const name of folderEntries()) {
-        const id = noteIdFromFileName(name);
-        const note = id === null ? null : readFile(id, name);
-        if (note) notes.push(note);
+      const untidy = [];
+      for (const [id, names] of namesById(folderEntries())) {
+        if (!isPrefixedNoteId(id)) {
+          for (const name of names) {
+            const note = readFile(id, name);
+            if (note) notes.push(note);
+          }
+          continue;
+        }
+        const read = readFileNamed(id, names.length === 1 ? names[0] : ownerName(id, names));
+        if (names.length > 1 || (read && !sameFileName(read.wantedName, read.note.fileName))) untidy.push(id);
+        else if (read) notes.push(read.note);
+      }
+      if (untidy.length > 0) {
+        withSaveLock(() => {
+          for (const id of untidy) notes.push(...tidy(id, isInUse));
+        });
       }
     }
     return notes.sort((a, b) => b.modified - a.modified || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+  }
+
+  // The notes' filenames in `names`, by ID, as [id, names] in the order the
+  // IDs first appear.
+  function namesById(names) {
+    const groups = new Map();
+    for (const name of names) {
+      const id = noteIdFromFileName(name);
+      if (id === null) continue;
+      const key = id.normalize("NFC");
+      if (groups.has(key)) groups.get(key)[1].push(name);
+      else groups.set(key, [id, [name]]);
+    }
+    return groups.values();
+  }
+
+  // Splits off the copies of a prefixed note and renames its file to follow
+  // its title, and returns the notes, the copies included, read afresh. Call
+  // with the save lock held.
+  function tidy(id, isInUse) {
+    const names = fileNamesFor(id);
+    if (names.length === 0) return [];
+    const owner = names.length === 1 ? names[0] : ownerName(id, names);
+    const notes = [];
+    for (const name of names) {
+      if (name === owner) continue;
+      const copy = splitCopy(id, name, isInUse);
+      if (copy) notes.push(copy);
+    }
+    const text = readText(`${folder}/${owner}`);
+    const note = readFile(id, text === null ? owner : matchFileName(id, owner, text));
+    if (note) notes.push(note);
+    return notes;
+  }
+
+  // Makes the file `name`, a copy of the prefixed note `id`, a note of its
+  // own, and returns it. Its ID is the next free one from the note's
+  // timestamp (`<timestamp>-2`, `-3`…: one with no note, no sidecar, and not
+  // `isInUse`), and it's named for its text. It's given the note's colour,
+  // icon, font size and mode, but isn't sticky. The sidecar is written
+  // before the file is renamed, so a process stopped between the two leaves
+  // only a sidecar without a note, which a sweep deletes. Returns null, and
+  // leaves the file as it is, if it can't be read or renamed. Call with the
+  // save lock held.
+  function splitCopy(id, name, isInUse) {
+    const path = `${folder}/${name}`;
+    const text = isRegularFile(path) ? readText(path) : null;
+    if (text === null) return null;
+    const base = /^\d{8}-\d{6}/.exec(id)[0];
+    let copyId = null;
+    for (let n = 2; copyId === null; n++) {
+      const candidate = `${base}-${n}`;
+      if (fileNamesFor(candidate).length === 0 && !fm.fileExistsAtPath(metaPath(candidate)) && !isInUse(candidate)) copyId = candidate;
+    }
+    const meta = readMeta(id);
+    const copied = {};
+    for (const key of ["colour", "icon", "fontSize", "mode"]) if (key in meta) copied[key] = meta[key];
+    if (Object.keys(copied).length > 0) updateMeta(copyId, copied);
+    const copyName = noteFileName(copyId, text);
+    if (!renameFileInFolder(folder, name, copyName)) {
+      if (fm.fileExistsAtPath(metaPath(copyId))) removeFile(metaPath(copyId));
+      return null;
+    }
+    return readFile(copyId, copyName);
   }
 
   // Saves `text` as the note's whole content, atomically. Returns what it did:
@@ -297,18 +518,34 @@ function noteStore(folder = notesFolder()) {
   // The sidecar gets `created` the first time a note is saved, if it hasn't
   // one yet: now for a new note, the file's birth time for one added by hand
   // that hasn't been read yet.
+  //
+  // A prefixed note's file is named for its text (noteFileName): a new note
+  // is written with that name, and an existing note is renamed after it's
+  // written if its title has changed. All of it holds the save lock, so a
+  // racing save can't write to the name this one renames away from.
   function save(id, text) {
-    const path = notePath(id);
-    const existed = fm.fileExistsAtPath(path);
-    if (existed) {
-      if (readText(path) === text) return "unchanged";
-    } else if (isBlankText(text)) {
-      return "blank";
-    }
-    const birth = existed ? fileDate(path, "NSFileCreationDate") : new Date();
-    writeFileAtomically(path, text);
-    if (!readMeta(id).created) updateMeta(id, { created: formatLocalIsoDate(birth) });
-    return existed ? "saved" : "created";
+    checkId(id);
+    return withSaveLock(() => {
+      const name = fileNameFor(id);
+      const path = `${folder}/${name}`;
+      const existed = fm.fileExistsAtPath(path);
+      if (existed) {
+        if (readText(path) === text) {
+          matchFileName(id, name, text);
+          return "unchanged";
+        }
+        const birth = fileDate(path, "NSFileCreationDate");
+        writeFileAtomically(path, text);
+        matchFileName(id, name, text);
+        if (!readMeta(id).created) updateMeta(id, { created: formatLocalIsoDate(birth) });
+        return "saved";
+      }
+      if (isBlankText(text)) return "blank";
+      const birth = new Date();
+      writeFileAtomically(`${folder}/${isPrefixedNoteId(id) ? noteFileName(id, text) : name}`, text);
+      if (!readMeta(id).created) updateMeta(id, { created: formatLocalIsoDate(birth) });
+      return "created";
+    });
   }
 
   // The note's metadata object, {} if it has no sidecar or it isn't a JSON
@@ -350,14 +587,17 @@ function noteStore(folder = notesFolder()) {
   // through the Trash: there's nothing to recover. A note that can't be read
   // as text is left alone.
   function deleteIfEmpty(id) {
-    const path = notePath(id);
-    if (fm.fileExistsAtPath(path)) {
-      const text = readText(path);
-      if (text === null || !isBlankText(text)) return false;
-      removeFile(path);
-    }
-    if (fm.fileExistsAtPath(metaPath(id))) removeFile(metaPath(id));
-    return true;
+    checkId(id);
+    return withSaveLock(() => {
+      const path = notePath(id);
+      if (fm.fileExistsAtPath(path)) {
+        const text = readText(path);
+        if (text === null || !isBlankText(text)) return false;
+        removeFile(path);
+      }
+      if (fm.fileExistsAtPath(metaPath(id))) removeFile(metaPath(id));
+      return true;
+    });
   }
 
   // Moves the note to the Trash through Finder, so Finder's "Put Back" works,
@@ -369,20 +609,21 @@ function noteStore(folder = notesFolder()) {
   // is dated by the next sweep instead. Needs permission to control Finder:
   // macOS asks the first time, and once it's refused, the error says where to
   // allow it.
+  //
+  // Finder runs without the save lock, as the first time it can wait on
+  // macOS's permission prompt. So a save may rename the note meanwhile: if
+  // Finder fails and the note has another name, it's tried again with that.
   function trash(id) {
-    const path = notePath(id);
+    let path = notePath(id);
     if (!fm.fileExistsAtPath(path)) return null;
     let item;
     try {
-      item = Application("Finder").delete(Path(path));
+      item = trashWithFinder(path);
     } catch (e) {
-      // -1743 is errAEEventNotPermitted, for which JXA's message is only "An
-      // error occurred."
-      if (e.errorNumber === -1743)
-        throw new Error(
-          "Alfred isn't allowed to control Finder. Allow it in System Settings › Privacy & Security › Automation.",
-        );
-      throw e;
+      const renamed = notePath(id);
+      if (renamed === path || fm.fileExistsAtPath(path) || !fm.fileExistsAtPath(renamed)) throw e;
+      path = renamed;
+      item = trashWithFinder(path);
     }
     if (fm.fileExistsAtPath(path)) throw new Error(`Finder didn't move ${path} to the Trash`);
     if (readJsonObject(metaPath(id)) !== null) {
@@ -396,6 +637,20 @@ function noteStore(folder = notesFolder()) {
       return $.NSURL.URLWithString(item.url()).path.js;
     } catch (e) {
       return "";
+    }
+  }
+
+  function trashWithFinder(path) {
+    try {
+      return Application("Finder").delete(Path(path));
+    } catch (e) {
+      // -1743 is errAEEventNotPermitted, for which JXA's message is only "An
+      // error occurred."
+      if (e.errorNumber === -1743)
+        throw new Error(
+          "Alfred isn't allowed to control Finder. Allow it in System Settings › Privacy & Security › Automation.",
+        );
+      throw e;
     }
   }
 
@@ -546,7 +801,7 @@ function installExamplesOnce(store, workflowFolder, { now = new Date(), variable
 // first. It compares the folder the notes were last in, recorded per Mac in
 // the data folder, with the folder the setting gives, and when they differ
 // starts scripts/move.js in the background, which closes the sticky windows
-// and moves the notes (moveNotes). A move holds a lock, <cache>/move.lock/,
+// and moves the notes (moveNotes). A move holds a lock, <cache>/locks/move,
 // while it runs, and one that fails leaves <cache>/move-failure.json saying
 // why.
 
@@ -821,52 +1076,39 @@ function volumeIdentity(path) {
   return attributes.isNil() ? null : attributes.objectForKey("NSFileSystemNumber").js;
 }
 
-// The move lock is a folder, so taking it is one step that only one process
-// can win, holding a file `pid` with the process ID of the move.
+// The move lock (see "Locks"), held while a move runs. A process holds it
+// only for the length of one move, as only move.js takes it.
 function moveLockPath(variable) {
-  return `${workflowCacheFolder(variable)}/move.lock`;
+  return `${workflowCacheFolder(variable)}/locks/move`;
 }
 
-// Whether a live move holds the lock. A lock with no process ID in it yet is
-// still being taken, and counts as held for a few seconds.
+// The move lock's handle while this process holds it.
+let moveLockHandle = null;
+
+// Whether a move holds the lock: this process, or another, which a try for
+// the lock that fails shows. A try that succeeds lets go at once.
 function isMoveLockHeld(variable = workflowVariable) {
-  const lock = moveLockPath(variable);
-  if (!$.NSFileManager.defaultManager.fileExistsAtPath(lock)) return false;
-  const pid = moveLockPid(lock);
-  if (pid !== null) return isProcessAlive(pid);
-  const created = fileDate(lock, "NSFileCreationDate");
-  return created !== null && Date.now() - created < 5000;
+  if (moveLockHandle !== null) return true;
+  const path = moveLockPath(variable);
+  if (!$.NSFileManager.defaultManager.fileExistsAtPath(path)) return false;
+  const handle = takeFileLock(path);
+  releaseFileLock(handle);
+  return handle === null;
 }
 
-function moveLockPid(lock) {
-  const text = readText(`${lock}/pid`);
-  const pid = text === null ? NaN : Number(text.trim());
-  return Number.isInteger(pid) && pid > 0 ? pid : null;
-}
-
-// Takes the lock for this process, taking over a stale one (its process has
-// gone), and returns whether it did.
+// Takes the lock for this process and returns whether it did. It waits a
+// little, as another process checking whether the lock is held
+// (isMoveLockHeld) holds it for an instant.
 function takeMoveLock(variable = workflowVariable) {
-  ObjC.import("unistd");
-  const fm = $.NSFileManager.defaultManager;
-  const lock = moveLockPath(variable);
-  ensureFolder(workflowCacheFolder(variable), true);
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (fm.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(lock, false, $(), null)) {
-      writeFileAtomically(`${lock}/pid`, `${$.getpid()}\n`);
-      return true;
-    }
-    if (isMoveLockHeld(variable)) return false;
-    fm.removeItemAtPathError(lock, null);
-  }
-  return false;
+  if (moveLockHandle !== null) return false;
+  moveLockHandle = takeFileLock(moveLockPath(variable), { timeout: 100 });
+  return moveLockHandle !== null;
 }
 
 // Releases the lock, if this process holds it.
-function releaseMoveLock(variable = workflowVariable) {
-  ObjC.import("unistd");
-  const lock = moveLockPath(variable);
-  if (moveLockPid(lock) === $.getpid()) $.NSFileManager.defaultManager.removeItemAtPathError(lock, null);
+function releaseMoveLock() {
+  releaseFileLock(moveLockHandle);
+  moveLockHandle = null;
 }
 
 function isProcessAlive(pid) {
@@ -3598,6 +3840,104 @@ function fileDate(path, key) {
   return attributes.isNil() ? null : jsDate(attributes.objectForKey(key));
 }
 
+// Renames the file `from` in `folder` to `to`, never replacing another file,
+// and returns whether it did. A new name that differs only in case or
+// Unicode normalization, which is the same file on a case-insensitive
+// volume, works too. Unlike NSFileManager's move, which refuses that.
+// renamex_np with RENAME_EXCL is atomic, so a process stopped part way
+// leaves the file under one name or the other.
+function renameFileInFolder(folder, from, to) {
+  if (from === to) return true;
+  ObjC.bindFunction("renamex_np", ["int", ["char *", "char *", "unsigned int"]]);
+  const RENAME_EXCL = 4;
+  const source = `${folder}/${from}`;
+  const dest = `${folder}/${to}`;
+  if ($.renamex_np(source, dest, RENAME_EXCL) === 0) return true;
+  // A volume that counts the file itself as being in the way.
+  if (!isSameFile(source, dest)) return false;
+  ObjC.bindFunction("rename", ["int", ["char *", "char *"]]);
+  return $.rename(source, dest) === 0;
+}
+
+// Whether two paths name one file.
+function isSameFile(a, b) {
+  const fm = $.NSFileManager.defaultManager;
+  const first = fm.attributesOfItemAtPathError(a, null);
+  const second = fm.attributesOfItemAtPathError(b, null);
+  if (first.isNil() || second.isNil()) return false;
+  return ["NSFileSystemNumber", "NSFileSystemFileNumber"].every((key) => first.objectForKey(key).js === second.objectForKey(key).js);
+}
+
+// ---------------------------------------------------------------------------
+// Locks
+//
+// A lock is a file locked with flock(2), the kernel's advisory lock: one
+// process at a time holds it, and it's released when its process exits,
+// however that happens (a crash, kill -9, or Alfred stopping a Script
+// Filter's process group), so a lock is never left held by a process that's
+// gone. A process the holder starts doesn't inherit it. The lock files live
+// in `locks/` in the workflow's cache folder, on the local disk, where flock
+// is reliable, even when the notes are in a synced folder. Two locks: the
+// save lock (see noteStore) and the move lock (see "Moving the notes
+// folder").
+
+const LOCK_EX = 2;
+const LOCK_NB = 4;
+const LOCK_UN = 8;
+
+function saveLockPath(variable = workflowVariable) {
+  return `${workflowCacheFolder(variable)}/locks/save`;
+}
+
+// Takes the lock at `path`, creating the file and its folder if needed, and
+// returns its handle for releaseFileLock, or null if another process still
+// holds it after `timeout` ms (0 tries once). The file is created by
+// writing in place, never replaced: a process holding the lock holds it on
+// the file as it is, so a replaced file would be a second lock.
+function takeFileLock(path, { timeout = 0 } = {}) {
+  ObjC.bindFunction("flock", ["int", ["int", "int"]]);
+  const fm = $.NSFileManager.defaultManager;
+  if (!fm.fileExistsAtPath(path)) {
+    ensureFolder($(path).stringByDeletingLastPathComponent.js, true);
+    $.NSData.data.writeToFileAtomically(path, false);
+  }
+  const handle = $.NSFileHandle.fileHandleForUpdatingAtPath(path);
+  if (handle.isNil()) throw new Error(`Can't open the lock ${path}`);
+  const start = Date.now();
+  while ($.flock(handle.fileDescriptor, LOCK_EX | LOCK_NB) !== 0) {
+    if (Date.now() - start >= timeout) {
+      handle.closeFile;
+      return null;
+    }
+    delay(0.01);
+  }
+  return handle;
+}
+
+function releaseFileLock(handle) {
+  if (handle === null) return;
+  ObjC.bindFunction("flock", ["int", ["int", "int"]]);
+  $.flock(handle.fileDescriptor, LOCK_UN);
+  handle.closeFile;
+}
+
+// Runs `fn` holding the lock at `path`, and returns what it returns. If
+// another process holds the lock for longer than `timeout` ms, or it can't
+// be taken, `fn` runs without it.
+function withFileLock(path, fn, { timeout = 0 } = {}) {
+  let handle = null;
+  try {
+    handle = takeFileLock(path, { timeout });
+  } catch (e) {
+    // Run without it.
+  }
+  try {
+    return fn();
+  } finally {
+    releaseFileLock(handle);
+  }
+}
+
 // Sets the file's birth and modification times to `date`.
 function setFileDates(path, date) {
   const attributes = $.NSMutableDictionary.dictionary;
@@ -3661,7 +4001,14 @@ function isBlankText(text) {
 // (splitTitleLine in text-rules.js). Both are truncated on whole characters
 // (truncateText). A leading YAML front matter block, as other apps write, is
 // skipped.
-function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PREVIEW_MAX_LENGTH } = {}) {
+function noteSummary(text, options) {
+  const summary = noteSummaryOrUntitled(text, options);
+  return { title: summary.title === null ? UNTITLED : summary.title, preview: summary.preview };
+}
+
+// As noteSummary, with a null title when the text has none, so a note that
+// starts "Untitled" can be told from one without a title.
+function noteSummaryOrUntitled(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PREVIEW_MAX_LENGTH } = {}) {
   let title = null;
   let titleIsHeading = false;
   let preview = "";
@@ -3688,7 +4035,7 @@ function noteSummary(text, { titleLength = TITLE_MAX_LENGTH, previewLength = PRE
   const split = title !== null && previous === null && !titleIsHeading ? splitTitleLine(title) : null;
   if (split) ({ title, rest: preview } = split);
   return {
-    title: truncateText(title === null ? UNTITLED : title, titleLength),
+    title: title === null ? null : truncateText(title, titleLength),
     preview: truncateText(preview, previewLength),
   };
 }

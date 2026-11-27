@@ -61,13 +61,32 @@ for round in create overwrite; do
     fi
   done
   pids=()
-  for i in {1..12}; do "$runner" save "$conc/notes" race "$conc/text-$i" > /dev/null & pids+=($!); done
+  for i in {1..12}; do "$runner" save "$conc/notes" race "$conc/text-$i" "$conc/save.lock" > /dev/null & pids+=($!); done
   wait $pids
   matched=0
   for i in {1..12}; do cmp -s "$conc/notes/race.md" "$conc/text-$i" && matched=1; done
   if (( matched )); then ok "$round: the note is exactly one complete version"; else fail "$round: the note matches no version"; fi
   leftovers=$(ls -A "$conc/notes" "$conc/notes/.scratchnstick" | grep -c '^\.scratchnstick-save-' || true)
   if (( leftovers == 0 )); then ok "$round: no temporary files left"; else fail "$round: $leftovers temporary files left"; fi
+done
+
+# A note named for its title, with each version's title different, so most
+# saves rename it: with the save lock, there's only ever one file for it.
+id=20261120-153012
+for round in create overwrite; do
+  for i in {1..12}; do
+    { print "# Version $i"; if (( i % 2 )); then for j in {1..200000}; do print "line $j"; done; fi } > "$conc/titled-$i"
+  done
+  pids=()
+  for i in {1..12}; do "$runner" save "$conc/notes" $id "$conc/titled-$i" "$conc/save.lock" > /dev/null & pids+=($!); done
+  wait $pids
+  files=("$conc/notes/$id"(|\ *).md(N))
+  if (( ${#files} == 1 )); then ok "titled, $round: one file for the note"; else fail "titled, $round: ${#files} files for the note: ${files:t}"; fi
+  matched=0
+  for i in {1..12}; do [[ ${files[1]:t} == "$id Version $i.md" ]] && cmp -s "${files[1]}" "$conc/titled-$i" && matched=1; done
+  if (( matched )); then ok "titled, $round: exactly one complete version, named for its title"; else fail "titled, $round: ${files[1]:t} matches no version"; fi
+  leftovers=$(ls -A "$conc/notes" "$conc/notes/.scratchnstick" | grep -c '^\.scratchnstick-save-' || true)
+  if (( leftovers == 0 )); then ok "titled, $round: no temporary files left"; else fail "titled, $round: $leftovers temporary files left"; fi
 done
 
 print "\n# move.js and the move started by list.js"
@@ -83,19 +102,20 @@ movejs "$mv/data/notes" "$mv/new"
 expect "the note moved" "$(cat "$mv/new/a.md" 2>&1)" "Moved by move.js"
 expect "the record is the new folder" "$(record)" "$mv/new"
 expect "the old default folder, left empty, is removed" "$([[ -e $mv/data/notes ]] && print kept || print removed)" "removed"
-expect "the lock is released, and there's no failure" "$(ls -A "$mv/cache")" ""
+expect "the lock is released, and there's no failure" "$(ls -A "$mv/cache")" "locks"
 
 mkdir -p "$mv/locked"; chmod 555 "$mv/locked"
 print -rn "Can't move" > "$mv/new/b.md"
 movejs "$mv/new" "$mv/locked"
 expect "a failed move: its failure is recorded, naming the file" "$(grep -c '"error":"Can.t move [^"]*b.md' "$mv/cache/move-failure.json" 2>&1)" "1"
-expect "…the record still names the old folder, and the lock is released" "$(record) $(ls -A "$mv/cache")" "$mv/new move-failure.json"
+expect "…the record still names the old folder, and there's the failure" "$(record) $(ls -A "$mv/cache" | tr '\n' ' ')" "$mv/new locks move-failure.json "
 chmod 755 "$mv/locked"; rm -f "$mv/cache/move-failure.json"
 
-mkdir "$mv/cache/move.lock"; print $$ > "$mv/cache/move.lock/pid"
+"$runner" hold-lock "$mv/cache/locks/move" 30 > "$mv/held" & holder=$!
+for i in {1..100}; do [[ -s $mv/held ]] && break; sleep 0.05; done
 movejs "$mv/new" "$mv/locked"
-expect "a lock held by a live process: move.js does nothing" "$(ls -A "$mv/locked") $(record)" " $mv/new"
-rm -rf "$mv/cache/move.lock"
+expect "the lock held by another process: move.js does nothing" "$(ls -A "$mv/locked") $(record)" " $mv/new"
+kill -9 $holder; wait $holder 2>/dev/null || true
 
 listjs() { (cd "$tmp" && env alfred_workflow_data=$mv/data alfred_workflow_cache=$mv/cache notes_folder=$1 "$workflow/scripts/list.js" "") }
 out=$(listjs "$mv/locked")

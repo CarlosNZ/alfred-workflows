@@ -42,6 +42,13 @@ open_note() {
 window_js() { env alfred_workflow_cache=$cache "$scripts/window.js" "$@" }
 changed() { env alfred_workflow_cache=$cache "$scripts/changed.sh" "$@" }
 
+# The file of the note with this ID: a note named by its creation time is
+# renamed to follow its title.
+note_file() {
+  local files=($notes/$1.md(N) $notes/"$1 "*.md(N))
+  print -r -- ${files[1]:-$notes/$1.md}
+}
+
 # Evaluates a JavaScript expression with `d` the JSON in a file (- for stdin).
 json() {
   osascript -l JavaScript -e '
@@ -190,7 +197,7 @@ expect "a new note isn't written until saved" "$(ls $notes | tr '\n' ' ')" "meet
 # A new sticky note is saved with its starting text as it opens, so the lists
 # show it while its window is open; a blank one isn't written.
 idst=$(basename "$(open_note new=1 stick 'Sticky from a keyword')" .alfredui)
-expect_exact "a new sticky note with text is saved as it opens, with a sidecar" "$(<$notes/$idst.md) $([[ -e $notes/.scratchnstick/$idst.json ]] && print sidecar)" "# Sticky from a keyword sidecar"
+expect_exact "a new sticky note with text is saved as it opens, with a sidecar" "$(<"$(note_file $idst)") $([[ -e $notes/.scratchnstick/$idst.json ]] && print sidecar)" "# Sticky from a keyword sidecar"
 idsb=$(basename "$(open_note new=1 stick '')" .alfredui)
 expect "a new blank sticky note isn't written" "$(ls -A $notes $notes/.scratchnstick | grep -c $idsb || true)" "0"
 # A new sticky note's window is sized to its text (fittedNoteSize in
@@ -206,8 +213,8 @@ expect "a new sticky note with more lines is taller" "$(json $cache/windows/$ids
 idsc=$(basename "$(open_note new=1 stick $'```\n'"$(repeat 60 printf x)"$'\n```')" .alfredui)
 expect "a new sticky note with wide code is wider" "$(json $cache/windows/$idsc.alfredui/ui.json $size)" "554x320"
 expect "an existing note's sticky window isn't sized to its text" "$(json $cache/windows/meeting.alfredui/ui.json $size)" "360x320"
-rm -rf -- $notes/$idst.md $notes/.scratchnstick/$idst.json $cache/windows/$idst.alfredui $cache/windows/$idsb.alfredui
-rm -rf -- $notes/$idsl.md $notes/.scratchnstick/$idsl.json $cache/windows/$idsl.alfredui $notes/$idsc.md $notes/.scratchnstick/$idsc.json $cache/windows/$idsc.alfredui
+rm -rf -- "$(note_file $idst)" $notes/.scratchnstick/$idst.json $cache/windows/$idst.alfredui $cache/windows/$idsb.alfredui
+rm -rf -- "$(note_file $idsl)" $notes/.scratchnstick/$idsl.json $cache/windows/$idsl.alfredui "$(note_file $idsc)" $notes/.scratchnstick/$idsc.json $cache/windows/$idsc.alfredui
 expect "open.js sets open_window, clears new and stick_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","stick_note":"","stick_mode":"","close_view":""}'
 
 # window.js: launched, save, toggle, edit, view, quit.
@@ -215,9 +222,10 @@ bundle1=$cache/quick/$id1.alfredui
 window_js launched "$id1" quick edit
 expect "launched records form, process and mode" "$(json $cache/state/$id1.json 'd.form + " " + (d.pid === '$$' ? "this shell" : d.pid) + " " + d.mode')" "quick this shell edit"
 window_js save "$id1" quick "Buy milk {${wj}var:x}"
-expect "save writes the text, unescaped" "$(cat $notes/$id1.md)" "Buy milk {var:x}"
+expect "save writes the text, unescaped" "$(cat "$(note_file $id1)")" "Buy milk {var:x}"
 update=$(window_js toggle "$id1" quick "Buy oat milk")
-expect "toggle to View: saves first" "$(cat $notes/$id1.md)" "Buy oat milk"
+expect "toggle to View: saves first" "$(cat "$(note_file $id1)")" "Buy oat milk"
+expect "a save renames the note's file for its title, keeping its state and bundle" "$(note_file $id1) $([[ -e $cache/state/$id1.json && -e $bundle1 ]] && print kept)" "$notes/$id1 Buy oat milk.md kept"
 expect "toggle to View: updates the toggle button, the editor and the web view" "$(print -r -- $update | json - 'Object.keys(d.update.ids).sort().join(" ")')" "editor toggle web"
 expect_exact "toggle to View, quick: replaces the key hints, which name ↵ for Edit" "$(print -r -- $update | json - 'Object.keys(d.replace.ids).join(" ") + " | " + d.replace.ids.keyhints.components.map(l => l.text).join(", ")')" "keyhints | Edit ↵, •, Actions ⌘K"
 expect "toggle to View: hides the editor" "$(print -r -- $update | json - 'JSON.stringify(d.update.ids.editor)')" '{"hidden":true}'
@@ -226,13 +234,13 @@ expect "toggle to View: the page's note.js has the saved text" "$(page_text $bun
 expect_exact "toggle to View: the button shows Edit" "$(print -r -- $update | json - '[d.update.ids.toggle.image.src, d.update.ids.toggle.tooltip, d.update.ids.toggle.accessibility.label].join(" ")')" "$workflow/icons/lucide/pencil-light.svg Edit (↩) Edit"
 expect "toggle: the mode is in the state and the sidecar" "$(json $cache/state/$id1.json d.mode) $(json $notes/.scratchnstick/$id1.json d.mode)" "view view"
 window_js save "$id1" quick "Buy oat"
-expect "save in View (typing stopped after the switch): nothing saved" "$(cat $notes/$id1.md)" "Buy oat milk"
+expect "save in View (typing stopped after the switch): nothing saved" "$(cat "$(note_file $id1)")" "Buy oat milk"
 window_js quit "$id1" quick "Buy oat"
-expect "quit in View: no save from the hidden editor's text" "$(cat $notes/$id1.md)" "Buy oat milk"
+expect "quit in View: no save from the hidden editor's text" "$(cat "$(note_file $id1)")" "Buy oat milk"
 expect "quit removes the state" "$([[ -e $cache/state/$id1.json ]] && print there || print gone)" "gone"
-expect "toggle with no state: nothing, and nothing saved" "$(window_js toggle "$id1" quick "") $(cat $notes/$id1.md)" " Buy oat milk"
+expect "toggle with no state: nothing, and nothing saved" "$(window_js toggle "$id1" quick "") $(cat "$(note_file $id1)")" " Buy oat milk"
 window_js save "$id1" quick ""
-expect "save with no state: blank text isn't saved" "$(cat $notes/$id1.md)" "Buy oat milk"
+expect "save with no state: blank text isn't saved" "$(cat "$(note_file $id1)")" "Buy oat milk"
 bundle1=$(open_note stick "$id1")
 update=$(window_js launched "$id1" sticky view; window_js toggle "$id1" sticky "")
 expect "launched, sticky: marks the note sticky in its sidecar" "$(json $notes/.scratchnstick/$id1.json d.sticky)" "true"
@@ -243,15 +251,15 @@ expect_exact "toggle to Edit: the button shows Preview" "$(print -r -- $update |
 expect "edit in Edit: nothing" "$(window_js edit "$id1" sticky "")" ""
 update=$(window_js view "$id1" sticky "Buy oat milk!")
 src1=$(print -r -- $update | json - d.update.ids.web.src)
-expect "view in Edit: saves, then reloads the page with the saved text" "$(cat $notes/$id1.md) $src1 $(page_text $bundle1) $(json $cache/state/$id1.json d.mode)" "Buy oat milk! file://$bundle1/view.html?v=* Buy oat milk! view"
-expect "view in View: nothing, and nothing saved" "$(window_js view "$id1" sticky "") $(cat $notes/$id1.md)" " Buy oat milk!"
+expect "view in Edit: saves, then reloads the page with the saved text" "$(cat "$(note_file $id1)") $src1 $(page_text $bundle1) $(json $cache/state/$id1.json d.mode)" "Buy oat milk! file://$bundle1/view.html?v=* Buy oat milk! view"
+expect "view in View: nothing, and nothing saved" "$(window_js view "$id1" sticky "") $(cat "$(note_file $id1)")" " Buy oat milk!"
 update=$(window_js edit "$id1" sticky "")
 expect "edit in View: the editor with the file's text" "$(print -r -- $update | json - 'd.update.ids.editor.text') $(json $cache/state/$id1.json d.mode)" "Buy oat milk! edit"
 src2=$(window_js view "$id1" sticky "Buy oat milk!" | json - d.update.ids.web.src)
 expect "view again with the same text: a new URL, so the page reloads" "$([[ $src1 != $src2 ]] && print different)" "different"
 window_js edit "$id1" sticky "" >/dev/null
 window_js quit "$id1" sticky "Buy oat milk and bread"
-expect "quit in Edit: saves" "$(cat $notes/$id1.md)" "Buy oat milk and bread"
+expect "quit in Edit: saves" "$(cat "$(note_file $id1)")" "Buy oat milk and bread"
 expect "quit records the window's mode in the sidecar" "$(json $notes/.scratchnstick/$id1.json d.mode)" "edit"
 expect "quit, sticky: the note stays sticky" "$(json $notes/.scratchnstick/$id1.json d.sticky)" "true"
 expect "quit, sticky: keeps the state, with when it closed" "$(json $cache/state/$id1.json '[d.form, d.mode, Math.abs(Date.now() - d.closed) < 60000].join(" ")')" "sticky edit true"
@@ -283,7 +291,7 @@ open_note stick "$id1" >/dev/null
 window_js launched "$id1" sticky edit
 expect_exact "unstick (Close and Unstick): closes the window" "$(window_js unstick "$id1" sticky "")" '{"finish":{}}'
 window_js quit "$id1" sticky "Buy oat milk and bread"
-expect "quit after Close and Unstick: saves, unsticks the note, and removes the state rather than keeping it" "$(cat $notes/$id1.md) | $(json $notes/.scratchnstick/$id1.json '"sticky" in d') | $([[ -e $cache/state/$id1.json ]] && print there || print gone)" "Buy oat milk and bread | false | gone"
+expect "quit after Close and Unstick: saves, unsticks the note, and removes the state rather than keeping it" "$(cat "$(note_file $id1)") | $(json $notes/.scratchnstick/$id1.json '"sticky" in d') | $([[ -e $cache/state/$id1.json ]] && print there || print gone)" "Buy oat milk and bread | false | gone"
 expect "unstick with no state, or in a quick view: nothing" "$(window_js unstick "$id1" sticky ""; window_js launched "$id1" quick edit; window_js unstick "$id1" quick "")" ""
 window_js quit "$id1" quick "Buy oat milk and bread"
 idbs=$(basename "$(open_note new=1 stick '')" .alfredui)
@@ -292,7 +300,7 @@ expect "launched, sticky, a blank new note: no sidecar yet" "$([[ -e $notes/.scr
 window_js save "$idbs" sticky "Typed later"
 window_js quit "$idbs" sticky "Typed later"
 expect "quit, sticky, a new note saved after it opened: marked sticky" "$(json $notes/.scratchnstick/$idbs.json d.sticky)" "true"
-rm -rf -- $notes/$idbs.md $notes/.scratchnstick/$idbs.json $cache/windows/$idbs.alfredui $cache/state/$idbs.json
+rm -rf -- "$(note_file $idbs)" $notes/.scratchnstick/$idbs.json $cache/windows/$idbs.alfredui $cache/state/$idbs.json
 
 # Collapsing a sticky window.
 print -rn -- $'# Groceries\n- milk\n' > "$notes/groceries.md"
@@ -382,7 +390,7 @@ window_js launched "$id3" quick edit
 stickbutton=$(byid stick)
 expect "quick: ⌘D and the Stick button run window.js stick with the editor's text" "$(json $cache/quick/$id3.alfredui/ui.json '[d.window.root.shortcuts.find(s => s.shortcut === "⌘D").action, ('$stickbutton').events[0].action].map(a => [a.src].concat(a.args).join(" ")).join(" | ")')" "$scripts/window.js stick $id3 quick {value:editor.text} | $scripts/window.js stick $id3 quick {value:editor.text}"
 finish=$(window_js stick "$id3" quick "Sticky straight away {${wj}var:x}")
-expect "stick in Edit: saves the editor's text, unescaped, before finishing" "$(cat $notes/$id3.md)" "Sticky straight away {var:x}"
+expect "stick in Edit: saves the editor's text, unescaped, before finishing" "$(cat "$(note_file $id3)")" "Sticky straight away {var:x}"
 expect "stick: finishes with stick_note, the escaped ID, and stick_mode, the view's mode" "$(print -r -- $finish | json - 'JSON.stringify(d)')" '{"finish":{"variables":{"stick_note":"'$id3'","stick_mode":"edit"}}}'
 window_js quit "$id3" quick "Sticky straight away {${wj}var:x}"
 ui=$(open_note stick_note=$id3 stick_mode=edit stick '')/ui.json

@@ -6,7 +6,10 @@
 //
 //   test-storage.js loader                  prints the lib.js it loaded
 //   test-storage.js test <temp folder>      the unit tests
-//   test-storage.js save <folder> <id> <file>  saves the file's text as a note
+//   test-storage.js save <folder> <id> <file> <lock file>
+//                                           saves the file's text as a note
+//   test-storage.js hold-lock <file> <seconds>
+//                                           takes the lock and holds it
 //   test-storage.js trash <temp folder>     moves a note it creates to the Trash
 //   test-storage.js move-volume <temp folder> <volume folder>
 //                                           moves notes between two volumes
@@ -16,18 +19,28 @@ ObjC.import("stdlib");
 
 let passed = 0;
 let failed = 0;
+let runnerPath = null;
 
 function run(argv) {
   const libPath = loadLib(argv, "../scripts/lib.js");
+  runnerPath = $(libPath).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.stringByAppendingPathComponent("dev/test-storage.js").js;
   loadLib(argv, "../scripts/text-rules.js");
   const [command, ...args] = argv;
   if (command === "loader") return print(`loaded ${libPath} (noteStore: ${typeof noteStore})`);
-  if (command === "save") return print(noteStore(args[0]).save(args[1], readText(args[2])));
+  if (command === "save") return print(noteStore(args[0], { lockFile: args[3] }).save(args[1], readText(args[2])));
+  if (command === "hold-lock") {
+    if (takeFileLock(args[0]) === null) throw new Error(`The lock ${args[0]} is held`);
+    print("held");
+    delay(Number(args[1]));
+    return;
+  }
   if (!args[0] || !args[0].includes("scratchnstick-test.")) throw new Error("Give the temporary folder test-storage.sh made");
   if (command === "test") {
     testConfiguration(args[0]);
     testIds(freshStore(args[0], "ids"));
     testSave(freshStore(args[0], "save"));
+    testFileNames(freshStore(args[0], "names"));
+    testLocks(args[0]);
     testMeta(freshStore(args[0], "meta"));
     testSummary();
     testTitles();
@@ -39,6 +52,7 @@ function run(argv) {
     testExamples(args[0]);
     testShippedExamples($(libPath).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js);
     timeList(freshStore(args[0], "timing"));
+    timeListPrefixed(freshStore(args[0], "timing-prefixed"));
     timeSweep(freshStore(args[0], "timing-sweep"));
     testMoveNotes(args[0]);
     testMoveCheck(args[0]);
@@ -92,6 +106,12 @@ function testIds(store) {
   for (const id of ["20261120-150302", "20261120-150302-2", "shopping", "Café ☕", "a b"]) check(`isNoteId(${JSON.stringify(id)})`, isNoteId(id));
   for (const id of ["", ".hidden", "a/b", "..", "../x", "a\0b", 42, null]) check(`!isNoteId(${JSON.stringify(id)})`, !isNoteId(id));
   eq("noteIdFromFileName", ["a.md", "B.MD", "c.Md", ".x.md", "a.txt", ".md", "md"].map(noteIdFromFileName), ["a", "B", "c", null, null, null, null]);
+  eq(
+    "noteIdFromFileName, named by time: the timestamp before the first space",
+    ["20261120-153012 Shopping list.md", "20261120-153012-2 Call Sam.MD", "20261120-153012.md", "20261120-153012 .md", "20261120-153012-copy.md", "Example Number 1.md", "2026112-153012 x.md"].map(noteIdFromFileName),
+    ["20261120-153012", "20261120-153012-2", "20261120-153012", "20261120-153012", "20261120-153012-copy", "Example Number 1", "2026112-153012 x"],
+  );
+  eq("isPrefixedNoteId", ["20261120-153012", "20261120-153012-12", "20261120-153012-copy", "shopping", "example-1-welcome"].map(isPrefixedNoteId), [true, true, false, false, false]);
 
   eq("free ID is the time", store.newId({ date }), "20261120-150302");
   writeRaw(`${store.folder}/20261120-150302.md`, "x");
@@ -158,6 +178,128 @@ function testSave(store) {
   throws("ID with a slash", () => store.save("../escape", "x"), /Not a note ID/);
   throws("hidden ID", () => store.save(".hidden", "x"), /Not a note ID/);
   eq("no temporary files left", leftoverTemps(store.folder), []);
+}
+
+function testFileNames(store) {
+  section("Filenames from titles");
+  const id = "20261120-153012";
+  const name = (text) => noteFileName(id, text);
+  eq("the title", name("# Shopping list\n- milk"), `${id} Shopping list.md`);
+  eq("no title: the ID alone", [name(""), name("  \n\n"), name("---\n")], [`${id}.md`, `${id}.md`, `${id}.md`]);
+  eq("a first line of Untitled is a title", name("Untitled\nmore"), `${id} Untitled.md`);
+  eq("the results list's title (Markdown removed)", name("> **Bold** [link](https://x.y) `code`"), `${id} Bold link code.md`);
+  eq("/ and : become -", name("Meeting 10:30 / notes"), `${id} Meeting 10-30 - notes.md`);
+  eq("control characters go", name("Bell\u0007 here"), `${id} Bell here.md`);
+  const long = name("word ".repeat(40)).slice(id.length + 1, -3);
+  eq("a long title: 60 characters, ending …", [graphemes(long).length, long.endsWith("…")], [60, true]);
+  const family = "👩‍👩‍👧‍👦";
+  const emoji = name(family.repeat(60));
+  check("a long emoji title: within 255 bytes, ending …", $(emoji).lengthOfBytesUsingEncoding($.NSUTF8StringEncoding) <= 255 && emoji.endsWith("….md"), emoji);
+  eq("NFC", name("Cafe\u0301"), `${id} Caf\u00e9.md`);
+
+  const folder = store.folder;
+  const names = () => entries(folder).filter((n) => !n.startsWith(".")).sort();
+  eq("save, new: written with its title's name", [store.save(id, "# Shopping\n- milk"), names()], ["created", [`${id} Shopping.md`]]);
+  const created = store.readMeta(id).created;
+  eq("save, same text: unchanged", store.save(id, "# Shopping\n- milk"), "unchanged");
+  eq("save, new title: renamed", [store.save(id, "# Groceries\n- milk"), names()], ["saved", [`${id} Groceries.md`]]);
+  eq("…the text is there, and the sidecar is the same", [readText(`${folder}/${id} Groceries.md`), store.readMeta(id).created], ["# Groceries\n- milk", created]);
+  eq("save, a change of case only: renamed", [store.save(id, "# groceries\n- milk"), names()], ["saved", [`${id} groceries.md`]]);
+  eq("save, the title gone: the ID alone", [store.save(id, "\n- \n"), names()], ["saved", [`${id}.md`]]);
+  eq("read finds it by ID", store.read(id).fileName, `${id}.md`);
+  store.save(id, "# Groceries\n");
+  eq("read after a rename", [store.read(id).fileName, store.read(id).title], [`${id} Groceries.md`, "Groceries"]);
+
+  writeRaw(`${folder}/${id} Renamed in Finder.md`, readText(`${folder}/${id} Groceries.md`));
+  removeFile(`${folder}/${id} Groceries.md`);
+  const old = new Date(2025, 0, 2, 3, 4, 5);
+  setDate(`${folder}/${id} Renamed in Finder.md`, "NSFileModificationDate", old);
+  eq("renamed by hand, saved unchanged: renamed back", [store.save(id, "# Groceries\n"), names()], ["unchanged", [`${id} Groceries.md`]]);
+  eq("…its modification time kept", fileDate(`${folder}/${id} Groceries.md`, "NSFileModificationDate").getTime(), old.getTime());
+
+  writeRaw(`${folder}/Shopping.md`, "# Shopping");
+  writeRaw(`${folder}/example-1-welcome.md`, "# Welcome");
+  store.save("Shopping", "# Something else");
+  store.save("example-1-welcome", "# Hello");
+  eq("named by hand, and examples: never renamed", names(), [`${id} Groceries.md`, "Shopping.md", "example-1-welcome.md"]);
+
+  eq("deleteIfEmpty on a renamed note", [store.save(id, "   "), store.deleteIfEmpty(id), names()], ["saved", true, ["Shopping.md", "example-1-welcome.md"]]);
+
+  writeRaw(`${folder}/a.txt`, "a");
+  writeRaw(`${folder}/b.txt`, "b");
+  eq("renameFileInFolder never replaces a file", [renameFileInFolder(folder, "a.txt", "b.txt"), readText(`${folder}/a.txt`), readText(`${folder}/b.txt`)], [false, "a", "b"]);
+  eq("…and renames to a free name", [renameFileInFolder(folder, "a.txt", "c.txt"), exists(`${folder}/a.txt`), readText(`${folder}/c.txt`)], [true, false, "a"]);
+  removeFile(`${folder}/b.txt`);
+  removeFile(`${folder}/c.txt`);
+
+  section("Listing tidies names");
+  const isInUse = () => false;
+  const listed = () => store.list({ isInUse }).map((note) => [note.id, note.fileName]).sort();
+  writeRaw(`${folder}/20261121-090000.md`, "# Old note\nfrom before");
+  writeRaw(`${folder}/20261121-090001 Edited elsewhere.md`, "# New title");
+  eq("names that don't follow their titles are renamed", listed(), [
+    ["20261121-090000", "20261121-090000 Old note.md"],
+    ["20261121-090001", "20261121-090001 New title.md"],
+    ["Shopping", "Shopping.md"],
+    ["example-1-welcome", "example-1-welcome.md"],
+  ]);
+  removeFile(`${folder}/20261121-090000 Old note.md`);
+  removeFile(`${folder}/20261121-090001 New title.md`);
+
+  const dup = "20261122-100000";
+  writeRaw(`${folder}/${dup} Plan.md`, "# Plan");
+  writeRaw(`${folder}/.scratchnstick/${dup}.json`, JSON.stringify({ created: "2026-11-22T10:00:00+13:00", colour: "blue", icon: "star", sticky: true, collapsed: true }));
+  writeRaw(`${folder}/${dup} Plan copy.md`, "# Plan");
+  eq("read with a copy there: the original", store.read(dup).fileName, `${dup} Plan.md`);
+  eq("a copy made in Finder is split off as a note of its own", listed().filter(([i]) => i.startsWith(dup)), [
+    [dup, `${dup} Plan.md`],
+    [`${dup}-2`, `${dup}-2 Plan.md`],
+  ]);
+  eq("…with the note's colour and icon, but not sticky", store.readMeta(`${dup}-2`), { colour: "blue", icon: "star", created: store.readMeta(`${dup}-2`).created });
+  eq("…the original's sidecar is unchanged", store.readMeta(dup).sticky, true);
+  eq("…and listing again changes nothing", listed().filter(([i]) => i.startsWith(dup)).length, 2);
+
+  writeRaw(`${folder}/${dup} Plan 2.md`, "# Plan, edited");
+  eq("a copy whose ID would be in use gets the next", store.list({ isInUse: (i) => i === `${dup}-3` }).map((n) => n.fileName).filter((n) => n.startsWith(dup)).sort(), [
+    `${dup} Plan.md`,
+    `${dup}-2 Plan.md`,
+    `${dup}-4 Plan, edited.md`,
+  ]);
+
+  const two = "20261122-110000";
+  writeRaw(`${folder}/${two} a.md`, "# X");
+  writeRaw(`${folder}/${two} a copy.md`, "# X");
+  eq("neither named for its title: the shorter name is the original", listed().filter(([i]) => i.startsWith(two)), [
+    [two, `${two} X.md`],
+    [`${two}-2`, `${two}-2 X.md`],
+  ]);
+}
+
+function testLocks(root) {
+  section("Locks");
+  const path = `${root}/locks/test/lock`;
+  const handle = takeFileLock(path);
+  check("taken, creating its folder and file", handle !== null && exists(path));
+  check("…not again, even by this process", takeFileLock(path) === null);
+  releaseFileLock(handle);
+  const again = takeFileLock(path);
+  check("…and again once released", again !== null);
+  releaseFileLock(again);
+  const holder = holdLockElsewhere(path);
+  let start = Date.now();
+  check("held by another process: waits for the timeout, then gives up", takeFileLock(path, { timeout: 300 }) === null && Date.now() - start >= 300);
+  eq("withFileLock runs without it after the timeout", withFileLock(path, () => "ran", { timeout: 200 }), "ran");
+  const store = noteStore(`${root}/locks`, { lockFile: path });
+  eq("…so a save still saves", [store.save("held", "Saved anyway"), readText(`${root}/locks/held.md`)], ["created", "Saved anyway"]);
+  killProcess(holder);
+  const freed = takeFileLock(path);
+  check("free once that process is killed with -9", freed !== null);
+  releaseFileLock(freed);
+  eq("withFileLock returns what it runs, and releases the lock", [withFileLock(path, () => 42), (() => { const h = takeFileLock(path); releaseFileLock(h); return h !== null; })()], [42, true]);
+  throws("…and releases it when what it runs throws", () => withFileLock(path, () => { throw new Error("boom"); }), /boom/);
+  const after = takeFileLock(path);
+  check("…as a take afterwards shows", after !== null);
+  releaseFileLock(after);
 }
 
 function testMeta(store) {
@@ -617,6 +759,17 @@ function timeList(store) {
   print(`info list() of 300 notes: ${Date.now() - start} ms`);
 }
 
+function timeListPrefixed(store) {
+  for (let i = 0; i < 300; i++) writeRaw(`${store.folder}/20260101-${String(100000 + i)}.md`, `# Note ${i}\n- item one\n- item two\n\nSome text here.\n`.repeat(3));
+  let start = Date.now();
+  const count = store.list().length;
+  eq("300 notes named by time listed", count, 300);
+  print(`info list() of 300 notes named by time, first time (renaming them for their titles): ${Date.now() - start} ms`);
+  start = Date.now();
+  store.list();
+  print(`info list() of 300 notes named by time: ${Date.now() - start} ms`);
+}
+
 function timeSweep(store) {
   const day = 24 * 60 * 60 * 1000;
   const now = new Date();
@@ -728,6 +881,21 @@ function testMoveNotes(root) {
   eq("renamed", result.renamed.map(([a, b]) => `${a.normalize("NFC")}→${b.normalize("NFC")}`).sort(), ["Café→Café-2", "Upper→Upper-2", "clash-2→clash-2-2", "clash→clash-3", "sidecar→sidecar-2"]);
   eq("running it again moves nothing", moveNotes(from, to), { moved: 0, renamed: [], duplicates: 0 });
 
+  // Notes named by time, whose IDs clash though their names differ.
+  const namedFrom = `${root}/move/named-from`;
+  const namedTo = `${root}/move/named-to`;
+  makeFolder(`${namedFrom}/.scratchnstick`);
+  makeFolder(`${namedTo}/.scratchnstick`);
+  note(namedFrom, "20261120-153012 Shopping.md", "# Shopping", { colour: "blue" });
+  note(namedTo, "20261120-153012 Ideas.md", "# Ideas", { colour: "red" });
+  note(namedFrom, "20261120-160000 Same.md", "# Same", { colour: "green" });
+  note(namedTo, "20261120-160000.md", "# Same");
+  const named = moveNotes(namedFrom, namedTo);
+  const namedMeta = (id) => readJsonObject(`${namedTo}/.scratchnstick/${id}.json`);
+  eq("named by time: IDs clashing, not names: the next free ID, keeping the title", [named.renamed, namedMeta("20261120-153012-2"), namedMeta("20261120-153012")], [[["20261120-153012", "20261120-153012-2"]], { colour: "blue" }, { colour: "red" }]);
+  eq("named by time: the same text under another name is a duplicate", [named.duplicates, namedMeta("20261120-160000")], [1, { colour: "green" }]);
+  eq("…the new folder's notes", entries(namedTo).filter((name) => !name.startsWith(".")).sort(), ["20261120-153012 Ideas.md", "20261120-153012-2 Shopping.md", "20261120-160000.md"]);
+
   // A move stopped after a note was copied but before the old one was deleted.
   note(from, "copied.md", "Copied, not yet deleted");
   makeFolder(`${from}/.scratchnstick`);
@@ -796,14 +964,15 @@ function testMoveCheck(root) {
   check("the lock: taken", takeMoveLock(settings(a)));
   eq("…while held: moving, nothing started", [check_(a).status, started], ["moving", []]);
   check("…can't be taken twice", !takeMoveLock(settings(a)));
-  releaseMoveLock(settings(a));
-  check("…released", !exists(`${cache}/move.lock`));
-  makeFolder(`${cache}/move.lock`);
-  check("a lock with no process ID yet counts as held", isMoveLockHeld(settings(a)));
-  writeRaw(`${cache}/move.lock/pid`, "999999\n");
-  check("a lock whose process has gone is stale", !isMoveLockHeld(settings(a)));
-  check("…and is taken over", takeMoveLock(settings(a)) && readText(`${cache}/move.lock/pid`).trim() !== "999999");
-  releaseMoveLock(settings(a));
+  check("…still held after the second try", isMoveLockHeld(settings(a)));
+  releaseMoveLock();
+  check("…released", !isMoveLockHeld(settings(a)));
+  const holder = holdLockElsewhere(`${cache}/locks/move`);
+  check("held by another process: held, and can't be taken", isMoveLockHeld(settings(a)) && !takeMoveLock(settings(a)));
+  eq("…while held: moving, nothing started", [check_(a).status, started], ["moving", []]);
+  killProcess(holder);
+  check("…free once that process is killed with -9, and taken", !isMoveLockHeld(settings(a)) && takeMoveLock(settings(a)));
+  releaseMoveLock();
 
   writeLastNotesFolder(`${root}/check/gone`, settings(a));
   eq("a missing old folder: ready, nothing started, the record is the new folder", [check_(a).status, started, record()], ["ready", [], a]);
@@ -906,7 +1075,30 @@ function print(line) {
 
 function freshStore(root, name) {
   makeFolder(`${root}/${name}`);
-  return noteStore(`${root}/${name}`);
+  return noteStore(`${root}/${name}`, { lockFile: `${root}/locks/${name}` });
+}
+
+// Starts a process holding the lock at `path` for `seconds`, waits until it
+// holds it, and returns its process ID.
+function holdLockElsewhere(path, seconds = 30) {
+  const task = $.NSTask.alloc.init;
+  task.launchPath = "/usr/bin/osascript";
+  task.arguments = $(["-l", "JavaScript", runnerPath, "hold-lock", path, String(seconds)]);
+  task.standardOutput = $.NSFileHandle.fileHandleWithNullDevice;
+  task.launch;
+  for (let i = 0; i < 100; i++) {
+    const handle = exists(path) ? takeFileLock(path) : null;
+    if (exists(path) && handle === null) break;
+    releaseFileLock(handle);
+    delay(0.05);
+  }
+  return task.processIdentifier;
+}
+
+function killProcess(pid) {
+  ObjC.import("signal");
+  $.kill(pid, 9);
+  for (let i = 0; i < 100 && $.kill(pid, 0) === 0; i++) delay(0.02);
 }
 
 function makeFolder(path) {

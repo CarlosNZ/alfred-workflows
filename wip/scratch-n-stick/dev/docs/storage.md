@@ -1,6 +1,6 @@
 # Storage
 
-How notes are kept on disk: the notes folder, note IDs, metadata sidecars, titles and previews, saving, the Trash and sweeping sidecars, the example notes, and moving the notes folder. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md).
+How notes are kept on disk: the notes folder, note IDs and filenames, metadata sidecars, titles and previews, saving and the save lock, the Trash and sweeping sidecars, the example notes, and moving the notes folder. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md).
 
 ## The notes folder
 
@@ -10,11 +10,19 @@ Each note is one plain `.md` file in the notes folder. By default that's `notes/
 - The notes are the files directly in the folder whose names end in `.md`, in any case, and don't start with `.`. Subfolders, hidden files (including temporary save files) and other files are ignored.
 - A configured folder that doesn't exist gives a single result, "Missing notes folder", with its path as the subtitle. Any other problem opening it gives "Can't open the notes folder", with the reason.
 
-## Note IDs
+## Note IDs and filenames
 
-A note's ID is its filename without `.md`. Filenames are never derived from the content, so a file isn't renamed while a window has it open, and a file added by hand (`shopping.md`) is a note with its own name as its ID.
+Everything about a note is keyed on its ID: its sidecar, its quick and sticky bundles, its window's state, and through the bundle's path, its sticky window's saved position. So a note's ID never changes, while its filename can.
 
-New notes are named for their creation time in local time, `YYYYMMDD-HHMMSS` (e.g. `20261120-153012.md`), so they sort by creation in Finder, with `-2`, `-3`… added if the ID is taken. An ID is taken if its note or its sidecar exists (a trashed note keeps its sidecar for 30 days), or if the caller says so: `newId`'s `isTaken` counts new notes that are open but not saved yet (`isNoteIdInUse`: a sticky bundle or a state file exists), so two notes created in the same second don't share an ID. A quick bundle alone doesn't take an ID, so the New note results offered on each list don't pile up as `-2`, `-3`.
+**New notes** get IDs from their creation time in local time, `YYYYMMDD-HHMMSS`, with `-2`, `-3`… added if the ID is taken, and are named `<ID> <title>.md` (`20261120-153012 Shopping list.md`), or `<ID>.md` while they have no title. Such a name is "prefixed": its ID is the timestamp before the first space, and the rest of the name follows the note's title, so notes can be told apart in Finder, where they also sort by creation. An ID is taken if its note or its sidecar exists (a trashed note keeps its sidecar for 30 days), or if the caller says so: `newId`'s `isTaken` counts new notes that are open but not saved yet (`isNoteIdInUse`: a sticky bundle or a state file exists), so two notes created in the same second don't share an ID. A quick bundle alone doesn't take an ID, so the New note results offered on each list don't pile up as `-2`, `-3`.
+
+**Files added by hand** (`Shopping.md`, `Example Number 1.md`) have their whole name without `.md` as their ID, and are never renamed, as that would change the ID. Only a name that starts with the timestamp form and then a space or `.md` is prefixed; `20261120-153012-copy.md` isn't. The example notes (`example-1-…`) aren't prefixed either.
+
+**The title in the name** is the results list's title (see [Titles and previews](#titles-and-previews)), from the same function, cut at 60 characters (`FILE_NAME_TITLE_LENGTH`) rather than 80, then made safe: `/` (which a filename can't have) and `:` (which Finder shows as `/`) become `-`, control characters go, and it's NFC. A name over 255 UTF-8 bytes (a long emoji title) has its title cut further. A note with no title is `<ID>.md`; one whose first line is "Untitled" is named for it. This is `noteFileName(id, text)`.
+
+**When a note is renamed**: when a save changes its title, and when the results list finds a name that doesn't follow the title (a note with only its ID for a name, one edited in another app, or one renamed by hand in Finder, which is renamed back). A rename never replaces a file, and changes neither the modification time (so "last edited" doesn't move) nor the birth time. It's `renamex_np` with `RENAME_EXCL`, which is atomic and also does a change of case alone, which `NSFileManager`'s move refuses on a case-insensitive volume. Names are compared in NFC, since an HFS+ volume gives them back decomposed.
+
+**Copies.** Finder's Duplicate (`… copy.md`), a sync app's conflicted copy, or a save that went ahead without the lock can leave two files with one prefixed ID. The note's own file is the one named as `noteFileName` would name it, else the one with the shorter name (copies are named by adding to the original's), else the first by name; reading and saving use it. The results list splits off each other file as a note of its own: the next free ID from the timestamp (`<timestamp>-2`…), named for its text, with the note's colour, icon, font size and mode but not sticky. Its sidecar is written before the file is renamed, so a list stopped between the two leaves only a sidecar without a note, which a sweep deletes. Two files named by hand with one ID (`Notes.md` and `Notes.MD` on a case-sensitive volume) are listed as they are.
 
 IDs from script arguments are checked (`isNoteId`: one non-hidden filename component), so an argument can't reach outside the folder.
 
@@ -24,7 +32,8 @@ Per-note metadata is kept in a hidden JSON sidecar per note, `.scratchnstick/<id
 
 - Each `.md` stays plain Markdown that can be opened in any app, and the editor's text is the whole file, with nothing to strip and put back.
 - Changing a note's colour or icon doesn't rewrite the note, so it doesn't change its modification time and jump to the top of "last edited".
-- The cost: sidecars travel with the notes when the whole folder is copied or synced, but a note moved or renamed on its own loses its metadata. With the notes in the workflow's own data folder by default, that matters less.
+- Sidecars are named by ID, not filename, so a note renamed to follow its title keeps its sidecar.
+- The cost: sidecars travel with the notes when the whole folder is copied or synced, but a note moved on its own, or renamed so that its ID changes, loses its metadata. With the notes in the workflow's own data folder by default, that matters less.
 
 ```json
 {
@@ -81,7 +90,9 @@ These rules are `splitTitleLine` in `scripts/text-rules.js`, with the numbers as
 
 `save(id, text)` writes the whole text atomically: to a hidden temporary file (`.scratchnstick-save-…`) in the same folder, which then replaces the note with `NSFileManager`'s `replaceItemAtURL`. So a crash, a sync app or another save never sees half a note, and when two saves race (a window's `typingstopped` and `quit` saves are separate processes) the last to finish wins whole. `replaceItemAtURL` keeps the note's birth time, permissions and Finder tags; Cocoa's `writeToFile:atomically:` loses them. Racing processes writing 5 MB notes in place left mixed notes every time; the atomic save never did.
 
-It returns `"created"`, `"saved"`, `"unchanged"` (text matches the file, nothing written) or `"blank"` (a new note with blank text, nothing written), and records `created` on a note's first save.
+It returns `"created"`, `"saved"`, `"unchanged"` (text matches the file, nothing written) or `"blank"` (a new note with blank text, nothing written), and records `created` on a note's first save. A new prefixed note is written with the name for its title, and an existing one is renamed after it's written if its title has changed (see [Note IDs and filenames](#note-ids-and-filenames)).
+
+**The save lock.** Saving, `deleteIfEmpty`, and the list's renames hold the save lock, `$alfred_workflow_cache/locks/save`, one per Mac for all notes. Without it, a save that found the note's name could write to it after another save had renamed the note, leaving two files. It's an `flock` lock (see [Locks](#locks)); saves hold it for milliseconds. One that waits more than 2 s (`SAVE_LOCK_TIMEOUT`), or can't take it, saves without it: at worst that leaves a second file, which the list splits off as a note of its own, where giving up would lose the text of a window's last save. Readers don't take it: a rename is atomic, so they see one name or the other, and `read` looks for the note again if it vanishes between finding its name and reading it. `noteStore`'s `lockFile` option gives the tests their own lock.
 
 When a window saves is covered in [Note windows](windows.md#saving-from-a-window).
 
@@ -95,13 +106,13 @@ A note is empty when its text is only whitespace, whatever its sidecar holds.
 
 ## The Trash
 
-`trash(id)` moves a note to the Trash through Finder, so Finder's Put Back works, and keeps its sidecar, recording the time in its `trashed`. A sidecar that can't be read is left alone, and if the time can't be written, the next sweep dates it instead. macOS asks once for Alfred's permission to control Finder. With the permission off, Finder fails at once with -1743 (errAEEventNotPermitted), whose JXA message is only "An error occurred.", so `trash` replaces it with one saying where to allow it. A sticky window's own process can control Finder without a prompt.
+`trash(id)` moves a note to the Trash through Finder, so Finder's Put Back works, and keeps its sidecar, recording the time in its `trashed`. A sidecar that can't be read is left alone, and if the time can't be written, the next sweep dates it instead. macOS asks once for Alfred's permission to control Finder. With the permission off, Finder fails at once with -1743 (errAEEventNotPermitted), whose JXA message is only "An error occurred.", so `trash` replaces it with one saying where to allow it. A sticky window's own process can control Finder without a prompt. Finder runs without the save lock, since the first time it can wait on the permission prompt; if it fails because a save renamed the note meanwhile, `trash` tries again with the new name.
 
 ## Sweeping sidecars
 
 A note that's gone (trashed, or deleted some other way) leaves its sidecar, for Put Back. A sweep deletes it once it has been gone 30 days (`SIDECAR_KEEP_DAYS`), the same time Finder's "Remove items from the Trash after 30 days" keeps the note.
 
-- **Two things must be true** for a sidecar to be deleted: there's no note for it, and its `trashed` is 30 days old. "No note" matches the note's name in any extension case or Unicode normalisation, as the move does.
+- **Two things must be true** for a sidecar to be deleted: there's no note for it, and its `trashed` is 30 days old. "No note" means no file with its ID, whatever its title, extension case or Unicode normalisation, as the move does.
 - **A sidecar without a `trashed`** (the note was deleted in Finder, on another Mac sharing the folder, or by another app) is given the sweep's time, so it's kept 30 days from then. A `trashed` that isn't a date is replaced the same way.
 - **A note that's back** (Put Back) has its `trashed` removed when it's next read or listed, so if it goes again other than through `trash`, a sweep dates it afresh rather than from the old date.
 - **Left alone**: sidecars of notes open but not saved yet (`isNoteIdInUse`: a colour can be picked before typing, which writes a sidecar before the note exists), sidecars that can't be read as a JSON object, and other files. A file that can't be changed is skipped, and tried again on the next sweep.
@@ -128,7 +139,7 @@ When `notes_folder` changes, the notes move to the new folder without asking. Al
 
 **Noticing a change.** The folder the notes were last in is recorded, as an expanded path, as `lastNotesFolder` in `$alfred_workflow_data/state.json` (local to each Mac). The file also holds `lastSidecarSweep`, and every write merges into it, read again just before writing, so each key is kept when the other changes. Every entry point that reads the setting (`list.js`, `new.js`, `open.js`) compares it with the folder the setting gives now; the window scripts don't, as each window works on the folder in its bundle's context. With no record yet, the current folder is recorded and nothing moves. The two count as the same folder if, with symlinks resolved, they have the same volume and file number, so `~/notes` and `~/Notes` on a case-insensitive volume, or a symlink and its target, aren't a change.
 
-**The lock.** A move holds `$alfred_workflow_cache/move.lock/`, a folder holding the mover's process ID; creating a folder is atomic, so only one run takes it. A lock whose process has gone is stale and is taken over. A lock with no process ID yet counts as held for 5 seconds.
+**The lock.** A move holds the move lock, `$alfred_workflow_cache/locks/move` (see [Locks](#locks)), so only one runs at a time. `isMoveLockHeld` checks by trying for the lock and letting go at once, so `takeMoveLock` waits up to 100 ms rather than taking a check for a running move. It's separate from the save lock: the move asks sticky windows to quit, and their `quit` saves take the save lock.
 
 **Its own process.** The Script Filters have `queuemode` 2, so a keystroke kills the run in progress, and Alfred kills the run's whole process group, even a child disowned with `&!`. So the entry point starts `move.js` in the background (input and output on `/dev/null`) and stops; `move.js` first calls `setsid()` to leave the group. A keystroke in the instant before that is harmless: the next run starts the move again. (zsh can't do this: without a terminal `setopt monitor` fails, and macOS has no `setsid` command.)
 
@@ -138,7 +149,7 @@ When `notes_folder` changes, the notes move to the new folder without asking. Al
 
 **What moves**: every note (with its sidecar if it has one). Sidecars without a note (trashed notes') are deleted, as Put Back would return the note to the old folder anyway. Other files, subfolders and hidden files stay.
 
-**Into a folder with notes already**: sidecars join its `.scratchnstick`. A note whose ID is taken there (by a note in any extension case or Unicode normalisation, or by a sidecar) is renamed with the next free suffix, keeping its extension's case, and its sidecar with it. The exception: a note with the same text as the note of the same ID there (from a move that was cut short, or a copy made by hand) is kept only once, the new folder's copy; its sidecar moves only if that copy has none.
+**Into a folder with notes already**: sidecars join its `.scratchnstick`. A note whose ID is taken there (by a note with any title, in any extension case or Unicode normalisation, or by a sidecar) is renamed with the next free suffix on its ID, keeping its title and its extension's case (`20261120-153012-2 Shopping.md`), and its sidecar with it. The exception: a note with the same text as the note of the same ID there (from a move that was cut short, or a copy made by hand) is kept only once, the new folder's copy; its sidecar moves only if that copy has none.
 
 **One note at a time**, so a move stopped anywhere loses nothing: copy the sidecar, move the note, delete the old sidecar. (A sidecar in the new folder with exactly the text of the note's own is that copy, and doesn't take the ID.) Within a volume the note is renamed and the sidecar's copy is a hard link. Across volumes a file is copied to a hidden temporary name (`.scratchnstick-move-…`), renamed into place, and only then deleted from the old folder. The rename into place never replaces a file. Modification times, birth times and Finder tags are kept, and set explicitly on copies in case a volume doesn't. Temporary files left by a stopped move are cleared before a move starts. 1,000 notes with sidecars move in about 0.7 s on one volume.
 
@@ -157,20 +168,33 @@ When `notes_folder` changes, the notes move to the new folder without asking. Al
 
 The `notes_folder` field's description warns that changing it moves the notes and closes any sticky notes.
 
+## Locks
+
+The save lock and the move lock are files in `$alfred_workflow_cache/locks/`, locked with `flock(2)`, the kernel's advisory lock (`takeFileLock`, `releaseFileLock`, `withFileLock`):
+
+- One process holds a lock at a time; even the holder can't take it twice, since each take opens the file afresh.
+- It's released when its process exits, however that happens: a crash, `kill -9`, or Alfred stopping a Script Filter's process group. So no lock is left held by a process that's gone, and there are no stale locks to detect.
+- A process the holder starts (with `NSTask`) doesn't inherit it (tested).
+- A take that has to wait tries every 10 ms until its timeout.
+- The file is created by writing in place, never replaced: a process holding the lock holds it on the file as it is, so a replaced file would be a second lock.
+- The files are in the cache, on the local disk, where `flock` is reliable, even when the notes are in a synced or network folder.
+
+`flock` and `renamex_np` (for renames) are called through `ObjC.bindFunction`, as `CC_SHA1` is. Both have been in macOS since well before macOS 12.
+
 ## The storage API
 
-`noteStore(folder = notesFolder())` returns the functions for the notes in a folder, taking notes by ID:
+`noteStore(folder = notesFolder(), { lockFile })` returns the functions for the notes in a folder, taking notes by ID. `lockFile` is the save lock's path, `locks/save` in the cache by default.
 
-- `list({ ids })`: notes, last edited first, as `{ id, path, fileName, text, meta, modified, created, title, preview }` (`meta` is `{}` without a sidecar; dates are `Date`s). `ids` limits it to those notes (the sticky notes list).
+- `list({ ids, isInUse })`: notes, last edited first, as `{ id, path, fileName, text, meta, modified, created, title, preview }` (`meta` is `{}` without a sidecar; dates are `Date`s). `ids` limits it to those notes (the sticky notes list). Listing every note also renames notes and splits off copies (see [Note IDs and filenames](#note-ids-and-filenames)); `isInUse` says which IDs a copy can't be given, `isNoteIdInUse` by default.
 - `read(id)`: one note object, or null.
 - `newId({ date, isTaken })`, `save(id, text)`, `deleteIfEmpty(id)`, `trash(id)`, `sweepSidecars({ now, isInUse })`, `installExamples(source, { now })`: as above.
 - `readMeta(id)`, `updateMeta(id, changes)`: the sidecar, which works before a note is first saved (a colour picked before typing).
 - `notePath(id)`, `exists(id)`, `folder`.
 
-Also `noteSummary(text, { titleLength, previewLength })` for text that isn't saved yet (a window's title), and helpers: `workflowVariable`, `truncateText`, `isBlankText`, `formatNoteId`, `formatLocalIsoDate`, `readText`, `writeFileAtomically`, `errorText`. Fuller notes are in the comments in `lib.js`.
+Also `noteSummary(text, { titleLength, previewLength })` for text that isn't saved yet (a window's title), and `noteSummaryOrUntitled`, the same with a null title when there's none. For IDs and names: `noteIdFromFileName`, `isPrefixedNoteId`, `noteFileName(id, text)`, `renameFileInFolder(folder, from, to)`. Helpers: `workflowVariable`, `truncateText`, `isBlankText`, `formatNoteId`, `formatLocalIsoDate`, `readText`, `writeFileAtomically`, `errorText`. Fuller notes are in the comments in `lib.js`.
 
 JXA lessons from this code:
 
 - Give an ObjC object parameter `$()` for nil: JavaScript `null` arrives as `NSNull`, which crashed `replaceItemAtURL` (as its backup name). `null` is fine for out parameters.
 - Pass `$()` for an `NSError **`, not `Ref()`: reading an NSError back from a `Ref()` crashes `osascript`. `errorText(error)` gives its description.
-- `list()` of 300 notes takes about 115 ms on top of `osascript`'s startup, and about 270 ms the first time, when it writes their sidecars.
+- `list()` of 300 notes takes about 110 ms on top of `osascript`'s startup, and about 240 ms the first time, when it writes their sidecars. Checking that names follow titles costs nothing measurable: it uses the title `list()` already works out. Renaming 300 notes named by time alone, once, takes about 650 ms.
