@@ -2284,7 +2284,9 @@ function noteFontSizeAction({ workflowFolder, note, form, choice }) {
 
 // The actions menu (…, or ⌘K) of a window in `form` and `mode`, `collapsed`
 // or not, whose note is `blank` or not: Collapse or Expand in a sticky window,
-// or Stick to Desktop in a quick view, then Edit or View, Close, Move to Trash,
+// or Stick to Desktop in a quick view, then Edit or View, Close (and in a
+// sticky window Close and Unstick, which closes it and unsticks the note, so
+// it's no longer listed as sticky), Move to Trash,
 // Share… (the note's .md file), Copy as Rich Text and Copy as Markdown Text,
 // each with its shortcut in brackets where it has one. An item that does nothing is
 // greyed out (an item without an action): Edit / View in a collapsed window,
@@ -2304,6 +2306,7 @@ function noteActionsMenu({ workflowFolder, note, form, mode, collapsed, blank })
       : item("Stick to Desktop (⌘D)", script("stick")),
     item(switchTo, script("toggle"), !collapsed),
     item(sticky ? "Close (⌘W)" : "Close (⎋)", noteCloseAction(form)),
+    ...(sticky ? [item("Close and Unstick (⇧⌘W)", script("unstick"))] : []),
     { type: "separator" },
     item("Move to Trash (⌘⌫)", script("trash")),
     { type: "separator" },
@@ -3246,6 +3249,19 @@ function reopenNotes(store, variable = workflowVariable) {
 // Removes the states of the notes to reopen, so they aren't offered.
 function forgetReopenNotes(variable = workflowVariable) {
   for (const id of noteWindowStates(variable).reopen) removeNoteState(id, variable);
+}
+
+// Unsticks a closed sticky note (Unstick, ⌘↩ on one in either list): removes
+// `sticky` from its sidecar, so ↩ in the results list opens it in a quick
+// view and the sticky notes list leaves it out, and its closed window's
+// state, so Reopen sticky notes doesn't offer it. A note whose window is open
+// (opened since the list was shown) is left alone. A sticky window's Close and
+// Unstick unsticks its note as the window closes (see `quit` in window.js).
+function unstickNote(store, id, variable = workflowVariable) {
+  if (stickyNotePid(id, variable) !== null) return;
+  const state = readNoteState(id, variable);
+  if (state && state.form === "sticky") removeNoteState(id, variable);
+  if (store.exists(id)) store.updateMeta(id, { sticky: null });
 }
 
 // The height in points that a note's collapsed sticky window expands back to,

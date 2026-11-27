@@ -2,8 +2,14 @@
 
 // Script Filter for the Scratch'n'Stick keyword: lists the notes, last edited
 // first, narrowed by argv[0], the text typed after the keyword. With argv[1]
-// "stickies", for the sticky notes keyword, it lists only the notes that are
-// sticky (see stickiesListItems).
+// "stickies", for the sticky notes keyword, it lists only the sticky notes,
+// those open on the desktop and then those closed (see stickiesListItems).
+//
+// A note is sticky while its sticky window is open, and closed sticky while
+// its sidecar's `sticky` is true without one (from when it's stuck until it's
+// unstuck; see window.js). In the results list, ↩ on either sticks it (or
+// brings its window to the front), and ⌘↩ closes it or unsticks it (see
+// notesListItem).
 //
 // Every word of the query must appear somewhere in a note (its title or any
 // of its text), ignoring case and accents. With no query, a "New note" result
@@ -16,10 +22,11 @@
 // bundles are written here, before the results are shown, and only rebuilt
 // when out of date (see quickWindows in lib.js), and so is the stylesheet that
 // gives their pages the colour of Alfred's theme. ↩ on a note that's sticky
-// brings its sticky window to the front instead (see notesListItem). ⌘↩
-// sticks the note (open.js; that modifier's arg is the note's ID), ⌥↩ moves
-// it to the Trash (trash.js), ⌃↩ reveals it in Finder (its path is that
-// modifier's arg), and Quick Look shows the file.
+// sticks it, or brings its sticky window to the front, instead (see
+// notesListItem). ⌘↩ sticks the note, or closes or unsticks a sticky one
+// (open.js; that modifier's arg is the note's ID), ⌥↩ moves it to the Trash
+// (trash.js), ⌃↩ reveals it in Finder (its path is that modifier's arg), and
+// Quick Look shows the file.
 //
 // With no query, both lists start with "Reopen sticky notes" while there are
 // notes whose sticky windows were closed by a restart, shutdown or logout, or
@@ -32,9 +39,16 @@
 
 ObjC.import("Foundation");
 
-// Separates the parts of a note's subtitle: "📌 Sticky", when it was edited,
-// and its preview.
+// Separates the parts of a note's subtitle: when it was edited, and its
+// preview.
 const SUBTITLE_SEPARATOR = " • ";
+
+// What starts a sticky note's subtitle, followed by a space: in the results
+// list, the pin for a sticky note, open or closed, and the sleep sign for a
+// closed one; in the sticky notes list, where every note is sticky, only the
+// sleep sign.
+const STICKY_MARK = "📌";
+const CLOSED_MARK = "💤";
 
 function run(argv) {
   const workflowFolder = $(loadLib(argv, "lib.js")).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js;
@@ -55,7 +69,7 @@ function run(argv) {
     store = noteStore();
     // The first run adds the example notes.
     attempt(() => installExamplesOnce(store, workflowFolder));
-    notes = store.list(stickiesOnly ? { ids: sticky } : {});
+    notes = store.list();
     reopen = query || windows.reopen.size === 0 ? [] : attempt(() => reopenNotes(store)) || [];
   } catch (e) {
     return output([notesFolderErrorItem(e)]);
@@ -71,8 +85,12 @@ function run(argv) {
   const item = (note) => noteItem(note, now, icon(note));
   const reopenResult = reopen.length ? reopenItem(reopen) : null;
   if (stickiesOnly) {
-    const items = stickiesListItems(matches.map((note) => stickiesListItem(note, item(note))), query, sticky.size, variable);
-    return output(reopenResult ? [reopenResult, ...(sticky.size ? items : [])] : items);
+    const closedCount = notes.filter((note) => isClosedSticky(note, sticky)).length;
+    const open = matches.filter((note) => sticky.has(note.id));
+    const closed = matches.filter((note) => isClosedSticky(note, sticky));
+    const listed = open.map((note) => stickiesListItem(note, item(note), true)).concat(closed.map((note) => stickiesListItem(note, item(note), false)));
+    const items = stickiesListItems(listed, query, sticky.size, sticky.size + closedCount, variable);
+    return output(reopenResult ? [reopenResult, ...(sticky.size + closedCount ? items : [])] : items);
   }
 
   const quick = attempt(() => quickWindows(store, workflowFolder));
@@ -80,7 +98,7 @@ function run(argv) {
   // gives a Script Filter (see noteThemeStylesheet in lib.js).
   attempt(() => writeNoteTheme(workflowVariable("alfred_theme_background")));
   const bundle = (make) => (quick ? attempt(make) || "" : "");
-  const items = matches.map((note) => notesListItem(note, item(note), bundle(() => quick.bundleFor(note)), sticky.has(note.id)));
+  const items = matches.map((note) => notesListItem(note, item(note), bundle(() => quick.bundleFor(note)), sticky.has(note.id), isClosedSticky(note, sticky)));
   if (!query && showNewNote(variable)) items.unshift(newNoteResult("New note", "Create a blank note", "", bundle(() => quick.bundleForNew(""))));
   else if (items.length === 0) items.push(newNoteResult(`New note: ${query}`, newNoteSubtitle(query), query, bundle(() => quick.bundleForNew(query))));
   if (reopenResult) items.unshift(reopenResult);
@@ -172,46 +190,67 @@ function noteItem(note, now, icon) {
   };
 }
 
+// Whether `note` is a closed sticky note: its sidecar says it's sticky, and
+// its ID isn't among `open`, the notes with a sticky window.
+function isClosedSticky(note, open) {
+  return note.meta.sticky === true && !open.has(note.id);
+}
+
 // A note's result in the notes list, from `base` (noteItem): ↩ opens
-// `bundle`, its quick view, and ⌘↩ sticks it. A note that's sticky gets no
-// arg, so ↩ shows no quick view, and the variable `sticky`, which takes ↩
-// down the stick route instead (with `stick_note` naming the note, as Stick in
-// a quick view does), where open.js brings the sticky window to the front.
-function notesListItem(note, base, bundle, sticky) {
+// `bundle`, its quick view, and ⌘↩ sticks it. A sticky note, `open` (its
+// window is open) or `closed`, has its subtitle marked (📌, and 💤 if closed)
+// and gets no arg, so ↩ shows no quick view, and the variable `sticky`, which
+// takes ↩ down the stick route instead (with `stick_note` naming the note, as
+// Stick in a quick view does), where open.js sticks the note, or brings its
+// window to the front. On a sticky note, ⌘↩ goes down the stick route with
+// `sticky_action` set, as in the sticky notes list: it closes an open one's
+// window ("close"), and unsticks a closed one ("unstick").
+function notesListItem(note, base, bundle, open, closed) {
+  const cmd = open
+    ? { subtitle: "Close this sticky note", arg: note.id, variables: { sticky_action: "close" } }
+    : closed
+      ? { subtitle: "Unstick", arg: note.id, variables: { sticky_action: "unstick" } }
+      : { subtitle: "Stick to the desktop", arg: note.id };
+  if (!open && !closed) return { ...base, arg: bundle, mods: { ...base.mods, cmd } };
   return {
     ...base,
-    subtitle: sticky ? `📌 Sticky${SUBTITLE_SEPARATOR}${base.subtitle}` : base.subtitle,
-    arg: sticky ? "" : bundle,
-    variables: sticky ? { sticky: "1", stick_note: escapeForAlfredUi(note.id) } : undefined,
-    mods: { ...base.mods, cmd: { subtitle: "Stick to the desktop", arg: note.id } },
+    subtitle: `${closed ? `${STICKY_MARK}${CLOSED_MARK}` : STICKY_MARK} ${base.subtitle}`,
+    arg: "",
+    variables: { sticky: "1", stick_note: escapeForAlfredUi(note.id) },
+    mods: { ...base.mods, cmd },
   };
 }
 
-// A note's result in the sticky notes list, from `base` (noteItem): ↩ takes
-// the note's ID down the stick route, as ⌘↩ in the notes list does, where
-// open.js brings its window to the front (or opens it again, if it has closed
-// after the list was shown), and ⌘↩ closes its window (stickies.js close).
-function stickiesListItem(note, base) {
+// A note's result in the sticky notes list, from `base` (noteItem), its
+// window `open` or not: ↩ takes the note's ID down the stick route, as ⌘↩ in
+// the notes list does, where open.js brings its window to the front, or
+// opens it. ⌘↩ closes its window (stickies.js close), or, for a closed note
+// (its subtitle marked 💤), unsticks it (stickies.js unstick).
+function stickiesListItem(note, base, open) {
+  const close = { subtitle: "Close this sticky note", arg: note.id, variables: { sticky_action: "close" } };
+  const unstick = { subtitle: "Unstick", arg: note.id, variables: { sticky_action: "unstick" } };
   return {
     ...base,
+    subtitle: open ? base.subtitle : `${CLOSED_MARK} ${base.subtitle}`,
     arg: note.id,
-    mods: { ...base.mods, cmd: { subtitle: "Close this sticky note", arg: note.id, variables: { sticky_action: "close" } } },
+    mods: { ...base.mods, cmd: open ? close : unstick },
   };
 }
 
-// The sticky notes list: `items`, the matching notes' results, then Show all
-// and Close all sticky notes, last whatever the query, which act on all
-// `count` sticky windows, not only those listed. A sticky window whose note
-// hasn't been saved yet (a blank new note, with nothing typed yet) has no
-// result, but is counted, shown and closed. With no sticky windows, the only
-// result says so.
-function stickiesListItems(items, query, count, variable) {
+// The sticky notes list: `items`, the matching notes' results, then, while
+// any are open, Show all and Close all sticky notes, last whatever the query,
+// which act on all `openCount` sticky windows, not only those listed. A
+// sticky window whose note hasn't been saved yet (a blank new note, with
+// nothing typed yet) has no result, but is counted, shown and closed. With no
+// sticky notes at all (`total`, open and closed), the only result says so.
+function stickiesListItems(items, query, openCount, total, variable) {
   const keyword = variable("keyword") || "scratch";
-  if (count === 0) return [{ title: "No sticky notes", subtitle: `Stick a note to the desktop with ⌘↩ in “${keyword}”`, valid: false }];
+  if (total === 0) return [{ title: "No sticky notes", subtitle: `Stick a note to the desktop with ⌘↩ in “${keyword}”`, valid: false }];
   if (items.length === 0 && query) {
     items.push({ title: `No sticky notes match “${query}”`, subtitle: `Search all your notes with “${keyword}”`, valid: false });
   }
-  const notes = count === 1 ? "the sticky note" : `the ${count} sticky notes`;
+  if (openCount === 0) return items;
+  const notes = openCount === 1 ? "the sticky note" : `the ${openCount} sticky notes`;
   return items.concat(
     allStickiesItem("Show all sticky notes", `Bring ${notes} on the desktop to the front`, "show"),
     allStickiesItem("Close all sticky notes", `Close ${notes} on the desktop`, "close"),

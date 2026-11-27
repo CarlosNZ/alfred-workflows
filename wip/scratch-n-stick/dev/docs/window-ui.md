@@ -50,6 +50,7 @@ Every size and position of the top row, the drop-downs, the key hints and the co
 | ⌘⌫ | Move to Trash | Both |
 | ⌘D | Stick to the desktop | Quick |
 | ⌘W | Close | Sticky |
+| ⇧⌘W | Close and Unstick | Sticky |
 | Esc | Close an open drop-down, or the window | Sticky; in a quick view Alfred handles Esc itself and closes |
 
 ↩ and ⌘↩ follow Jupyter's Markdown cells (↩ to edit, ⇧↩ or ⌃↩ to render), and are the only keys for switching mode: the toggle button's tooltip and the actions menu's Edit / Preview item name them. The ↩ shortcut is on the `page` view that holds the web view, not the root, so it only runs while the focus is in Preview; in Edit, ↩ in the editor types a new line. Root view shortcuts run on the first press whether or not the page has focus. Inside Alfred, ⌘↩ and the ⌘ number keys reach the quick view rather than Alfred.
@@ -97,12 +98,14 @@ The items, with their keys:
 - Collapse or Expand (sticky), or Stick to Desktop (⌘D) (quick)
 - Edit (↩) or Preview (⌘↩), whichever switches the mode; greyed out while collapsed
 - Close (⌘W, or ⎋ in a quick view)
+- Close and Unstick (⇧⌘W) (sticky)
 - Move to Trash (⌘⌫)
 - Share…, Copy as Rich Text, Copy as Markdown Text; greyed out for a blank note
 
 It drops down from just under the button, as a pull-down menu does: that's the convention for a ⌘K menu (macOS's More buttons, Raycast's Actions). Alfred UI opens a menu with its first item over the view it's given, so it opens at `menuanchor`, a 1 pt view just under the button's left edge (`menuAnchor` in `NOTE_WINDOW_LAYOUT`), and runs on past the window's edge, which menus can.
 
 - **Close** in a quick view is a `finish` that sets `close_view`, since a quick view's `finish` carries on to the stick route, where `open.js` then opens nothing.
+- **Close and Unstick** (`window.js unstick`) closes a sticky window and unsticks its note, so it's no longer listed as sticky, and isn't offered by Reopen sticky notes (see [Note windows](windows.md#quick-views-and-sticky-notes)).
 - **Move to Trash** (`window.js trash`) saves the editor's text in Edit, so the trashed note is the one on screen, trashes it through Finder (`store.trash`, so Put Back works and the sidecar stays) and closes the window. A blank or never-saved note is deleted outright instead. The window's state is marked `trashed` first, so its `quit` removes the state and bundles without saving the note back. It posts "Moved “\<title>” to the Trash" (`noteTrashedMessage`, shared with `trash.js`) through the `notify` External Trigger; a sticky window waits for that call to finish before it closes (the `wait` option of `postNotesNotification`), as macOS refuses an Apple event from a process that has quit (-1743), while a quick view must not wait on Alfred, so it doesn't. If Finder fails, the notification gives the reason (`noteTrashFailedMessage`) and the window stays open. ⌘⌫ is Finder's key for it; in Edit it takes the key from the editor, where it would delete to the start of the line, which is safe as the text is saved and the note can be put back.
 - **Share…** (`window.js share`) saves in Edit, then opens macOS's share menu with the note's `.md` file. Alfred UI's `share` action shares only a file (see [Alfred UI](alfred-ui.md#share)), so services such as Notes, Mail and Messages attach the file; there's no sharing the text itself.
 - **Copy as Rich Text** (`window.js copyrich`) puts the note on the clipboard rendered as Preview renders it, for pasting with its formatting into Notes, Mail or Pages: markdown-it and `ui/view.js`'s task rule run in the script (`noteRichHtml`), the HTML becomes rich text through `NSAttributedString`, and the clipboard gets the RTF, the HTML and the Markdown as plain text. Task boxes become ☐ and ☑, and the text is the system font at 13 pt. It takes about 0.7 s the first time, while macOS loads its HTML reader.

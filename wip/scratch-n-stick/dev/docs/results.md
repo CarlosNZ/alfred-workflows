@@ -11,7 +11,7 @@ A Script Filter on `{var:keyword}` (`scratch` by default), run by `scripts/list.
 **A result:**
 
 - Title: the note's title (see [Storage](storage.md#titles-and-previews)).
-- Subtitle: when it was last edited and its preview, `Edited 3h ago • milk, eggs, flour…`. The time is "just now", "5m ago", "3h ago", "2d ago", and after a week the date in the Mac's format ("12 Nov", with the year if not this year). A sticky note's starts "📌 Sticky • ": the pushpin stands out among grey subtitles, where the word alone was easy to miss. The separator is a bullet, `SUBTITLE_SEPARATOR` in `list.js` (a middle dot looked too small, ● too heavy, and a pipe clashes with the preview's ` | `).
+- Subtitle: when it was last edited and its preview, `Edited 3h ago • milk, eggs, flour…`. The time is "just now", "5m ago", "3h ago", "2d ago", and after a week the date in the Mac's format ("12 Nov", with the year if not this year). A sticky note's starts with "📌 ", and a closed sticky note's (see [Note windows](windows.md#quick-views-and-sticky-notes)) with "📌💤 ": the emoji stand out among grey subtitles, where a word was easy to miss, and leave more room for the preview than words do. They're followed by a space, not the separator, which looked stranded after an emoji. The separator is a bullet, `SUBTITLE_SEPARATOR` in `list.js` (a middle dot looked too small, ● too heavy, and a pipe clashes with the preview's ` | `).
 - Icon: the note's result icon, its badge or its colour's dot (see [Colours and icons](colours-and-icons.md)).
 - ⌘C copies the note's text, ⌘L shows it in Large Type, → shows Alfred's file actions for its file, and ⇧ / ⌘Y Quick Look it (`quicklookurl` is the `.md`, so the preview is whatever Markdown previewer the Mac has, possibly plain text). A Quick Look preview of the workflow's own is [planned](planned.md#the-workflows-own-quick-look-preview).
 
@@ -19,8 +19,8 @@ A Script Filter on `{var:keyword}` (`scratch` by default), run by `scripts/list.
 
 | Key | Does |
 |---|---|
-| ↩ | Opens it in a quick view inside Alfred, or, if it's sticky, brings its window to the front |
-| ⌘↩ | Sticks it to the desktop, or brings its sticky window to the front |
+| ↩ | Opens it in a quick view inside Alfred; on a sticky note (📌), brings its window to the front, and on a closed one (📌💤), sticks it again |
+| ⌘↩ | Sticks it to the desktop; as in the sticky notes list, on a sticky note (📌) "Close this sticky note", so the note is saved and stays sticky, and on a closed one (📌💤) "Unstick". The results list's ⌘ goes to the stick route, so `open.js` does both, with `sticky_action` `close` or `unstick`. |
 | ⌥↩ | Moves it to the Trash (`trash.js`, through Finder, without asking), closing its sticky window first, and posts "Moved “\<title>” to the Trash" |
 | ⌃↩ | Reveals it in Finder |
 
@@ -36,25 +36,26 @@ Creating a note from the clipboard is a result of the new-note keyword rather th
 
 ## The sticky notes list
 
-A Script Filter on `{var:keyword_sticky}` (`sticky` by default) showing only the sticky notes, to find one among other windows and to close them. It runs `exec ./scripts/list.js "$1" stickies` (an inline script, as a `scriptfile` takes no arguments of its own), which reads only those notes (`store.list({ ids })`) and writes no quick bundles. An optional hotkey, unset by default, shows it.
+A Script Filter on `{var:keyword_sticky}` (`sticky` by default) showing only the sticky notes, those open on the desktop and those closed, to find one among other windows, to close them, and to bring closed ones back or unstick them. It runs `exec ./scripts/list.js "$1" stickies` (an inline script, as a `scriptfile` takes no arguments of its own), which reads every note, as the results list does, to find the closed ones by their sidecars, and writes no quick bundles. An optional hotkey, unset by default, shows it.
 
-- Results are the results list's (built by `noteItem`, with each list's arg and ⌘ added by `notesListItem` and `stickiesListItem`), without "📌 Sticky • " and without New note.
-- ↩ brings the note's window to the front: the arg is the note's ID, down the stick route (`open.js stick`), which activates the live window, or opens it again if it has closed since.
-- ⌘↩ closes the note's window (`stickies.js close <id>`; ⌘ sets `sticky_action` to `close`), asking it to quit as its close button does, so it saves and reopens as it was. (Switching Edit / Preview from here isn't possible: nothing outside a window can tell it to do anything but quit.)
+- Open sticky notes come first, then closed ones, each last edited first, so the closed ones don't push the windows down.
+- Results are the results list's (built by `noteItem`, with each list's arg and ⌘ added by `notesListItem` and `stickiesListItem`), without the 📌, as everything here is sticky, and without New note. A closed note's subtitle starts "💤 ".
+- ↩ brings the note's window to the front, or sticks a closed note again: the arg is the note's ID, down the stick route (`open.js stick`), which activates the live window, or opens it.
+- ⌘↩ on an open note closes its window (`stickies.js close <id>`; ⌘ sets `sticky_action` to `close`), asking it to quit as its close button does, so it saves and reopens as it was. (Switching Edit / Preview from here isn't possible: nothing outside a window can tell it to do anything but quit.) On a closed note, ⌘↩ "Unstick" (`stickies.js unstick <id>`) removes `sticky` from its sidecar and its window's state, if any, so it leaves this list and Reopen sticky notes; a note whose window has opened since is left alone.
 - ⌥↩ and ⌃↩ trash and reveal, as in the results list.
-- **Show all sticky notes** and **Close all sticky notes** come last, whatever the query, and act on every sticky window, listed or not. Their subtitles give the count ("Bring the 3 sticky notes on the desktop to the front"). Each sets `sticky_action` (`show` or `close`) with an empty arg; a Conditional sends them to the Run Script `stickies.js "$sticky_action" "$1"`, and its else output sends the notes' ↩ to the stick route. A sticky window whose note isn't saved yet has no result but is counted, shown and closed.
+- **Show all sticky notes** and **Close all sticky notes** come last, whatever the query, while any sticky window is open, and act on every sticky window, listed or not. Their subtitles give the count ("Bring the 3 sticky notes on the desktop to the front"). Each sets `sticky_action` (`show` or `close`) with an empty arg; a Conditional sends them to the Run Script `stickies.js "$sticky_action" "$1"`, and its else output sends the notes' ↩ to the stick route. A sticky window whose note isn't saved yet has no result but is counted, shown and closed.
 - **Show all** (`stickies.js show`, `activateWindowProcesses`) activates the windows' processes in the list's order from the bottom up, each once the one before has become active, so the most recently edited note ends on top with the focus, and Alfred closes. A window hidden with ⌘H is shown again.
-- With no sticky notes: one result, "No sticky notes", subtitled "Stick a note to the desktop with ⌘↩ in “scratch”" (the configured keyword). With a query that matches none: "No sticky notes match “\<query>”", subtitled "Search all your notes with “scratch”", then Show all and Close all.
+- With no sticky notes, open or closed: one result, "No sticky notes", subtitled "Stick a note to the desktop with ⌘↩ in “scratch”" (the configured keyword). With a query that matches none: "No sticky notes match “\<query>”", subtitled "Search all your notes with “scratch”", then Show all and Close all if any window is open.
 
 `dev/test-list.sh` can't open windows, so it gives the sticky notes in the variable `scratchnstick_sticky_ids` (IDs one per line), which `list.js` reads in place of the live windows (`windowStates`).
 
 ## Reopen sticky notes
 
-With no query, both lists start with **Reopen sticky notes** while there are notes whose sticky windows were closed by a restart, shutdown or logout, or ended without closing (a crash), and that still exist (see [Reopening after a restart](windows.md#reopening-after-a-restart)). It comes before New note, and in the sticky notes list before the notes; with no sticky windows open, it's the only result there, instead of "No sticky notes".
+With no query, both lists start with **Reopen sticky notes** while there are notes whose sticky windows were closed by a restart, shutdown or logout, or ended without closing (a crash), and that still exist (see [Reopening after a restart](windows.md#reopening-after-a-restart)). It comes before New note, and in the sticky notes list before the notes, where its notes are also listed as closed sticky notes (they opened sticky, so their sidecars say so), to reopen one at a time. With no sticky notes listed, it's the only result there, instead of "No sticky notes".
 
 - Title and subtitle: for one note, "Reopen “\<title>”" and "Put the sticky note back on the desktop"; for several, "Reopen sticky notes" and their titles, last edited first: "A and B", "A, B and C", or "A, B and 2 more" (`listedTitles`). The icon is the sticky note's.
 - ↩ reopens them all (`stickies.js reopen`). The item's arg is empty and it sets `sticky_action` to `reopen`. In the sticky notes list, the Conditional on `sticky_action` sends that to `stickies.js`. In the results list, ↩ also reaches the quick view's Alfred UI object, which shows nothing for an empty path, and the Conditional on `sticky`, which has a second condition, `sticky_action` is `reopen`, to `stickies.js`.
-- ⌘↩, "Leave it closed" / "Leave them closed", sets `sticky_action` to `forget`, so they're no longer offered. ⌘ in the sticky notes list goes straight to `stickies.js "$sticky_action"`; in the results list it goes to the stick route, where `open.js` sees `forget`, forgets them and opens nothing. ⌥ is taken by Move to Trash in both lists, so ⌘ is the free key.
+- ⌘↩, "Leave it closed" / "Leave them closed", sets `sticky_action` to `forget`, so they're no longer offered. ⌘ in the sticky notes list goes straight to `stickies.js "$sticky_action"`; in the results list it goes to the stick route, where `open.js` sees `forget`, forgets them and opens nothing. They stay sticky, so they're still listed as closed sticky notes. ⌥ is taken by Move to Trash in both lists, so ⌘ is the free key.
 - ⌥↩ and ⌃↩ do nothing (`valid: false`).
 
 It costs the lists almost nothing: `list.js` already reads every state file to mark the sticky notes, and the same pass (`noteWindowStates`) finds the notes to reopen; their notes are only read when there are some.

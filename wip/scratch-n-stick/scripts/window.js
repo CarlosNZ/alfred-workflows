@@ -32,6 +32,9 @@
 // (The pickers are drop-downs that scripts/picker.sh opens and closes.)
 //   window.js stick <id> <form> <text>      Stick or ⌘D in a quick view: saves,
 //                                           then sticks
+//   window.js unstick <id> <form> <text>    Close and Unstick in a sticky
+//                                           window's actions menu: closes the
+//                                           window and unsticks the note
 //   window.js tick <id> <form> <line> <x|o> a task box in View: ticks (x) or
 //                                           unticks (o) the task on that line
 //                                           (from scripts/changed.sh)
@@ -68,6 +71,13 @@
 // so the parts the window's scripts give it, such as the customise group
 // after a colour change, are built hidden). The Edit / View switch, the
 // drop-downs and ↩ do nothing while it's collapsed.
+//
+// Whether a note is sticky: its sidecar's `sticky` is true from when it opens
+// sticky until it's unstuck, so a sticky note that's closed still lists as
+// sticky, and ↩ sticks it again (see notesListItem in list.js). A sticky
+// window's `launched` and `quit` set it; Close and Unstick, in the actions
+// menu, closes the window and removes it, as Unstick in the lists does
+// (unstickNote in lib.js).
 
 ObjC.import("Foundation");
 ObjC.import("unistd");
@@ -96,6 +106,8 @@ function run(argv) {
       return;
     case "stick":
       return stick(store, id, form, unescapeFromAlfredUi(rest[0] || ""));
+    case "unstick":
+      return closeAndUnstick(id, form);
     case "colour":
       return setColour(store, workflowFolder, context, id, form, rest[0]);
     case "icon":
@@ -119,12 +131,14 @@ function run(argv) {
   }
 }
 
-// The window has opened. Records its state, except in a quick view of a note
-// that's already sticky: that view finishes as Stick does, carrying on to the
-// stick route, which brings the sticky window to the front, so a note is never
-// open in two windows. (↩ on a sticky note doesn't open a quick view at all,
-// so this only catches a note sticky after the results were listed; see
-// noteItem in list.js.) And if a quick view's note has changed since list.js
+// The window has opened. Records its state, and a sticky window marks its
+// note sticky (once it's been saved: a blank new note is marked when it
+// closes). A quick view of a note whose sticky window is open records nothing:
+// it finishes as Stick does, carrying on to the stick route, which brings the
+// sticky window to the front, so a note is never open in two windows. (↩ on a
+// sticky note doesn't open a quick view at all, so this only catches a note
+// stuck after the results were listed; see notesListItem in list.js.) And if a
+// quick view's note has changed since list.js
 // wrote its bundle (an edit elsewhere just before ↩), it shows the note as it
 // is now, so a stale text can't be saved over it: in the editor, or by
 // reloading the page.
@@ -142,6 +156,7 @@ function launched(store, workflowFolder, context, id, form, mode) {
   const collapsed = form === "sticky" && context.collapsed != null;
   const launched = form === "sticky" ? processLaunchTime(pid) : null;
   writeNoteState(id, { form, pid, ...(launched === null ? {} : { launched }), mode, collapsed });
+  if (form === "sticky" && store.exists(id)) store.updateMeta(id, { sticky: true });
   closeNotePickerState(id);
   if (form === "sticky") return stickyWindowSize(workflowFolder, pid, collapsed);
   const note = form === "quick" ? store.read(id) : null;
@@ -475,10 +490,24 @@ function stick(store, id, form, text) {
   return JSON.stringify({ finish: { variables: { stick_note: escapeForAlfredUi(id), stick_mode: mode } } });
 }
 
+// Close and Unstick in a sticky window's actions menu: marks the window's
+// state `unstick` and closes the window, so its `quit` saves the note as any
+// close does, then unsticks it. Does nothing without a sticky state.
+function closeAndUnstick(id, form) {
+  const state = windowState(id);
+  if (form !== "sticky" || !state || state.form !== form) return;
+  writeNoteState(id, Object.assign(state, { unstick: true }));
+  return JSON.stringify(noteCloseAction(form).src);
+}
+
 // The window has closed. Saves the editor's text (see isEditorText), then
 // deletes the note, with its window bundles, if it's empty or was never saved,
 // and otherwise records the window's mode in the note's sidecar, so the note
-// reopens in the mode it was last in, whether or not it was ever switched.
+// reopens in the mode it was last in, whether or not it was ever switched,
+// and for a sticky window that it's sticky (set here too, for a note first
+// saved after its window opened), unless it was closed by Close and Unstick,
+// which unsticks it and removes its state rather than keeping it for
+// reopening.
 // A quick view's state is removed. A sticky window's is kept, with the time
 // it closed, and Alfred starts a forget timer that removes it a little later, so
 // that if the session is ending (a restart, shutdown or logout, which closes
@@ -503,8 +532,9 @@ function quit(store, id, form, text) {
     return;
   }
   const exists = store.exists(id);
-  if (state && exists) store.updateMeta(id, { mode: state.mode === "view" ? "view" : "edit" });
-  if (state && exists && form === "sticky") keepClosedNoteState(id, state);
+  const sticky = form === "sticky" ? { sticky: state && state.unstick ? null : true } : {};
+  if (state && exists) store.updateMeta(id, { mode: state.mode === "view" ? "view" : "edit", ...sticky });
+  if (state && exists && form === "sticky" && !state.unstick) keepClosedNoteState(id, state);
   else removeNoteState(id);
 }
 

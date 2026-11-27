@@ -43,6 +43,7 @@ The keys:
 | `icon` | The note's icon's name (see [Colours and icons](colours-and-icons.md)). Absent for no icon. An unknown name is kept but shown as no icon. |
 | `fontSize` | The note's own font size in points (see [Window layout and controls](window-ui.md#font-size)). Absent for the default. |
 | `mode` | `edit` or `view`: the mode its window was last in, recorded on every switch and when the window closes, so it reopens that way. |
+| `sticky` | `true` while the note is sticky: from when it last opened sticky until it's unstuck, whether or not its window is open now (see [Note windows](windows.md#quick-views-and-sticky-notes)). Absent otherwise. |
 | `collapsed` | While its sticky window is collapsed, the height in points it expands back to (see [Collapsing](window-ui.md#collapsing)). |
 | `trashed` | Once the note is gone, when it was trashed, or when a sweep first found it gone. The sidecar is deleted 30 days later (see [Sweeping sidecars](#sweeping-sidecars)). |
 

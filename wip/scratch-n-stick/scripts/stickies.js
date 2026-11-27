@@ -10,6 +10,7 @@
 //                were closed by a restart, shutdown or logout, or ended
 //                without closing (see "Reopening sticky notes" in lib.js)
 //   forget       ⌘↩ on Reopen sticky notes: leaves those notes closed
+//   unstick <id> ⌘↩ on a closed sticky note: unsticks it
 //
 // Closing asks each window to quit, as its close button does, so its `quit`
 // event saves the note and records its mode and whether it's collapsed, and
@@ -27,6 +28,9 @@
 // opens one. So each note opens as ⌘↩ opens it, where and as it was left. It
 // waits for each window before asking for the next, so they open one at a
 // time, in Show all's order, the note edited most recently last, on top.
+//
+// Unsticking removes `sticky` from the note's sidecar and its closed window's
+// state (see unstickNote in lib.js).
 
 ObjC.import("Foundation");
 
@@ -39,6 +43,7 @@ function run(argv) {
   if (command === "show" && !id) return showStickyNoteWindows();
   if (command === "reopen" && !id) return reopenStickyNotes();
   if (command === "forget" && !id) return forgetReopenNotes();
+  if (command === "unstick" && id) return unstickNote(noteStore(), id);
   throw new Error(`Unknown command: ${JSON.stringify(argv)}`);
 }
 

@@ -3,10 +3,16 @@
 // Opens a note in a window: argv[0] is the form, "quick" (inside Alfred's
 // window) or "stick" (its own window on the desktop), and argv[1] the note's ID,
 // or, with the variable `new` set to "1" (the New note result), the text a new
-// note starts with, which may become its heading (newNoteText in text-rules.js). After Stick in a quick view, or ↩ on a sticky note in the
+// note starts with, which may become its heading (newNoteText in
+// text-rules.js). After Stick in a quick view, or ↩ on a sticky note in the
 // results, the variable `stick_note` names the note instead (escaped as in its
 // window; see escapeForAlfredUi). After Stick, `stick_mode` is the quick view's
 // mode, which the sticky window opens in.
+//
+// ⌘↩ in the results list always comes here, so on a sticky note it sets
+// `sticky_action`: "close" on an open one closes its window, as its close
+// button does, and "unstick" on a closed one unsticks it (unstickNote in
+// lib.js); either way argv[1] is the note's ID, and nothing opens.
 //
 // It writes the note's window bundle (see "Note windows" in lib.js) and
 // prints it as the arg, for the Alfred UI object that follows, with the
@@ -48,6 +54,14 @@ function run(argv) {
   // note does: it leaves those notes closed, and opens nothing.
   if (workflowVariable("sticky_action") === "forget") {
     forgetReopenNotes();
+    return output("");
+  }
+  const stickyAction = workflowVariable("sticky_action");
+  if (stickyAction === "close" || stickyAction === "unstick") {
+    const noteId = argv[1] || "";
+    if (!isNoteId(noteId)) throw new Error(`Not a note ID: ${JSON.stringify(noteId)}`);
+    if (stickyAction === "close") quitStickyNoteWindows({ ids: [noteId] });
+    else unstickNote(noteStore(), noteId);
     return output("");
   }
   if (checkNotesFolderMove({ workflowFolder }).status !== "ready") return output("");

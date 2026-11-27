@@ -32,16 +32,22 @@ note recent $'Just written' -10S
 
 # The list's items for a query, one line per item: title | subtitle | arg |
 # the `new` variable, then for each of ⌘, ⌥ and ⌃ its arg, or "-" when the
-# key does nothing (valid: false), and ⌘'s `new` variable. Runs $script:
-# list.js, or new.js in new_items.
+# key does nothing (valid: false), and ⌘'s `new` variable. An arg is followed
+# by "@" and the variable `stick_note`, the note the stick route takes, if
+# it's set. Runs $script: list.js, or new.js in new_items.
 items() {
   (cd "$tmp" && notes_folder=$1 alfred_workflow_data=$1.data alfred_workflow_cache=$cache scratchnstick_pasteboard=$pasteboard "$script" "${@:2}") | osascript -l JavaScript -e '
     ObjC.import("Foundation");
     function run() {
       const input = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding).js;
+      const arg = (r) => {
+        const v = r.variables || {};
+        const routed = v.stick_note;
+        return (r.arg === undefined ? "" : r.arg) + (routed ? `@${routed}` : "");
+      };
       return JSON.parse(input).items.map((i) =>
-        [i.title, i.subtitle, i.arg, (i.variables || {}).new || ""]
-          .concat(i.mods ? ["cmd", "alt", "ctrl"].map((m) => (i.mods[m].valid === false ? "-" : i.mods[m].arg)) : [])
+        [i.title, i.subtitle, arg(i), (i.variables || {}).new || ""]
+          .concat(i.mods ? ["cmd", "alt", "ctrl"].map((m) => (i.mods[m].valid === false ? "-" : arg(i.mods[m]))) : [])
           .concat(i.mods ? [(i.mods.cmd.variables || {}).new || ""] : [])
           .join(" | ")).join("\n");
     }'
@@ -327,10 +333,28 @@ rm -rf "$notes/longline.md" "$notes/.scratchnstick/longline.json" "$quick/longli
 env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $scripts/stickies.js forget
 expect_exact "stickies.js forget (⌘ in the sticky notes list): the notes aren't offered" "$(items "$notes" "" | grep -c Reopen || true) $(has_state shopping)" "0 gone"
 
+# stickies.js, run as the list's actions run it.
+sj() { notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache ${here:h}/scripts/stickies.js "$@" }
+
 # Sticky notes, given by scratchnstick_sticky_ids in place of live windows
-# (see windowStates in list.js). In the notes list, a sticky note's result has no
-# arg and says it's sticky.
-expect "notes list: a sticky note says so, with no arg; ⌘ still sticks it" "$(scratchnstick_sticky_ids=shopping items "$notes" milk)" "Shopping | 📌 Sticky • Edited 3h ago • milk, eggs |  |  | shopping | shopping | $notes/shopping.md | "
+# (see windowStates in list.js), and closed sticky notes, whose sidecars have
+# `sticky`. In the notes list, a sticky note's result has no arg, takes ↩ down
+# the stick route with `sticky` and `stick_note`, and is marked 📌, and 📌💤 if
+# it's closed.
+expect "notes list: a sticky note is marked 📌, with no arg; ⌘'s arg is its ID" "$(scratchnstick_sticky_ids=shopping items "$notes" milk)" "Shopping | 📌 Edited 3h ago • milk, eggs | @shopping |  | shopping | shopping | $notes/shopping.md | "
+open_json() { scratchnstick_sticky_ids=shopping notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list milk | json - 'JSON.stringify([d.items[0].mods.cmd.subtitle, d.items[0].mods.cmd.variables])' }
+expect_exact "notes list: a sticky note's ⌘ closes its window, through open.js" "$(open_json)" '["Close this sticky note",{"sticky_action":"close"}]'
+expect_exact "open.js with sticky_action close and no window open: opens nothing" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache sticky_action=close $scripts/open.js stick shopping | json - 'JSON.stringify([d.alfredworkflow.arg, d.alfredworkflow.variables.open_window])')" '["",""]'
+expect_exact "open.js with sticky_action close: not a note ID" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache sticky_action=close $scripts/open.js stick "" 2>&1 >/dev/null | grep -o 'Not a note ID.*')" 'Not a note ID: "" (-2700)'
+# Sets `sticky` in a note's sidecar, as a sticky window does.
+mark_sticky() { local f=$notes/.scratchnstick/$1.json; print -r -- "$(json - 'Object.assign(d, { sticky: true })' < $f)" > $f }
+sidecar_sticky() { json - 'String(d.sticky)' < $notes/.scratchnstick/$1.json }
+mark_sticky shopping
+expect "notes list: a closed sticky note is marked 📌💤; ↩ sticks it, ⌘'s arg is its ID" "$(items "$notes" milk)" "Shopping | 📌💤 Edited 3h ago • milk, eggs | @shopping |  | shopping | shopping | $notes/shopping.md | "
+closed_json() { notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache $list milk | json - 'JSON.stringify([d.items[0].variables, d.items[0].mods.cmd.subtitle, d.items[0].mods.cmd.variables])' }
+expect_exact "notes list: a closed sticky note's ↩ sets sticky, and ⌘ unsticks it, through open.js" "$(closed_json)" '[{"sticky":"1","stick_note":"shopping"},"Unstick",{"sticky_action":"unstick"}]'
+expect "notes list: a sticky note open and marked sticky is only 📌" "$(scratchnstick_sticky_ids=shopping items "$notes" milk | cut -d'|' -f2)" " 📌 Edited 3h ago • milk, eggs "
+expect_exact "open.js with sticky_action unstick (⌘ on a closed sticky note): unsticks it, and opens nothing" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache sticky_action=unstick $scripts/open.js stick shopping | json - 'JSON.stringify([d.alfredworkflow.arg, d.alfredworkflow.variables.open_window])') $(sidecar_sticky shopping)" '["",""] undefined'
 
 # The sticky notes list (list.js's second argument, "stickies"): only the
 # sticky notes, last edited first, each with its ID as the arg of ↩ and ⌘
@@ -354,8 +378,24 @@ before=$(ls "$quick" | sort)
 stickies cafe >/dev/null
 expect_exact "stickies: leaves the quick bundles alone" "$(ls "$quick" | sort)" "$before"
 
+# The sticky notes list with closed sticky notes: open ones first, then the
+# closed ones, marked 💤, whose ⌘ unsticks them; Show all and Close all only
+# while windows are open.
+mark_sticky cafe
+mark_sticky shopping
+expect_exact "stickies: open notes first, then closed ones marked 💤, then Show all and Close all for the open one" "$(stickies shopping | cut -d'|' -f1-3)" $'Shopping | Edited 3h ago • milk, eggs | shopping \nCafé ideas | 💤 '"$(items "$notes" cafe | cut -d'|' -f2 | sed 's/^ 📌💤 //;s/ $//')"$' | cafe \nShow all sticky notes | Bring the sticky note on the desktop to the front |  \nClose all sticky notes | Close the sticky note on the desktop |  '
+expect "stickies: ⌘ on a closed note unsticks it" "$(stickies_json shopping | grep -o '"cmd":{[^}]*}}' | sed -n 2p)" '"cmd":{"subtitle":"Unstick","arg":"cafe","variables":{"sticky_action":"unstick"}}'
+expect_exact "stickies: only closed notes: no Show all or Close all" "$(stickies '' | cut -d'|' -f1)" $'Café ideas \nShopping '
+expect_exact "stickies: only closed notes and a query that matches none: only a result saying so" "$(stickies '' bread | cut -d'|' -f1)" "No sticky notes match “bread” "
+state shopping '{"form":"sticky","pid":'$dead',"mode":"edit","collapsed":false,"closed":1}'
+expect_exact "stickies: Reopen, then the closed notes" "$(stickies '' | cut -d'|' -f1)" $'Reopen “Shopping” \nCafé ideas \nShopping '
+sj unstick shopping
+expect_exact "stickies.js unstick: removes sticky from the sidecar and the note's state, so it isn't offered" "$(sidecar_sticky shopping) $(has_state shopping) $(stickies '' | cut -d'|' -f1)" "undefined gone Café ideas "
+expect_exact "stickies.js unstick: a note that's gone" "$(sj unstick nosuchnote && print done)" "done"
+expect_exact "stickies.js unstick needs an ID" "$(sj unstick '' 2>&1 >/dev/null | grep -o 'Unknown command.*')" 'Unknown command: ["unstick",""] (-2700)'
+sj unstick cafe
+
 # stickies.js with no sticky windows: nothing to close or show.
-sj() { notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache ${here:h}/scripts/stickies.js "$@" }
 expect_exact "stickies.js: no sticky window to close or show" "$(sj close cafe && sj close '' && sj show '' && print done)" "done"
 expect_exact "stickies.js: not a note ID" "$(sj close .hidden 2>&1 >/dev/null | grep -o 'Not a note ID.*')" 'Not a note ID: ".hidden" (-2700)'
 expect_exact "stickies.js: an unknown command, or show with an ID" "$(sj open cafe 2>&1 >/dev/null | grep -o 'Unknown command.*'; sj show cafe 2>&1 >/dev/null | grep -o 'Unknown command.*')" $'Unknown command: ["open","cafe"] (-2700)\nUnknown command: ["show","cafe"] (-2700)'

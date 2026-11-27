@@ -8,15 +8,16 @@ This file is the overview: what the workflow does, how its parts fit together, a
 
 - **Notes are plain `.md` files** in a notes folder: the workflow's data folder by default, or one the user chooses. Moving the setting moves the notes.
 - **The results list** (`scratch`) lists the notes, last edited first, with a title, a preview and when each was edited, and searches their whole text. ↩ opens a note in a **quick view** inside Alfred's window; ⌘↩ **sticks it to the desktop** as its own window; ⌥↩ trashes it; ⌃↩ reveals it.
+- **Notes stay sticky** once closed: a note is sticky from when it's stuck until it's unstuck (Unstick in the lists, or Close and Unstick in its window), so ↩ on a closed sticky note sticks it again. Sticky notes are marked 📌 in the results list, and 📌💤 once their windows are closed.
 - **Example notes**, `example-1-…` onwards, are added to the notes folder the first time the workflow runs, to show what notes can do. They're never replaced, and come back only if the workflow's data folder is deleted.
 - **New notes** come from New note in the list, the `newscratch` and `newsticky` keywords (with typed text or the clipboard), the "New scratch note" and "New sticky note" Universal Actions, and an optional hotkey. Text that reads as a heading starts the note as `# <text>`.
-- **The sticky notes list** (`sticky`) lists the notes stuck to the desktop, to bring one to the front or close it, or show or close them all.
+- **The sticky notes list** (`sticky`) lists the sticky notes, those on the desktop and then those closed, to bring one to the front or close it, reopen or unstick a closed one, or show or close them all.
 - **Reopening after a restart**: sticky notes closed by a restart, shutdown or logout (or a crash) are offered back by "Reopen sticky notes" at the top of both lists.
 - **A note's window** has an editor (Edit) and a rendered view (Preview, with task boxes that can be ticked), switched with ↩ (to Edit) and ⌘↩ (to Preview). Its top row sets the note's colour (six slots, customisable), icon (44 Lucide icons) and font size, and its actions menu (⌘K) has Stick, Close, Move to Trash, Share and Copy. Sticky windows collapse to their top strip with a double-click, and reopen where they were left.
 
 ## Names
 
-The workflow is **Scratch'n'Stick** (straight apostrophes, as people type them), described as "Scratchpad and sticky notes" so a search for either finds it. Notes stuck to the desktop are **sticky notes** everywhere the user sees them, and the action is **Stick to the desktop** (⌘D; the button's short name is Stick, its accessibility label "Make sticky"). A sticky note's result says "📌 Sticky • …". The rendered mode is **Preview** to the user and View in the code. The quick view is never called anything in the UI.
+The workflow is **Scratch'n'Stick** (straight apostrophes, as people type them), described as "Scratchpad and sticky notes" so a search for either finds it. Notes stuck to the desktop are **sticky notes** everywhere the user sees them, and the action is **Stick to the desktop** (⌘D; the button's short name is Stick, its accessibility label "Make sticky"). A sticky note's result is marked "📌 …", and a closed one's "📌💤 …", with no words, to leave room for the preview; the action that stops a closed note being sticky is **Unstick**. The rendered mode is **Preview** to the user and View in the code. The quick view is never called anything in the UI.
 
 Keywords: `scratch` (the list), `newscratch` (a new note), `sticky` (the sticky notes list), `newsticky` (a new sticky note). The new-note Script Filter is "New Scratch'n'Stick note", and notifications are titled Scratch'n'Stick.
 
@@ -59,7 +60,7 @@ All JXA unless noted.
 | `scripts/window.js` | A note window's actions: `launched`, `save`, `quit`, `toggle` / `edit` / `view`, `stick`, `colour`, `icon`, `fontsize`, `collapse`, `menu`, `trash`, `share`, `copyrich`, `copytext`, `tick`. |
 | `scripts/changed.sh` | zsh. The web view's `changed` action: shows the page once drawn, passes task ticks to `window.js tick`. |
 | `scripts/picker.sh` | zsh. Opens and closes the icon and colour pickers. |
-| `scripts/stickies.js` | The sticky notes list's actions: `close [<id>]`, `show`; and Reopen sticky notes': `reopen`, `forget`. |
+| `scripts/stickies.js` | The sticky notes list's actions: `close [<id>]`, `show`, `unstick <id>`; and Reopen sticky notes': `reopen`, `forget`. |
 | `scripts/forget.sh` | zsh. A closed sticky window's forget timer, run by Alfred: deletes its state `CLOSE_GRACE_SECONDS` later, unless a session ending kills it first. |
 | `scripts/trash.js` | ⌥↩: closes a note's sticky window and moves the note to the Trash. |
 | `scripts/move.js` | Moves the notes to a newly configured folder, in the background. |
@@ -72,7 +73,7 @@ All JXA unless noted.
 | Path | What |
 |---|---|
 | Notes folder (`$alfred_workflow_data/notes/` by default) | `<id>.md`, one per note |
-| `<notes folder>/.scratchnstick/<id>.json` | Each note's metadata sidecar: created, colour, icon, font size, mode, collapsed, and once the note is gone, when it went (kept 30 days) |
+| `<notes folder>/.scratchnstick/<id>.json` | Each note's metadata sidecar: created, colour, icon, font size, mode, collapsed, sticky, and once the note is gone, when it went (kept 30 days) |
 | `$alfred_workflow_data/state.json` | `lastNotesFolder`, the folder the notes were last in, to notice a change of setting, `lastSidecarSweep`, when sidecars were last swept, and `examplesInstalled`, when the example notes were added |
 | `$alfred_workflow_cache/quick/<id>.alfredui` | Each note's quick view bundle, and `quick/.index.json`, their fingerprints |
 | `$alfred_workflow_cache/windows/<id>.alfredui` | Each stuck note's sticky window bundle, kept so its saved position stays |
@@ -193,6 +194,7 @@ Before the first release:
   - Custom colours: the Configuration sheet's fields and description, a slot that can't be read (the results and the notification), and a renamed, recoloured slot in the results, quick view and a sticky window.
   - `newscratch`: blank, with text and from the clipboard; ↩ seamless and ⌘↩ sticky. `newsticky`: ↩ sticks each of its three results with its text, and ⌘↩ opens the quick view. The hotkeys, once assigned.
   - The sticky notes list: ↩ (Alfred closes and the window comes to the front, whether or not it was in front), ⌘↩ and Close all (notes saved, and reopening where and as they were), Show all, and its hotkey.
+  - Closed sticky notes: ⌘↩ on an open sticky note in `scratch` closes it (saved, now 📌💤) and Alfred closes, whether or not that window was in front. A closed sticky note is 📌💤 in `scratch`; ↩ reopens it where it was; ⌘↩ unsticks it, after which it isn't marked and ↩ opens a quick view. In `sticky` it's listed under the open ones with 💤, ↩ reopens it, ⌘↩ unsticks it, and with only closed notes there's no Show all or Close all. Close and Unstick in a sticky window's actions menu closes it and leaves it unmarked, with no Reopen item even after a restart.
   - Window positions: a note left on another display, closed, and stuck again with ⌘↩ and from its quick view.
   - Preview's fades: scrolling, ↓ and Home after a click in the page, and a translucent theme.
   - The icon picker in a sticky window at its minimum width (220 pt), which it doesn't fit; perhaps raise the minimum.

@@ -43,7 +43,7 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -63,7 +63,7 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -681,6 +681,52 @@
 				<array>
 					<dict>
 						<key>inputstring</key>
+						<string>{var:sticky}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>1</string>
+						<key>outputlabel</key>
+						<string>Sticky</string>
+						<key>uid</key>
+						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
+					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:sticky_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>reopen</string>
+						<key>outputlabel</key>
+						<string>Reopen</string>
+						<key>uid</key>
+						<string>9AE9C2EF-31AB-43A1-8F55-C156F232FAD1</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>else</string>
+				<key>hideelse</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
 						<string>{var:sticky_action}</string>
 						<key>matchcasesensitive</key>
 						<false/>
@@ -890,52 +936,6 @@
 			<string>alfred.workflow.userinterface.alfredui</string>
 			<key>uid</key>
 			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D02</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>conditions</key>
-				<array>
-					<dict>
-						<key>inputstring</key>
-						<string>{var:sticky}</string>
-						<key>matchcasesensitive</key>
-						<false/>
-						<key>matchmode</key>
-						<integer>0</integer>
-						<key>matchstring</key>
-						<string>1</string>
-						<key>outputlabel</key>
-						<string>Sticky</string>
-						<key>uid</key>
-						<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0C</string>
-					</dict>
-					<dict>
-						<key>inputstring</key>
-						<string>{var:sticky_action}</string>
-						<key>matchcasesensitive</key>
-						<false/>
-						<key>matchmode</key>
-						<integer>0</integer>
-						<key>matchstring</key>
-						<string>reopen</string>
-						<key>outputlabel</key>
-						<string>Reopen</string>
-						<key>uid</key>
-						<string>9AE9C2EF-31AB-43A1-8F55-C156F232FAD1</string>
-					</dict>
-				</array>
-				<key>elselabel</key>
-				<string>else</string>
-				<key>hideelse</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.conditional</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</string>
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
@@ -1265,9 +1265,9 @@
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D0B</key>
 		<dict>
 			<key>xpos</key>
-			<real>375</real>
+			<real>390</real>
 			<key>ypos</key>
-			<real>590</real>
+			<real>275</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</key>
 		<dict>

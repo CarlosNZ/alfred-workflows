@@ -126,6 +126,7 @@ Alfred UI expands `{var:…}` and `{const:…}` in every string it's given: `ui.
 - **Object icons** in the workflow editor are read only from `<object UID>.png` in the workflow's folder; symlinks work.
 - **Theme**: Script Filters get `alfred_theme_background` (`rgba(r,g,b,a)`) and `alfred_theme`; a theme's `theme.json` is at `$alfred_preferences/themes/$alfred_theme/theme.json`, and some have `appearanceMode` in their `alfredtheme` object.
 - **Alfred's window opens without making Alfred the active app**: the app in front stays active. Alfred closes when it loses focus to an app being activated, so activating an app that's already active doesn't close it.
+- **An action that also reaches an "Open within Alfred" UI object keeps Alfred's window open.** With a Script Filter's modifier connected both to a Run Script and straight to such an object, given an empty arg (which shows nothing), Alfred ran the script and stayed open with the results as they were (the Script Filter doesn't rerun). It still closed when an app was activated, as when the script quit the app in front, and macOS activated another. Seen with ⌘↩ closing a sticky window: Alfred stayed open unless that window was the one in front. It's a way to keep Alfred open after an action, if stale results are acceptable; this workflow doesn't use it.
 - `alfred://runtrigger/<bundle id>/<trigger>/?argument=…` runs an External Trigger (with `availableviaurlhandler`) without an AppleEvent.
 
 ### Quick Look

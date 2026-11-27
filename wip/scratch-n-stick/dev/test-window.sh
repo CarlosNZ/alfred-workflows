@@ -152,8 +152,9 @@ expect "sticky: borderless, with rounded corners" "$(json $ui '[d.window.borderl
 expect "sticky: the close button at the top left, then the colour and icon, level with the actions" "$(json $ui '['$windowbuttons', '$customise', '$actions'].map(g => g.constraints.position + " " + JSON.stringify(g.constraints.insets)).join(" ")') $(json $ui '('$windowbuttons').components.map(b => b.id).join(",")')" 'topleft {"top":5,"left":9} topleft {"top":5,"left":44} topright {"top":5,"right":42} close'
 expect_exact "sticky: the close button shows the close icon and closes the window" "$(json $ui '['$image'('$closebtn'), '$closebtn'.tooltip, '$closebtn'.accessibility.label, JSON.stringify('$closebtn'.events)].join(" | ")')" "icons/lucide/close-light.svg 15x15 | Close (⌘W) | Close | "'[{"triggers":"actioned","action":{"type":"json","src":{"finish":{}}}}]'
 expect "sticky: tinted, in the light appearance" "$(json $ui 'd.window.root.background + " " + d.window.root.appearance')" "#FEF49C light"
-expect "sticky: ⌘↩, ⌘I, ⎋, ⌘W, ⌘⌫, ⌘K, ⌘1-⌘6 and the font size's, no ⌘D" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘↩ ⌘I ⎋ ⌘W ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
+expect "sticky: ⌘↩, ⌘I, ⎋, ⌘W, ⇧⌘W, ⌘⌫, ⌘K, ⌘1-⌘6 and the font size's, no ⌘D" "$(json $ui 'd.window.root.shortcuts.map(s => s.shortcut).join(" ")')" "⌘↩ ⌘I ⎋ ⌘W ⇧⌘W ⌘⌫ ⌘K ⌘1 ⌘2 ⌘3 ⌘4 ⌘5 ⌘6 ⌘= ⇧⌘= ⌘+ ⌘- ⌘0"
 expect_exact "sticky: ⌘W closes the window" "$(json $ui 'JSON.stringify(d.window.root.shortcuts.find(s => s.shortcut === "⌘W").action)')" '{"type":"json","src":{"finish":{}}}'
+expect_exact "sticky: ⇧⌘W closes it and unsticks the note" "$(json $ui 'd.window.root.shortcuts.find(s => s.shortcut === "⇧⌘W").action.args.slice(0, 1).concat(d.window.root.shortcuts.find(s => s.shortcut === "⇧⌘W").action.args.slice(2)).join(" ")')" "unstick sticky {value:editor.text}"
 expect "sticky: the font size is a number" "$(json $ui 'typeof '$editor'.font.size + " " + '$editor'.font.size')" "number 17"
 expect "sticky: the editor's insets clear the top row" "$(json $ui ''$editor'.constraints.insets.top')" "34"
 expect "sticky: the page starts below the top row, so the window drags by the strip above" "$(json $ui '('$page').constraints.insets.top')" "28"
@@ -234,6 +235,7 @@ window_js save "$id1" quick ""
 expect "save with no state: blank text isn't saved" "$(cat $notes/$id1.md)" "Buy oat milk"
 bundle1=$(open_note stick "$id1")
 update=$(window_js launched "$id1" sticky view; window_js toggle "$id1" sticky "")
+expect "launched, sticky: marks the note sticky in its sidecar" "$(json $notes/.scratchnstick/$id1.json d.sticky)" "true"
 expect "toggle, sticky: no key hints to replace" "$(print -r -- $update | json - '"replace" in d')" "false"
 expect "toggle to Edit: fades out the web view" "$(print -r -- $update | json - 'JSON.stringify(d.update.ids.web)')" '{"opacity":0}'
 expect "toggle to Edit: shows the editor with the file's text and focus" "$(print -r -- $update | json - '[d.update.ids.editor.hidden, d.update.ids.editor.focus, d.update.ids.editor.text].join(" ")')" "false true Buy oat milk"
@@ -251,6 +253,7 @@ window_js edit "$id1" sticky "" >/dev/null
 window_js quit "$id1" sticky "Buy oat milk and bread"
 expect "quit in Edit: saves" "$(cat $notes/$id1.md)" "Buy oat milk and bread"
 expect "quit records the window's mode in the sidecar" "$(json $notes/.scratchnstick/$id1.json d.mode)" "edit"
+expect "quit, sticky: the note stays sticky" "$(json $notes/.scratchnstick/$id1.json d.sticky)" "true"
 expect "quit, sticky: keeps the state, with when it closed" "$(json $cache/state/$id1.json '[d.form, d.mode, Math.abs(Date.now() - d.closed) < 60000].join(" ")')" "sticky edit true"
 expect "a closed state isn't an open window: its actions do nothing" "$(window_js menu "$id1" sticky "")" ""
 # The forget timer, which Alfred starts with the `forget` trigger (here, with
@@ -272,6 +275,24 @@ window_js launched blanksticky sticky edit
 window_js quit blanksticky sticky ""
 expect "quit, sticky, with the note left blank: deleted, and the state with it" "$([[ -e $notes/blanksticky.md ]] && print there || print gone) $([[ -e $cache/state/blanksticky.json ]] && print there || print gone)" "gone gone"
 expect "the next open uses the remembered mode" "$(json "$(open_note quick $id1)/ui.json" 'Boolean('$editor'.hidden)')" "false"
+window_js launched "$id1" quick edit
+expect "launched, quick: the note is still sticky while the view is open" "$(json $notes/.scratchnstick/$id1.json d.sticky)" "true"
+window_js quit "$id1" quick "Buy oat milk and bread"
+expect "quit, quick: the note stays sticky" "$(json $notes/.scratchnstick/$id1.json d.sticky)" "true"
+open_note stick "$id1" >/dev/null
+window_js launched "$id1" sticky edit
+expect_exact "unstick (Close and Unstick): closes the window" "$(window_js unstick "$id1" sticky "")" '{"finish":{}}'
+window_js quit "$id1" sticky "Buy oat milk and bread"
+expect "quit after Close and Unstick: saves, unsticks the note, and removes the state rather than keeping it" "$(cat $notes/$id1.md) | $(json $notes/.scratchnstick/$id1.json '"sticky" in d') | $([[ -e $cache/state/$id1.json ]] && print there || print gone)" "Buy oat milk and bread | false | gone"
+expect "unstick with no state, or in a quick view: nothing" "$(window_js unstick "$id1" sticky ""; window_js launched "$id1" quick edit; window_js unstick "$id1" quick "")" ""
+window_js quit "$id1" quick "Buy oat milk and bread"
+idbs=$(basename "$(open_note new=1 stick '')" .alfredui)
+window_js launched "$idbs" sticky edit
+expect "launched, sticky, a blank new note: no sidecar yet" "$([[ -e $notes/.scratchnstick/$idbs.json ]] && print there || print gone)" "gone"
+window_js save "$idbs" sticky "Typed later"
+window_js quit "$idbs" sticky "Typed later"
+expect "quit, sticky, a new note saved after it opened: marked sticky" "$(json $notes/.scratchnstick/$idbs.json d.sticky)" "true"
+rm -rf -- $notes/$idbs.md $notes/.scratchnstick/$idbs.json $cache/windows/$idbs.alfredui $cache/state/$idbs.json
 
 # Collapsing a sticky window.
 print -rn -- $'# Groceries\n- milk\n' > "$notes/groceries.md"
@@ -310,10 +331,10 @@ expect_exact "⌘⌫ runs window.js trash, as Move to Trash does" "$(json $ui 'd
 expect "menu with no state: nothing" "$(window_js menu groceries sticky)" ""
 window_js launched groceries sticky view
 update=$(window_js menu groceries sticky)
-expect_exact "menu, sticky in View: Collapse, Edit, Close, Move to Trash, Share, Copy as Rich Text and Copy as Markdown Text, at the anchor" "$(print -r -- $update | json - 'd.popupmenu.src + " | " + '$menu_items)" "menuanchor | Collapse | Edit (↩) | Close (⌘W) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
-expect_exact "menu: each item's action" "$(print -r -- $update | json - 'd.popupmenu.menu.flatMap(i => i.submenu || [i]).filter(i => i.action).map(i => i.action.type === "script" ? i.action.args.join(",") : JSON.stringify(i.action.src)).join(" | ")')" 'collapse,groceries,sticky,{value:editor.text} | toggle,groceries,sticky,{value:editor.text} | {"finish":{}} | trash,groceries,sticky,{value:editor.text} | share,groceries,sticky,{value:editor.text} | copyrich,groceries,sticky,{value:editor.text} | copytext,groceries,sticky,{value:editor.text}'
+expect_exact "menu, sticky in View: Collapse, Edit, Close, Close and Unstick, Move to Trash, Share, Copy as Rich Text and Copy as Markdown Text, at the anchor" "$(print -r -- $update | json - 'd.popupmenu.src + " | " + '$menu_items)" "menuanchor | Collapse | Edit (↩) | Close (⌘W) | Close and Unstick (⇧⌘W) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
+expect_exact "menu: each item's action" "$(print -r -- $update | json - 'd.popupmenu.menu.flatMap(i => i.submenu || [i]).filter(i => i.action).map(i => i.action.type === "script" ? i.action.args.join(",") : JSON.stringify(i.action.src)).join(" | ")')" 'collapse,groceries,sticky,{value:editor.text} | toggle,groceries,sticky,{value:editor.text} | {"finish":{}} | unstick,groceries,sticky,{value:editor.text} | trash,groceries,sticky,{value:editor.text} | share,groceries,sticky,{value:editor.text} | copyrich,groceries,sticky,{value:editor.text} | copytext,groceries,sticky,{value:editor.text}'
 window_js collapse groceries sticky "" >/dev/null
-expect_exact "menu, collapsed: Expand, and Edit greyed out" "$(window_js menu groceries sticky | json - $menu_items)" "Expand | Edit (↩) [off] | Close (⌘W) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
+expect_exact "menu, collapsed: Expand, and Edit greyed out" "$(window_js menu groceries sticky | json - $menu_items)" "Expand | Edit (↩) [off] | Close (⌘W) | Close and Unstick (⇧⌘W) | — | Move to Trash (⌘⌫) | — | Share… | Copy as Rich Text | Copy as Markdown Text"
 window_js collapse groceries sticky "" >/dev/null
 window_js quit groceries sticky ""
 print -rn -- $'Quick menu\n' > "$notes/quickmenu.md"
@@ -395,8 +416,10 @@ print -rn -- $'# Team meeting\n- Ship it today\n' > "$notes/meeting.md"
 # quit with another form's state: a quick view that handed over to the note's
 # sticky window leaves the note and the sticky window's state alone.
 print -r -- '{"form":"sticky","pid":1,"mode":"edit"}' > $cache/state/meeting.json
+plutil -replace sticky -bool YES $notes/.scratchnstick/meeting.json
 window_js quit meeting quick "stale text"
-expect "quit with the other form's state: no save, state kept" "$(head -1 $notes/meeting.md) $(json $cache/state/meeting.json d.form)" "# Team meeting sticky"
+expect "quit with the other form's state: no save, state kept, still sticky" "$(head -1 $notes/meeting.md) $(json $cache/state/meeting.json d.form) $(json $notes/.scratchnstick/meeting.json d.sticky)" "# Team meeting sticky true"
+plutil -remove sticky $notes/.scratchnstick/meeting.json
 rm $cache/state/meeting.json
 
 window_js launched meeting quick edit >/dev/null
