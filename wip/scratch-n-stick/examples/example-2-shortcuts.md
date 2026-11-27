@@ -2,16 +2,20 @@
 
 Keep this one on the desktop until your fingers know them.
 
-| In the results list |                         |
-| ------------------- | ----------------------- |
-| ↩                   | Open a note in Alfred   |
-| ⌘↩                  | Stick it to the desktop |
-| ⌥↩                  | Move it to the Trash    |
-| ⌃↩                  | Show it in Finder       |
+## In the results list
+
+| Key | Action                  |
+| --- | ----------------------- |
+| ↩   | Open a note in Alfred   |
+| ⌘↩  | Stick it to the desktop |
+| ⌥↩  | Move it to the Trash    |
+| ⌃↩  | Show it in Finder       |
 
 In the results list, ⌘↩ on a sticky note closes it instead, and on a closed one (📌💤) unsticks it.
 
-| In a note |                         |
+## In a note
+
+| Key       | Action                  |
 | --------- | ----------------------- |
 | ↩ and ⌘↩  | Edit and Preview        |
 | ⌘1 to ⌘6  | Colour                  |
