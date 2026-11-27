@@ -163,6 +163,7 @@ Run the three after any change to `lib.js`, the templates or a script, with `alf
 The tests can't drive Alfred, open windows, or see what's drawn, so window behaviour and look are checked in Alfred, by hand or by scripts:
 
 - Use a throwaway note (or the samples: `dev/install-samples.js` installs eight, `sample1`–`sample8`, into the notes folder, resetting their text, sidecars and dates) and delete only notes you made and confirmed. Ask before touching the user's own notes.
+- To see the example notes as a new user does, close their sticky windows and run `dev/reset-examples.sh` (`-n` lists what it would delete). It deletes the installed examples and everything kept for them, saved window frames included, so the next results list adds them again from `examples/`.
 - To run something as Alfred does (with Alfred's permissions, or to open a sticky window from a test bundle), add a temporary External Trigger to the object you need and run it with AppleScript's `run trigger`; remove it afterwards and reload Alfred.
 - `CGWindowListCopyWindowInfo` gives windows' bounds without any permission; `lsappinfo front` gives the active app (`NSWorkspace`'s `frontmostApplication` goes stale in a script without a run loop). Screenshots and 60 fps screen recordings show timing and flashes.
 - Posted key events reach a window's process, but Alfred reads modifier keys live, so ⌘↩ in Alfred's results has to be pressed by hand; posted drags don't move windows. See [Alfred UI](dev/docs/alfred-ui.md#shortcuts-and-keys).
@@ -178,6 +179,7 @@ Everything in `dev/` is development only (excluded from builds by `.wfignore`):
 | `dev/docs/` | These notes' topic files |
 | `dev/test-*.sh`, `dev/test-storage.js` | The tests |
 | `dev/install-samples.js` | Installs the sample notes; outside Alfred it reads `notes_folder` from `prefs.plist` |
+| `dev/reset-examples.sh` | Resets the example notes to a first run: deletes the installed examples, their sidecars, bundles, window states and saved frames, and `examplesInstalled` |
 | `dev/make-icons.js` | Draws the button icons and drop-down shadows that ship; `--review <folder>` draws every badge and dot to look at. See [Colours and icons](dev/docs/colours-and-icons.md#devmake-iconsjs). |
 | `dev/lucide/` | Lucide's source SVGs (`lucide-static` 1.80.0), its `LICENSE` and `VERSION` |
 | `dev/icons/` | The workflow's own button icons in Lucide's style (`close`, `text-size`) |
