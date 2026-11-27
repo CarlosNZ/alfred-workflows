@@ -1,5 +1,6 @@
 {
   "colour": 5,
   "icon": "book-open",
-  "mode": "edit"
+  "mode": "edit",
+  "sticky": true
 }
