@@ -224,7 +224,17 @@ expect "…a note that fits at the default font size keeps the usual size" "$(js
 rm -rf -- $cache/windows/bigfont.alfredui
 print -r -- '{ "fontSize": 28 }' > $notes/.scratchnstick/bigfont.json
 expect "…and is measured at its own font size" "$(json "$(open_note stick bigfont)/ui.json" $size)" "360x505"
-rm -rf -- $notes/longlist.md $notes/bigfont.md $notes/.scratchnstick/{longlist,bigfont}.json $cache/windows/{longlist,bigfont}.alfredui
+# A note opening in Preview has its table rows measured as Preview draws
+# them, taller than in Edit: 16 rows and the last newline are 17 lines in
+# Edit, and in Preview 15 rows at 1.5 lines, the delimiter row at none and
+# the last newline, 23.5, each 17 pt, plus 76 pt.
+{ print -r -- $'| Key | Action |\n| --- | --- |'; for i in {1..14}; print -r -- "| k$i | a$i |" } > $notes/tablenote.md
+print -r -- '{ "mode": "edit" }' > $notes/.scratchnstick/tablenote.json
+expect "…a table opening in Edit: a line a row" "$(json "$(open_note stick tablenote)/ui.json" $size)" "360x365"
+rm -rf -- $cache/windows/tablenote.alfredui
+print -r -- '{ "mode": "view" }' > $notes/.scratchnstick/tablenote.json
+expect "…in Preview: taller" "$(json "$(open_note stick tablenote)/ui.json" $size)" "360x476"
+rm -rf -- $notes/{longlist,bigfont,tablenote}.md $notes/.scratchnstick/{longlist,bigfont,tablenote}.json $cache/windows/{longlist,bigfont,tablenote}.alfredui
 rm -rf -- "$(note_file $idst)" $notes/.scratchnstick/$idst.json $cache/windows/$idst.alfredui $cache/windows/$idsb.alfredui
 rm -rf -- "$(note_file $idsl)" $notes/.scratchnstick/$idsl.json $cache/windows/$idsl.alfredui "$(note_file $idsc)" $notes/.scratchnstick/$idsc.json $cache/windows/$idsc.alfredui
 expect "open.js sets open_window, clears new and stick_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","stick_note":"","stick_mode":"","close_view":""}'

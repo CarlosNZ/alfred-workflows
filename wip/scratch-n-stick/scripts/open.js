@@ -98,7 +98,12 @@ function run(argv) {
   // window left the note a bundle: Alfred UI keys a window's saved frame on
   // its bundle's path, so that window opens where and as it was left.
   const isFirstSticky = form === "sticky" && !$.NSFileManager.defaultManager.fileExistsAtPath(noteBundlePath(id, "sticky"));
-  const size = isFirstSticky ? fittedStickyWindowSize(workflowFolder, text, noteOwnFontSize(note && note.meta)) : null;
+  const size = isFirstSticky
+    ? fittedStickyWindowSize(workflowFolder, text, {
+        fontSize: noteOwnFontSize(note && note.meta),
+        preview: noteWindowMode(mode, note, text) === "view",
+      })
+    : null;
   const bundle = writeNoteWindow({ store, workflowFolder, id, form, note, text, mode, size });
   if (form === "sticky") startStickyWindowPlacement(workflowFolder, bundle);
   return output(bundle);

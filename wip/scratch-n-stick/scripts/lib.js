@@ -2670,6 +2670,16 @@ function noteOpenMode(note, text) {
   return note.meta.mode === "edit" ? "edit" : "view";
 }
 
+// The mode a note's window opens in when `requestedMode` ("edit" or "view")
+// is asked for, as when a quick view is stuck and its window carries on in
+// the same mode: that mode, unless the text is blank, which opens in Edit;
+// otherwise noteOpenMode's.
+function noteWindowMode(requestedMode, note, text) {
+  return (requestedMode === "edit" || requestedMode === "view") && !isBlankText(text)
+    ? requestedMode
+    : noteOpenMode(note, text);
+}
+
 // Writes the window bundle of a note in `store` for a form ("quick" or
 // "sticky") and returns its path. `note` is the note as the store read it, or
 // null for a new note; `text` is the text the window opens with. `mode`
@@ -2686,10 +2696,7 @@ function writeNoteWindow(
   { store, workflowFolder, id, form, note, text, mode: requestedMode, appearance: quickAppearance, size = null },
   variable = workflowVariable,
 ) {
-  const mode =
-    (requestedMode === "edit" || requestedMode === "view") && !isBlankText(text)
-      ? requestedMode
-      : noteOpenMode(note, text);
+  const mode = noteWindowMode(requestedMode, note, text);
   const meta = note ? note.meta : {};
   const ownFontSize = noteOwnFontSize(meta);
   const defaultFontSize = noteDefaultFontSize(variable);
@@ -2744,8 +2751,9 @@ function writeNoteWindow(
 // editor's font (the system's monospaced font) at `fontSize`, the note's own
 // font size, or with none the `font_size` setting's size, within the editor's
 // insets in a sticky window, on the main screen, where AppKit centres a
-// window with no saved frame.
-function fittedStickyWindowSize(workflowFolder, text, fontSize = null, variable = workflowVariable) {
+// window with no saved frame. `preview` is true for a window opening in
+// Preview, whose tables are measured as Preview draws them.
+function fittedStickyWindowSize(workflowFolder, text, { fontSize = null, preview = false } = {}, variable = workflowVariable) {
   ObjC.import("AppKit");
   const { shortfall, textInset } = NOTE_WINDOW_LAYOUT.stickySize;
   const { size } = readNoteTemplate(workflowFolder, "window").window;
@@ -2774,6 +2782,7 @@ function fittedStickyWindowSize(workflowFolder, text, fontSize = null, variable 
     scroller: legacyScrollers
       ? $.NSScroller.scrollerWidthForControlSizeScrollerStyle($.NSControlSizeRegular, $.NSScrollerStyleLegacy)
       : 0,
+    preview,
   });
   return { width: fitted.width, height: fitted.height + shortfall };
 }

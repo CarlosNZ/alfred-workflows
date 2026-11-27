@@ -55,10 +55,16 @@ const ABBREVIATIONS = ["Mr", "Mrs", "Ms", "Mx", "Dr", "Prof", "St", "Jr", "Sr", 
 // taller, less keeps it wider), then makes it taller. The window is never
 // wider than NOTE_MAX_WIDTH_FRACTION of the screen or NOTE_MAX_WIDTH points,
 // or taller than NOTE_MAX_HEIGHT_FRACTION of the screen; longer text scrolls.
-const NOTE_SHAPE = 1;
+const NOTE_SHAPE = 1.3;
 const NOTE_MAX_WIDTH_FRACTION = 0.4;
 const NOTE_MAX_WIDTH = 800;
 const NOTE_MAX_HEIGHT_FRACTION = 0.7;
+
+// In Preview, a table row is drawn with padding and borders, taller than a
+// line of the editor's text: about PREVIEW_TABLE_ROW lines (23.5 pt against
+// 16 at 13 pt). Its delimiter row (|---|) isn't drawn at all. So a note that
+// opens in Preview has its table rows measured at that height.
+const PREVIEW_TABLE_ROW = 1.5;
 
 // ---------------------------------------------------------------------------
 
@@ -146,7 +152,8 @@ function splitTitleLine(line) {
 // which, if left out, are two columns. `insets` ({ top, right, bottom, left }) is the space between the
 // window's edges and the text. `screen` ({ width, height }) is the screen it
 // opens on (its visible frame), and `scroller` the width a scroll bar takes
-// from the text when it scrolls (0 for overlay scroll bars).
+// from the text when it scrolls (0 for overlay scroll bars). `preview` is
+// true for a note that opens in Preview.
 //
 // The text is measured as the editor lays it out, closely enough: wrapped
 // at spaces and after hyphens, with a word too long for a line broken
@@ -154,13 +161,15 @@ function splitTitleLine(line) {
 // TAB_STOP wide. Lines in a fenced code block or a table aren't meant to wrap, so the
 // window is at least as wide as the longest of them, within the cap.
 // Otherwise it only widens while that makes it shorter, so a list of short
-// lines just gets taller.
-function fittedNoteSize(text, { font, insets, minimum, screen, scroller = 0 }) {
+// lines just gets taller. In Preview, table rows are measured as Preview
+// draws them (PREVIEW_TABLE_ROW); everything else is still measured as the
+// editor shows it, which in Preview is usually a little more than it takes.
+function fittedNoteSize(text, { font, insets, minimum, screen, scroller = 0, preview = false }) {
   const across = insets.left + insets.right;
   const down = insets.top + insets.bottom;
   const maxWidth = Math.max(minimum.width, Math.round(Math.min(screen.width * NOTE_MAX_WIDTH_FRACTION, NOTE_MAX_WIDTH)));
   const maxHeight = Math.max(minimum.height, Math.round(screen.height * NOTE_MAX_HEIGHT_FRACTION));
-  const lines = measuredLines((text || "").slice(0, MEASURED_LENGTH), font, minimum.width - across);
+  const lines = measuredLines((text || "").slice(0, MEASURED_LENGTH), font, minimum.width - across, preview);
   const heightAt = (width) => wrappedLineCount(lines, width - across) * font.line + down;
   const widthFor = (textWidth) => Math.min(maxWidth, Math.max(minimum.width, Math.ceil(textWidth - LAYOUT_SLACK + across)));
   const longest = (rigidOnly) => lines.reduce((max, line) => (rigidOnly && !line.rigid ? max : Math.max(max, line.width)), 0);
@@ -207,12 +216,13 @@ const WIDE_CHARACTER =
   /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿ꥠ-꥿가-힣豈-﫿︰-﹏＀-｠￠-￦\u{20000}-\u{3FFFD}]/u;
 
 // `text`'s lines measured for wrapping, in `font` (as for fittedNoteSize):
-// each { width, rigid, tokens }, its width unwrapped (less trailing spaces),
-// whether it's in a fenced code block or a table, and its words and runs of
-// spaces, each { width, space }. A word wider than `narrowest`, the
-// narrowest the text can be laid out, also has `chars`, its characters'
-// widths, to be broken anywhere.
-const measuredLines = (text, font, narrowest) => {
+// each { width, rigid, height, tokens }, its width unwrapped (less trailing
+// spaces), whether it's in a fenced code block or a table, its height in
+// lines (1, or with `preview` a table row's PREVIEW_TABLE_ROW and its
+// delimiter row's 0), and its words and runs of spaces, each { width, space }.
+// A word wider than `narrowest`, the narrowest the text can be laid out, also
+// has `chars`, its characters' widths, to be broken anywhere.
+const measuredLines = (text, font, narrowest, preview = false) => {
   const { column, wide = 2 * column, emoji = 2 * column } = font;
   const segmenter = segmenterFor("grapheme");
   const charWidths = (word) =>
@@ -224,7 +234,9 @@ const measuredLines = (text, font, narrowest) => {
   let fence = null;
   for (const line of text.split(/\r\n|\r|\n/)) {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
-    const rigid = fence !== null || Boolean(marker) || /^\s*\|/.test(line);
+    const isTable = fence === null && !marker && /^\s*\|/.test(line);
+    const rigid = fence !== null || Boolean(marker) || isTable;
+    const height = !preview || !isTable ? 1 : /^[\s|:]*-[\s|:-]*$/.test(line) ? 0 : PREVIEW_TABLE_ROW;
     if (marker && fence === null) fence = marker[1];
     else if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = null;
     const tokens = (line.match(/[^\s-]*-+(?=\S)|\S+|\s+/g) || []).map((part) => {
@@ -234,17 +246,18 @@ const measuredLines = (text, font, narrowest) => {
       return !space && width > narrowest ? { width, space, chars } : { width, space };
     });
     const trailing = tokens.length && tokens[tokens.length - 1].space ? tokens[tokens.length - 1].width : 0;
-    lines.push({ width: tokens.reduce((sum, t) => sum + t.width, 0) - trailing, rigid, tokens });
+    lines.push({ width: tokens.reduce((sum, t) => sum + t.width, 0) - trailing, rigid, height, tokens });
   }
   return lines;
 };
 
 // How many lines `lines` (from measuredLines) take wrapped at `available`
-// points. Spaces at the end of a line hang past its edge, as in the editor.
+// points, each wrapped row counted at its line's height. Spaces at the end
+// of a line hang past its edge, as in the editor.
 const wrappedLineCount = (lines, available) => {
   const limit = available + LAYOUT_SLACK;
   let count = 0;
-  for (const { tokens } of lines) {
+  for (const { tokens, height } of lines) {
     let rows = 1;
     let x = 0;
     for (const token of tokens) {
@@ -268,7 +281,7 @@ const wrappedLineCount = (lines, available) => {
         x += w;
       }
     }
-    count += rows;
+    count += rows * height;
   }
   return count;
 };

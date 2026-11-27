@@ -473,6 +473,13 @@ function testTitles() {
   eq("a long word wraps rather than widening", fit("https://example.com/" + "a".repeat(80)), { width: 360, height: 288 });
   eq("code: as wide as its longest line", fit(fence(lines(3, "x".repeat(50)))), { width: 534, height: 288 });
   eq("a table: as wide as its longest row", fit("| a | b |\n|" + "-".repeat(40) + "|"), { width: 454, height: 288 });
+  const table = "| Key | Action |\n| --- | :---: |\n" + lines(10, "| k# | a# |");
+  const preview = (text) => fittedNoteSize(text, Object.assign(metrics(), { preview: true }));
+  eq("a table in Edit: a line a row", fit(table), { width: 360, height: 288 });
+  eq("…in Preview: its rows taller and its delimiter row not drawn", preview(table), { width: 360, height: 374 });
+  eq("…a delimiter row with alignment colons is still one", preview("| a |\n|:-:|\n| b |"), { width: 360, height: 288 });
+  eq("…but table syntax in code is code", preview(fence(lines(12, "| k# |\n|---|"))), fit(fence(lines(12, "| k# |\n|---|"))));
+  eq("…and other text is measured as in Edit", preview(lines(13, "- item #")), fit(lines(13, "- item #")));
   eq("code wider than the cap: the cap", fit(fence("x".repeat(70))), { width: 576, height: 288 });
   eq("wide characters: two columns by default", fit(fence("中".repeat(20))), { width: 434, height: 288 });
   eq("emoji: two columns by default", fit(fence("🙂".repeat(20))), { width: 434, height: 288 });
@@ -482,7 +489,7 @@ function testTitles() {
   eq("a tab is TAB_STOP wide", fit(fence("\t".repeat(10) + "x".repeat(20))), { width: 514, height: 288 });
   // 150 four-letter words: at 424 pt (39 columns) 8 to a line, 19 lines,
   // 424 pt tall; a column narrower, 7 to a line, 22 lines, 484 pt tall.
-  eq("prose widens until it's no taller than it's wide (NOTE_SHAPE 1)", fit("word ".repeat(150).trim()), { width: 424, height: 424 });
+  eq("prose widens until it's at most NOTE_SHAPE (1.3) times as tall as it's wide", fit("word ".repeat(150).trim()), { width: 374, height: 484 });
   eq("long text: the caps", fit("word ".repeat(5000)), { width: 576, height: 630 });
   eq("a wide screen: 800 pt at most", fit("word ".repeat(5000), { width: 3440, height: 1410 }), { width: 800, height: 987 });
   eq("a small screen: never below the usual size", fit("word ".repeat(5000), { width: 600, height: 300 }), { width: 360, height: 288 });
