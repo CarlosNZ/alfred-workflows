@@ -33,8 +33,9 @@
 // ended without closing (see reopenItem, and "Reopening sticky notes" in
 // lib.js).
 //
-// The first run each day also sweeps away the sidecars of notes that have
-// been gone a long time (sweepSidecarsDaily in lib.js), and the first run of
+// The first run each day also sweeps away the sidecars, sticky window bundles
+// and saved window frames of notes that have been gone a long time
+// (sweepSidecarsDaily in lib.js), and the first run of
 // all adds the example notes (installExamplesOnce).
 
 ObjC.import("Foundation");

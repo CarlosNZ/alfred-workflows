@@ -745,16 +745,19 @@ function noteStore(folder = notesFolder(), { lockFile = null } = {}) {
   };
 }
 
-// Sweeps the notes folder's sidecars (sweepSidecars in noteStore) once a
-// day: when the last sweep, recorded in the workflow's state, was on another
-// local date. Returns the sweep's result, or null if there was no sweep. The
-// results list calls it once checkNotesFolderMove says the notes are ready,
-// so `store` is the folder the state records.
-function sweepSidecarsDaily(store, { now = new Date(), variable = workflowVariable } = {}) {
+// Sweeps the notes folder's sidecars (sweepSidecars in noteStore), then the
+// sticky window bundles and saved frames of notes long gone
+// (sweepStickyBundles), once a day: when the last sweep, recorded in the
+// workflow's state, was on another local date. Returns the sweeps' results
+// together, or null if there was no sweep. The results list calls it once
+// checkNotesFolderMove says the notes are ready, so `store` is the folder the
+// state records. `defaults` is sweepStickyBundles'.
+function sweepSidecarsDaily(store, { now = new Date(), variable = workflowVariable, defaults } = {}) {
   const last = parseDate(readWorkflowState(variable).lastSidecarSweep);
   const day = (date) => formatNoteId(date).slice(0, 8);
   if (last && day(last) === day(now)) return null;
   const result = store.sweepSidecars({ now, isInUse: (id) => isNoteIdInUse(id, variable) });
+  Object.assign(result, sweepStickyBundles(store, { variable, defaults }));
   updateWorkflowState({ lastSidecarSweep: formatLocalIsoDate(now) }, variable);
   return result;
 }
@@ -2860,8 +2863,9 @@ function updateNoteContext(id, form, changes, variable = workflowVariable) {
 }
 
 // Deletes a note's window bundles, quick and sticky, if it has them: for a
-// note that's gone (deleted on close, or moved to the Trash). Its saved window
-// position goes with them, as nothing will open from that path again.
+// note that's gone (deleted on close, or moved to the Trash). Its sticky
+// window's saved frame stays in Alfred UI's defaults until the next daily
+// sweep (sweepStickyBundles).
 function removeNoteBundle(id, variable = workflowVariable) {
   for (const form of ["quick", "sticky"]) {
     const bundle = noteBundlePath(id, form, variable);
@@ -3680,9 +3684,65 @@ function parseSavedWindowFrame(text) {
 // The frame saved for the sticky window of the bundle at `bundlePath` (see
 // parseSavedWindowFrame), or null if it has none.
 function stickyWindowSavedFrame(bundlePath) {
-  const defaults = $.NSUserDefaults.alloc.initWithSuiteName("com.runningwithcrayons.Alfred-UI");
+  const defaults = $.NSUserDefaults.alloc.initWithSuiteName(ALFRED_UI_DEFAULTS);
   const value = defaults.stringForKey(stickyWindowFrameKey(bundlePath));
   return value.isNil() ? null : parseSavedWindowFrame(value.js);
+}
+
+const ALFRED_UI_DEFAULTS = "com.runningwithcrayons.Alfred-UI";
+
+// Alfred UI's defaults, where AppKit saves window frames, for
+// sweepStickyBundles: `keys()` lists them and `remove(key)` deletes one.
+function alfredUiDefaults() {
+  return {
+    keys() {
+      const domain = $.NSUserDefaults.standardUserDefaults.persistentDomainForName(ALFRED_UI_DEFAULTS);
+      return domain.isNil() ? [] : ObjC.deepUnwrap(domain.allKeys);
+    },
+    remove(key) {
+      $.NSUserDefaults.alloc.initWithSuiteName(ALFRED_UI_DEFAULTS).removeObjectForKey(key);
+    },
+  };
+}
+
+// Deletes the sticky window bundles, and their windows' saved frames, of
+// notes long gone from `store`, which nothing else removes when a note is
+// deleted outside the workflow (Finder, another app, another Mac). A bundle
+// goes once its note has no file and no sidecar, so it's kept as long as the
+// sidecar is, 30 days for Put Back (see sweepSidecars), and once no window
+// has a state for it (one open, or closed in the last few minutes). A saved
+// frame goes once the bundle whose path it's keyed on is gone, including
+// those left by bundles removeNoteBundle deleted, so a note whose ID comes
+// back (an example added again) opens as a note stuck for the first time.
+// Only frames of bundles in this workflow's sticky folder are touched: a
+// frame's key holds the SHA-1 of its bundle's path. Returns how many of each
+// it deleted.
+function sweepStickyBundles(store, { variable = workflowVariable, defaults = alfredUiDefaults() } = {}) {
+  const fm = $.NSFileManager.defaultManager;
+  const folder = noteWindowsFolder("sticky", variable);
+  const result = { bundles: 0, frames: 0 };
+  for (const name of folderNames(folder)) {
+    if (!name.endsWith(".alfredui")) continue;
+    const id = name.slice(0, -".alfredui".length);
+    if (!isNoteId(id) || store.exists(id)) continue;
+    if (fm.fileExistsAtPath(`${store.folder}/${META_FOLDER}/${id}.json`)) continue;
+    if (fm.fileExistsAtPath(noteStatePath(id, variable))) continue;
+    try {
+      removeFile(`${folder}/${name}`);
+      result.bundles++;
+    } catch (e) {
+      // Tried again by the next sweep.
+    }
+  }
+  for (const key of defaults.keys()) {
+    const match = /^NSWindow Frame (.+)-[0-9a-f]{40}$/.exec(key);
+    if (!match) continue;
+    const bundle = `${folder}/${match[1]}.alfredui`;
+    if (stickyWindowFrameKey(bundle) !== key || fm.fileExistsAtPath(bundle)) continue;
+    defaults.remove(key);
+    result.frames++;
+  }
+  return result;
 }
 
 // The frames of the connected screens, { x, y, width, height } in AppKit's

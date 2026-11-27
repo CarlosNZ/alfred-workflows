@@ -39,7 +39,7 @@ Each note opens from a bundle generated for it:
 - `$alfred_workflow_cache/quick/<id>.alfredui` for its quick view, written by `list.js` (or `new.js`) when out of date;
 - `$alfred_workflow_cache/windows/<id>.alfredui` for its sticky window, rewritten by `open.js` every time it's stuck, and kept after the window closes only so its path, and with it the window's saved position, stays the same.
 
-The separate folders mean `list.js` never rewrites an open sticky window's bundle. Both are deleted when the note is (deleted for being empty, or trashed).
+The separate folders mean `list.js` never rewrites an open sticky window's bundle. Both are deleted when the workflow deletes the note (for being empty, or by trashing it). A note deleted some other way leaves its quick bundle to the next results list and its sticky bundle to the daily sweep, once its sidecar has gone too (see [Sweeping sidecars](storage.md#sweeping-sidecars)).
 
 Generated bundles, rather than one shared bundle with the note passed in variables: some window settings need real JSON types (the font size is a number), and variables reach a UI only as strings, which Alfred ignores there. A `{file:…}` placeholder can insert typed JSON, but its path can't contain a placeholder, so it can't be per note. And AppKit saves a window's position per bundle path, so each note needs its own path anyway.
 

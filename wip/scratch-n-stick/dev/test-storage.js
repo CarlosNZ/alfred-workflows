@@ -49,6 +49,7 @@ function run(argv) {
     testList(freshStore(args[0], "list"));
     testSweep(freshStore(args[0], "sweep"));
     testDailySweep(args[0]);
+    testStickyBundleSweep(args[0]);
     testExamples(args[0]);
     testShippedExamples($(libPath).stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.js);
     timeList(freshStore(args[0], "timing"));
@@ -635,22 +636,65 @@ function testDailySweep(root) {
   makeFolder(`${store.folder}/.scratchnstick`);
   const orphan = (id) => writeRaw(`${store.folder}/.scratchnstick/${id}.json`, JSON.stringify({ colour: 1 }));
   const state = () => readJsonObject(`${data}/state.json`);
+  const defaults = fakeDefaults([]);
   const morning = new Date(2026, 10, 27, 8, 0, 0);
   writeLastNotesFolder(store.folder, settings);
   orphan("first");
 
-  eq("the first run sweeps", sweepSidecarsDaily(store, { now: morning, variable: settings }), { stamped: 1, deleted: 0 });
+  eq("the first run sweeps", sweepSidecarsDaily(store, { now: morning, variable: settings, defaults }), { stamped: 1, deleted: 0, bundles: 0, frames: 0 });
   eq("…recording when, and keeping the notes folder's record", state(), { lastNotesFolder: store.folder, lastSidecarSweep: formatLocalIsoDate(morning) });
   orphan("second");
-  eq("later the same day: no sweep", sweepSidecarsDaily(store, { now: new Date(2026, 10, 27, 23, 59, 0), variable: settings }), null);
+  eq("later the same day: no sweep", sweepSidecarsDaily(store, { now: new Date(2026, 10, 27, 23, 59, 0), variable: settings, defaults }), null);
   eq("…and nothing written", state().lastSidecarSweep, formatLocalIsoDate(morning));
   const midnight = new Date(2026, 10, 28, 0, 0, 0);
-  eq("just after midnight: a sweep", sweepSidecarsDaily(store, { now: midnight, variable: settings }), { stamped: 1, deleted: 0 });
-  eq("a clock set back a day: a sweep", sweepSidecarsDaily(store, { now: morning, variable: settings }), { stamped: 0, deleted: 0 });
+  eq("just after midnight: a sweep", sweepSidecarsDaily(store, { now: midnight, variable: settings, defaults }), { stamped: 1, deleted: 0, bundles: 0, frames: 0 });
+  eq("a clock set back a day: a sweep", sweepSidecarsDaily(store, { now: morning, variable: settings, defaults }), { stamped: 0, deleted: 0, bundles: 0, frames: 0 });
   writeLastNotesFolder(`${root}/daily/other`, settings);
   eq("writing the notes folder's record keeps the sweep's", state(), { lastNotesFolder: `${root}/daily/other`, lastSidecarSweep: formatLocalIsoDate(morning) });
   writeRaw(`${data}/state.json`, "{not json");
-  eq("an unreadable state: no record, and a sweep", [readLastNotesFolder(settings), sweepSidecarsDaily(store, { now: morning, variable: settings })], [null, { stamped: 0, deleted: 0 }]);
+  eq("an unreadable state: no record, and a sweep", [readLastNotesFolder(settings), sweepSidecarsDaily(store, { now: morning, variable: settings, defaults })], [null, { stamped: 0, deleted: 0, bundles: 0, frames: 0 }]);
+}
+
+function testStickyBundleSweep(root) {
+  section("Sweeping sticky bundles");
+  const cache = `${root}/bundles/cache`;
+  const settings = (name) => ({ alfred_workflow_cache: cache })[name] || "";
+  const store = freshStore(root, "bundles/notes");
+  const windows = `${cache}/windows`;
+  const bundle = (id) => `${windows}/${id}.alfredui`;
+  for (const id of ["gone", "trashed", "open", "mine"]) {
+    makeFolder(bundle(id));
+    writeRaw(`${bundle(id)}/ui.json`, "{}");
+  }
+  makeFolder(`${cache}/state`);
+  writeRaw(`${windows}/.DS_Store`, "x");
+  store.save("mine", "# Mine");
+  makeFolder(`${store.folder}/.scratchnstick`);
+  writeRaw(`${store.folder}/.scratchnstick/trashed.json`, JSON.stringify({ trashed: "2026-11-27T08:00:00+13:00" }));
+  writeRaw(`${cache}/state/open.json`, JSON.stringify({ form: "sticky", pid: 1 }));
+  const frames = [
+    stickyWindowFrameKey(bundle("gone")),
+    stickyWindowFrameKey(bundle("mine")),
+    stickyWindowFrameKey(bundle("deleted-before")),
+    stickyWindowFrameKey("/elsewhere/windows/gone.alfredui"),
+    "NSWindow Frame Preferences",
+  ];
+  const defaults = fakeDefaults(frames);
+  eq("deletes only the bundle of a note with no file, sidecar or window state, and the frames of bundles gone", sweepStickyBundles(store, { variable: settings, defaults }), { bundles: 1, frames: 2 });
+  eq("…the bundles kept", entries(windows).sort(), [".DS_Store", "mine.alfredui", "open.alfredui", "trashed.alfredui"]);
+  eq("…the frames kept: of a bundle still there, another folder's, and not a sticky window's", defaults.keys(), [frames[1], frames[3], frames[4]]);
+  eq("a second sweep: nothing to do", sweepStickyBundles(store, { variable: settings, defaults }), { bundles: 0, frames: 0 });
+  eq("no sticky folder: nothing to do", sweepStickyBundles(store, { variable: (name) => (name === "alfred_workflow_cache" ? `${root}/bundles/none` : ""), defaults: fakeDefaults([]) }), { bundles: 0, frames: 0 });
+}
+
+// A stand-in for Alfred UI's defaults (alfredUiDefaults in lib.js), holding
+// the keys given.
+function fakeDefaults(keys) {
+  const held = keys.slice();
+  return {
+    keys: () => held.slice(),
+    remove: (key) => held.splice(held.indexOf(key), 1),
+  };
 }
 
 function testExamples(root) {
