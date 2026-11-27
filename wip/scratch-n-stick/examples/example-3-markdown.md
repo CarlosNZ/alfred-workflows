@@ -1,6 +1,6 @@
 # Markdown in 30 seconds
 
-Press ⌘↩ (or the eye button at the top right) to see this note in **Preview**, and ↩ (or the pencil button) to **edit** again.
+Press ⌘↩ (or the eye button at the top right) to see this note in **Preview**, and ↩ (or the pencil button) to **Edit** again.
 
 ## Text
 
