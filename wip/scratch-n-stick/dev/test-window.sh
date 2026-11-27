@@ -212,7 +212,19 @@ idsl=$(basename "$(open_note new=1 stick "$(for i in {1..25}; print -r -- "- ite
 expect "a new sticky note with more lines is taller" "$(json $cache/windows/$idsl.alfredui/ui.json $size)" "360x501"
 idsc=$(basename "$(open_note new=1 stick $'```\n'"$(repeat 60 printf x)"$'\n```')" .alfredui)
 expect "a new sticky note with wide code is wider" "$(json $cache/windows/$idsc.alfredui/ui.json $size)" "554x320"
-expect "an existing note's sticky window isn't sized to its text" "$(json $cache/windows/meeting.alfredui/ui.json $size)" "360x320"
+# An existing note stuck for the first time, with no sticky bundle yet, is
+# sized to its text too, at its own font size if it has one. Once it has a
+# bundle, whose path Alfred UI keys the window's saved frame on, it isn't.
+# A file's last newline is a line too, as the editor shows: 26 lines here.
+for i in {1..25}; print -r -- "- item $i" >> $notes/longlist.md
+expect "an existing note stuck for the first time is sized to its text" "$(json "$(open_note stick longlist)/ui.json" $size)" "360x518"
+expect "…but not once it has a sticky bundle" "$(json "$(open_note stick longlist)/ui.json" $size)" "360x320"
+for i in {1..12}; print -r -- "- item $i" >> $notes/bigfont.md
+expect "…a note that fits at the default font size keeps the usual size" "$(json "$(open_note stick bigfont)/ui.json" $size)" "360x320"
+rm -rf -- $cache/windows/bigfont.alfredui
+print -r -- '{ "fontSize": 28 }' > $notes/.scratchnstick/bigfont.json
+expect "…and is measured at its own font size" "$(json "$(open_note stick bigfont)/ui.json" $size)" "360x505"
+rm -rf -- $notes/longlist.md $notes/bigfont.md $notes/.scratchnstick/{longlist,bigfont}.json $cache/windows/{longlist,bigfont}.alfredui
 rm -rf -- "$(note_file $idst)" $notes/.scratchnstick/$idst.json $cache/windows/$idst.alfredui $cache/windows/$idsb.alfredui
 rm -rf -- "$(note_file $idsl)" $notes/.scratchnstick/$idsl.json $cache/windows/$idsl.alfredui "$(note_file $idsc)" $notes/.scratchnstick/$idsc.json $cache/windows/$idsc.alfredui
 expect "open.js sets open_window, clears new and stick_note" "$(env notes_folder=$notes alfred_workflow_data=$notes.data alfred_workflow_cache=$cache new=1 $scripts/open.js quick x | json - 'JSON.stringify(d.alfredworkflow.variables)')" '{"open_window":"1","new":"","stick_note":"","stick_mode":"","close_view":""}'

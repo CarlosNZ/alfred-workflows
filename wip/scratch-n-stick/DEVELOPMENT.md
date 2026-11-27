@@ -53,7 +53,7 @@ All JXA unless noted.
 | Script | Does |
 |---|---|
 | `scripts/lib.js` | Shared code, loaded by every script: configuration, the notes folder and its move, the note store, sidecars, titles and previews, the palette, icons and images, building and writing window bundles, the page, window state, and sticky windows. Fuller notes are in its comments. |
-| `scripts/text-rules.js` | The hand-tuned rules about a note's text, loaded beside `lib.js`: a new note's heading (`newNoteText`), a new sticky note's size (`fittedNoteSize`), and splitting a one-line note into title and preview (`splitTitleLine`), with their tuning as constants at the top. Uses nothing from `lib.js`. |
+| `scripts/text-rules.js` | The hand-tuned rules about a note's text, loaded beside `lib.js`: a new note's heading (`newNoteText`), a sticky window's first size (`fittedNoteSize`), and splitting a one-line note into title and preview (`splitTitleLine`), with their tuning as constants at the top. Uses nothing from `lib.js`. |
 | `scripts/list.js` | The results list's Script Filter; writes each note's quick bundle when out of date, and the theme stylesheet. With `stickies`, the sticky notes list. |
 | `scripts/new.js` | The new-note keywords' Script Filter (`sticky` for `newsticky`), writing each result's quick bundle first. |
 | `scripts/open.js` | `stick`: sticks a note (writes its sticky bundle, or brings its live window to the front). `quick`: writes a quick bundle. |
@@ -136,7 +136,7 @@ Window scripts don't get these, so `list.js`, `new.js` and `open.js` write what 
 - [Storage](dev/docs/storage.md): the notes folder, IDs, sidecars, titles and previews, saving, empty notes, the Trash, sweeping sidecars, the example notes, and moving the notes folder.
 - [Results and new notes](dev/docs/results.md): the results list, the sticky notes list, creating notes and text as a heading.
 - [Note windows](dev/docs/windows.md): quick views and sticky notes, the routes, generated bundles and templates, window state, reopening after a restart, seamless quick views, saving, escaping Alfred's placeholders, and window positions.
-- [Window layout and controls](dev/docs/window-ui.md): the top row, keys, key hints, drop-downs, collapsing, the actions menu, font sizes, and a new sticky note's size.
+- [Window layout and controls](dev/docs/window-ui.md): the top row, keys, key hints, drop-downs, collapsing, the actions menu, font sizes, and a sticky window's first size.
 - [Preview](dev/docs/view-mode.md): the web view, markdown-it, task boxes, and showing the page without a flash.
 - [Colours and icons](dev/docs/colours-and-icons.md): the palette and custom colours, note icons, the images and how they're made, macOS 12, and the workflow's own icons.
 - [Alfred UI and Alfred behaviour](dev/docs/alfred-ui.md): undocumented behaviour of Alfred and Alfred UI that the workflow relies on.

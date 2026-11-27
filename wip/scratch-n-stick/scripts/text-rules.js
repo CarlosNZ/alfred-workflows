@@ -11,11 +11,11 @@
 //                            or the seed exactly as given
 //   seedHeading(seed)        the heading a seed becomes, or null
 //   splitTitleLine(line)     a long line split into { title, rest }, or null
-//   fittedNoteSize(text, …)  the size of a new sticky note's window, fitted to
-//                            its starting text
+//   fittedNoteSize(text, …)  the size of a sticky window opening for the first
+//                            time, fitted to its note's text
 //
 // See "Titles and previews" in dev/docs/storage.md, "Text as a heading" in
-// dev/docs/results.md and "A new sticky note's size" in dev/docs/window-ui.md.
+// dev/docs/results.md and "A sticky window's first size" in dev/docs/window-ui.md.
 //
 // Lengths count what a reader sees as one character (an emoji with modifiers,
 // a letter with combining accents, a flag) as one.
@@ -49,8 +49,8 @@ const PUNCTUATION_BREAK_MIN_LENGTH = 40;
 // told not to.
 const ABBREVIATIONS = ["Mr", "Mrs", "Ms", "Mx", "Dr", "Prof", "St", "Jr", "Sr", "No", "vs", "etc", "approx", "e.g", "i.e", "cf"];
 
-// A new sticky note whose starting text doesn't fit its window's usual size
-// opens bigger (fittedNoteSize). Long text widens the window until it's no
+// A sticky window opening for the first time whose note's text doesn't fit
+// its usual size opens bigger (fittedNoteSize). Long text widens the window until it's no
 // more than NOTE_SHAPE times as tall as it's wide (1 is square, more allows
 // taller, less keeps it wider), then makes it taller. The window is never
 // wider than NOTE_MAX_WIDTH_FRACTION of the screen or NOTE_MAX_WIDTH points,
@@ -137,8 +137,8 @@ function splitTitleLine(line) {
   return sentenceSplit;
 }
 
-// The size, { width, height } in points, of a new sticky note's window
-// content for its starting text `text`: `minimum`, the window's usual size,
+// The size, { width, height } in points, of a sticky window's content, for
+// a window opening for the first time with its note's text `text`: `minimum`, the window's usual size,
 // if the text fits it, or bigger, to show the text without scrolling where
 // the caps allow, shaped as NOTE_SHAPE says. `font` is the editor's
 // monospaced font, { column, line, wide, emoji }: a character's width, a

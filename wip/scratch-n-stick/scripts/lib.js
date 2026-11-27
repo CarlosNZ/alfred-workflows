@@ -2114,8 +2114,8 @@ const NOTE_WINDOW_LAYOUT = {
     titleFont: { size: 13, weight: "semibold" },
     defaultHeight: 288,
   },
-  // A sticky window's size, for fitting a new note's window to its text (see
-  // newStickyWindowSize): the window comes out `shortfall` points shorter
+  // A sticky window's size, for fitting a window to its note's text (see
+  // fittedStickyWindowSize): the window comes out `shortfall` points shorter
   // than window.json's `size` asks for, and the editor's text sits
   // `textInset` inside the editor's frame (the text view's own inset and
   // padding).
@@ -2678,7 +2678,7 @@ function noteOpenMode(note, text) {
 // noteQuickAppearance's. A sticky window opens collapsed if its note was
 // collapsed when its window last closed (see noteCollapsedHeight). `size`, if
 // given, is the size a sticky window opens at in place of window.json's
-// (see newStickyWindowSize); a window with a saved frame opens at that.
+// (see fittedStickyWindowSize); a window with a saved frame opens at that.
 function writeNoteWindow(
   { store, workflowFolder, id, form, note, text, mode: requestedMode, appearance: quickAppearance, size = null },
   variable = workflowVariable,
@@ -2735,13 +2735,14 @@ function writeNoteWindow(
   return writeNoteBundle(id, form, { ui, context, page, script }, variable);
 }
 
-// The size a new sticky note's window opens at, as window.json's `size`, for
-// its starting text `text`: window.json's own size if the text fits, or
-// bigger (fittedNoteSize in text-rules.js). It's measured in the editor's font
-// (the system's monospaced font) at the `font_size` setting's size, a new
-// note's, within the editor's insets in a sticky window, on the main screen,
-// where AppKit centres a window with no saved frame.
-function newStickyWindowSize(workflowFolder, text, variable = workflowVariable) {
+// The size a sticky window with no saved frame opens at, as window.json's
+// `size`, for its note's text `text`: window.json's own size if the text
+// fits, or bigger (fittedNoteSize in text-rules.js). It's measured in the
+// editor's font (the system's monospaced font) at `fontSize`, the note's own
+// font size, or with none the `font_size` setting's size, within the editor's
+// insets in a sticky window, on the main screen, where AppKit centres a
+// window with no saved frame.
+function fittedStickyWindowSize(workflowFolder, text, fontSize = null, variable = workflowVariable) {
   ObjC.import("AppKit");
   const { shortfall, textInset } = NOTE_WINDOW_LAYOUT.stickySize;
   const { size } = readNoteTemplate(workflowFolder, "window").window;
@@ -2752,7 +2753,7 @@ function newStickyWindowSize(workflowFolder, text, variable = workflowVariable) 
     workflowFolder,
   });
   const inset = (side) => (editor.constraints.insets[side] || 0) + textInset[side];
-  const font = $.NSFont.monospacedSystemFontOfSizeWeight(noteDefaultFontSize(variable), 0);
+  const font = $.NSFont.monospacedSystemFontOfSizeWeight(fontSize || noteDefaultFontSize(variable), 0);
   const attributes = $.NSDictionary.dictionaryWithObjectForKey(font, $.NSFontAttributeName);
   const width = (sample) => $(sample).sizeWithAttributes(attributes).width;
   const screen = $.NSScreen.mainScreen.visibleFrame.size;

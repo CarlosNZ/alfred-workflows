@@ -1,6 +1,6 @@
 # Window layout and controls
 
-What's in a note's window, and how its controls work: the editor, the top row, keys, the drop-downs, collapsing, the actions menu, font sizes and a new sticky note's size. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md). Preview's web view is in [Preview](view-mode.md); the pickers' colours and icons are in [Colours and icons](colours-and-icons.md).
+What's in a note's window, and how its controls work: the editor, the top row, keys, the drop-downs, collapsing, the actions menu, font sizes and a sticky window's first size. Part of Scratch'n'Stick's [developer notes](../../DEVELOPMENT.md). Preview's web view is in [Preview](view-mode.md); the pickers' colours and icons are in [Colours and icons](colours-and-icons.md).
 
 ## The window
 
@@ -16,7 +16,7 @@ One full-window `stack` (`ui/content.json`) holds both modes all the time: the w
 
 | | Quick view | Sticky window |
 |---|---|---|
-| Size | 640×400, which Alfred uses as given | Opens at 360×288 (asked for 360×320: Alfred UI windows come out 32 pt short), resizable down to 220×160. A new sticky note may open bigger (see [A new sticky note's size](#a-new-sticky-notes-size)); a saved frame wins. |
+| Size | 640×400, which Alfred uses as given | Opens at 360×288 (asked for 360×320: Alfred UI windows come out 32 pt short), resizable down to 220×160. A sticky window opening for the first time may open bigger (see [A sticky window's first size](#a-sticky-windows-first-size)); a saved frame wins. |
 | Look | Alfred's theme: the root view has no `background` or `appearance`, so text, buttons and menus match Alfred. Its only accent of the note's colour is the colour button's swatch. | The note's tint, behind the editor too (`textarea` `background: null`); root view `appearance: "light"`, so text, buttons, caret and menus keep the light look on the pale tint in dark mode too. |
 | Frame | Part of Alfred's window | Borderless (`borderless`), with a `cornerradius` from the `sticky_corner_radius` setting (`stickyCornerRadius`, 10 by default, like the drop-downs), dragged by its background (`movablebybackground`) |
 | Extras | Stick to the desktop button and ⌘D, key hints | Close button, ⌘W, Esc shortcut, collapsing, app icon and title in ⌘-Tab |
@@ -123,13 +123,17 @@ A note can have its own font size, in its sidecar (`fontSize`); without one it t
 - Both run `window.js fontsize <size|bigger|smaller|default>`, which records the size (removing the key for Default) in the sidecar and the context, then prints an `update` of the editor's `font` and a `replace` of the customise group, so the menu ticks the new size. Updating a `textarea`'s font keeps its text, selection and undo history, and works while it's hidden. In Preview it reloads the page with the new size. It closes an open picker, and prints nothing when nothing changes.
 - The page's size comes from `note.js` (`window.NOTE_FONT_SIZE`), set as the `--font-size` CSS variable by `showNoteLook` in `ui/view.js`. Headings, code and task boxes (`0.9em`) are sized in `em`, so they follow it.
 
-## A new sticky note's size
+## A sticky window's first size
 
-A new sticky note (`newsticky`, ⌘↩ on New note, the New sticky note Universal Action) opens at a size fitted to its starting text, so pasted or sent text shows without scrolling where it can. It only grows: text that fits 360×288 keeps that size, so a note started from a heading opens at the usual size. Notes stuck for the first time, and quick views, keep their fixed sizes; a window with a saved frame opens at that instead.
+A sticky window opens at a size fitted to its note's text when the note has no sticky bundle yet: a new sticky note (`newsticky`, ⌘↩ on New note, the New sticky note Universal Action), with its starting text, or a note stuck for the first time (⌘↩, Stick in a quick view, ↩ on a closed sticky note that has never been open, such as a sticky example). So pasted or sent text, or a long note, shows without scrolling where it can. It only grows: text that fits 360×288 keeps that size, so a note started from a heading opens at the usual size. Quick views keep their fixed size.
+
+- **Only the first time.** The test is the sticky bundle (`open.js`), as Alfred UI keys a window's saved frame on its bundle's path: a note with a bundle has had a sticky window, which opens where and as it was left, at its saved frame. A bundle is deleted only when its note goes (see [Bundles](windows.md#bundles)), so unsticking and sticking again keeps the frame. A saved frame outlives its bundle, though: a note whose ID comes back, as an example's does when it's added again, opens at the frame its earlier window left, sized or not.
+- **Font size**: the text is measured at the note's own font size, if it has one, or the `font_size` setting's.
+- **Preview**: the raw text is measured as the editor shows it, even for a note that opens in Preview, where headings, tables and spacing make it taller or shorter. Close enough for sizing a window.
 
 - **Shape**: long text widens the window until it's no taller than it's wide (`NOTE_SHAPE` 1, square; more allows taller), then makes it taller. It widens only while that makes it shorter, so a list of short lines just gets taller. Fenced code and table lines aren't meant to wrap, so the window is at least as wide as the longest of them.
 - **Caps**: at most 40% of the screen's width and 800 pt (`NOTE_MAX_WIDTH_FRACTION`, `NOTE_MAX_WIDTH`), and 70% of its height (`NOTE_MAX_HEIGHT_FRACTION`), on the main screen, where AppKit centres a window with no saved frame. Longer text scrolls; with always-shown scroll bars the window is widened by the scroll bar so lines don't wrap.
 - **Measuring**: the editor is monospaced, so text is measured by counting: a character's width and a line's height from AppKit at the editor's font and size, wrapping at spaces and after hyphens, breaking a word too long for a line anywhere, wide (CJK) characters and emoji at their own widths, also from AppKit, and a tab as 28 pt (`TAB_STOP`, NSParagraphStyle's default). Only the first 20,000 characters are measured (`MEASURED_LENGTH`), more than fills the largest window.
 - **Calibration**: the text sits 5 pt inside the editor's frame on each side (the text view's line fragment padding) and 0 above and below; the window is asked for 32 pt more height than the content needs, as it comes out that much short.
 
-`fittedNoteSize` in `scripts/text-rules.js` does the measuring and shaping, with its tuning at the top of the file; it's pure, given the font's measures, the insets, the usual size and the screen. `newStickyWindowSize` in `lib.js` gathers those (the editor's insets from `ui/content.json`, plus `stickySize` in `NOTE_WINDOW_LAYOUT`) and `open.js` writes the result as the bundle's `window.size`.
+`fittedNoteSize` in `scripts/text-rules.js` does the measuring and shaping, with its tuning at the top of the file; it's pure, given the font's measures, the insets, the usual size and the screen. `fittedStickyWindowSize` in `lib.js` gathers those (the editor's insets from `ui/content.json`, plus `stickySize` in `NOTE_WINDOW_LAYOUT`) and `open.js` writes the result as the bundle's `window.size`.
