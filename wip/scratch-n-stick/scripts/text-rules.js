@@ -56,6 +56,12 @@ const ABBREVIATIONS = ["Mr", "Mrs", "Ms", "Mx", "Dr", "Prof", "St", "Jr", "Sr", 
 // wider than NOTE_MAX_WIDTH_FRACTION of the screen or NOTE_MAX_WIDTH points,
 // or taller than NOTE_MAX_HEIGHT_FRACTION of the screen; longer text scrolls.
 const NOTE_SHAPE = 1.3;
+// A note with a big font of its own is usually short, a sign or a reminder,
+// which suits a wider window: from NOTE_SHAPE at 20 pt (the largest default
+// font size) the shape goes down in proportion to NOTE_SHAPE_LARGE at
+// NOTE_SHAPE_LARGE_SIZE points and above.
+const NOTE_SHAPE_LARGE = 0.65;
+const NOTE_SHAPE_LARGE_SIZE = 48;
 const NOTE_MAX_WIDTH_FRACTION = 0.4;
 const NOTE_MAX_WIDTH = 800;
 const NOTE_MAX_HEIGHT_FRACTION = 0.7;
@@ -65,6 +71,17 @@ const NOTE_MAX_HEIGHT_FRACTION = 0.7;
 // 16 at 13 pt). Its delimiter row (|---|) isn't drawn at all. So a note that
 // opens in Preview has its table rows measured at that height.
 const PREVIEW_TABLE_ROW = 1.5;
+
+// In Preview, headings are bigger than the text, by these factors for #
+// to ######, as ui/view.html draws them. So a note that opens in Preview has
+// its heading lines measured that much taller, and that much wider times
+// PREVIEW_HEADING_WIDTH, as Preview's bold proportional text is narrower than
+// the editor's monospaced text ("Back in 5 minutes" at 48 pt: 592 pt against
+// 710 measured). In a note with a big font of its own (above 20 pt, as for
+// NOTE_SHAPE_LARGE), usually a sign, the window is made at least as wide as
+// its headings, within the caps, so a short one stays on one line.
+const PREVIEW_HEADING_SCALE = [1.45, 1.2, 1.05, 1, 1, 1];
+const PREVIEW_HEADING_WIDTH = 0.85;
 
 // ---------------------------------------------------------------------------
 
@@ -153,7 +170,8 @@ function splitTitleLine(line) {
 // window's edges and the text. `screen` ({ width, height }) is the screen it
 // opens on (its visible frame), and `scroller` the width a scroll bar takes
 // from the text when it scrolls (0 for overlay scroll bars). `preview` is
-// true for a note that opens in Preview.
+// true for a note that opens in Preview, and `fontSize` the font size in
+// points, which sets the shape (NOTE_SHAPE_LARGE).
 //
 // The text is measured as the editor lays it out, closely enough: wrapped
 // at spaces and after hyphens, with a word too long for a line broken
@@ -161,15 +179,18 @@ function splitTitleLine(line) {
 // TAB_STOP wide. Lines in a fenced code block or a table aren't meant to wrap, so the
 // window is at least as wide as the longest of them, within the cap.
 // Otherwise it only widens while that makes it shorter, so a list of short
-// lines just gets taller. In Preview, table rows are measured as Preview
-// draws them (PREVIEW_TABLE_ROW); everything else is still measured as the
-// editor shows it, which in Preview is usually a little more than it takes.
-function fittedNoteSize(text, { font, insets, minimum, screen, scroller = 0, preview = false }) {
+// lines just gets taller. In Preview, table rows and headings are measured
+// as Preview draws them (PREVIEW_TABLE_ROW, PREVIEW_HEADING_SCALE);
+// everything else is still measured as the editor shows it, which in Preview
+// is usually a little more than it takes.
+function fittedNoteSize(text, { font, insets, minimum, screen, scroller = 0, preview = false, fontSize = null }) {
+  const shape = noteShape(fontSize);
   const across = insets.left + insets.right;
   const down = insets.top + insets.bottom;
   const maxWidth = Math.max(minimum.width, Math.round(Math.min(screen.width * NOTE_MAX_WIDTH_FRACTION, NOTE_MAX_WIDTH)));
   const maxHeight = Math.max(minimum.height, Math.round(screen.height * NOTE_MAX_HEIGHT_FRACTION));
-  const lines = measuredLines((text || "").slice(0, MEASURED_LENGTH), font, minimum.width - across, preview);
+  const rigidHeadings = preview && (fontSize || 0) > 20;
+  const lines = measuredLines((text || "").slice(0, MEASURED_LENGTH), font, minimum.width - across, preview, rigidHeadings);
   const heightAt = (width) => wrappedLineCount(lines, width - across) * font.line + down;
   const widthFor = (textWidth) => Math.min(maxWidth, Math.max(minimum.width, Math.ceil(textWidth - LAYOUT_SLACK + across)));
   const longest = (rigidOnly) => lines.reduce((max, line) => (rigidOnly && !line.rigid ? max : Math.max(max, line.width)), 0);
@@ -181,10 +202,10 @@ function fittedNoteSize(text, { font, insets, minimum, screen, scroller = 0, pre
   // Wider is never taller, so it's found by bisection.
   let low = narrowest;
   let high = Math.max(low, widthFor(longest(false)));
-  if (heightAt(high) <= NOTE_SHAPE * high) {
+  if (heightAt(high) <= shape * high) {
     while (low < high) {
       const middle = Math.floor((low + high) / 2);
-      if (heightAt(middle) <= NOTE_SHAPE * middle) high = middle;
+      if (heightAt(middle) <= shape * middle) high = middle;
       else low = middle + 1;
     }
   }
@@ -194,6 +215,13 @@ function fittedNoteSize(text, { font, insets, minimum, screen, scroller = 0, pre
 }
 
 // Helpers, private to this file (top-level const).
+
+// The most times as tall as it's wide that fittedNoteSize lets a window be
+// before widening it, for text `fontSize` points big (see NOTE_SHAPE_LARGE).
+const noteShape = (fontSize) => {
+  const share = Math.min(1, Math.max(0, ((fontSize || 0) - 20) / (NOTE_SHAPE_LARGE_SIZE - 20)));
+  return NOTE_SHAPE + share * (NOTE_SHAPE_LARGE - NOTE_SHAPE);
+};
 
 // NSParagraphStyle's default tab interval, in points.
 const TAB_STOP = 28;
@@ -218,11 +246,13 @@ const WIDE_CHARACTER =
 // `text`'s lines measured for wrapping, in `font` (as for fittedNoteSize):
 // each { width, rigid, height, tokens }, its width unwrapped (less trailing
 // spaces), whether it's in a fenced code block or a table, its height in
-// lines (1, or with `preview` a table row's PREVIEW_TABLE_ROW and its
-// delimiter row's 0), and its words and runs of spaces, each { width, space }.
+// lines (1, or with `preview` a table row's PREVIEW_TABLE_ROW, its
+// delimiter row's 0, and a heading's PREVIEW_HEADING_SCALE, which also
+// scales its widths with PREVIEW_HEADING_WIDTH), and its words and runs of
+// spaces, each { width, space }. With `rigidHeadings`, headings are rigid too.
 // A word wider than `narrowest`, the narrowest the text can be laid out, also
 // has `chars`, its characters' widths, to be broken anywhere.
-const measuredLines = (text, font, narrowest, preview = false) => {
+const measuredLines = (text, font, narrowest, preview = false, rigidHeadings = false) => {
   const { column, wide = 2 * column, emoji = 2 * column } = font;
   const segmenter = segmenterFor("grapheme");
   const charWidths = (word) =>
@@ -235,13 +265,16 @@ const measuredLines = (text, font, narrowest, preview = false) => {
   for (const line of text.split(/\r\n|\r|\n/)) {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
     const isTable = fence === null && !marker && /^\s*\|/.test(line);
-    const rigid = fence !== null || Boolean(marker) || isTable;
-    const height = !preview || !isTable ? 1 : /^[\s|:]*-[\s|:-]*$/.test(line) ? 0 : PREVIEW_TABLE_ROW;
+    const heading = preview && fence === null && !marker ? line.match(/^ {0,3}(#{1,6})(\s|$)/) : null;
+    const rigid = fence !== null || Boolean(marker) || isTable || Boolean(heading && rigidHeadings);
+    const scale = heading ? PREVIEW_HEADING_SCALE[heading[1].length - 1] : 1;
+    const widthScale = heading ? scale * PREVIEW_HEADING_WIDTH : 1;
+    const height = preview && isTable ? (/^[\s|:]*-[\s|:-]*$/.test(line) ? 0 : PREVIEW_TABLE_ROW) : scale;
     if (marker && fence === null) fence = marker[1];
     else if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = null;
     const tokens = (line.match(/[^\s-]*-+(?=\S)|\S+|\s+/g) || []).map((part) => {
       const space = /^\s/.test(part);
-      const chars = charWidths(part);
+      const chars = charWidths(part).map((w) => w * widthScale);
       const width = chars.reduce((sum, w) => sum + w, 0);
       return !space && width > narrowest ? { width, space, chars } : { width, space };
     });

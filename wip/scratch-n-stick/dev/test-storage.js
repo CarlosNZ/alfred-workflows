@@ -480,6 +480,18 @@ function testTitles() {
   eq("…a delimiter row with alignment colons is still one", preview("| a |\n|:-:|\n| b |"), { width: 360, height: 288 });
   eq("…but table syntax in code is code", preview(fence(lines(12, "| k# |\n|---|"))), fit(fence(lines(12, "| k# |\n|---|"))));
   eq("…and other text is measured as in Edit", preview(lines(13, "- item #")), fit(lines(13, "- item #")));
+  const headings = (marker) => Array.from({ length: 12 }, (_, i) => `${marker} Heading ${i + 1}`).join("\n");
+  eq("headings in Edit: a line each", fit(headings("#")), { width: 360, height: 288 });
+  eq("…in Preview: # 1.45 times as big", preview(headings("#")), { width: 360, height: 392 });
+  eq("…## 1.2 times", preview(headings("##")), { width: 360, height: 332 });
+  eq("…but not in code", preview(fence(headings("#"))), fit(fence(headings("#"))));
+  const sign = (fontSize) => fittedNoteSize("# " + "x".repeat(40), Object.assign(metrics(), { preview: true, fontSize }));
+  eq("a long heading wraps", sign(20), { width: 360, height: 288 });
+  eq("…but with a big font, the window is as wide as it (42 columns, # included, at 1.45 × PREVIEW_HEADING_WIDTH)", sign(48), { width: 552, height: 288 });
+  const prose = "word ".repeat(150).trim();
+  const sized = (fontSize) => fittedNoteSize(prose, Object.assign(metrics(), { fontSize }));
+  eq("up to 20 pt, the usual shape", [sized(14), sized(20)], [fit(prose), fit(prose)]);
+  eq("a bigger font: wider, down to NOTE_SHAPE_LARGE at 48 pt", [sized(34), sized(48), sized(72)], [{ width: 435, height: 424 }, { width: 530, height: 344 }, { width: 530, height: 344 }]);
   eq("code wider than the cap: the cap", fit(fence("x".repeat(70))), { width: 576, height: 288 });
   eq("wide characters: two columns by default", fit(fence("中".repeat(20))), { width: 434, height: 288 });
   eq("emoji: two columns by default", fit(fence("🙂".repeat(20))), { width: 434, height: 288 });

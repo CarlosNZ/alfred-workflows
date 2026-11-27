@@ -2783,6 +2783,7 @@ function fittedStickyWindowSize(workflowFolder, text, { fontSize = null, preview
       ? $.NSScroller.scrollerWidthForControlSizeScrollerStyle($.NSControlSizeRegular, $.NSScrollerStyleLegacy)
       : 0,
     preview,
+    fontSize: fontSize || noteDefaultFontSize(variable),
   });
   return { width: fitted.width, height: fitted.height + shortfall };
 }
