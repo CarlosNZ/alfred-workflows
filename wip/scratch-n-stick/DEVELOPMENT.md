@@ -6,7 +6,7 @@ This file is the overview: what the workflow does, how its parts fit together, a
 
 ## What it does
 
-- **Notes are plain `.md` files** in a notes folder: the workflow's data folder by default, or one the user chooses. Moving the setting moves the notes. Each is named for when it was created and its title (`20261120-153012 Shopping list.md`), and renamed as its title changes; its ID, the timestamp, stays the same. Files added by hand keep their names.
+- **Notes are plain `.md` files** in a notes folder: the workflow's data folder by default, or one the user chooses. Moving the setting moves the notes, with everything else Finder shows in the folder; a folder whose name is taken in the new one stops the move until the user sorts it out. Each is named for when it was created and its title (`20261120-153012 Shopping list.md`), and renamed as its title changes; its ID, the timestamp, stays the same. Files added by hand keep their names.
 - **The results list** (`scratch`) lists the notes, last edited first, with a title, a preview and when each was edited, and searches their whole text. ↩ opens a note in a **quick view** inside Alfred's window; ⌘↩ **sticks it to the desktop** as its own window; ⌥↩ trashes it; ⌃↩ reveals it.
 - **Notes stay sticky** once closed: a note is sticky from when it's stuck until it's unstuck (Unstick in the lists, or Close and Unstick in its window), so ↩ on a closed sticky note sticks it again. Sticky notes are marked 📌 in the results list, and 📌💤 once their windows are closed.
 - **Example notes**, `example-1-…` onwards, are added to the notes folder the first time the workflow runs, to show what notes can do: a welcome note that's a checklist tour, keyboard shortcuts, Markdown, details jotted down on a phone call, a "Back in 5 minutes" sign, and where the notes live. The shortcuts, Markdown and sign start as closed sticky notes, as they're meant to stay on screen (and a link clicked in a quick view closes it). Each shows what it describes. They're never replaced, and come back only if the workflow's data folder is deleted.
@@ -64,6 +64,7 @@ All JXA unless noted.
 | `scripts/forget.sh` | zsh. A closed sticky window's forget timer, run by Alfred: deletes its state `CLOSE_GRACE_SECONDS` later, unless a session ending kills it first. |
 | `scripts/trash.js` | ⌥↩: closes a note's sticky window and moves the note to the Trash. |
 | `scripts/move.js` | Moves the notes to a newly configured folder, in the background. |
+| `scripts/reveal-clash.js` | ↩ on "Can't move the notes": shows the folders blocking the move in Finder. |
 | `scripts/place.js` | Moves a sticky window that opened on the wrong screen back where it was left, in the background. Doesn't load `lib.js`. |
 
 `examples/` holds the example notes and their sidecars, laid out as a notes folder. `ui/` holds the templates a window's `ui.json` is built from (`window.json`, `content.json`, `customise.json`, `actions.json`, `menubutton.json`, `windowbuttons.json`, `titlestrip.json`, `collapsedtitle.json`, `keyhints.json`), Preview's page (`view.html`, `view.js`) and `appicon.png`, sticky windows' app icon. `vendor/markdown-it/` is markdown-it 15.0.3. `icons/` holds the images that ship: button icons, drop-down shadows, and New note's icons.

@@ -66,7 +66,7 @@ function run(argv) {
   try {
     // The notes may have to move to a newly configured folder first.
     const move = checkNotesFolderMove({ workflowFolder, showFailure: true });
-    if (move.status !== "ready") return notesFolderMoveOutput(move);
+    if (move.status !== "ready") return notesFolderMoveOutput(move, { canReveal: true });
     store = noteStore();
     // The first run adds the example notes.
     attempt(() => installExamplesOnce(store, workflowFolder));

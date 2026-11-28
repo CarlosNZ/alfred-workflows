@@ -809,6 +809,9 @@ function installExamplesOnce(store, workflowFolder, { now = new Date(), variable
 // why.
 
 const MOVE_TEMP_PREFIX = ".scratchnstick-move-";
+// A folder being copied to another volume is renamed in `from` to this
+// prefix and its name while it's in transit (see moveFolderTo).
+const MOVE_TRANSIT_PREFIX = ".scratchnstick-moving-";
 const MOVE_RERUN_SECONDS = 0.5;
 
 // Whether the notes can be used in the folder the settings give, starting a
@@ -821,11 +824,18 @@ const MOVE_RERUN_SECONDS = 0.5;
 //                          `showFailure`, for a Script Filter, and only once
 //                          per try: the failure's record is marked as shown,
 //                          so the next run tries again.
+//   { status: "blocked", from, to, clashes }
+//                          a folder in `from` has a name already taken in
+//                          `to` (notesFolderClashes), so nothing moves until
+//                          the user sorts it out; every run says so
 // With no record yet, the current folder is recorded and nothing moves. A
 // missing old folder has nothing to move, so the record changes to the new
 // one; a missing new folder leaves the record as it is, and the move waits
-// until the folder exists. A missing old folder is the one case that posts
-// a notification here, as nothing else says why the list is empty.
+// until the folder exists. A missing old folder posts a notification here,
+// as nothing else says why the list is empty, and so does a blocked move,
+// saying in full what blocks it: with `showFailure` once for each clash (a
+// record of the last one notified, <cache>/move-blocked.json, goes once
+// nothing clashes), and without it (a route with no list) every time.
 // `start(from, to)` starts the move and `notify(text)` posts a notification;
 // both are replaceable for tests.
 function checkNotesFolderMove({
@@ -851,6 +861,25 @@ function checkNotesFolderMove({
     );
     return { status: "ready" };
   }
+  const clashes = notesFolderClashes(from, to);
+  const blockedPath = `${workflowCacheFolder(variable)}/move-blocked.json`;
+  if (clashes.length > 0) {
+    // A list runs on every keystroke, so it notifies once for each clash;
+    // a route with no list notifies every time, as nothing else says why
+    // nothing happened.
+    const blocked = JSON.stringify({ from, to, clashes });
+    const known = JSON.stringify(readJsonObject(blockedPath));
+    if (!showFailure || known !== blocked) {
+      const text = `Can't move your notes to ${notesFolderName(to, variable)}: ${notesFolderClashText(clashes, "it")}. Rename or remove one, and the move goes ahead.`;
+      notify(showFailure ? text : `${text} The notes list can show both in Finder.`);
+    }
+    if (showFailure && known !== blocked) {
+      ensureFolder(workflowCacheFolder(variable), true);
+      writeFileAtomically(blockedPath, blocked + "\n");
+    }
+    return { status: "blocked", from, to, clashes };
+  }
+  if ($.NSFileManager.defaultManager.fileExistsAtPath(blockedPath)) removeFile(blockedPath);
   const failure = readMoveFailure(variable);
   if (showFailure && failure && failure.from === from && failure.to === to && !failure.shown) {
     writeMoveFailure(Object.assign(failure, { shown: true }), variable);
@@ -862,8 +891,12 @@ function checkNotesFolderMove({
 
 // A Script Filter's output while the notes can't be listed because of a move
 // (see checkNotesFolderMove): "Moving notes…", rerun until the move has
-// finished, or why the last try failed.
-function notesFolderMoveOutput(move) {
+// finished, why the last try failed, or what blocks it. With `canReveal` (the
+// results list), ↩ on a blocked move's result shows the clashing folders in
+// Finder: it sets `move_action` to "reveal", which the workflow sends to
+// scripts/reveal-clash.js. The new-note list's ↩ goes straight to a window,
+// so there it only says where to look.
+function notesFolderMoveOutput(move, { canReveal = false } = {}) {
   if (move.status === "moving") {
     return JSON.stringify({
       rerun: MOVE_RERUN_SECONDS,
@@ -872,7 +905,41 @@ function notesFolderMoveOutput(move) {
       ],
     });
   }
+  if (move.status === "blocked") {
+    // Short enough to read in Alfred's window: the notification has the rest.
+    const names = move.clashes.map((name) => `“${name}”`);
+    const which =
+      names.length === 1
+        ? `${names[0]} is`
+        : names.length === 2
+          ? `${names[0]} and ${names[1]} are`
+          : `${names[0]} and ${names.length - 1} more are`;
+    const title = `Can't move the notes: ${which} in both folders`;
+    if (!canReveal) {
+      return JSON.stringify({ items: [{ title, subtitle: "Open the notes list to show them in Finder", valid: false }] });
+    }
+    const none = { valid: false };
+    return JSON.stringify({
+      items: [
+        {
+          title,
+          subtitle: "↩ Show them in Finder, then rename or remove one",
+          arg: "",
+          variables: { move_action: "reveal" },
+          mods: { cmd: none, alt: none, ctrl: none },
+        },
+      ],
+    });
+  }
   return JSON.stringify({ items: [{ title: "Couldn't move the notes", subtitle: move.error, valid: false }] });
+}
+
+// What blocks a move, from notesFolderClashes' names: `subject` "already has
+// a folder named “attachments”", or "folders named “a” and “b”".
+function notesFolderClashText(clashes, subject) {
+  const names = clashes.map((name) => `“${name}”`);
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `${subject ? `${subject} ` : ""}already has ${names.length === 1 ? "a folder" : "folders"} named ${list}`;
 }
 
 // A Script Filter's result for an error opening the notes folder.
@@ -951,15 +1018,19 @@ function noteTrashFailedMessage(error) {
 
 // What a finished move's notification says, from moveNotes' result: the
 // notes that were already in the new folder count as moved, as they're
-// there now.
+// there now, and so do other files.
 function notesMovedMessage(result, to, variable = workflowVariable) {
-  const count = result.moved + result.duplicates;
+  const notes = result.moved + result.duplicates;
+  const others = result.others || 0;
   const place = notesFolderName(to, variable);
-  if (count === 0) return `Your notes are now kept in ${place}. There were no notes to move.`;
-  const notes = count === 1 ? "1 note" : `${count} notes`;
+  if (notes + others === 0) return `Your notes are now kept in ${place}. There were no notes to move.`;
+  const count = (n, one, many) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
+  let moved = count(notes, "note", "notes");
+  if (notes === 0) moved = count(others, "item", "items");
+  else if (others > 0) moved += ` and ${count(others, "other item", "other items")}`;
   const renamed = result.renamed.length;
-  if (renamed === 0) return `Moved ${notes} to ${place}.`;
-  return `Moved ${notes} to ${place}. ${renamed === 1 ? "1 was" : `${renamed} were`} renamed, as ${renamed === 1 ? "its name was" : "their names were"} taken there.`;
+  if (renamed === 0) return `Moved ${moved} to ${place}.`;
+  return `Moved ${moved} to ${place}. ${renamed === 1 ? "1 was" : `${renamed} were`} renamed, as ${renamed === 1 ? "its name was" : "their names were"} taken there.`;
 }
 
 // A notes folder as a notification names it: "the workflow's data folder"
@@ -1163,28 +1234,41 @@ function quitStickyNoteWindows({ ids = null, variable = workflowVariable, timeou
   }
 }
 
-// Moves the notes in the folder `from` into the folder `to`, with their
-// sidecars, and returns { moved, renamed, duplicates }: the number of notes
-// moved, the [old ID, new ID] of those renamed, and the number already in
-// `to`. The notes are the files the results list shows (see list in
-// noteStore), with or without a sidecar.
+// Moves everything Finder shows in the folder `from` into the folder `to`:
+// the notes with their sidecars, other files and subfolders. Returns
+// { moved, others, renamed, duplicates }: the number of notes moved, the
+// number of other items moved (counting a file already in `to`, as it's there
+// now), the [old name, new name] of the notes (by ID) and files renamed, and
+// the number of notes already in `to`. Hidden items (isHiddenItem) stay where
+// they are, apart from the sidecars in .scratchnstick.
 //
-// - A note whose ID is taken in `to`, by a note in any extension case and
-//   Unicode normalization or by a sidecar, gets the next free suffix, as
-//   newId gives (foo-2, foo-3), keeping its extension's case, and its sidecar
-//   is renamed with it.
+// - The notes are the files the results list shows (see list in noteStore),
+//   with or without a sidecar. A note whose ID is taken in `to`, by a note in
+//   any extension case and Unicode normalization or by a sidecar, gets the
+//   next free suffix, as newId gives (foo-2, foo-3), keeping its extension's
+//   case, and its sidecar is renamed with it.
 // - A note with the same text as the note of the same ID in `to` is only
 //   deleted from `from`; its sidecar moves if that note has none.
+// - Any other file is treated the same way, by name: one whose name is taken
+//   in `to` by an identical file is only deleted from `from`; otherwise it
+//   gets the next free name (freeFileName: pic-2.png). A symbolic link moves
+//   as the link.
+// - A folder (a package too) moves whole. Folders aren't merged: the caller
+//   checks first that no folder's name is taken in `to` (notesFolderClashes),
+//   and moving one whose name is taken throws.
 // - Sidecars without a note are deleted, with the rest of `from`'s
 //   .scratchnstick, once every note has moved.
 //
-// It works one note at a time, copying the sidecar, then moving the note,
-// then deleting the old sidecar, so it can be stopped at any point and run
-// again to finish. A sidecar in `to` with exactly the text of the note's own
-// is the copy made by a move that was stopped, and doesn't count as taking
-// the note's ID. Within a volume a note is renamed, and a sidecar's copy is a
-// hard link, made in one step; across volumes both are copied (see
-// copyFileTo). Throws on the first file it can't move, naming it.
+// It works one item at a time, and a note by copying its sidecar, then moving
+// the note, then deleting the old sidecar, so it can be stopped at any point
+// and run again to finish. A sidecar in `to` with exactly the text of the
+// note's own is the copy made by a move that was stopped, and doesn't count
+// as taking the note's ID; likewise a file stopped between its copy and its
+// deletion is identical to its copy. Within a volume a note, file or folder
+// is renamed, and a sidecar's copy is a hard link, made in one step; across
+// volumes they're copied (see copyFileTo), a folder by way of a hidden name
+// marking it in transit (see moveFolderTo). Throws on the first item it
+// can't move, naming it.
 function moveNotes(from, to) {
   const fm = $.NSFileManager.defaultManager;
   const fromMeta = `${from}/${META_FOLDER}`;
@@ -1222,11 +1306,41 @@ function moveNotes(from, to) {
       throw new Error(`Can't copy ${meta} to ${dest}: ${errorText(error)}`);
   };
 
-  const result = { moved: 0, renamed: [], duplicates: 0 };
+  const moveFile = (path, dest) => {
+    if (sameVolume) return moveFileTo(path, dest);
+    copyFileTo(path, dest);
+    removeFile(path);
+  };
+
+  const result = { moved: 0, others: 0, renamed: [], duplicates: 0 };
   for (const name of folderNames(from)) {
-    const id = noteIdFromFileName(name);
     const path = `${from}/${name}`;
-    if (id === null || !isRegularFile(path)) continue;
+    if (name === META_FOLDER) continue;
+    if (name.startsWith(MOVE_TRANSIT_PREFIX)) {
+      finishFolderMove(path, `${to}/${name.slice(MOVE_TRANSIT_PREFIX.length)}`);
+      result.others++;
+      continue;
+    }
+    const id = noteIdFromFileName(name);
+    if (id === null || !isRegularFile(path)) {
+      if (isHiddenItem(path)) continue;
+      if (itemType(path) === "NSFileTypeDirectory") {
+        moveFolderTo(path, `${to}/${name}`, sameVolume);
+        result.others++;
+        continue;
+      }
+      const taken = `${to}/${name}`;
+      if (itemType(taken) !== null && fm.contentsEqualAtPathAndPath(path, taken)) {
+        removeFile(path);
+        result.others++;
+        continue;
+      }
+      const newName = freeFileName(to, name);
+      moveFile(path, `${to}/${newName}`);
+      result.others++;
+      if (newName !== name) result.renamed.push([name, newName]);
+      continue;
+    }
     const meta = `${fromMeta}/${id}.json`;
     const hasMeta = fm.fileExistsAtPath(meta);
 
@@ -1243,12 +1357,7 @@ function moveNotes(from, to) {
 
     const newId = freeId(id, hasMeta ? meta : null);
     if (hasMeta && !fm.fileExistsAtPath(`${toMeta}/${newId}.json`)) copySidecar(meta, `${toMeta}/${newId}.json`);
-    const dest = `${to}/${newId}${name.slice(id.length)}`;
-    if (sameVolume) moveFileTo(path, dest);
-    else {
-      copyFileTo(path, dest);
-      removeFile(path);
-    }
+    moveFile(path, `${to}/${newId}${name.slice(id.length)}`);
     if (hasMeta) removeFile(meta);
     targetIds.add(newId.normalize("NFC"));
     result.moved++;
@@ -1271,10 +1380,109 @@ function moveFileTo(source, dest) {
   }
 }
 
-// Copies a file to `dest`, which must not exist, by way of a temporary hidden
-// name beside it, so a copy that's stopped part way never leaves a partial
-// file at `dest`. Its birth and modification times are set to the
-// original's, which a copy to another volume may not keep.
+// Moves the folder `source` to `dest`, which must not exist (moveNotes). On
+// the same volume (`sameVolume`) it's one rename. Across volumes it's first
+// renamed beside itself to a hidden name marking it in transit
+// (MOVE_TRANSIT_PREFIX), then copied and deleted (finishFolderMove), so a
+// move stopped part way finds the marker on its next run and finishes it.
+function moveFolderTo(source, dest, sameVolume) {
+  if (sameVolume) return moveFileTo(source, dest);
+  if (itemType(dest) !== null) throw new Error(`Can't move ${source} to ${dest}: something there has that name`);
+  const transit = `${$(source).stringByDeletingLastPathComponent.js}/${MOVE_TRANSIT_PREFIX}${$(source).lastPathComponent.js}`;
+  moveFileTo(source, transit);
+  finishFolderMove(transit, dest);
+}
+
+// Finishes moving a folder marked in transit, `transit` (see moveFolderTo),
+// to `dest`: copies it there (copyFileTo), then deletes it. A `dest` that's
+// already there is the copy made by a move stopped before the deletion if
+// its contents are the same, and then the folder is only deleted; anything
+// else there is the user's, so the folder goes back to its own name and the
+// move stops, leaving notesFolderClashes to name it.
+function finishFolderMove(transit, dest) {
+  if (itemType(dest) !== null) {
+    if (!$.NSFileManager.defaultManager.contentsEqualAtPathAndPath(transit, dest)) {
+      const name = $(transit).lastPathComponent.js.slice(MOVE_TRANSIT_PREFIX.length);
+      const source = `${$(transit).stringByDeletingLastPathComponent.js}/${name}`;
+      moveFileTo(transit, source);
+      throw new Error(`Can't move ${source} to ${dest}: something there has that name`);
+    }
+  } else {
+    copyFileTo(transit, dest);
+  }
+  removeFile(transit);
+}
+
+// The first of `name`, then `name` with -2, -3… before its extension
+// (pic-2.png, README-2), that nothing in `folder` has, by the rules of its
+// volume (case and Unicode normalization).
+function freeFileName(folder, name) {
+  const extension = $(name).pathExtension.js;
+  const stem = extension ? name.slice(0, -(extension.length + 1)) : name;
+  for (let n = 1; ; n++) {
+    const candidate = n === 1 ? name : `${stem}-${n}${extension ? `.${extension}` : ""}`;
+    if (itemType(`${folder}/${candidate}`) === null) return candidate;
+  }
+}
+
+// Whether Finder hides an item, which a move leaves where it is: a name
+// starting with ".", or the hidden flag (chflags hidden, as on a custom
+// folder icon's Icon\r file), as NSURLIsHiddenKey reports.
+function isHiddenItem(path) {
+  if ($(path).lastPathComponent.js.startsWith(".")) return true;
+  const value = Ref();
+  const url = $.NSURL.fileURLWithPath(path);
+  return Boolean(url.getResourceValueForKeyError(value, $.NSURLIsHiddenKey, null)) && ObjC.unwrap(value[0]) === true;
+}
+
+// An item's NSFileType ("NSFileTypeRegular", "NSFileTypeDirectory",
+// "NSFileTypeSymbolicLink"…), not following a symbolic link, or null if
+// there's nothing at `path`.
+function itemType(path) {
+  const attributes = $.NSFileManager.defaultManager.attributesOfItemAtPathError(path, null);
+  return attributes.isNil() ? null : attributes.objectForKey("NSFileType").js;
+}
+
+// The names of the folders in `from` that a move can't put in `to`, as
+// something there already has the name, by the rules of `to`'s volume (case
+// and Unicode normalization), sorted. Every visible folder moves (see
+// moveNotes), packages too, so each one is checked; hidden items stay, so
+// they never clash, nor does a folder a stopped move left in transit, whose
+// name is hidden. Names are first matched case- and normalization-blind
+// against a listing of `to`, so only likely clashes are checked on disk.
+function notesFolderClashes(from, to) {
+  const fold = (name) => name.normalize("NFC").toLowerCase();
+  const inTo = new Set(folderNames(to).map(fold));
+  return folderNames(from)
+    .filter((name) => inTo.has(fold(name)))
+    .filter((name) => {
+      const path = `${from}/${name}`;
+      return itemType(path) === "NSFileTypeDirectory" && !isHiddenItem(path) && itemType(`${to}/${name}`) !== null;
+    })
+    .sort((a, b) => a.localeCompare(b));
+}
+
+// Shows the folders blocking a move in Finder (see notesFolderClashes), for
+// ↩ on the results list's "Can't move the notes" (scripts/reveal-clash.js):
+// each one selected in both the old and the new notes folder, which opens a
+// Finder window for each. It works the move out afresh, so it shows what
+// blocks the move now, and nothing if nothing does. Returns the paths shown.
+function revealNotesFolderClashes(variable = workflowVariable) {
+  const from = readLastNotesFolder(variable);
+  const to = configuredNotesFolder(variable);
+  if (from === null || !isFolderPath(from) || !isFolderPath(to) || isSameFolder(from, to)) return [];
+  const paths = notesFolderClashes(from, to).flatMap((name) => [`${from}/${name}`, `${to}/${name}`]);
+  if (paths.length > 0) {
+    ObjC.import("AppKit");
+    $.NSWorkspace.sharedWorkspace.activateFileViewerSelectingURLs($(paths.map((path) => $.NSURL.fileURLWithPath(path))));
+  }
+  return paths;
+}
+
+// Copies a file or folder to `dest`, which must not exist, by way of a
+// temporary hidden name beside it, so a copy that's stopped part way never
+// leaves a partial copy at `dest`. Its birth and modification times are set
+// to the original's, which a copy to another volume may not keep.
 function copyFileTo(source, dest) {
   const fm = $.NSFileManager.defaultManager;
   const temp = `${$(dest).stringByDeletingLastPathComponent.js}/${MOVE_TEMP_PREFIX}${$.NSUUID.UUID.UUIDString.js}.tmp`;

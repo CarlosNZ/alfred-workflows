@@ -1,7 +1,8 @@
 #!/usr/bin/osascript -l JavaScript
 
-// Moves the notes from argv[0], the folder they were last in, to argv[1], the
-// folder the settings give, in the background (see "Moving the notes folder"
+// Moves the notes, and everything else Finder shows, from argv[0], the folder
+// they were last in, to argv[1], the folder the settings give, in the
+// background (see "Moving the notes folder"
 // in dev/docs/storage.md). checkNotesFolderMove in lib.js starts it, with the
 // workflow's variables, and its input and output on /dev/null.
 //
@@ -9,7 +10,8 @@
 // stops a Script Filter's run by signalling its whole process group, which
 // would stop the move with it. A keystroke before that stops it too, and the
 // next run starts it again. Then it takes the move lock, or exits if another
-// move holds it; closes the sticky windows, which saves their notes into the
+// move holds it; exits if a folder's name is taken in the new folder
+// (notesFolderClashes), which the next run shows; closes the sticky windows, which saves their notes into the
 // old folder; moves the notes (moveNotes); and records the new folder as the
 // one the notes are in. If the move fails, it records why, for the results
 // list to show, and the record still names the old folder, so the next run
@@ -31,6 +33,9 @@ function run(argv) {
   try {
     // Another move may have finished this one since it was started.
     if (readLastNotesFolder() !== from) return;
+    // A folder may have appeared in `to` since checkNotesFolderMove looked:
+    // nothing moves, and the next run shows what blocks it.
+    if (notesFolderClashes(from, to).length > 0) return;
     quitStickyNoteWindows();
     const result = moveNotes(from, to);
     writeLastNotesFolder(to);

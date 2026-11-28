@@ -126,6 +126,17 @@ expect "…then list.js lists the notes" "$(listjs "$mv/locked" | grep -o '"titl
 expect "…and sweeps the sidecars, recording the day in the state, which keeps the record" "$(plutil -extract lastSidecarSweep raw -o - "$mv/data/state.json" | cut -c1-10) $(record)" "$(date +%F) $mv/locked"
 expect "a missing notes folder: Missing notes folder" "$(listjs "$mv/missing" | grep -o '"title":"[^"]*","subtitle":"[^"]*"')" "\"title\":\"Missing notes folder\",\"subtitle\":\"$mv/missing\""
 
+# A folder in both the old and the new notes folder blocks the move.
+mkdir -p "$mv/locked/attachments" "$mv/blocked/attachments"
+print -rn "In attachments" > "$mv/locked/attachments/pic.png"
+expect "list.js, a folder in both: Can't move the notes, with ↩ revealing them" "$(listjs "$mv/blocked" | grep -o '"title":"Can.t move the notes[^"]*","subtitle":"[^"]*"\|"move_action":"reveal"' | tr '\n' ' ')" "\"title\":\"Can't move the notes: “attachments” is in both folders\",\"subtitle\":\"↩ Show them in Finder, then rename or remove one\" \"move_action\":\"reveal\" "
+expect "new.js, a folder in both: Can't move the notes, saying where to look" "$((cd "$tmp" && env alfred_workflow_data=$mv/data alfred_workflow_cache=$mv/cache notes_folder=$mv/blocked "$workflow/scripts/new.js" "") | grep -o '"subtitle":"[^"]*","valid":false')" '"subtitle":"Open the notes list to show them in Finder","valid":false'
+expect "…nothing moved, and the record stays" "$(record) $(cd "$mv/locked" && print -r -- *)" "$mv/locked a.md attachments b.md"
+rmdir "$mv/blocked/attachments"
+expect "once it's sorted out, list.js starts the move" "$(listjs "$mv/blocked" | grep -o '"title":"Moving notes…"')" '"title":"Moving notes…"'
+for i in {1..50}; do [[ $(record) == "$mv/blocked" ]] && break; sleep 0.1; done
+expect "…which moves the folder with the notes" "$(record) $(cd "$mv/blocked" && print -r -- *) $(cat "$mv/blocked/attachments/pic.png")" "$mv/blocked a.md attachments b.md In attachments"
+
 if [[ -n ${SKIP_VOLUME:-} ]]; then
   print "\n# Moving notes to another volume: skipped (SKIP_VOLUME)"
 else

@@ -56,6 +56,7 @@ function run(argv) {
     timeListPrefixed(freshStore(args[0], "timing-prefixed"));
     timeSweep(freshStore(args[0], "timing-sweep"));
     testMoveNotes(args[0]);
+    testMoveEverything(args[0]);
     testMoveCheck(args[0]);
     timeMove(args[0]);
   } else if (command === "trash") {
@@ -922,12 +923,12 @@ function testMoveNotes(root) {
   writeRaw(`${to}/.scratchnstick/.scratchnstick-move-stopped.tmp`, "A partial copy");
 
   const result = moveNotes(from, to);
-  eq("only other files, hidden files and subfolders are left behind, without .scratchnstick", entries(from).sort(), [".hidden.md", "notes.txt", "sub"]);
+  eq("only hidden files are left behind, without .scratchnstick", entries(from).sort(), [".hidden.md"]);
   const notes = entries(to).filter((name) => !name.startsWith(".")).map((name) => name.normalize("NFC")).sort();
   eq(
-    "the new folder's notes",
+    "the new folder's notes, and the other file and the subfolder",
     notes,
-    ["Café-2.md", "Café.md", "Upper-2.MD", "bare.md", "clash-2-2.md", "clash-2.md", "clash-3.md", "clash.md", "plain.md", "resumed.md", "same.md", "same2.md", "sidecar-2.md", "upper.md"],
+    ["Café-2.md", "Café.md", "Upper-2.MD", "bare.md", "clash-2-2.md", "clash-2.md", "clash-3.md", "clash.md", "notes.txt", "plain.md", "resumed.md", "same.md", "same2.md", "sidecar-2.md", "sub", "upper.md"],
   );
   const text = (name) => readText(`${to}/${name}`);
   const meta = (id) => readJsonObject(`${to}/.scratchnstick/${id}.json`);
@@ -944,9 +945,9 @@ function testMoveNotes(root) {
   eq("a sidecar without a note isn't moved", exists(`${to}/.scratchnstick/orphan.json`), false);
   eq("modification and birth times, and Finder tags, are kept", [fileDate(`${to}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${to}/plain.md`, "NSFileCreationDate").getTime(), tags(`${to}/plain.md`)], [modified.getTime(), birth.getTime(), ["Red"]]);
   eq("a stopped move's temporary files are deleted", entries(to).concat(entries(`${to}/.scratchnstick`)).filter((name) => name.startsWith(".scratchnstick-move-")), []);
-  eq("moved and duplicates", [result.moved, result.duplicates], [8, 2]);
+  eq("moved, others and duplicates", [result.moved, result.others, result.duplicates], [8, 2, 2]);
   eq("renamed", result.renamed.map(([a, b]) => `${a.normalize("NFC")}→${b.normalize("NFC")}`).sort(), ["Café→Café-2", "Upper→Upper-2", "clash-2→clash-2-2", "clash→clash-3", "sidecar→sidecar-2"]);
-  eq("running it again moves nothing", moveNotes(from, to), { moved: 0, renamed: [], duplicates: 0 });
+  eq("running it again moves nothing", moveNotes(from, to), { moved: 0, others: 0, renamed: [], duplicates: 0 });
 
   // Notes named by time, whose IDs clash though their names differ.
   const namedFrom = `${root}/move/named-from`;
@@ -993,6 +994,74 @@ function testMoveNotes(root) {
     writeRaw(`${root}/move/empty/.DS_Store`, "");
     return removeFolderIfEmpty(`${root}/move/empty`);
   })(), exists(`${root}/move/empty`)], [false, true, true, false]);
+}
+
+function testMoveEverything(root) {
+  section("Moving other files and folders");
+  const fm = $.NSFileManager.defaultManager;
+  const from = `${root}/move-all/from`;
+  const to = `${root}/move-all/to`;
+  makeFolder(`${from}/.scratchnstick`);
+  makeFolder(to);
+  writeRaw(`${from}/note.md`, "A note");
+  writeRaw(`${from}/pic.png`, "From picture");
+  writeRaw(`${to}/pic.png`, "To picture");
+  writeRaw(`${from}/same.png`, "Same picture");
+  writeRaw(`${to}/same.png`, "Same picture");
+  writeRaw(`${from}/README`, "From readme");
+  writeRaw(`${to}/readme`, "To readme");
+  makeFolder(`${from}/docs/deeper`);
+  writeRaw(`${from}/docs/deeper/file.txt`, "Deep");
+  makeFolder(`${from}/Story.rtfd`);
+  writeRaw(`${from}/Story.rtfd/TXT.rtf`, "{\\rtf1}");
+  makeFolder(`${from}/.obsidian`);
+  writeRaw(`${from}/.obsidian/app.json`, "{}");
+  writeRaw(`${from}/flagged.txt`, "Hidden by its flag");
+  programOutput("/usr/bin/chflags", ["hidden", `${from}/flagged.txt`]);
+  fm.createSymbolicLinkAtPathWithDestinationPathError(`${from}/link`, "note.md", null);
+
+  check("isHiddenItem: a . name and the hidden flag, not a plain file", isHiddenItem(`${from}/.obsidian`) && isHiddenItem(`${from}/flagged.txt`) && !isHiddenItem(`${from}/pic.png`));
+  eq("notesFolderClashes: none", notesFolderClashes(from, to), []);
+  const result = moveNotes(from, to);
+  eq("hidden items stay", entries(from).sort(), [".obsidian", "flagged.txt"]);
+  eq("the new folder", entries(to).filter((name) => !name.startsWith(".")).sort(), ["README-2", "Story.rtfd", "docs", "link", "note.md", "pic-2.png", "pic.png", "readme", "same.png"]);
+  eq("a file whose name is taken: the next free name, and the new folder's file is kept", [readText(`${to}/pic-2.png`), readText(`${to}/pic.png`)], ["From picture", "To picture"]);
+  eq("…with no extension, taken in another case", [readText(`${to}/README-2`), readText(`${to}/readme`)], ["From readme", "To readme"]);
+  eq("an identical file is kept once", readText(`${to}/same.png`), "Same picture");
+  eq("a folder moves whole, with what's in it", readText(`${to}/docs/deeper/file.txt`), "Deep");
+  eq("a package moves as a folder", readText(`${to}/Story.rtfd/TXT.rtf`), "{\\rtf1}");
+  eq("a symbolic link moves as the link", [itemType(`${to}/link`), readText(`${to}/link`)], ["NSFileTypeSymbolicLink", "A note"]);
+  eq("the result", [result.moved, result.others, result.duplicates, result.renamed.map((pair) => pair.join("→")).sort()], [1, 6, 0, ["README→README-2", "pic.png→pic-2.png"]]);
+  eq("freeFileName: the name if it's free, past -2 if that's taken", [freeFileName(to, "new.png"), (writeRaw(`${to}/pic-3.png`, ""), freeFileName(to, "pic.png"))], ["new.png", "pic-4.png"]);
+
+  // Folders whose names are taken block a move.
+  const clashFrom = `${root}/move-all/clash-from`;
+  const clashTo = `${root}/move-all/clash-to`;
+  for (const name of ["attachments", "Shared", "fresh", ".git"]) makeFolder(`${clashFrom}/${name}`);
+  writeRaw(`${clashFrom}/pic.png`, "A file");
+  makeFolder(`${clashTo}/attachments`);
+  makeFolder(`${clashTo}/.git`);
+  writeRaw(`${clashTo}/shared`, "A file with the folder's name, in another case");
+  writeRaw(`${clashTo}/pic.png`, "Another file");
+  eq("notesFolderClashes: folders whose names are taken, by a folder or a file, in any case; not hidden folders, files or free names", notesFolderClashes(clashFrom, clashTo), ["attachments", "Shared"]);
+  eq("…a missing new folder: none", notesFolderClashes(clashFrom, `${root}/move-all/missing`), []);
+
+  // A folder a move left in transit (see moveFolderTo).
+  const transitFrom = `${root}/move-all/transit-from`;
+  const transitTo = `${root}/move-all/transit-to`;
+  const marker = `${transitFrom}/.scratchnstick-moving-docs`;
+  makeFolder(marker);
+  makeFolder(transitTo);
+  writeRaw(`${marker}/a.txt`, "A");
+  eq("notesFolderClashes: a folder in transit isn't one", notesFolderClashes(transitFrom, transitTo), []);
+  eq("in transit, not yet copied: copied, then the marker deleted", [moveNotes(transitFrom, transitTo).others, readText(`${transitTo}/docs/a.txt`), entries(transitFrom)], [1, "A", []]);
+  makeFolder(marker);
+  writeRaw(`${marker}/a.txt`, "A");
+  eq("…copied but not deleted (the same contents): only the marker is deleted", [moveNotes(transitFrom, transitTo).others, readText(`${transitTo}/docs/a.txt`), entries(transitFrom)], [1, "A", []]);
+  makeFolder(marker);
+  writeRaw(`${marker}/a.txt`, "Different");
+  throws("…something else there: throws, naming it", () => moveNotes(transitFrom, transitTo), /docs/);
+  eq("…and the folder goes back to its own name, which then clashes", [entries(transitFrom), notesFolderClashes(transitFrom, transitTo), readText(`${transitFrom}/docs/a.txt`), readText(`${transitTo}/docs/a.txt`)], [["docs"], ["docs"], "Different", "A"]);
 }
 
 function testMoveCheck(root) {
@@ -1053,6 +1122,37 @@ function testMoveCheck(root) {
   eq("…some renamed", message(5, 2, 0, "/Volumes/Disk/Notes"), "Moved 5 notes to /Volumes/Disk/Notes. 2 were renamed, as their names were taken there.");
   eq("…one renamed", message(5, 1, 0, "/Volumes/Disk/Notes"), "Moved 5 notes to /Volumes/Disk/Notes. 1 was renamed, as its name was taken there.");
   eq("…none to move", message(0, 0, 0, "/Volumes/Disk/Notes"), "Your notes are now kept in /Volumes/Disk/Notes. There were no notes to move.");
+  const others = (moved, others, duplicates) => notesMovedMessage({ moved, others, renamed: [], duplicates }, `${$.NSHomeDirectory().js}/Notes`, settings(""));
+  eq("…notes and other items", others(40, 3, 2), "Moved 42 notes and 3 other items to ~/Notes.");
+  eq("…one other item", others(1, 1, 0), "Moved 1 note and 1 other item to ~/Notes.");
+  eq("…other items alone", [others(0, 1, 0), others(0, 3, 0)], ["Moved 1 item to ~/Notes.", "Moved 3 items to ~/Notes."]);
+
+  const b = `${root}/check/b`;
+  const tilde = (path) => $(path).stringByAbbreviatingWithTildeInPath.js;
+  makeFolder(`${b}/attachments`);
+  makeFolder(`${a}/attachments`);
+  writeLastNotesFolder(b, settings(a));
+  const blockedText = `Can't move your notes to ${tilde(a)}: it already has a folder named “attachments”. Rename or remove one, and the move goes ahead.`;
+  eq("a folder in both, in a Script Filter: blocked, nothing started, and a notification", [check_(a, true), started, notified], [{ status: "blocked", from: b, to: a, clashes: ["attachments"] }, [], [blockedText]]);
+  eq("…not again on the next run", [check_(a, true).status, notified], ["blocked", []]);
+  makeFolder(`${b}/docs`);
+  makeFolder(`${a}/docs`);
+  eq("…but again for a different clash", [check_(a, true).status, notified], ["blocked", [`Can't move your notes to ${tilde(a)}: it already has folders named “attachments” and “docs”. Rename or remove one, and the move goes ahead.`]]);
+  removeFile(`${a}/docs`);
+  check_(a, true);
+  eq("elsewhere (open.js): blocked, with a notification every time, saying where to look", [check_(a).status, started, notified, check_(a).status, notified.length], ["blocked", [], [`${blockedText} The notes list can show both in Finder.`], "blocked", 1]);
+  eq("…and the record stays", record(), b);
+  const blockedItem = (canReveal, clashes) => JSON.parse(notesFolderMoveOutput({ status: "blocked", from: b, to: "/Volumes/Disk/Notes", clashes }, { canReveal })).items[0];
+  eq(
+    "the results list's item: ↩ reveals them, the other keys do nothing",
+    blockedItem(true, ["attachments"]),
+    { title: "Can't move the notes: “attachments” is in both folders", subtitle: "↩ Show them in Finder, then rename or remove one", arg: "", variables: { move_action: "reveal" }, mods: { cmd: { valid: false }, alt: { valid: false }, ctrl: { valid: false } } },
+  );
+  eq("…two folders, and three", [blockedItem(true, ["a", "b"]).title, blockedItem(true, ["a", "b", "c"]).title], ["Can't move the notes: “a” and “b” are in both folders", "Can't move the notes: “a” and 2 more are in both folders"]);
+  eq("the new-note list's item: says where to look", blockedItem(false, ["attachments"]), { title: "Can't move the notes: “attachments” is in both folders", subtitle: "Open the notes list to show them in Finder", valid: false });
+  removeFile(`${a}/attachments`);
+  eq("once it's sorted out, the move starts", [check_(a, true).status, started], ["moving", [[b, a]]]);
+  eq("…and the record of the clash notified goes", exists(`${cache}/move-blocked.json`), false);
   eq("no record and a missing configured folder: nothing recorded", (() => {
     removeFile(`${data}/state.json`);
     check_(`${root}/check/missing`);
@@ -1095,12 +1195,17 @@ function testMoveVolume(root, volume) {
   setDate(`${from}/plain.md`, "NSFileCreationDate", birth);
   setDate(`${from}/plain.md`, "NSFileModificationDate", modified);
   setTags(`${from}/plain.md`, ["Red"]);
-  eq("moved", moveNotes(from, to), { moved: 2, renamed: [["clash", "clash-2"]], duplicates: 0 });
+  makeFolder(`${from}/attachments`);
+  writeRaw(`${from}/attachments/pic.png`, "Picture");
+  setDate(`${from}/attachments/pic.png`, "NSFileModificationDate", modified);
+  eq("moved", moveNotes(from, to), { moved: 2, others: 1, renamed: [["clash", "clash-2"]], duplicates: 0 });
   eq("the old folder is empty", entries(from), []);
   eq("the notes and sidecar are there", [readText(`${to}/plain.md`), readText(`${to}/clash-2.md`), readJsonObject(`${to}/.scratchnstick/plain.json`)], ["Plain", "From clash", { colour: "blue" }]);
   eq("modification and birth times, and Finder tags, are kept", [fileDate(`${to}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${to}/plain.md`, "NSFileCreationDate").getTime(), tags(`${to}/plain.md`)], [modified.getTime(), birth.getTime(), ["Red"]]);
   eq("no temporary files are left", entries(to).concat(entries(`${to}/.scratchnstick`)).filter((name) => name.startsWith(".scratchnstick-move-")), []);
-  eq("and back again", moveNotes(to, from).moved, 3);
+  eq("a folder is copied, with its files' times, leaving no marker or temporary copy", [readText(`${to}/attachments/pic.png`), fileDate(`${to}/attachments/pic.png`, "NSFileModificationDate").getTime(), entries(to).filter((name) => name.startsWith(".scratchnstick-mov"))], ["Picture", modified.getTime(), []]);
+  const back = moveNotes(to, from);
+  eq("and back again", [back.moved, back.others, readText(`${from}/attachments/pic.png`)], [3, 1, "Picture"]);
   eq("…with the times kept", [fileDate(`${from}/plain.md`, "NSFileModificationDate").getTime(), fileDate(`${from}/plain.md`, "NSFileCreationDate").getTime()], [modified.getTime(), birth.getTime()]);
 }
 

@@ -142,6 +142,18 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
+				<string>D462F00C-4732-4C0E-9880-92A674993F61</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>7F3FE47A-11FE-4BE9-9213-D46A2BF21106</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
 				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
 				<key>modifiers</key>
 				<integer>0</integer>
@@ -707,6 +719,20 @@
 						<key>uid</key>
 						<string>9AE9C2EF-31AB-43A1-8F55-C156F232FAD1</string>
 					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string>{var:move_action}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>reveal</string>
+						<key>outputlabel</key>
+						<string>Reveal clash</string>
+						<key>uid</key>
+						<string>7F3FE47A-11FE-4BE9-9213-D46A2BF21106</string>
+					</dict>
 				</array>
 				<key>elselabel</key>
 				<string>else</string>
@@ -847,6 +873,29 @@
 			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
 			<key>version</key>
 			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string>exec ./scripts/reveal-clash.js</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>5</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>D462F00C-4732-4C0E-9880-92A674993F61</string>
+			<key>version</key>
+			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -1400,6 +1449,13 @@
 			<key>ypos</key>
 			<real>15</real>
 		</dict>
+		<key>D462F00C-4732-4C0E-9880-92A674993F61</key>
+		<dict>
+			<key>xpos</key>
+			<real>650</real>
+			<key>ypos</key>
+			<real>400</real>
+		</dict>
 		<key>F97B82D1-681F-47D5-92E1-4800ABA575A0</key>
 		<dict>
 			<key>xpos</key>
@@ -1526,7 +1582,7 @@
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>Where your notes are kept, one Markdown file each. Leave empty to keep them in the workflow's own data folder. Changing it moves your notes to the new folder, and closes any sticky notes.</string>
+			<string>Where your notes are kept, one Markdown file each. Leave empty to keep them in the workflow's own data folder. Changing it moves everything in the folder to the new one, except hidden files, and closes any sticky notes. If the new folder already has a folder with the same name as one being moved, nothing moves until you sort that out.</string>
 			<key>label</key>
 			<string>Notes folder</string>
 			<key>type</key>
