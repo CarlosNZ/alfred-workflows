@@ -417,9 +417,10 @@ expect "theme: without a theme colour, the page's own colours" "$(theme '')" "/\
 
 fresh=$tmp/fresh/notes
 mkdir -p "$fresh"
-note_ids() { ls "$1" | sed 's/\.md$//' | sort | tr '\n' ' ' }
+note_ids() { ls "$1" | grep '\.md$' | sed 's/\.md$//' | sort | tr '\n' ' ' }
 shipped_ids=$(ls "${here:h}/examples" | grep -E '^example-[0-9]+-.*\.md$' | sed 's/\.md$//' | sort | tr '\n' ' ')
 expect_exact "a first run adds the example notes" "$(items "$fresh" >/dev/null; note_ids "$fresh")" "$shipped_ids"
+expect "…and the image the Markdown example shows, beside them" "$(cmp -s "${here:h}/examples/example-3-icon.svg" "$fresh/example-3-icon.svg" && print same)" "same"
 expect "…and lists them, the first example after New note" "$(items "$fresh" | sed -n 2p | cut -d'|' -f3)" " $quick/example-1-*.alfredui "
 expect "…and records it" "$(cat "$fresh.data/state.json")" '*"examplesInstalled": "20*'
 rm "$fresh"/example-1-*.md

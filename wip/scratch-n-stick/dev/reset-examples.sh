@@ -7,7 +7,7 @@
 #
 # It deletes, for every example (example-<n>-<name>, shipped or not):
 #   - the note and its sidecar in the notes folder (any edits made in Alfred
-#     go with them);
+#     go with them), and the files the examples show there (example-3-icon.svg);
 #   - its quick and sticky bundles and window state in the workflow's cache;
 #   - its sticky window's saved frame in Alfred UI's defaults, so its window
 #     opens as a note stuck for the first time (only frames of this
@@ -45,8 +45,8 @@ remove() {
   (( dry_run )) || rm -rf -- "$2"
 }
 
-print -r -- "Notes and sidecars in ${notes/#$HOME/~}:"
-for file in "$notes"/example-<->-*.md "$notes"/.scratchnstick/example-<->-*.json; remove "$notes" "$file"
+print -r -- "Notes, their files and sidecars in ${notes/#$HOME/~}:"
+for file in "$notes"/example-<->-*(.) "$notes"/.scratchnstick/example-<->-*.json; remove "$notes" "$file"
 
 print -r -- "Bundles and window states in ${cache/#$HOME/~}:"
 for file in "$cache"/(quick|windows)/example-<->-*.alfredui "$cache"/state/example-<->-*; remove "$cache" "$file"

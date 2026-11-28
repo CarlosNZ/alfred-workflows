@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="64" height="64">
+  <title>Scratch'n'Stick</title>
+  <defs>
+    <linearGradient id="tile-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F4EE"/>
+      <stop offset="1" stop-color="#E4DED2"/>
+    </linearGradient>
+    <linearGradient id="note-fill" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#FFF6A8"/>
+      <stop offset="1" stop-color="#FDE968"/>
+    </linearGradient>
+    <linearGradient id="curl-fill" x1="1" y1="1" x2="0.4" y2="0.4">
+      <stop offset="0" stop-color="#FFFBD8"/>
+      <stop offset="1" stop-color="#E9D24A"/>
+    </linearGradient>
+    <filter id="soft-blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="tight-blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <path id="note-shape" d="M250,222 H774 Q792,222 792,240 V632 C754.5,699.5 709.5,744.5 642,782 H250 Q232,782 232,764 V240 Q232,222 250,222 Z"/>
+  </defs>
+  <path d="M250.5,0 L773.5,0 C845.7,0 881.7,3.7 914.2,10.7 C963.8,22.9 1001.1,60.2 1013.3,109.8 C1020.3,142.3 1024,178.3 1024,250.5 L1024,773.5 C1024,845.7 1020.3,881.7 1013.3,914.2 C1001.1,963.8 963.8,1001.1 914.2,1013.3 C881.7,1020.3 845.7,1024 773.5,1024 L250.5,1024 C178.3,1024 142.3,1020.3 109.8,1013.3 C60.2,1001.1 22.9,963.8 10.7,914.2 C3.7,881.7 0,845.7 0,773.5 L0,250.5 C0,178.3 3.7,142.3 10.7,109.8 C22.9,60.2 60.2,22.9 109.8,10.7 C142.3,3.7 178.3,0 250.5,0 L773.5,0 Z" fill="url(#tile-fill)"/>
+  <g id="note" transform="translate(512 512) scale(1.16) rotate(-4) translate(-512 -512)">
+    <use xlink:href="#note-shape" fill="#000000" opacity="0.26" filter="url(#soft-blur)" transform="translate(0 26)"/>
+    <path d="M634.5,779 C702,800 777,722 795,629 Z" fill="#000000" opacity="0.22" filter="url(#tight-blur)" transform="translate(-4 10)"/>
+    <use xlink:href="#note-shape" fill="url(#note-fill)"/>
+    <path d="M792,632 C754.5,699.5 709.5,744.5 642,782 C654,699.5 679.5,650 792,632 Z" fill="url(#curl-fill)"/>
+    <g id="writing" stroke="#4A3F00" stroke-opacity="0.6" stroke-width="40" stroke-linecap="round" fill="none">
+      <line x1="316" y1="372" x2="708" y2="372"/>
+      <line x1="316" y1="480" x2="646" y2="480"/>
+      <line x1="316" y1="588" x2="566" y2="588"/>
+    </g>
+  </g>
+</svg>

@@ -34,4 +34,8 @@ Press ⌘↩ (or the eye button at the top right) to see this note in **Preview*
 | Coffee     | not coffee   |
 | Round      | knights      |
 
+Images too:
+
+![Scratch'n'Stick](example-3-icon.svg)
+
 There's more in the [Markdown Guide's cheat sheet](https://www.markdownguide.org/cheat-sheet/).

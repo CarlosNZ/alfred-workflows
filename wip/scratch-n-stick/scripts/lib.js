@@ -706,8 +706,10 @@ function noteStore(folder = notesFolder(), { lockFile = null } = {}) {
   // sidecar left there (a trashed example's, kept for Put Back), with
   // `created` added. Each is dated as made at `now`, a second apart with the
   // first example newest, so the list, last edited first, shows them in
-  // their numbered order. Throws if one can't be added, after adding the
-  // ones before it.
+  // their numbered order. The files the examples show (exampleFileNames) are
+  // copied beside them, each unless something here already has its name, so
+  // a file the user has kept or replaced is left alone. Throws if a note or
+  // file can't be added, after adding the ones before it.
   function installExamples(source, { now = new Date() } = {}) {
     const newest = Math.floor(now.getTime() / 1000) * 1000;
     const installed = [];
@@ -725,6 +727,9 @@ function noteStore(folder = notesFolder(), { lockFile = null } = {}) {
       setFileDates(path, date);
       installed.push(id);
     });
+    for (const name of exampleFileNames(source)) {
+      if (itemType(`${folder}/${name}`) === null) copyFileTo(`${source}/${name}`, `${folder}/${name}`);
+    }
     return installed;
   }
 
@@ -779,6 +784,14 @@ function exampleNoteIds(folder) {
     .map((match) => ({ id: match[1], n: Number(match[2]) }))
     .sort((a, b) => a.n - b.n || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map((example) => example.id);
+}
+
+// The other files the example notes in `folder` show, such as images: its
+// visible files named `example-<n>-<name>` that aren't notes, sorted.
+function exampleFileNames(folder) {
+  return folderNames(folder)
+    .filter((name) => /^example-\d+-/.test(name) && !/\.md$/i.test(name) && isRegularFile(`${folder}/${name}`))
+    .sort();
 }
 
 // Adds the example notes in the workflow's `examples/` folder to `store`

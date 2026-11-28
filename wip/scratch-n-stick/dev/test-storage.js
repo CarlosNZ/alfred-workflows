@@ -734,6 +734,10 @@ function testExamples(root) {
   const ids = ["example-1-welcome", "example-2-tasks", "example-3-no-sidecar", "example-10-last"];
   eq("examples are example-<n>-<name>.md, in order of <n> as a number", exampleNoteIds(source), ids);
   eq("…none in a missing folder", exampleNoteIds(`${root}/examples/none`), []);
+  writeRaw(`${source}/example-2-picture.svg`, "<svg/>");
+  writeRaw(`${source}/.example-6-hidden.png`, "x");
+  makeFolder(`${source}/example-7-folder`);
+  eq("the files examples show: example-<n>-<name> files that aren't notes, not hidden ones or folders", exampleFileNames(source), ["example-2-picture.svg", "example-4-text.txt"]);
 
   const now = new Date(2026, 10, 27, 9, 30, 15, 600);
   const second = (n) => new Date(2026, 10, 27, 9, 30, 15 - n);
@@ -746,6 +750,7 @@ function testExamples(root) {
   eq("…or only created without one", store.readMeta("example-3-no-sidecar"), { created: formatLocalIsoDate(second(2)) });
   eq("…a sticky one as a closed sticky note", store.readMeta("example-10-last"), { colour: 6, sticky: true, created: formatLocalIsoDate(second(3)) });
   eq("…and listed in their order", store.list().map((note) => note.id), ids);
+  eq("…with the files they show beside them, and nothing else", [readText(`${store.folder}/example-2-picture.svg`), readText(`${store.folder}/example-4-text.txt`), exists(`${store.folder}/.example-6-hidden.png`), exists(`${store.folder}/example-7-folder`)], ["<svg/>", "x", false, false]);
 
   writeRaw(`${store.folder}/example-1-welcome.md`, "# Welcome, edited\n");
   store.updateMeta("example-1-welcome", { colour: 4 });
@@ -760,6 +765,10 @@ function testExamples(root) {
   eq("…and its date", fileDate(`${store.folder}/example-1-welcome.md`, "NSFileModificationDate").getTime(), edited.getTime());
   eq("…a trashed example's leftover sidecar is replaced", store.readMeta("example-2-tasks"), { colour: 2, mode: "view", created: formatLocalIsoDate(new Date(2026, 11, 1, 11, 59, 59)) });
   eq("…the user's notes are left alone", readText(`${store.folder}/mine.md`), "# Mine\n");
+  writeRaw(`${store.folder}/example-2-picture.svg`, "<svg>replaced</svg>");
+  removeFile(`${store.folder}/example-4-text.txt`);
+  store.installExamples(source, { now: later });
+  eq("…a file that's there is left alone, and a missing one comes back", [readText(`${store.folder}/example-2-picture.svg`), readText(`${store.folder}/example-4-text.txt`)], ["<svg>replaced</svg>", "x"]);
 
   section("Example notes, once");
   const data = `${root}/examples/data`;
@@ -792,14 +801,21 @@ function testExamples(root) {
 
 // The examples the workflow ships: numbered from 1 with no gaps, each with a
 // sidecar holding only settings a note can have (sticky only as true), all
-// valid, and nothing else in the folder.
+// valid, the files they show, each shown by one and named for it, and
+// nothing else in the folder.
 function testShippedExamples(workflowFolder) {
   section("The shipped examples");
   const source = `${workflowFolder}/examples`;
   const ids = exampleNoteIds(source);
   check("there are examples", ids.length > 0);
   eq("…numbered 1 to n", ids.map((id) => Number(/^example-(\d+)-/.exec(id)[1])), ids.map((_, i) => i + 1));
-  eq("…and nothing else in the folder", entries(source).sort(), ids.map((id) => `${id}.md`).concat(".scratchnstick").sort());
+  const files = exampleFileNames(source);
+  eq("…and nothing else in the folder but the files they show", entries(source).sort(), ids.map((id) => `${id}.md`).concat(".scratchnstick", files).sort());
+  // The addresses of an example's links and images that name a file beside it.
+  const shown = (id) => [...readText(`${source}/${id}.md`).matchAll(/\]\(<?(example-[^)>\s]+)>?\)/g)].map((match) => match[1]);
+  const used = ids.flatMap((id) => shown(id).map((name) => [id, name]));
+  eq("…each file an example shows is shipped", used.filter(([, name]) => !files.includes(name)), []);
+  eq("…each shipped file is shown by the example it's named for", files.filter((name) => !used.some(([id, shownName]) => shownName === name && name.startsWith(`${/^example-\d+-/.exec(id)[0]}`))), []);
   eq("…or in .scratchnstick", entries(`${source}/.scratchnstick`).sort(), ids.map((id) => `${id}.json`).sort());
   const icons = new Set(noteIcons().map((icon) => icon.name));
   const sizes = noteFontSizes();
