@@ -2728,6 +2728,7 @@ function writeNoteWindow(
     mode === "view" ? text : null,
     noteContextColour({ palette, colour }).tint,
     noteShownFontSize({ ownFontSize, defaultFontSize }),
+    noteAddressBases(store.folder),
   );
   const page = notePageHtml({ workflowFolder, form, noteVersion: textHash(script) }, variable);
   const context = {
@@ -3115,11 +3116,28 @@ function notePageHtml({ workflowFolder, form, noteVersion }, variable = workflow
 
 // A note's note.js: its `text` for the page (null for a window that opens in
 // Edit, whose page shows nothing until it's switched to View), its colour's
-// `tint`, for a sticky window's page, and the size of its text, `fontSize`,
-// in points. The page's look comes from here, rather than from view.html, so
-// a change to it only needs the page reloaded.
-function notePageScript(text, tint, fontSize) {
-  return `window.NOTE = ${JSON.stringify(text)};\nwindow.NOTE_TINT = ${JSON.stringify(tint)};\nwindow.NOTE_FONT_SIZE = ${JSON.stringify(Number(fontSize))};\n`;
+// `tint`, for a sticky window's page, the size of its text, `fontSize`, in
+// points, and the `bases` its links and images are resolved against
+// (noteAddressBases). The page's look comes from here, rather than from
+// view.html, so a change to it only needs the page reloaded.
+function notePageScript(text, tint, fontSize, bases) {
+  return [
+    `window.NOTE = ${JSON.stringify(text)};`,
+    `window.NOTE_TINT = ${JSON.stringify(tint)};`,
+    `window.NOTE_FONT_SIZE = ${JSON.stringify(Number(fontSize))};`,
+    `window.NOTE_BASES = ${JSON.stringify(bases)};`,
+    "",
+  ].join("\n");
+}
+
+// The bases a note's page resolves addresses against (see noteResolvedAddress
+// in ui/view.js): the file:// URLs of the notes folder, `folder`, and of the
+// home folder, each percent-encoded and ending in "/"; null without a
+// `folder`, which leaves the page's addresses as they are.
+function noteAddressBases(folder) {
+  if (!folder) return null;
+  const folderUrl = (path) => $.NSURL.fileURLWithPathIsDirectory(path, true).absoluteString.js;
+  return { folder: folderUrl(folder), home: folderUrl($.NSHomeDirectory().js) };
 }
 
 // Gives the page of a note's open window `text`: rewrites its bundle's note.js
@@ -3132,7 +3150,12 @@ function notePageScript(text, tint, fontSize) {
 function writeNotePage(id, form, text, variable = workflowVariable) {
   const bundle = noteBundlePath(id, form, variable);
   const context = readNoteContext(id, form, variable) || {};
-  const script = notePageScript(text, noteContextColour(context).tint, noteShownFontSize(context));
+  const script = notePageScript(
+    text,
+    noteContextColour(context).tint,
+    noteShownFontSize(context),
+    noteAddressBases(context.folder),
+  );
   writeFileAtomically(`${bundle}/note.js`, script);
   updateNoteContext(id, form, { textHash: textHash(text) }, variable);
   return `${fileUrl(`${bundle}/view.html`)}?v=${textHash(script)}.${Date.now().toString(36)}`;
@@ -4124,14 +4147,21 @@ function markdownBodyLines(text) {
   return lines;
 }
 
+// A line that's a whole link reference definition: `[name]: address`, the
+// address optionally in <…>, then optionally a title in "…", '…' or (…), and
+// nothing else. Anything more after the address makes it ordinary text.
+const LINK_DEFINITION = /^\[[^\]]+\]:\s*(<[^>]*>|\S+)(\s+("[^"]*"|'[^']*'|\([^)]*\)))?$/;
+
 // One line of Markdown as plain text: { text, isList, isHeading }. Removes
 // block markers (heading #s, > quotes, list bullets and numbers, task boxes)
 // and inline markup (emphasis, code, links and images, escapes). Code fence
-// lines, thematic breaks and setext underlines become empty. Only # headings
-// count as headings: a setext heading's text comes before its underline.
+// lines, thematic breaks, setext underlines and link reference definitions
+// (`[name]: address`, with an optional quoted title, which a rendered note
+// doesn't show) become empty. Only # headings count as headings: a setext
+// heading's text comes before its underline.
 function cleanMarkdownLine(line) {
   let s = line.trim();
-  if (/^(```|~~~)/.test(s) || /^([-*_])(\s*\1){2,}$/.test(s) || /^=+$/.test(s)) {
+  if (/^(```|~~~)/.test(s) || /^([-*_])(\s*\1){2,}$/.test(s) || /^=+$/.test(s) || LINK_DEFINITION.test(s)) {
     return { text: "", isList: false, isHeading: false };
   }
   s = s.replace(/^(>\s?)+/, "");
@@ -4155,7 +4185,7 @@ function cleanInlineMarkdown(s) {
   return s
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/\[([^\]]+)\]\[[^\]]*\]/g, "$1")
+    .replace(/!?\[([^\]]+)\]\[[^\]]*\]/g, "$1")
     .replace(/<((?:https?|mailto):[^>\s]+)>/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\*\*(\S(?:.*?\S)?)\*\*/g, "$1")

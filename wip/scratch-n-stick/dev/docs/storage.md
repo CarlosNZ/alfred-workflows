@@ -65,7 +65,7 @@ Rules:
 
 ## Titles and previews
 
-The title is the note's first line that has any text once Markdown markers are removed: heading `#`s, `>` quotes, list bullets and numbers, task boxes, and inline emphasis, code and link syntax (a link becomes its text). Code fence lines, thematic breaks, setext underlines and YAML front matter are skipped. It's "Untitled" if nothing is left.
+The title is the note's first line that has any text once Markdown markers are removed: heading `#`s, `>` quotes, list bullets and numbers, task boxes, and inline emphasis, code and link syntax (a link becomes its text). Code fence lines, thematic breaks, setext underlines, link reference definitions (`[name]: address`, which a rendered note doesn't show) and YAML front matter are skipped. It's "Untitled" if nothing is left.
 
 The preview is the following lines, cleaned the same way and joined: " | " before a heading, ": " after one, ", " between list items, and a space otherwise. So `# Shopping` / `- milk` / `- eggs` gives "Shopping" and "milk, eggs", and `## Team meeting` / `### Decisions` / `- Ship on Friday` / `### Actions` / `- Release notes` gives "Team meeting" and "Decisions: Ship on Friday | Actions: Release notes". Only `#` headings count, since a setext heading's text comes before its underline.
 
@@ -152,7 +152,7 @@ When `notes_folder` changes, the notes move to the new folder without asking. Al
 
 **Sticky windows are closed first** (`quitStickyNoteWindows`), so none keeps saving into the old folder. Each is asked to quit normally (`NSRunningApplication`'s `terminate`), so its `quit` event saves the note into the old folder; the process exits only after those writes, about 100 ms later, so the move waits for the process to exit (polling `kill(pid, 0)`: in JXA `isTerminated` never updates without a run loop), force-quitting after a few seconds. Quick views need nothing: none can be open while the configuration sheet is, and their fingerprints include the notes folder.
 
-**What moves**: every note (with its sidecar if it has one). Sidecars without a note (trashed notes') are deleted, as Put Back would return the note to the old folder anyway. Other files, subfolders and hidden files stay.
+**What moves**: every note (with its sidecar if it has one). Sidecars without a note (trashed notes') are deleted, as Put Back would return the note to the old folder anyway. Other files, subfolders and hidden files stay, including images and files the notes link to, so a link relative to the notes folder breaks (see [The renderer](view-mode.md#the-renderer)); finding them would mean parsing every note's links during the move.
 
 **Into a folder with notes already**: sidecars join its `.scratchnstick`. A note whose ID is taken there (by a note with any title, in any extension case or Unicode normalisation, or by a sidecar) is renamed with the next free suffix on its ID, keeping its title and its extension's case (`20261120-153012-2 Shopping.md`), and its sidecar with it. The exception: a note with the same text as the note of the same ID there (from a move that was cut short, or a copy made by hand) is kept only once, the new folder's copy; its sidecar moves only if that copy has none.
 

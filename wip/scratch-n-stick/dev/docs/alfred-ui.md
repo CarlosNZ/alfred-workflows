@@ -96,6 +96,8 @@ Class names (`AUIView`, `AUIWebKitView`, `AUIMenu`…) are in Alfred's framework
 - Its value, `{value:<id>.src}`, is the current URL. It sends `changed` whenever that changes, including only the fragment (`location.hash`, `history.replaceState`), and as a page starts to load; `preload` and `launched` too.
 - An `update` of `src` reloads the page. It must be an absolute `file://` URL: a relative one becomes `https://…`, fails, and the web view goes back to the previous URL and sends `changed` again, so a script answering every `changed` with an `update` loops.
 - A page can load scripts and stylesheets by absolute `file://` URL from any folder, including through symlinks, but `fetch` and `XMLHttpRequest` fail, even for a file beside it.
+- It loads images by absolute `file://` URL (or an absolute path, which a `file://` page resolves to one) from any folder too, including `~/Desktop` and `~/Documents`, with no privacy prompt. Seen in a sticky window; a quick view runs in Alfred's own process, not yet checked.
+- A clicked link to a local file (an absolute path, so a `file://` URL) opens the file, with `openlinksexternally` on.
 - WebKit keeps a page's scripts: a reload runs the old script until the script's own URL changes. A new web view reads them afresh.
 - It's opaque: WebKit paints `#1E1E1E` (dark) or white (light) under the page, never turned off (`drawsBackground`). A new web view shows only that for 130–200 ms before the page first draws, however little the page does; a hidden web view doesn't draw at all.
 - The page takes the appearance Alfred gives its window (`prefers-color-scheme`, `-apple-system-label`).

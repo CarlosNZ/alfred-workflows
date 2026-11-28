@@ -5,7 +5,9 @@
 //
 // The page renders window.NOTE, the note's text from note.js beside it, with
 // markdown-it. NOTE is null in a window that opened in Edit: its page shows
-// nothing until the switch to View reloads it with the note.
+// nothing until the switch to View reloads it with the note. Links and images
+// are resolved against window.NOTE_BASES, also from note.js (see
+// noteResolvedAddress).
 //
 // The page tells the window things by changing its URL's fragment, which the
 // web view reports with its `changed` event (scripts/changed.sh):
@@ -26,11 +28,49 @@
 
 // A markdown-it renderer for notes: CommonMark with tables and strikethrough,
 // raw HTML escaped (so a note can't run script in the page), bare URLs as
-// links, and task boxes.
-function noteMarkdown(markdownit) {
+// links, file: URLs allowed, and task boxes. With `bases` (see
+// noteResolvedAddress), relative and "~/" addresses of links and images are
+// resolved against them.
+//
+// Every address markdown-it reads (inline links and images, reference
+// definitions, autolinks and bare URLs) goes through normalizeLink and then
+// validateLink, so these two are the only places addresses are changed or
+// refused. The note's text itself is never changed.
+function noteMarkdown(markdownit, bases) {
   const md = markdownit({ html: false, linkify: true, typographer: false });
+  md.validateLink = noteLinkAllowed;
+  if (bases) {
+    const normalise = md.normalizeLink;
+    md.normalizeLink = (url) => noteResolvedAddress(normalise(url), bases);
+  }
   md.core.ruler.after("inline", "note_tasks", noteTaskRule);
   return md;
+}
+
+// markdown-it's own check of an address, but allowing file: URLs, which point
+// at a local file by its full address: refuses javascript: and vbscript:, and
+// data: other than a GIF, PNG, JPEG or WebP image.
+function noteLinkAllowed(url) {
+  const value = url.trim().toLowerCase();
+  if (/^(javascript|vbscript):/.test(value)) return false;
+  if (value.startsWith("data:")) return /^data:image\/(gif|png|jpeg|webp);/.test(value);
+  return true;
+}
+
+// `address`, as markdown-it has normalised it (percent-encoded), resolved
+// against `bases`, { folder, home }: the file:// URLs of the notes folder and
+// of the home folder, each percent-encoded and ending in "/". A relative path
+// is from the notes folder, which is the note's own folder, as in other
+// Markdown apps; one starting "~/" is from the home folder, so a note synced
+// to another Mac or account finds the same file there. An address with a
+// scheme, an absolute path and a fragment are left as they are.
+//
+// Both sides are already encoded, so joining them makes a valid URL, and "./"
+// and "../" are left for WebKit to resolve as it loads the URL.
+function noteResolvedAddress(address, bases) {
+  if (!address || /^[a-z][a-z0-9+.-]*:/i.test(address) || /^[#/]/.test(address)) return address;
+  if (address.startsWith("~/")) return bases.home + address.slice(2);
+  return bases.folder + address;
 }
 
 // A core rule, after `inline`: a list item whose paragraph starts with "[ ] ",
@@ -74,7 +114,8 @@ function startNotePage(form) {
 
   const note = document.getElementById("note");
   if (typeof markdownit === "function") {
-    note.innerHTML = noteMarkdown(markdownit).render(NOTE);
+    const bases = typeof NOTE_BASES === "object" && NOTE_BASES ? NOTE_BASES : null;
+    note.innerHTML = noteMarkdown(markdownit, bases).render(NOTE);
   } else {
     // markdown-it didn't load: the note as plain text, rather than nothing.
     const pre = document.createElement("pre");

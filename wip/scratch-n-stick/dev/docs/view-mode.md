@@ -10,6 +10,19 @@ Preview has to work as people expect from other Markdown apps: full Markdown, ta
 
 [markdown-it](https://github.com/markdown-it/markdown-it) (MIT): CommonMark, with tables and strikethrough, raw HTML escaped by default (so a note can't run script in the page), and one file to vendor: `vendor/markdown-it/markdown-it.umd.min.js` (from npm's `dist/browser/`, 15.0.3, the global `markdownit`), with its `LICENSE` and a `VERSION` file. It records each block's source lines (`token.map`), so a task's box can carry the line it came from.
 
+**Links and images** resolve as in other Markdown apps, plus `~/`:
+
+- a relative path is from the notes folder, which is the note's own folder;
+- `~/…` is from the home folder of whoever is viewing, so a note synced to another Mac or account finds the same file there. Other apps don't expand `~/`: they read `~/a.png` as a folder named `~` beside the note;
+- absolute paths, `file://` URLs and anything else with a scheme, and `#…` fragments, are left as they are.
+
+Every address markdown-it reads (inline links and images, reference definitions, autolinks and bare URLs) goes through its `normalizeLink` and then its `validateLink`, so `noteMarkdown` changes only those two, and the note's text is never changed:
+
+- `normalizeLink` is wrapped so its result goes through `noteResolvedAddress(address, bases)`, a pure function that prefixes a relative or `~/` address with the notes folder's or home folder's `file://` URL (`bases`, from `note.js`). The address is already percent-encoded and so are the bases, so joining them makes a valid URL; `./` and `../` are left for WebKit to resolve.
+- `validateLink` is markdown-it's own check without `file:`: `javascript:`, `vbscript:` and `data:` other than a GIF, PNG, JPEG or WebP image are still refused. `file:` is refused by default because on a website it makes no sense; in a note it's a normal address.
+
+A bare `file:///…` isn't made a link (linkify only knows web and mail schemes), and raw HTML `<img>` stays escaped. Linked files don't move with the notes folder (see [Moving the notes folder](storage.md#moving-the-notes-folder)), so a relative path breaks if the folder moves; `~/` and absolute paths don't. Copy as Rich Text calls `noteMarkdown` without bases, so its relative and `~/` addresses are left as written.
+
 Task lists are a core rule of our own, `noteTaskRule` in `ui/view.js` (after `inline`): a list item whose paragraph starts `[ ] ` or `[x] ` gets an `<input type="checkbox" data-line="N">`. The `markdown-it-task-lists` plugin is unmaintained and records no lines; marked has task lists but no source positions; micromark / remark have positions but are many ES modules to bundle.
 
 markdown-it also runs in JXA (12 ms to load, 9 ms to render), which Copy as Rich Text uses, but rendering ahead of time doesn't make the page appear any sooner, so the page renders the note itself.
@@ -20,7 +33,7 @@ The page is `view.html` in the note's bundle, written by `notePageHtml` in `lib.
 
 - markdown-it from the workflow folder by its absolute `file://` path;
 - in a quick view, the theme stylesheet (`noteThemePath()`), with a `?t=` that changes every time so a changed theme is never cached;
-- the note from `note.js` beside it, as `note.js?v=<version>`: `window.NOTE` (the text), `window.NOTE_TINT` (a sticky page's colour) and `window.NOTE_FONT_SIZE` (`notePageScript`). It has to be a script: a page can load scripts by `file://` URL, but `fetch` and `XMLHttpRequest` fail even beside it. And WebKit keeps a page's scripts, so a reload runs the old `note.js` unless its own URL changes, hence the `?v=`.
+- the note from `note.js` beside it, as `note.js?v=<version>`: `window.NOTE` (the text), `window.NOTE_TINT` (a sticky page's colour), `window.NOTE_FONT_SIZE` and `window.NOTE_BASES`, the `file://` URLs links and images are resolved against (`notePageScript`, `noteAddressBases`). It has to be a script: a page can load scripts by `file://` URL, but `fetch` and `XMLHttpRequest` fail even beside it. And WebKit keeps a page's scripts, so a reload runs the old `note.js` unless its own URL changes, hence the `?v=`.
 
 The note's text never passes through `ui.json`, so it needs no escaping for Alfred's placeholders, and the quick bundles' fingerprints already cover it. A window that opens in Edit gets `NOTE = null`, so its page draws nothing until the first switch to Preview reloads it with the note.
 

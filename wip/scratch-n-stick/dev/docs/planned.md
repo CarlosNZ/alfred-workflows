@@ -17,21 +17,14 @@ A Quick Look preview of the workflow's own, so ⇧ shows the note as Preview doe
 
 ## Images in the example notes
 
-The example notes should be able to show images (a screenshot of a sticky note, say), shipped with the workflow and added to the notes folder with the notes.
+The example notes should be able to show images (a screenshot of a sticky note, say), shipped with the workflow and added to the notes folder with the notes. Preview resolves a relative path from the notes folder (see [The renderer](view-mode.md#the-renderer)), so an example can refer to its images by a path relative to the notes folder, which works wherever that folder is. What's left:
 
-What Preview does with an image's address now, in markdown-it's default link check and the page's location:
-
-- **`file://` URLs are refused.** markdown-it's `validateLink` rejects `file:`, `javascript:`, `vbscript:` and `data:` other than `data:image/(gif|png|jpeg|webp)`, so `![](file:///…)` is shown as its Markdown text, and linkify doesn't make a bare `file:///…` a link.
-- **Relative paths resolve against the note's bundle**, not the notes folder: the page is `view.html` in the bundle in the cache (see [Preview](view-mode.md#the-page)), so `![](pic.png)` beside the note doesn't load.
-- **`~/` isn't expanded.**
-- **An absolute path with no scheme** (`/Users/…`, in `<…>` if it has spaces) becomes an `<img>` with that path, which the `file://` page should load, as it loads scripts from any folder (see [Alfred UI](alfred-ui.md#web-view)); not yet checked in a window.
-- **`data:` images work**, but bloat the note's text, which shows in Edit, the results' previews and search.
-
-So the examples can't use any of these as they are: the workflow folder's path differs on every Mac, and the notes folder can move. What it needs:
-
-- **Where the images go.** Copied into the notes folder with the examples, so a note's reference stays valid when the workflow is updated or removed, in a folder beside the notes (perhaps `images/` or under `.scratchnstick/`), never replaced if already there, like the notes.
-- **Note-relative paths in Preview.** A custom `validateLink` and a renderer rule in `ui/view.js` that resolve a relative path (and `~/`) against the notes folder, which the page would need from `note.js`, and allow `file:`. That also lets users put their own images in notes.
-- **Moving the notes folder** has to move the images folder too (see [Moving the notes folder](storage.md#moving-the-notes-folder)).
-- **Other renderings.** Copy as Rich Text renders with the same rule, so its images need the same paths. Quick Look doesn't load an absolute `file://` image (see [Alfred UI](alfred-ui.md#quick-look)), which matters for [the workflow's own Quick Look preview](#the-workflows-own-quick-look-preview).
+- **Where the images go.** Copied into the notes folder with the examples, so a note's reference stays valid when the workflow is updated or removed, in a folder beside the notes (perhaps `images/` or `attachments/`; not under `.scratchnstick/`, which Obsidian and other apps hide), never replaced if already there, like the notes.
+- **Moving the notes folder** doesn't move files notes link to (see [Moving the notes folder](storage.md#moving-the-notes-folder)), but the examples' images are known by name, so the move should carry them, or the examples' images break when the folder moves.
+- **Other renderings.** Copy as Rich Text renders without the notes folder, so relative images aren't resolved there. Quick Look doesn't load an absolute `file://` image (see [Alfred UI](alfred-ui.md#quick-look)), which matters for [the workflow's own Quick Look preview](#the-workflows-own-quick-look-preview).
 - **Checks.** `dev/test-storage.sh` allows nothing in `examples/` but the notes and their sidecars, so it needs to allow the images folder and check that each image a shipped example refers to is there.
 - **Clean-up.** An example's images stay when the example is trashed or deleted, as another note may use them. Naming them `example-…` too makes them as easy to spot and delete as the notes.
+
+## Adding files to a note
+
+A Universal Action that puts local files (not only images) into a note as Markdown links: `![](…)` for an image, `[name](…)` for anything else. It would copy each file into a folder in the notes folder (perhaps `attachments/`), or link to it where it is with a `~/` path, and add the link to a new note or to the end of a chosen one. Paths with spaces need `<…>` (macOS's screenshot names have spaces). Alfred UI's textarea may not accept a dropped or pasted image, which is why this is an action instead of something done in Edit.

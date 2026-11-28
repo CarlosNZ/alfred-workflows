@@ -523,7 +523,7 @@ render() {
       (0, eval)(read(argv[0]));
       (0, eval)(read(argv[1]));
       (0, eval)(read(argv[2]));
-      const html = noteMarkdown(markdownit).render(argv[3]);
+      const html = noteMarkdown(markdownit, argv[5] ? JSON.parse(argv[5]) : undefined).render(argv[3]);
       if (argv[4] === "html") return html;
       // Each box: its line, x or o, and ! if window.js would refuse its tick.
       return [...html.matchAll(/<input type="checkbox" data-line="(\d+)"( checked)?>/g)]
@@ -545,6 +545,25 @@ sample=$'---\ntitle: x\n---\n# Tasks\n\n- [ ] one\n- [x] two\n  - [X] nested\n\n
 expect "task rule: a box per task, on its source line; window.js agrees" "$(render $sample)" "5o 6x 7x 9o 10x 12o 13x 21o"
 expect_exact "task rule: the box replaces the brackets" "$(render $'- [ ] one\n- [x] two' html | tr -d '\n')" '<ul><li class="task"><input type="checkbox" data-line="0">one</li><li class="task done"><input type="checkbox" data-line="1" checked>two</li></ul>'
 expect_exact "task rule: raw HTML is escaped" "$(render $'<b>bold</b> <script>x()</script>' html | tr -d '\n')" '<p>&lt;b&gt;bold&lt;/b&gt; &lt;script&gt;x()&lt;/script&gt;</p>'
+
+# Addresses of links and images, resolved against the notes folder and home
+# folder (noteResolvedAddress), one address per line of the output.
+bases='{"folder":"file:///N%20F/","home":"file:///H/"}'
+addresses() { render "$1" html "${2-$bases}" | grep -oE '(src|href)="[^"]*"' | sed -E 's/^(src|href)="(.*)"$/\2/' }
+expect_exact "addresses: relative paths are from the notes folder" "$(addresses $'![](a.png) ![](./b/c.png) ![](../d.png) ![](<e f.png>) ![](g%20h.png) [i](j.txt) [k](l/)')" $'file:///N%20F/a.png\nfile:///N%20F/./b/c.png\nfile:///N%20F/../d.png\nfile:///N%20F/e%20f.png\nfile:///N%20F/g%20h.png\nfile:///N%20F/j.txt\nfile:///N%20F/l/'
+expect_exact "addresses: reference style and an image in a link, from the notes folder" "$(addresses $'![a][r] [![b](c.png)](d.png)\n\n[r]: e.png')" $'file:///N%20F/e.png\nfile:///N%20F/d.png\nfile:///N%20F/c.png'
+expect_exact "addresses: ~/ is from the home folder" "$(addresses $'![](~/a.png) ![](<~/b c.png>) [d](~/e/)')" $'file:///H/a.png\nfile:///H/b%20c.png\nfile:///H/e/'
+expect_exact "addresses: schemes, absolute paths and fragments are left alone" "$(addresses $'![](/a/b.png) ![](file:///c/d.png) ![](https://e.f/g.png) ![](data:image/png;base64,AA==) [h](mailto:i@j.k) [l](#m) <https://n.o/>')" $'/a/b.png\nfile:///c/d.png\nhttps://e.f/g.png\ndata:image/png;base64,AA==\nmailto:i@j.k\n#m\nhttps://n.o/'
+expect_exact "addresses: javascript:, vbscript: and data: other than an image are still refused" "$(render $'[a](javascript:x()) [b](vbscript:y) [c](data:text/html,z) ![d](data:image/svg+xml,w)' html "$bases" | tr -d '\n')" '<p>[a](javascript:x()) [b](vbscript:y) [c](data:text/html,z) ![d](data:image/svg+xml,w)</p>'
+expect_exact "addresses: code isn't touched" "$(render $'`![](a.png)`' html "$bases" | tr -d '\n')" '<p><code>![](a.png)</code></p>'
+expect_exact "addresses: without bases, relative and ~/ are left alone, and file: is allowed" "$(addresses $'![](a.png) ![](~/b.png) ![](file:///c.png)' '')" $'a.png\n~/b.png\nfile:///c.png'
+pagescript=$(osascript -l JavaScript -e '
+  ObjC.import("Foundation");
+  function run(argv) {
+    (0, eval)($.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js);
+    return [notePageScript("x", "#fff", 13, noteAddressBases("/tmp/a b")), notePageScript("x", "#fff", 13, noteAddressBases(""))].join("");
+  }' "$scripts/lib.js" | grep NOTE_BASES)
+expect_exact "note.js: the bases, percent-encoded and ending in /, or null without a folder" "$pagescript" $'window.NOTE_BASES = {"folder":"file:///tmp/a%20b/","home":"'"$(osascript -l JavaScript -e 'ObjC.import("Foundation"); $.NSURL.fileURLWithPathIsDirectory($.NSHomeDirectory(), true).absoluteString.js')"$'"};\nwindow.NOTE_BASES = null;'
 
 # Drop-downs: the icon and colour pickers.
 picker() { env alfred_workflow_cache=$cache "$scripts/picker.sh" "$@" }
