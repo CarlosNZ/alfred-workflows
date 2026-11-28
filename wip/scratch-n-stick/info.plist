@@ -53,9 +53,9 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
 				<key>modifiers</key>
-				<integer>1048576</integer>
+				<integer>0</integer>
 				<key>modifiersubtext</key>
 				<string></string>
 				<key>vitoclose</key>
@@ -63,9 +63,9 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D01</string>
+				<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
 				<key>modifiers</key>
-				<integer>0</integer>
+				<integer>1048576</integer>
 				<key>modifiersubtext</key>
 				<string></string>
 				<key>vitoclose</key>
@@ -902,29 +902,6 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string>./scripts/open.js stick "$1"</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>type</key>
-				<integer>5</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>launchmode</key>
 				<integer>1</integer>
 				<key>path</key>
@@ -999,6 +976,29 @@
 			<string>alfred.workflow.trigger.hotkey</string>
 			<key>uid</key>
 			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D23</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>script</key>
+				<string>./scripts/open.js stick "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>5</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</string>
 			<key>version</key>
 			<integer>2</integer>
 		</dict>
@@ -1230,7 +1230,7 @@
 			<key>note</key>
 			<string>Sticky notes reopened by stickies.js reopen, one note ID per run</string>
 			<key>xpos</key>
-			<real>200</real>
+			<real>220</real>
 			<key>ypos</key>
 			<real>965</real>
 		</dict>
@@ -1251,9 +1251,9 @@
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D06</key>
 		<dict>
 			<key>xpos</key>
-			<real>640</real>
+			<real>650</real>
 			<key>ypos</key>
-			<real>560</real>
+			<real>595</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D08</key>
 		<dict>
@@ -1272,16 +1272,16 @@
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D20</key>
 		<dict>
 			<key>xpos</key>
-			<real>200</real>
+			<real>215</real>
 			<key>ypos</key>
-			<real>695</real>
+			<real>715</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D21</key>
 		<dict>
 			<key>xpos</key>
-			<real>635</real>
+			<real>650</real>
 			<key>ypos</key>
-			<real>695</real>
+			<real>715</real>
 		</dict>
 		<key>6A1D2C40-7B1E-4C3A-9F1E-5C0A1B2C3D22</key>
 		<dict>
@@ -1320,7 +1320,7 @@
 			<key>note</key>
 			<string>Notifications posted by scripts outside the flow (move.js, lib.js postNotesNotification)</string>
 			<key>xpos</key>
-			<real>200</real>
+			<real>220</real>
 			<key>ypos</key>
 			<real>1135</real>
 		</dict>
@@ -1364,16 +1364,16 @@
 		<key>95F23DA9-DB49-4918-9EFC-6DAD25B4EC26</key>
 		<dict>
 			<key>xpos</key>
-			<real>200</real>
+			<real>215</real>
 			<key>ypos</key>
-			<real>830</real>
+			<real>840</real>
 		</dict>
 		<key>BDACB344-BAB3-4FDA-9AF1-390F2329E6F9</key>
 		<dict>
 			<key>xpos</key>
-			<real>625</real>
+			<real>655</real>
 			<key>ypos</key>
-			<real>830</real>
+			<real>840</real>
 		</dict>
 		<key>C2AE9D95-B129-45AB-8A55-12E926133EA7</key>
 		<dict>
@@ -1389,7 +1389,7 @@
 			<key>note</key>
 			<string>Forget timers for closed sticky windows, started by window.js quit (see Reopening sticky notes in lib.js)</string>
 			<key>xpos</key>
-			<real>200</real>
+			<real>220</real>
 			<key>ypos</key>
 			<real>1310</real>
 		</dict>
@@ -1403,7 +1403,7 @@
 		<key>F97B82D1-681F-47D5-92E1-4800ABA575A0</key>
 		<dict>
 			<key>xpos</key>
-			<real>625</real>
+			<real>660</real>
 			<key>ypos</key>
 			<real>1310</real>
 		</dict>
